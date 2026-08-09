@@ -2945,37 +2945,22 @@ AIRY_<类别>_<名称>
 | agentrt（通用） | `AIRY_E<CODE>` | `AIRY_EINVAL`、`AIRY_ENOMEM` |
 | config | `CONFIG_ERROR_<NAME>` | `CONFIG_ERROR_INVALID_ARG`、`CONFIG_ERROR_NOT_FOUND` |
 
-#### 7.2 通用错误码（agentrt 层）— 已废弃
+#### 7.2 错误码体系（agentrt 用户态 vs AirymaxOS UAPI）
 
-> **⚠️ 本节已废弃（方案 C，v3.0 SSoT 统一收敛）**
+> **两套体系并存，边界清晰，禁止混用：**
 >
-> 本节原包含方案 C 错误码数值（-2/-4/-6 等自定义序列），与 AirymaxOS 错误码体系存在数值冲突与不一致。
-> **v3.0 SSoT 统一收敛后，唯一权威方案为 [SC] `error.h`（AIRY_E* 正数幅值，POSIX errno 风格；调用方返回 `-AIRY_E*`）**，权威定义见：
-> - [SC] 头文件 `kernel/include/uapi/linux/airymax/error.h`（SSoT 物理宿主）
-> - [跨项目代码共享 §2.5](../120-cross-project-code-sharing.md)（SSoT 声明）
-> - `agentrt/commons/include/airy_types.h`（`airy_err_t` 类型）
+> **① agentrt 用户态（本规范适用范围）**：权威源 `agentrt/commons/include/airy_types.h`
+> （POSIX errno **负值**，如 `AIRY_EINVAL=-22`、`AIRY_ENOMEM=-12`），函数直接返回负值，`0` 表示成功。
+> 兼容层 `commons/utils/types/include/types.h` 与 `commons/utils/error/include/error.h`
+> 均以 `#ifndef` 保护，确保 airy_types.h 权威值优先生效。
 >
-> 以下为 [SC] error.h 权威值（正数幅值），**禁止在新代码中使用方案 C 的旧负值**：
-
-```c
-// [SC] error.h 权威值（AIRY_E* 正数幅值，POSIX errno 风格；调用方返回 -AIRY_E*）
-#define AIRY_EOK         0     // 成功
-#define AIRY_EACCES      1     // 权限拒绝
-#define AIRY_EEXIST      2     // 资源已存在
-#define AIRY_EINVAL      5     // 参数无效
-#define AIRY_EIO         6     // I/O 错误
-#define AIRY_ENOENT      8     // 资源不存在
-#define AIRY_ENOMEM      9     // 内存不足
-#define AIRY_ENOSPC      10    // 空间不足
-#define AIRY_ENOTSUP     11    // 操作不支持
-#define AIRY_EPERM       12    // 权限不足
-#define AIRY_ERANGE      13    // 数值范围错误
-#define AIRY_EBUSY       16    // 资源忙碌
-#define AIRY_ECANCELED   19    // 操作取消
-#define AIRY_EAGAIN      35    // 资源暂时不可用
-```
-（注：原方案 C 的其余负值定义（ENOTSUP/ECONNRESET/ENOTCONN/ETIMEDOUT/自定义码等）已废弃删除——一律以 [SC] error.h 正数幅值为准，调用方返回 -AIRY_E*）
-```
+> **② AirymaxOS 内核 UAPI（[SC] 共享契约头）**：权威源
+> `kernel/include/uapi/linux/airymax/error.h`（正数幅值，POSIX errno 风格；调用方返回 `-AIRY_E*`），
+> 用于内核 syscall 边界。agentrt 侧镜像为 `agentrt/commons/include/airymax/error.h`，
+> 经 sc-dual-ci 逐字节校验一致。两者分属不同体系（负值 vs 正数幅值），
+> 禁止在同一编译单元混用（值域冲突，如 EINVAL 分别为 -22 与 5）。
+>
+> 历史方案 B/C/D 错误码数值（-2/-4/-6 自定义序列等）均已废弃，禁止在新代码中使用。
 
 #### 7.3 模块级错误码（config 模块示例）
 
