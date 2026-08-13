@@ -49,7 +49,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 4. **高性能 IPC 基础（io\_uring）\[SS]**：基于 io\_uring 构建零 syscall、零拷贝的消息传递基础设施。IPC 消息头与操作码语义 \[SC] 与 agentrt 共享。
 5. **eBPF 可编程扩展 \[SS]**：提供 struct\_ops 注册机制 + kfunc 扩展 + ringbuf 上报，可观测/网络/安全/调度均可通过 eBPF 编程。struct\_ops 状态机与 common\_value 布局与 agentrt 共享（补充共享文件 `bpf_struct_ops.h`，非 \[SC] 核心头文件）。
 6. **Rust 安全驱动 \[IND]**：依托 Linux 6.6 中 Rust 实验性支持（持续演进中），构建安全驱动开发框架。
-7. **\[SC] 共享契约层物理宿主 \[IND]**：IRON-9 v3 全部 10 个 \[SC] 共享契约头文件物理宿主在 `kernel/include/uapi/linux/airymax/`，其他子仓通过 `-I` 引用确保单一数据源。
+7. **\[SC] 共享契约层物理宿主 \[IND]**：IRON-9 v3 全部 12 个 \[SC] 共享契约头文件（10 核心 + 2 补充 `syscall.h`/`bpf_struct_ops.h`）物理宿主在 `kernel/include/uapi/linux/airymax/`，其他子仓通过 `-I` 引用确保单一数据源。
 8. **同源传承 \[SS]**：从 agentrt 的 atoms/corekern（MicroCoreRT）继承实时性与微核心设计思想。
 
 ### 1.1 Liedtke 极简原则的 agentrt-linux 诠释
@@ -100,13 +100,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 **v1.0.1 目标**：**4 核心 + 20 预留 = 24 槽位**（Capability Folding 后，见 [01-syscalls.md](../30-interfaces/01-syscalls.md)），SSoT 定义于 `syscalls.h`：
 
-| 编号    | 调用名                   | 分类     | 说明                                                |
-| ----- | --------------------- | ------ | ------------------------------------------------- |
-| 0     | `airy_sys_call`       | Capability Invocation | sec_d 专属管理入口（Badge 编译/撤销 + LSM_ctl + Wasm_load） |
-| 1     | `airy_sys_rovol_ctl`  | 控制原语   | 记忆卷载控制                                            |
-| 2     | `airy_sys_sched_ctl`  | 控制原语   | 调度策略配置                                            |
-| 3     | `airy_sys_clt_notify` | 控制原语   | CoreLoopThree 通知 + kthread 注册                     |
-| 4-23  | 预留                    | —      | 未来扩展                                              |
+| 编号     | 调用名                   | 分类     | 说明                                                |
+| ------ | --------------------- | ------ | ------------------------------------------------- |
+| 548    | `airy_sys_call`       | Capability Invocation | sec_d 专属管理入口（Badge 编译/撤销 + LSM_ctl + Wasm_load） |
+| 549    | `airy_sys_rovol_ctl`  | 控制原语   | 记忆卷载控制                                            |
+| 550    | `airy_sys_sched_ctl`  | 控制原语   | 调度策略配置                                            |
+| 551    | `airy_sys_clt_notify` | 控制原语   | CoreLoopThree 通知 + kthread 注册                     |
+| 552-571 | 预留                  | —      | 未来扩展（20 槽位，绝对编号对齐 `syscalls.h` SSoT）         |
 
 **数据面 I/O 完全由 io\_uring 处理（零 syscall）**。v1.0.1 Capability Folding 后，8 个 seL4 风格 IPC 原语（send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify）全部移除，IPC 数据传递完全由 io\_uring `IORING_OP_URING_CMD` 承载。`airy_sys_call` 语义收窄为 sec_d 专属管理入口（Badge 编译/撤销/LSM_ctl/Wasm_load）。详见 [01-syscalls.md](../30-interfaces/01-syscalls.md) §2.2。
 
@@ -209,7 +209,7 @@ kernel/                         # kernel 子仓本身是 Linux 6.6 完整 fork�
 │                               # Airymax 修改直接写入对应上游子系统目录（如 mm/airymax_mm.c、kernel/sched/airy_sched.c、
 │                               # security/airy/airy_lsm.c），不使用 patches/ 隔离层
 │
-├── airy_core.c                 # [ES-SEL4-1] 最小内核模块入口（seL4 kernel_all.c 思想）[IND]
+├── init/airy_core.c            # [ES-SEL4-1] 最小内核模块入口（seL4 kernel_all.c 思想）[IND]
 │                               # 聚合 corekern/ + superv/ + log/ + ipc/ + config/ 的构建单元
 ├── corekern/                   # Airymax 微核心抽象层 [IND]（不替代上游 kernel/）
 │   ├── sched/                  # sched_tac 策略守护进程源码（用户态策略 daemon，非用户态调度器）[SS]
@@ -254,10 +254,13 @@ kernel/                         # kernel 子仓本身是 Linux 6.6 完整 fork�
 │       ├── syscalls.h          # Syscall 编号体系 [SC] #8
 │       ├── uapi_compat.h       # 三路类型桥接（__KERNEL__/__linux__/#else）[SC] #9
 │       └── lsm_types.h         # 纯 C LSM 类型契约（DEFINE_LSM(airy) 骨架）[SC] #10
-├── configs/                    # AirymaxOS 内核配置 [IND]
-│   ├── airy_defconfig          # 默认配置（含 CONFIG_AIRY_SC_FALLBACK）
-│   ├── airy_defconfig.base     # 跨架构共享基线
-│   └── README.md
+├── configs/                    # AirymaxOS 内核配置碎片 [IND]
+│   ├── defconfig               # 基础配置（CONFIG_AIRY_SYSCALL / AIRY_COREKERN / AIRY_LOG / AIRY_IPC / AIRY_CAP_TABLE_SIZE）
+│   ├── defconfig-agent         # Agent 增强配置（IRON-7 覆盖核心子系统 CONFIG，见 ADR-018）
+│   ├── defconfig-embedded      # 嵌入式最小配置
+│   ├── euler_hw_{x86,arm64,sw64}.config  # openEuler 硬件 CONFIG 碎片（LAYER 方案，ADR-018）
+│   └── hardening.config        # 加固配置
+├── arch/{x86,arm64}/configs/airy_defconfig  # 架构级默认配置（实际物理宿主，含 CONFIG_SECURITY_AIRY + CONFIG_AIRY_* 系列）
 ├── Documentation/              # 文档即代码（ES-OLK-13）[IND]
 ├── scripts/                    # 构建与检查脚本（checkpatch.pl 等，ES-OLK-9）[IND]
 └── tests/airymax/              # Airymax 专属测试用例（跨子仓集成测试在 tests-linux/integration/）[IND]
@@ -1038,7 +1041,7 @@ agentrt-linux 的 Boot 流程基于 Linux 6.6 标准启动流程，增加以下�
 
 ### 12.1 错误码体系
 
-错误码统一使用 `AIRY_E*` 前缀，SSoT 定义于 `include/uapi/linux/airymax/error.h`。完整错误码体系详见 [08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)，v1.0.1 共 85 个错误码，分为 10 个子空间：
+错误码统一使用 `AIRY_E*` 前缀，SSoT 定义于 `include/uapi/linux/airymax/error.h`。完整错误码体系详见 [08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)，v1.0.1 共 86 个错误码（不含 `AIRY_EOK`=0，error.h 实际 87 个 define），分为 10 个子空间：
 
 | 子空间 | 值域 | 已定义数 | 示例 |
 |--------|------|---------|------|

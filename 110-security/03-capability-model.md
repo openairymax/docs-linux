@@ -335,14 +335,14 @@ static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
 
 ### 2.6 Badge 编译与校验完整实现（v1.0.1 新增）
 
-本节是 `airy_cap_badge_compile()` / `airy_cap_has_perm()` / `airy_op_required_perms()` 三个函数的**唯一权威实现源**（SSoT）。物理宿主为 `kernel/security/airy/capability.c`。
+本节是 Badge 校验与权限检查的实现说明 + opcode→required_perms 权限契约：`airy_cap_badge_ok()` 内联（`security/airy/airy_cap.h`，fastpath C-S9 使用）、`airy_cap_has_perm()`（`kernel/superv/airy_cap_check_superv.c`）。**v3.7 核实**：早期设计稿声称的 `kernel/security/airy/capability.c` 物理文件与 `airy_cap_badge_compile()`/`airy_op_required_perms()` 函数**不存在**（见 §2.6.3 与 §2.6.1 实现状态）。
 
 #### 2.6.1 opcode → required_perms 映射表（SSoT）
 
-`airy_op_required_perms()` 定义了每个 opcode 所需的最小权限位。该映射表是 Capability Folding 的权限契约核心，fastpath C-S9.PERMS 通过此表判断 Badge 的 Perms 位是否满足 opcode 要求。
+**实现状态（v3.7 核实）**：下表的 opcode→required_perms 映射是**设计契约**（权限语义 SSoT），但 `airy_op_required_perms()` 当前**无内核实现**——fastpath C-S9.3 的 `required_perms` 由 io_uring_cmd 调用方显式传入 `airy_cap_badge_ok(badge, agent_id, required_perms)`（`security/airy/airy_cap.h`），映射函数待 M2 io_uring 分发落地后实现。物理文件 `kernel/security/airy/capability.c` 不存在。
 
 ```c
-/* kernel/security/airy/capability.c —— opcode → required_perms 映射表（SSoT）
+/* [权限契约，无独立物理文件] opcode → required_perms 映射（设计，M2+ 实现）
  *
  * 设计原则：1 opcode → 1 required_perms 位掩码（IPC 类 opcode 复用 SEND/RECV
  *           两个数据面权限位；特权 opcode FREEZE 复用 SUPERVISE 权限位）
@@ -427,206 +427,69 @@ static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
 }
 ```
 
-#### 2.6.3 airy_cap_badge_compile() 完整实现（sec_d 唯一写者）
+#### 2.6.3 Badge 编译与注册（实际实现映射，v3.7 修正）
 
-`airy_cap_badge_compile()` 是 sec_d 的核心函数，编译 Badge 并写入 `agent_caps[]`（静态数组 `__airymax_cap_table`）。**整个系统仅此函数可以写入 `agent_caps[]`**（H4 单写者约束）。
+> **实现事实（v3.7 核实）**：代码中**不存在** `airy_cap_badge_compile()` 函数，也不存在早期设计稿声称的物理文件 `kernel/security/airy/capability.c`。Badge 的编译与写入实际由以下真实函数承担：
+
+| 步骤 | 实际实现 | 位置 |
+|------|---------|------|
+| Badge 组合 | `AIRY_BADGE_COMPILE(epoch, randtag, perms)` 宏（仅位运算） | [SC] `security_types.h` |
+| Badge 注册写入 | `airy_cap_register(agent_id, badge)`（校验 slot 空 + per-bucket 锁 + 写入 badge/agent_id/perms/randtag/epoch） | `security/airy/airy_cap_array.c` |
+| 引导注册路径 | CAP_REQUEST 引导 → `airy_cap_check()` Phase 2 → `airy_cap_register()` | `security/airy/airy_cap_check.c` |
+| O(1) 定向撤销 | `airy_cap_epoch_bump(agent_id)`（per-agent epoch 递增，K9-1 主要机制） | `kernel/ipc/airy_ipc_capability.c` |
+| 级联撤销 | `airy_cap_revoke_subtree(agent_id, new_epoch)`（沿 MDB 派生树递归） | `security/airy/airy_cap_derive.c` |
+| Badge 轮换 | `airy_cap_rotate(agent_id)`（`get_random_u32` 新 tag + `smp_store_release` 顺序） | `security/airy/airy_cap_rotate.c` |
 
 ```c
-/* kernel/security/airy/capability.c —— sec_d Badge 编译（v1.0.1 SSoT）
- *
- * 物理宿主: kernel/security/airy/capability.c
- * 调用者:   仅 sec_d（通过 airy_sys_call + COMPILE_BADGE 子命令）
- * 同步:     mutex 串行化（单写者保证，见 §2.6.4 并发串行化机制）
- */
-
-/**
- * airy_cap_badge_compile - 编译 Badge 并写入 agent_caps[]（sec_d 唯一写者）
- * @agent_id: 目标 Agent ID（0 ~ AIRY_CAP_MAX_AGENTS-1）
- * @perms:    权限位掩码（AIRY_CAP_PERM_* 的按位或）
- *
- * 此函数执行以下步骤：
- *   1. 参数校验（agent_id 范围、perms 合法性）
- *   2. 获取全局 mutex（串行化，见 §2.6.4）
- *   3. 读取当前全局 Epoch
- *   4. 生成 32-bit Random Tag（get_random_bytes_wait）
- *   5. 组合 64-bit Badge：epoch<<48 | randtag<<16 | perms
- *   6. WRITE_ONCE 写入 agent_caps[agent_id]（更新 randtag + perms + state）
- *   7. 释放 mutex
- *   8. 返回 Badge opaque handle（供 Macro-Supervisor 持有）
- *
- * 返回: ≥0 成功（Badge opaque handle）；<0 错误码：
- *   -EINVAL: agent_id 越界或 perms 非法
- *   -ENOMEM: get_random_bytes_wait 失败（极罕见）
- *
- * 性能：~2μs（含 get_random_bytes_wait 平均 1.5μs + mutex + WRITE_ONCE）
- */
-static DEFINE_MUTEX(airy_cap_compile_mutex);  /* §2.6.4 串行化机制 */
-
-int airy_cap_badge_compile(uint32_t agent_id, uint16_t perms)
+/* security/airy/airy_cap_array.c —— Badge 注册（实际实现，SSoT）
+ * 调用者: CAP_REQUEST 引导路径（airy_cap_check Phase 2）与 sec_d 管理路径
+ * 同步:   per-bucket 散列锁（128 桶，P2 TOCTOU fix：register/derive 同锁）*/
+int airy_cap_register(__u32 agent_id, __u64 badge)
 {
-    uint16_t epoch;
-    uint32_t randtag;
-    uint64_t badge;
-    unsigned long flags;
-    int ret = 0;
+unsigned long flags;
+spinlock_t *lock;
 
-    /* 1. 参数校验 */
-    if (unlikely(agent_id >= AIRY_CAP_MAX_AGENTS))
-        return -EINVAL;
-    /* perms 仅允许 AIRY_CAP_PERM_* 位（0x007F = SEND|RECV|DERIVE|KILL|FILE_OPEN|ROTATE|SUPERVISE）*/
-    if (unlikely(perms & ~(AIRY_CAP_PERM_SEND | AIRY_CAP_PERM_RECV |
-                           AIRY_CAP_PERM_DERIVE | AIRY_CAP_PERM_KILL |
-                           AIRY_CAP_PERM_FILE_OPEN | AIRY_CAP_PERM_ROTATE |
-                           AIRY_CAP_PERM_SUPERVISE)))
-        return -EINVAL;
-
-    /* 2. 获取全局 mutex（串行化 Badge 编译，保证 agent_caps[] 写入顺序）*/
-    mutex_lock(&airy_cap_compile_mutex);
-
-    /* 3. 读取当前 per-agent Epoch（READ_ONCE，~1ns）
-     *    v1.0.1 K9-1: 从全局 atomic_read 改为 per-agent READ_ONCE，
-     *    撤销爆炸半径从全局 1024 个 Agent 收窄到单个 Agent。
-     */
-    epoch = READ_ONCE(agent_caps[agent_id].epoch);
-
-    /* 4. 生成 32-bit Random Tag（防伪造，~1.5μs 平均）
-     *    使用 get_random_bytes_wait 确保熵充足（不使用 get_random_bytes_arch）
-     *    32-bit 空间 2^32 = 42 亿，per-Agent 独立，碰撞概率 1/2^32（见 §13.2）
-     */
-    ret = get_random_bytes_wait(&randtag, sizeof(randtag));
-    if (unlikely(ret < 0)) {
-        mutex_unlock(&airy_cap_compile_mutex);
-        return -ENOMEM;
-    }
-
-    /* 5. 组合 64-bit Badge */
-    badge = AIRY_BADGE_COMPILE(epoch, randtag, perms);
-
-    /* 6. WRITE_ONCE 写入 agent_caps[agent_id]（无锁多读者安全）
-     *    更新 randtag + perms + state，原子性由 WRITE_ONCE 保证
-     *    读者（fastpath C-S9）使用 READ_ONCE 配对访问
-     */
-    WRITE_ONCE(agent_caps[agent_id].randtag, randtag);
-    WRITE_ONCE(agent_caps[agent_id].perms, perms);
-    WRITE_ONCE(agent_caps[agent_id].state, AIRY_CAP_STATE_ACTIVE);
-
-    /* 7. 释放 mutex */
-    mutex_unlock(&airy_cap_compile_mutex);
-
-    /* 8. 审计日志（A-ULP）*/
-    airy_audit_emit(AGENT_CAP_COMPILE, agent_id, badge);
-
-    /* 9. 返回 Badge opaque handle（供 Macro-Supervisor 持有）*/
-    return (int)badge;
+if (agent_id >= AIRY_CAP_MAX_AGENTS) {
+pr_debug_ratelimited("airy_cap_register: agent=%u out of range (MAX=%u)\n",
+agent_id, AIRY_CAP_MAX_AGENTS);
+return -AIRY_ECAP_OVERFLOW;
+}
+lock = &airy_cap_bucket_locks[airy_cap_bucket(agent_id)];
+spin_lock_irqsave(lock, flags);
+if (agent_caps[agent_id].badge != AIRY_CAP_NULL) {
+spin_unlock_irqrestore(lock, flags);
+return -AIRY_EEXIST;
+}
+agent_caps[agent_id].badge    = badge;
+agent_caps[agent_id].agent_id = agent_id;
+agent_caps[agent_id].perms    = (__u16)AIRY_BADGE_PERMS(badge);
+agent_caps[agent_id].randtag  = (__u32)AIRY_BADGE_RANDTAG(badge);
+agent_caps[agent_id].epoch    = (__u16)AIRY_BADGE_EPOCH(badge);
+spin_unlock_irqrestore(lock, flags);
+return 0;
 }
 ```
 
-#### 2.6.4 Badge 编译并发串行化机制
+> **H4 单写者语义的落地**：`agent_caps[]` 的写操作（注册/撤销/轮换/派生）在内核侧由 `airy_cap_bucket_locks` 串行化（per-bucket），调用方为可信 sec_d；fastpath C-S9 仅 `READ_ONCE` 读。早期设计稿声称的 `airy_cap_compile_mutex` 全局 mutex **不存在**——实际为 per-bucket 散列锁（见 §2.6.4）。
 
-**设计背景**：当 10000 个 Agent 并发启动时，可能同时向 sec_d 请求 Badge 编译。若无串行化机制，会导致：
-1. `agent_caps[]` 写入竞争（WRITE_ONCE 不能保证多字段写入原子性）
-2. Random Tag 生成竞争（`get_random_bytes_wait` 内部有锁，但外部仍需串行化）
-3. Epoch 读取与写入之间的 TOCTOU race
+#### 2.6.4 Badge 写并发机制（实际实现）
 
-**串行化方案**：使用 `DEFINE_MUTEX(airy_cap_compile_mutex)` 全局 mutex，保证 `airy_cap_badge_compile()` 串行执行。
-
-**性能分析**：
-- 单次 Badge 编译：~2μs（含 `get_random_bytes_wait` 平均 1.5μs）
-- 10000 个并发请求：10000 × 2μs = 20ms（串行化总耗时）
-- 单 Agent 感知延迟：平均 10ms（排队等待）
-
-**为什么 20ms 可接受**：
-1. **启动场景**：Agent 启动是低频事件（系统启动或故障恢复），非热路径
-2. **fastpath 零影响**：Badge 编译在 sec_d slowpath，不影响 fastpath C-S9 ~10ns
-3. **批量编译优化**：sec_d 支持 `AIRY_IPC_OP_SEND_BATCH` 批量编译（见 §2.6.5），10000 个请求可合并为单次 mutex 获取 + 批量 `get_random_bytes`（一次填充 40KB 随机池）
-
-**替代方案对比**：
-
-| 方案 | 优点 | 缺点 | AirymaxOS 选择 |
-|-----|------|------|---------------|
-| 全局 mutex（已选） | 简单、正确性易证明 | 10000 并发需 20ms | ✅ 0.1.1 阶段 |
-| per-Agent spinlock | 更细粒度 | 10000 个 spinlock 内存开销 | ❌ 过度设计 |
-| 无锁 + per-CPU Random Tag 池 | 最快 | 实现复杂、调试困难 | ⏳ 1.0.1 优化 |
-| RCU + 世代标签 | 读多写少最优 | Badge 编译是写操作，RCU 不适用 | ❌ 场景不匹配 |
-
-**结论**：0.1.1 阶段采用全局 mutex 串行化，10000 并发请求 20ms 串行化延迟在可接受范围内（非热路径）。1.0.1 阶段可考虑 per-CPU Random Tag 池优化。
-
-#### 2.6.5 批量编译优化（10000+ Agent 场景）
-
-针对大规模 Agent 启动场景（如 10000+ Agent 同时启动），sec_d 提供 `airy_cap_badge_compile_batch()` 批量编译接口：
+实际实现使用 **per-bucket 散列锁**（128 桶），而非早期设计稿的全局 mutex：
 
 ```c
-/**
- * airy_cap_badge_compile_batch - 批量编译 Badge（10000+ Agent 场景优化）
- * @requests:  编译请求数组（agent_id + perms）
- * @count:     请求数量（≤ AIRY_CAP_MAX_AGENTS）
- * @badges_out: 返回的 Badge opaque handle 数组
- *
- * 优化点：
- *   1. 单次 mutex 获取（避免 10000 次 mutex lock/unlock）
- *   2. 批量 get_random_bytes（一次填充 40KB 随机池，比 10000 次单独调用快 5x）
- *   3. 单次 audit_emit（合并日志）
- *
- * 性能：10000 个 Badge 批量编译 ~5ms（vs 串行 20ms，提速 4x）
- *
- * 返回: 0 成功；<0 错误码
- */
-int airy_cap_badge_compile_batch(const struct airy_cap_compile_req *requests,
-                                  size_t count, uint64_t *badges_out)
-{
-    uint32_t *randtags;
-    int ret = 0;
-    size_t i;
-
-    if (unlikely(count == 0 || count > AIRY_CAP_MAX_AGENTS))
-        return -EINVAL;
-
-    /* 1. 单次 mutex 获取 */
-    mutex_lock(&airy_cap_compile_mutex);
-    /* v1.0.1 K9-1: per-agent epoch，在循环内按 agent_id 读取 */
-
-    /* 2. 批量生成 Random Tag（一次填充 count×4 字节随机池）*/
-    randtags = kmalloc_array(count, sizeof(uint32_t), GFP_KERNEL);
-    if (unlikely(!randtags)) {
-        mutex_unlock(&airy_cap_compile_mutex);
-        return -ENOMEM;
-    }
-    ret = get_random_bytes_wait(randtags, count * sizeof(uint32_t));
-    if (unlikely(ret < 0)) {
-        kfree(randtags);
-        mutex_unlock(&airy_cap_compile_mutex);
-        return -ENOMEM;
-    }
-
-    /* 3. 批量编译 + 写入 agent_caps[] */
-    for (i = 0; i < count; i++) {
-        uint32_t agent_id = requests[i].agent_id;
-        uint16_t perms = requests[i].perms;
-        uint16_t epoch;  /* v1.0.1 K9-1: per-agent epoch */
-        uint64_t badge;
-
-        if (unlikely(agent_id >= AIRY_CAP_MAX_AGENTS)) {
-            ret = -EINVAL;
-            break;
-        }
-
-        epoch = READ_ONCE(agent_caps[agent_id].epoch);
-        badge = AIRY_BADGE_COMPILE(epoch, randtags[i], perms);
-        WRITE_ONCE(agent_caps[agent_id].randtag, randtags[i]);
-        WRITE_ONCE(agent_caps[agent_id].perms, perms);
-        WRITE_ONCE(agent_caps[agent_id].state, AIRY_CAP_STATE_ACTIVE);
-        badges_out[i] = badge;
-    }
-
-    /* 4. 单次审计日志（批量合并）*/
-    airy_audit_emit_batch(AGENT_CAP_COMPILE_BATCH, count, badges_out);
-
-    kfree(randtags);
-    mutex_unlock(&airy_cap_compile_mutex);
-    return ret;
-}
+/* security/airy/airy_cap_array.c —— 实际并发机制 */
+spinlock_t airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR] = {
+[0 ... AIRY_CAP_BUCKET_NR - 1] = __SPIN_LOCK_UNLOCKED(airy_cap_bucket_locks)
+};
 ```
 
+- **register/derive 同锁**（P2 TOCTOU 修复）：`airy_cap_register()` 与 `airy_cap_derive()` 使用**同一把** per-bucket 锁，消除"badge==NULL 检查后双写"竞态窗口。
+- **REVOKE 全锁**：级联撤销需遍历 MDB 子树（可能跨桶），`airy_cap_derive(REVOKE)` 获取全部 128 桶锁（`cap_derive_lock_all()`）。
+- **fastpath 无锁读**：C-S9 校验仅 `READ_ONCE`（多读者安全），写路径全部持锁。
+
+#### 2.6.5 批量编译（M2+ 规划，当前未实现）
+
+早期设计稿声称的 `airy_cap_badge_compile_batch()`（全局 mutex + 批量随机池）**当前未实现**（v3.7 核实：代码中无此函数、无 `struct airy_cap_compile_req`）。大规模 Agent 启动的批量 Badge 优化规划为 M2+ 工作；当前每个 Badge 经 `airy_cap_register()` 单槽注册（CAP_REQUEST 引导路径驱动）。
 ---
 
 ## 3. Capability 派生模型
@@ -1722,7 +1585,7 @@ P(N, 32) ≈ 1 - e^(-N² / (2 × 2^32))
 虽然碰撞无安全影响，但 1.0.1 阶段可添加可选的碰撞检测，提升审计可读性：
 
 ```c
-/* kernel/security/airy/capability.c —— Random Tag 碰撞检测（可选）
+/* [设计契约，无独立物理文件] Random Tag 碰撞检测（可选，M2+）
  *
  * 1.0.1 阶段可选实现。0.1.1 阶段不实现（碰撞概率 < 10⁻⁶）。
  *
@@ -1880,7 +1743,7 @@ void airy_cap_agent_caps_init(void)
 **策略**：在每个 NUMA 节点维护 `agent_caps[]` 的只读副本，fastpath 读者访问本地副本，sec_d 写者通过 IPI 同步所有副本。
 
 ```c
-/* kernel/security/airy/capability.c —— per-NUMA-node 只读副本（1.0.1 阶段可选）
+/* [设计契约，无独立物理文件] per-NUMA-node 只读副本（1.0.1 阶段可选）
  *
  * 设计:
  *   - 每个 NUMA 节点维护 agent_caps[] 的只读副本
