@@ -429,13 +429,13 @@ static void logger_validate_badge(struct airy_log_record *rec, u64 badge)
     /* fastpath C-S9 内联校验（~10ns） */
     if (unlikely(badge_epoch != agent_caps[src_task].epoch)) {
         /* Epoch 不匹配：Badge 已被 O(1) 撤销（airy_cap_epoch_bump(agent_id)，K9-1 per-agent） */
-        rec->level = LOG_ERROR;
+        rec->level = AIRY_LOG_ERROR;
         rec->facility = AIRY_LOG_FAC_SECURITY;
         return;  /* 记录 Badge 过期事件，但不丢弃日志 */
     }
     if (unlikely(badge_randtag != agent_caps[src_task].randtag)) {
         /* RandomTag 不匹配：Badge 伪造尝试 */
-        rec->level = LOG_FATAL;
+        rec->level = AIRY_LOG_FATAL;
         rec->facility = AIRY_LOG_FAC_SECURITY;
         /* 触发 AIRY_FAULT_CAP_FORGED，由 sec_d 审计 */
         return;
