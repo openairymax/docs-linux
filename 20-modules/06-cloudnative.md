@@ -40,7 +40,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 2. **containerd shim \[IND]**：提供 containerd shim v2，实现 Agent 容器化运行（Wasm/runc/进程三模式）。
 3. **OCI 镜像规范 \[IND]**：遵循 OCI（Open Container Initiative）镜像规范，支持 Wasm 模块作为镜像层。
 4. **CNI 插件 \[IND]**：提供基于 eBPF 的 CNI 插件，实现无 sidecar 服务网格数据平面。
-5. **agentctl \[SS]**：对标 kubectl 的 Agent 管理命令行工具，与 agentrt sdk 管理接口语义同源。
+5. **agentctl \[SS]**：与 kubectl 语义类比的 Agent 管理命令行工具，与 agentrt sdk 管理接口语义同源。
 6. **OpenTelemetry 可观测性 \[IND]**：集成 OpenTelemetry 提供统一 Tracing/Metrics/Logs 可观测性。
 7. **DPU/IPU 卸载支持 \[IND]**：支持 NVIDIA BlueField / Intel IPU 硬件卸载。
 8. **超节点 OS \[IND]**：基于 agentrt-linux 超节点 OS 实现多 die/多 chip 统一管理与跨 die 迁移。
@@ -77,7 +77,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 网关语义      | gateway（应用层网关）                  | K8s Ingress + gateway\_d（OS 级）  | \[SS]  |
 | IPC 消息头   | `struct airy_ipc_msg_hdr`（128B） | `struct airy_ipc_msg_hdr`（128B） | \[SC]  |
 | IPC magic | 0x41524531 'ARE1'               | 0x41524531 'ARE1'               | \[SC]  |
-| 管理接口      | sdk（应用层 CLI）                    | agentctl（对标 kubectl）            | \[SS]  |
+| 管理接口      | sdk（应用层 CLI）                    | agentctl（类比 kubectl）            | \[SS]  |
 | 部署形态      | 应用进程部署                          | K8s 原生部署（CRD + Controller）      | \[IND] |
 | 容器化       | 进程隔离                            | containerd shim v2（OCI）         | \[IND] |
 | 可观测性      | 自研监控                            | OpenTelemetry 标准化               | \[IND] |
@@ -89,7 +89,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ### 2.2 同源传承要点
 
 - 保留 agentrt gateway 的"网关"语义，升级为 K8s Ingress + gateway\_d（OS 级守护进程）\[SS]。
-- 保留 agentrt sdk 的"管理接口"语义，升级为 agentctl（对标 kubectl）\[SS]。
+- 保留 agentrt sdk 的"管理接口"语义，升级为 agentctl（类比 kubectl）\[SS]。
 - 保留 agentrt 的 Agent 生命周期管理语义，升级为 CRD controller reconcile \[SS]。
 - 保留 agentrt 的资源声明语义，升级为 K8s resource spec \[SS]。
 - IPC 消息头 \[SC] 共享，确保 gateway\_d 与 agentrt gateway 通信协议一致。
@@ -107,7 +107,7 @@ cloudnative/
 ├── containerd-shim/        # containerd shim（Agent 容器化）[IND]
 ├── oci/                    # OCI 镜像规范 [IND]
 ├── cni/                    # CNI 插件（服务网格）[IND]
-├── agentctl/              # agentctl（对标 kubectl）[SS]
+├── agentctl/              # agentctl（类比 kubectl）[SS]
 ├── observability/          # OpenTelemetry 可观测性 [IND]
 ├── dpu-ipu/                # DPU/IPU 卸载支持 [IND]
 ├── super-node-os/          # 超节点 OS（agentrt-linux 自研）[IND]
@@ -145,7 +145,7 @@ cloudnative/
 - `network-policy`：网络策略（与 `security` 协作，capability 44 ID（41 POSIX + 3 Airymax 扩展） \[SC]）\[IND]。
 - `multus`：Multus 多 CNI 支持 \[IND]。
 
-### 3.5 agentctl/（对标 kubectl）\[SS]
+### 3.5 agentctl/（类比 kubectl）\[SS]
 
 agentctl 与 agentrt sdk 管理接口语义同源 \[SS]：
 
@@ -253,7 +253,7 @@ spec:
 - eBPF 数据路径，高性能 \[IND]。
 - 声明式网络策略 \[IND]。
 
-### 4.5 agentctl（对标 kubectl）\[SS]
+### 4.5 agentctl（类比 kubectl）\[SS]
 
 agentctl 与 agentrt sdk 管理接口语义同源 \[SS]：
 
@@ -403,7 +403,7 @@ gateway\_d 是 agentrt gateway 在 OS 级的升级形态 \[SS]：
 | 序号 | 语义           | agentrt 实现    | agentrt-linux 实现                     |
 | -- | ------------ | ------------- | ------------------------------------ |
 | 1  | gateway 网关   | 应用层 gateway   | K8s Ingress + gateway\_d             |
-| 2  | SDK 管理接口     | sdk CLI       | agentctl（对标 kubectl）                 |
+| 2  | SDK 管理接口     | sdk CLI       | agentctl（类比 kubectl）                 |
 | 3  | Agent 生命周期   | 应用层 lifecycle | CRD controller reconcile             |
 | 4  | 资源声明         | resource spec | K8s resource spec                    |
 | 5  | 可观测性 API     | 自研监控          | OpenTelemetry 标准化                    |

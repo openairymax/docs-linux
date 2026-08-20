@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agentrt-linux（AirymaxOS）形式化验证
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 10 卷——形式化验证（Formal Verification）。本卷规定形式化验证范围（Capability 模型 / IPC 状态机 / Agent 生命周期）、TLA+ 规约（Agent 8 态状态机）、Coq/Isabelle 证明（Capability 检查算法正确性）、CBMC 模型检查（C 代码 bounded model checking）、seL4 对标（方法对标 seL4 形式化验证体系）、验证报告生成与 CI 集成。\
+> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 10 卷——形式化验证（Formal Verification）。本卷规定形式化验证范围（Capability 模型 / IPC 状态机 / Agent 生命周期）、TLA+ 规约（Agent 8 态状态机）、Coq/Isabelle 证明（Capability 检查算法正确性）、CBMC 模型检查（C 代码 bounded model checking）、seL4 方法参照（借鉴 seL4 形式化验证体系方法论）、验证报告生成与 CI 集成。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
@@ -29,7 +29,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | Coq | 基于 Curry-Howard 同构的证明助手 |
 | Isabelle/HOL | 高阶逻辑定理证明助手 |
 | CBMC | C Bounded Model Checker，C 代码模型检查 |
-| seL4 | 形式化验证的微内核，agentrt-linux 对标对象 |
+| seL4 | 形式化验证的微内核，agentrt-linux 方法参照对象 |
 | l4v | seL4 项目的形式化验证框架（L4.verified） |
 | capDL | seL4 的 Capability 描述语言 |
 | 不变量（invariant） | 系统在任意状态下均满足的性质 |
@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 起源与定位
 
-形式化验证是 agentrt-linux 测试体系的**最高保障层**，提供"可证明的正确性"。其设计目标有三：**数学证明**（用数学方法证明系统正确，而非仅靠测试覆盖）、**关键路径覆盖**（仅对关键路径形式化验证，避免全系统验证成本）、**seL4 对标**（借鉴 seL4 l4v 框架的方法论，但不追求全内核形式化验证）。
+形式化验证是 agentrt-linux 测试体系的**最高保障层**，提供"可证明的正确性"。其设计目标有三：**数学证明**（用数学方法证明系统正确，而非仅靠测试覆盖）、**关键路径覆盖**（仅对关键路径形式化验证，避免全系统验证成本）、**seL4 方法借鉴**（借鉴 seL4 l4v 框架的方法论，但不追求全内核形式化验证）。
 
 agentrt-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 200+ 人年），而是聚焦三个关键路径：
 
@@ -58,7 +58,7 @@ flowchart TB
         A3["关键 C 代码路径<br/>CBMC bounded model checking"]
     end
     
-    subgraph "seL4 对标方法论"
+    subgraph "seL4 方法参照"
         B1["seL4 l4v 框架<br/>抽象层 → 实现层 逐步精化"]
         B2["seL4 capDL<br/>Capability 系统描述"]
         B3["seL4 Isabelle/HOL<br/>高阶逻辑证明"]
@@ -703,19 +703,19 @@ CBMC 将 `READ_ONCE`/`WRITE_ONCE`/`smp_store_release`/`smp_load_acquire` 建模�
 
 ---
 
-## 5. seL4 对标
+## 5. seL4 方法参照
 
 ### 5.1 seL4 形式化验证体系
 
 seL4 是首个完整形式化验证的微内核，其 l4v（L4.verified）框架包含：
 
-| 层次 | 工具 | 验证内容 | agentrt-linux 对标 |
+| 层次 | 工具 | 验证内容 | agentrt-linux 对应 |
 |------|------|---------|-------------------|
 | 抽象规约 | Isabelle/HOL | 系统行为的数学抽象 | TLA+ 规约（Agent 状态机） |
-| 设计规约 | Isabelle/HOL | 数据结构设计 | （未对标） |
+| 设计规约 | Isabelle/HOL | 数据结构设计 | （未对应） |
 | 实现规约 | Isabelle/HOL | C 代码语义 | CBMC 模型检查 |
 | Capability 系统 | capDL | Capability 描述 | Coq 证明（airy_cap_check） |
-| 安全属性 | info-flow | 机密性/完整性 | （未对标，下一版本规划） |
+| 安全属性 | info-flow | 机密性/完整性 | （未对应，下一版本规划） |
 
 ### 5.2 agentrt-linux 与 seL4 的差异
 
@@ -983,7 +983,7 @@ All formal verification checks PASSED. PR is eligible for merge.
 2. TLA+ 规约：Agent 8 态生命周期状态机（5 个属性）。
 3. Coq 证明：Capability 检查算法 4 个定理。
 4. CBMC 模型检查：`airy_cap_check` 8 个属性。
-5. seL4 对标方法论（差异分析 + 借鉴清单）。
+5. seL4 方法参照（差异分析 + 借鉴清单）。
 6. `formal-verification.yml` workflow 完整定义。
 7. 验证报告生成机制。
 
@@ -1079,7 +1079,7 @@ CBMC 验证的工程价值：
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义形式化验证范围（3 项 P0 关键路径）；定义 TLA+ 规约（Agent 8 态状态机，5 个属性）；定义 Coq 证明（Capability 检查算法，4 个定理）；定义 CBMC 模型检查（airy_cap_check，8 个属性）；对标 seL4 形式化验证方法论；定义 `formal-verification.yml` workflow 与验证报告生成 |
+| v1.0.1 | 2026-07-18 | 初始版本：定义形式化验证范围（3 项 P0 关键路径）；定义 TLA+ 规约（Agent 8 态状态机，5 个属性）；定义 Coq 证明（Capability 检查算法，4 个定理）；定义 CBMC 模型检查（airy_cap_check，8 个属性）；参照 seL4 形式化验证方法论；定义 `formal-verification.yml` workflow 与验证报告生成 |
 
 ---
 

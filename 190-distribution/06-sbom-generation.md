@@ -10,7 +10,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **SSoT 依赖声明**：本文档所引用的全部规则编号（`OS-IRON-*`、`OS-BAN-*`、`OS-STD-*`、`OS-ACC-*` 等）权威定义见 `50-engineering-standards/09-ssot-registry.md`，本文档不私自定义新规则编号。\
 > **IRON-9 v3 层次**：[IND] 完全独立层（SBOM 为 agentrt-linux 发行版专属）\
-> **对标基线**：openEuler 24.03 LTS（SBOM 工程实践参照）+ NTIA Minimum Elements v1.0
+> **参照基线**：openEuler 24.03 LTS（SBOM 工程实践参照）+ NTIA Minimum Elements v1.0
 
 ---
 
@@ -18,7 +18,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计背景
 
-软件物料清单（SBOM）是现代软件供应链安全的核心机制，要求对软件构成要素进行机器可读、可验证、可追溯的完整记录。NTIA（美国国家标准与技术研究院下属技术管理局）于 2021 年发布 *Minimum Elements for a Software Bill of Materials (SBOM)* 标准，定义了 SBOM 的最小要素集合。openEuler 24.03 LTS 已建立 SBOM 工程实践，对标该标准为发行版提供组件溯源能力。
+软件物料清单（SBOM）是现代软件供应链安全的核心机制，要求对软件构成要素进行机器可读、可验证、可追溯的完整记录。NTIA（美国国家标准与技术研究院下属技术管理局）于 2021 年发布 *Minimum Elements for a Software Bill of Materials (SBOM)* 标准，定义了 SBOM 的最小要素集合。openEuler 24.03 LTS 已建立 SBOM 工程实践，参照该标准为发行版提供组件溯源能力。
 
 agentrt-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构建的智能体操作系统，包含 8 个子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux），通过 git submodule 管理，采用双许可证（AGPL-3.0-or-later + Apache-2.0）策略，并集成国密算法（SM2/SM3/SM4）。其复杂性要求建立一套完整、可机器校验、随产物分发的 SBOM 工程体系，作为漏洞响应、许可证合规、供应链审计的工程基石。
 

@@ -141,7 +141,7 @@ tests-linux/
 
 ### 3.3 formal-verification/（形式化验证）\[IND]
 
-参考 **seL4 形式化验证**（l4v / capDL / TLA+ 方法论对标，ADR-014 确立 seL4 唯一来源），验证对象引用 \[SC] 共享契约层类型。SSoT 见 [80-testing/10-formal-verification.md](../80-testing/10-formal-verification.md)：
+参考 **seL4 形式化验证**（l4v / capDL / TLA+ 方法参照，ADR-014 确立 seL4 唯一来源），验证对象引用 \[SC] 共享契约层类型。SSoT 见 [80-testing/10-formal-verification.md](../80-testing/10-formal-verification.md)：
 
 - `cbmc/`：CBMC bounded model checking（针对 `airy_cap_check` / `airy_ipc_fastpath` / `airy_lsm_hook` C 代码）\[IND]。
 - `tla+/`：TLA+ 规约（Agent 8 态生命周期状态机 + IPC Ring 状态机）\[IND]。
@@ -265,9 +265,9 @@ source $OET_PATH/libs/locallibs/common_lib.sh
 }
 ```
 
-### 4.3 形式化验证（CBMC + TLA+ + Coq/Isabelle，seL4 方法论对标）\[IND]
+### 4.3 形式化验证（CBMC + TLA+ + Coq/Isabelle，seL4 方法参照）\[IND]
 
-参考 **seL4 形式化验证体系**（l4v / capDL / TLA+ 方法论对标，ADR-014 确立 seL4 唯一来源），SSoT 见 [80-testing/10-formal-verification.md](../80-testing/10-formal-verification.md)。agentrt-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 200+ 人年），而是聚焦三个关键路径：
+参考 **seL4 形式化验证体系**（l4v / capDL / TLA+ 方法参照，ADR-014 确立 seL4 唯一来源），SSoT 见 [80-testing/10-formal-verification.md](../80-testing/10-formal-verification.md)。agentrt-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 200+ 人年），而是聚焦三个关键路径：
 
 1. **Agent 8 态生命周期状态机**：用 TLA+ 规约并证明无死锁、无非法转换。
 2. **Capability 检查算法**：用 Coq/Isabelle 证明权限校验算法的正确性。
@@ -361,17 +361,17 @@ CONSTANTS  RingSet = {r1, r2, r3}
 
 **OS-TEST-113**：Capability 检查算法必须有 Coq 或 Isabelle 证明，覆盖以下性质：grant 后 check 通过、revoke 后 check 失败、单调性、不可绕过；任一性质证明失败即 PR 驳回。
 
-#### 4.3.4 seL4 对标方法论（l4v / capDL / TLA+）
+#### 4.3.4 seL4 方法参照（l4v / capDL / TLA+）
 
 agentrt-linux 借鉴 seL4 l4v（L4.verified）框架的方法论，但不追求全内核形式化验证：
 
-| seL4 层次 | seL4 工具 | seL4 验证内容 | agentrt-linux 对标 |
+| seL4 层次 | seL4 工具 | seL4 验证内容 | agentrt-linux 对应 |
 |----------|----------|-------------|-------------------|
 | 抽象规约 | Isabelle/HOL | 系统行为的数学抽象 | TLA+ 规约（Agent 8 态状态机） |
-| 设计规约 | Isabelle/HOL | 数据结构设计 | （未对标，v1.2 规划） |
+| 设计规约 | Isabelle/HOL | 数据结构设计 | （未对应，v1.2 规划） |
 | 实现规约 | Isabelle/HOL | C 代码语义 | CBMC 模型检查 |
 | Capability 系统 | capDL | Capability 描述 | Coq 证明（`airy_cap_check`） |
-| 安全属性 | info-flow | 机密性/完整性 | （未对标，v1.3 规划） |
+| 安全属性 | info-flow | 机密性/完整性 | （未对应，v1.3 规划） |
 
 seL4 方法论的借鉴要点：
 

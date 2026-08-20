@@ -222,15 +222,15 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 
 ### 5.6 Agentic AI 架构演进
 
-agentrt-linux 对标 Agentic OS 三阶段演进路线：
+agentrt-linux 参照 Agentic OS 三阶段演进路线：
 
 | 阶段   | 名称   | 特征         | agentrt-linux 定位      |
 | ---- | ---- | ---------- | --------------------- |
 | 阶段 1 | 资源抽象 | 传统 OS      | 不在此阶段                 |
 | 阶段 2 | 异构融合 | AI 原生 OS   | 1.0.1 部分覆盖            |
-| 阶段 3 | 意图协同 | Agentic OS | agentrt-linux 直接对标此阶段 |
+| 阶段 3 | 意图协同 | Agentic OS | agentrt-linux 直接对应此阶段 |
 
-**agentrt-linux 落地**：agentrt-linux 直接对标第三阶段"意图协同"，作为 Agentic OS，认知循环 + 超节点 OS + Token 能效框架共同构成意图协同的工程基座。
+**agentrt-linux 落地**：agentrt-linux 直接对应第三阶段"意图协同"，作为 Agentic OS，认知循环 + 超节点 OS + Token 能效框架共同构成意图协同的工程基座。
 
 ***
 
