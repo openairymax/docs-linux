@@ -679,9 +679,9 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 
 ### 7.1 触发条件
 
-[SC] 共享契约层是 agentrt ↔ agentrt-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，agentrt 用户态通过 `-I../kernel/include` 引用，禁止物理副本。目录下实际共 14 个文件：12 个 `.h` + `syscall.xml`（syscall 编号 SSoT）+ `Kbuild`。
+[SC] 共享契约层是 agentrt ↔ agentrt-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-dual-ci 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 14 个文件：12 个 `.h`（11 个 [SC] 校验头 + `syscall_gen.h` codegen 产物）+ `syscall.xml`（syscall 编号 SSoT）+ `Kbuild`。
 
-当以下 12 个头文件中任一发生变更时，触发双向 CI：
+当以下 11 个 [SC] 头文件中任一发生变更时，触发双向 CI（`bpf_struct_ops.h` 为补充共享文件，与 10 个核心头同等强制字节校验）：
 
 | 序号 | 文件 | 共享内容 |
 |------|------|---------|
@@ -693,10 +693,11 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 | 6 | `kernel/include/uapi/linux/airymax/security_types.h` | LSM 钩子/capability 类型 |
 | 7 | `kernel/include/uapi/linux/airymax/cognition_types.h` | 认知模块类型 |
 | 8 | `kernel/include/uapi/linux/airymax/syscalls.h` | syscall 编号声明 |
-| 9 | `kernel/include/uapi/linux/airymax/syscall.h` | syscall 接口定义 |
-| 10 | `kernel/include/uapi/linux/airymax/uapi_compat.h` | 用户态兼容桥接 |
-| 11 | `kernel/include/uapi/linux/airymax/lsm_types.h` | LSM 专用类型 |
-| 12 | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF 结构操作 |
+| 9 | `kernel/include/uapi/linux/airymax/uapi_compat.h` | 用户态兼容桥接 |
+| 10 | `kernel/include/uapi/linux/airymax/lsm_types.h` | LSM 专用类型 |
+| 11 | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF 结构操作 |
+
+> 注：`syscall_gen.h`（内核侧 codegen 产物，`__NR_airy_sys_*` 548-551）由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成，不参与镜像复制，不在 sc-dual-ci 触发清单内。
 
 ```yaml
 # agentrt-linux/.github/workflows/sc-dual-ci.yml（触发段）
@@ -711,7 +712,6 @@ on:
       - 'kernel/include/uapi/linux/airymax/security_types.h'
       - 'kernel/include/uapi/linux/airymax/cognition_types.h'
       - 'kernel/include/uapi/linux/airymax/syscalls.h'
-      - 'kernel/include/uapi/linux/airymax/syscall.h'
       - 'kernel/include/uapi/linux/airymax/uapi_compat.h'
       - 'kernel/include/uapi/linux/airymax/lsm_types.h'
       - 'kernel/include/uapi/linux/airymax/bpf_struct_ops.h'

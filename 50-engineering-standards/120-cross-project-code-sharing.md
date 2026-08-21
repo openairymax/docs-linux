@@ -67,7 +67,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 10 个 \[SC] 头文件清单
 
-\[SC] 层包含**10 个**共享头文件，**唯一物理宿主**于 `kernel/include/uapi/linux/airymax/` 目录（其他子仓通过 `-I../kernel/include` 引用，禁止物理副本，OS-IRON-014 落地），两端（agentrt 与 agentrt-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
+\[SC] 层包含**10 个**核心共享头文件，**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-dual-ci 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agentrt-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
 
 | 序号 | 文件                  | 共享内容                                                                                                    | magic 值               | 落地路径                                |
 | -- | ------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------- |
@@ -81,8 +81,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 8  | `syscalls.h`        | Syscall 编号体系（v1.0.1 唯一基线: 4 核心 + 20 预留 = 24 槽位，v4.3 锁定）                                                                     | —                     | `include/uapi/linux/airymax/syscalls.h`        |
 | 9  | `uapi_compat.h`     | 三路类型桥接（内核态 `__u32` ↔ 用户态 Linux `uint32_t` ↔ 第三方 `uint32_t` with stdint.h），确保 [SC] 头文件跨平台逐字节相同编译         | —                     | `include/uapi/linux/airymax/uapi_compat.h`    |
 | 10 | `lsm_types.h`       | 纯 C LSM 模块类型定义（`struct airy_lsm_blob` + `airy_capability_check()` 回调原型 + Capability 缓存结构）            | —                     | `include/uapi/linux/airymax/lsm_types.h`       |
-| 11 | `syscall.h`        | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）                       | —                     | `include/uapi/linux/airymax/syscall.h`（补充共享文件） |
-| 12 | `bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）      | —                     | `include/uapi/linux/airymax/bpf_struct_ops.h`（补充共享文件） |
+| 11 | `syscall_gen.h`     | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）                       | —                     | `include/uapi/linux/airymax/syscall_gen.h`（内核侧 codegen 产物，不镜像） |
+| 12 | `bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）      | —                     | `include/uapi/linux/airymax/bpf_struct_ops.h`（补充共享文件，sc-dual-ci 字节校验） |
 
 **补充内容**（不属于上述 10 个 [SC] 核心头文件，但两端共享语义）：
 
