@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）维护者制度与治理
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准规范第 7 篇——治理层规范\
+# agent-linux（AirymaxOS）维护者制度与治理
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范第 7 篇——治理层规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ Linux 6.6 内核基线 `MAINTAINERS`（734KB）维护者制度范本\
 > **理论根基**：Linux 内核 30+ 年沉淀的 Lieutenant System（副官系统）+ Airymax 体系并行论\
-> **替代关系**：本文档替代 Linux `Documentation/process/management-style.rst`、`submitting-patches.rst`（DCO 章节）、`contribution-maturity-model.rst`、`6.Followthrough.rst` 在 agentrt-linux 场景下的适用
+> **替代关系**：本文档替代 Linux `Documentation/process/management-style.rst`、`submitting-patches.rst`（DCO 章节）、`contribution-maturity-model.rst`、`6.Followthrough.rst` 在 agent-linux 场景下的适用
 
 ---
 
@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 为什么需要维护者制度
 
-agentrt-linux 是一个跨内核态与用户态、跨 8 个子仓、跨多语言栈（C/Rust/Python/TypeScript）的智能体操作系统发行版。当一个项目的代码量、贡献者数量、子系统边界同时增长时，"谁有权接受补丁""谁对某段代码的稳定性负责""补丁如何从作者流到主线"这三个问题若没有明确答案，项目会迅速退化为"无人负责的代码海洋"。
+agent-linux 是一个跨内核态与用户态、跨 8 个子仓、跨多语言栈（C/Rust/Python/TypeScript）的智能体操作系统发行版。当一个项目的代码量、贡献者数量、子系统边界同时增长时，"谁有权接受补丁""谁对某段代码的稳定性负责""补丁如何从作者流到主线"这三个问题若没有明确答案，项目会迅速退化为"无人负责的代码海洋"。
 
 维护者制度就是为回答这三个问题而存在的治理机制。它不是官僚层级，而是一条**信任链**——每一级维护者为下一级背书，每一份补丁的传播路径可被追溯，每一行代码的责任人可在 `MAINTAINERS` 文件中查到。
 
@@ -39,11 +39,11 @@ agentrt-linux 是一个跨内核态与用户态、跨 8 个子仓、跨多语言
 
 Linux 内核自 1991 年起，用 30 余年沉淀出一套被验证有效的副官系统（Lieutenant System）：Linus Torvalds 并不直接审查每一份补丁，而是把子系统信任授权给维护者（如网络栈的 David Miller、内存管理的 Andrew Morton），维护者再把子模块信任授权给下一级维护者。补丁沿信任链向上流动，每一级维护者只审查"自己不信任的下层送上来的东西"。
 
-这套机制的关键数据：Linus 直接处理的补丁长期维持在约 1.3% 的比例——这不是因为 Linus 偷懒，而是因为信任链已经把 98.7% 的补丁在到达他之前过滤、审查、稳定过一遍。agentrt-linux 直接继承这套经过验证的治理模型。
+这套机制的关键数据：Linus 直接处理的补丁长期维持在约 1.3% 的比例——这不是因为 Linus 偷懒，而是因为信任链已经把 98.7% 的补丁在到达他之前过滤、审查、稳定过一遍。agent-linux 直接继承这套经过验证的治理模型。
 
-### 1.3 agentrt-linux 维护者制度的三大支柱
+### 1.3 agent-linux 维护者制度的三大支柱
 
-agentrt-linux 维护者制度建立在三个不可拆分的支柱之上：
+agent-linux 维护者制度建立在三个不可拆分的支柱之上：
 
 | 支柱 | 作用 | 落地章节 |
 |------|------|---------|
@@ -55,13 +55,13 @@ agentrt-linux 维护者制度建立在三个不可拆分的支柱之上：
 
 ### 1.4 IRON-9 v3 同源且部分代码共享：与 agentrt 治理的关系
 
-agentrt-linux 工程标准与 agentrt 工程标准是 **IRON-9 v3 同源且部分代码共享** 的关系：
+agent-linux 工程标准与 agentrt 工程标准是 **IRON-9 v3 同源且部分代码共享** 的关系：
 
-- **同源**：两端共享五维正交 24 原则作为顶层设计哲学；共享 17 类规则编号体系骨架（IRON/BAN/STD/ACC）；共享 MicroCoreRT 微核心运行时理念（agentrt-linux 在内核态实现 MicroCoreRT，agentrt 在用户态实现同源语义）。
-- **独立**：agentrt-linux 承担内核态严肃性责任——内核 ABI 稳定性、内核内部 API 不稳定性、补丁生命周期、维护者层级制度是 agentrt 不涉及的领域；agentrt-linux 的治理规则（OS-IRON-005/007/009、OS-STD-GOV-*）独立于 agentrt 的 IRON 规则。
-- **互操作**：agentrt 在 agentrt-linux 上运行时，两端的治理边界清晰——agentrt 遵循用户态运行时治理（其自身的 IRON-1~10），agentrt-linux 遵循内核发行版治理（本文档的 OS-IRON-005/007/009）。两端通过同源语义（AgentsIPC 128B 消息头）实现无适配层互操作，但治理上互不越权。
+- **同源**：两端共享五维正交 24 原则作为顶层设计哲学；共享 17 类规则编号体系骨架（IRON/BAN/STD/ACC）；共享 MicroCoreRT 微核心运行时理念（agent-linux 在内核态实现 MicroCoreRT，agentrt 在用户态实现同源语义）。
+- **独立**：agent-linux 承担内核态严肃性责任——内核 ABI 稳定性、内核内部 API 不稳定性、补丁生命周期、维护者层级制度是 agentrt 不涉及的领域；agent-linux 的治理规则（OS-IRON-005/007/009、OS-STD-GOV-*）独立于 agentrt 的 IRON 规则。
+- **互操作**：agentrt 在 agent-linux 上运行时，两端的治理边界清晰——agentrt 遵循用户态运行时治理（其自身的 IRON-1~10），agent-linux 遵循内核发行版治理（本文档的 OS-IRON-005/007/009）。两端通过同源语义（AgentsIPC 128B 消息头）实现无适配层互操作，但治理上互不越权。
 
-> **OS-IRON-009**：agentrt-linux 治理与 agentrt 治理 IRON-9 v3 同源且部分代码共享——共享原则骨架，独立行使内核态/用户态各自的治理权责，互不否决对方的工程决策。
+> **OS-IRON-009**：agent-linux 治理与 agentrt 治理 IRON-9 v3 同源且部分代码共享——共享原则骨架，独立行使内核态/用户态各自的治理权责，互不否决对方的工程决策。
 
 ---
 
@@ -69,9 +69,9 @@ agentrt-linux 工程标准与 agentrt 工程标准是 **IRON-9 v3 同源且部�
 
 ### 2.1 字段定义（Linux 内核 14 字段，Linux 6.6 内核基线 源码行号）
 
-agentrt-linux 沿用 Linux 6.6 内核基线 `MAINTAINERS` 文件的 14 字段（Linux 6.6 内核基线 源码 `MAINTAINERS:7-60`），并按现代 SCM（git + GitHub）场景做适配。字段推荐顺序（Linux 6.6 内核基线 `MAINTAINERS:4`）：`M: / R: / L: / S: / W: / Q: / B: / C: / P: / T: / F: / X: / N: / K:`。
+agent-linux 沿用 Linux 6.6 内核基线 `MAINTAINERS` 文件的 14 字段（Linux 6.6 内核基线 源码 `MAINTAINERS:7-60`），并按现代 SCM（git + GitHub）场景做适配。字段推荐顺序（Linux 6.6 内核基线 `MAINTAINERS:4`）：`M: / R: / L: / S: / W: / Q: / B: / C: / P: / T: / F: / X: / N: / K:`。
 
-| 字段 | 全称 | Linux 6.6 内核基线 行号 | 含义 | agentrt-linux 适配 |
+| 字段 | 全称 | Linux 6.6 内核基线 行号 | 含义 | agent-linux 适配 |
 |------|------|------------|------|----------------|
 | M: | Mail | `MAINTAINERS:7` | 主维护者邮箱 `FullName <address@domain>` | M: GitHub handle + email |
 | R: | Reviewer | `MAINTAINERS:8` | 指定审查者（应被 CC） | R: Reviewers GitHub handle |
@@ -90,21 +90,21 @@ agentrt-linux 沿用 Linux 6.6 内核基线 `MAINTAINERS` 文件的 14 字段（
 
 字段匹配优先级遵循 Linux 规则（Linux 6.6 内核基线 `MAINTAINERS:39-44`）：`X:` 排除先于 `F:` 匹配；`N:` 正则匹配会触发 git log 历史回溯以通知历史签名者；`K:` 内容正则匹配补丁或文件内容。`F:` 模式尾随斜杠包含子目录，`F: drivers/net/*` 不含子目录下文件（Linux 6.6 内核基线 `MAINTAINERS:33-38` 示例：3com vortex 子系统 `MAINTAINERS:71-75`、cfg80211 多字段示例 `MAINTAINERS:112-128`）。
 
-### 2.2 agentrt-linux 新增字段
+### 2.2 agent-linux 新增字段
 
-在 14 字段之外，agentrt-linux 新增 3 个字段以承载同源治理与代码所有权信息：
+在 14 字段之外，agent-linux 新增 3 个字段以承载同源治理与代码所有权信息：
 
 | 字段 | 含义 | 示例 |
 |------|------|------|
 | **O:** | Owners file（与 CODEOWNERS 格式兼容，供 GitHub CODEOWNERS bot 消费） | O: @airymaxos/kernel-team |
 | **H:** | 同源 agentrt 模块（标注 IRON-9 v3 同源且部分代码共享的对应关系） | H: atoms/corekern |
-| **V:** | 版本兼容性声明（标注该子系统对 agentrt-linux 主版本/内核基线的要求） | V: agentrt-linux 1.x / Linux 6.6 |
+| **V:** | 版本兼容性声明（标注该子系统对 agent-linux 主版本/内核基线的要求） | V: agent-linux 1.x / Linux 6.6 |
 
-`O:` 字段是 `M:`/`R:` 的 CODEOWNERS 投影——`M:`/`R:` 给人看，`O:` 给机器看。两者必须保持一致，CI 会校验。`H:` 字段是 IRON-9 v3 同源且部分代码共享原则的落地：每个 agentrt-linux 子系统须声明其 agentrt 同源模块，以便在两端的语义漂移检测中自动对齐。
+`O:` 字段是 `M:`/`R:` 的 CODEOWNERS 投影——`M:`/`R:` 给人看，`O:` 给机器看。两者必须保持一致，CI 会校验。`H:` 字段是 IRON-9 v3 同源且部分代码共享原则的落地：每个 agent-linux 子系统须声明其 agentrt 同源模块，以便在两端的语义漂移检测中自动对齐。
 
 ### 2.3 Status 状态定义
 
-agentrt-linux 在 Linux 原有 5 种状态基础上，新增 4 种面向发行版生命周期的状态：
+agent-linux 在 Linux 原有 5 种状态基础上，新增 4 种面向发行版生命周期的状态：
 
 | 状态 | 含义 | 适用场景 |
 |------|------|---------|
@@ -113,7 +113,7 @@ agentrt-linux 在 Linux 原有 5 种状态基础上，新增 4 种面向发行�
 | Odd Fixes | 有维护者但仅偶发修复 | 历史遗留子系统 |
 | Orphan | 当前无维护者（欢迎认领） | 待认领的孤儿模块 |
 | Obsolete | 已被更好系统替代的旧代码 | 即将移除的遗留代码 |
-| **Experimental** | 实验性，API/ABI 可能剧烈变动 | agentrt-linux 0.1.x 阶段全部子仓 |
+| **Experimental** | 实验性，API/ABI 可能剧烈变动 | agent-linux 0.1.x 阶段全部子仓 |
 | **Pilot** | 试点阶段，在有限场景验证 | 新引入的子系统（如 sched_tac 调度器试点） |
 | **Stable** | 稳定阶段，遵循版本化演进 | 1.0.x 发布后的核心子系统 |
 | **Deprecated** | 弃用中，已发布弃用声明与宽限期 | 进入弃用流程的接口/子系统 |
@@ -124,24 +124,24 @@ agentrt-linux 在 Linux 原有 5 种状态基础上，新增 4 种面向发行�
 
 #### 2.4.1 两级 MAINTAINERS 模型
 
-agentrt-linux 采用 8 子仓独立 git 仓库模型（参见第 4 章），故 MAINTAINERS 文件分两级：
+agent-linux 采用 8 子仓独立 git 仓库模型（参见第 4 章），故 MAINTAINERS 文件分两级：
 
 | 层级 | 位置 | 职责 | 字段范围 |
 |------|------|------|---------|
-| **伞仓 MAINTAINERS** | `agentrt-linux/MAINTAINERS` | 列出 8 个子仓及其仓库地址，定义跨子仓协调归属 | M/R/L/S/W/B/T/F（指向子仓目录）+ H（同源 agentrt 模块）+ V（版本基线） |
+| **伞仓 MAINTAINERS** | `agent-linux/MAINTAINERS` | 列出 8 个子仓及其仓库地址，定义跨子仓协调归属 | M/R/L/S/W/B/T/F（指向子仓目录）+ H（同源 agentrt 模块）+ V（版本基线） |
 | **子仓 MAINTAINERS** | `<子仓>/MAINTAINERS`（8 份） | 列出该子仓内部的子系统及其维护者 | 全部 14 + 3 字段 |
 
 每个子仓根目录维护自己的 MAINTAINERS 文件，伞仓 MAINTAINERS 通过 `F:` 字段指向各子仓目录（如 `F: kernel/` 指向 kernel 子仓），并通过 `T:` 字段标注该子仓的 git 远程地址。
 
 #### 2.4.2 伞仓 MAINTAINERS 模板
 
-以下是伞仓（`agentrt-linux/`）MAINTAINERS 文件的简要模板，列出 8 个子仓及其仓库地址（详细模板见各子仓的 MAINTAINERS 文件）：
+以下是伞仓（`agent-linux/`）MAINTAINERS 文件的简要模板，列出 8 个子仓及其仓库地址（详细模板见各子仓的 MAINTAINERS 文件）：
 
 ```
 List of maintainers
 ===================
 
-agentrt-linux (AirymaxOS) umbrella maintainers. Field format
+agent-linux (AirymaxOS) umbrella maintainers. Field format
 inherited from Linux 6.6 MAINTAINERS (Linux 6.6 内核基线). See
 Documentation/process/maintainers.rst for field semantics.
 
@@ -166,11 +166,11 @@ R:	Kernel Core Lead <kernel-core@airymaxos.com>
 L:	airymax-dev@airymaxos.com
 S:	Supported
 W:	https://airymaxos.com/docs/subsystems/kernel
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=kernel
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=kernel
 T:	git https://atomgit.com/openairymax/kernel.git
 F:	kernel/
 H:	atoms/corekern
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-SERVICES SUBSYSTEM
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -178,11 +178,11 @@ R:	Services Lead <services-lead@airymaxos.com>
 L:	airymax-dev@airymaxos.com
 S:	Supported
 W:	https://airymaxos.com/docs/subsystems/services
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=services
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=services
 T:	git https://atomgit.com/openairymax/services.git
 F:	services/
 H:	daemons
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-SECURITY SUBSYSTEM (Cupolas LSM)
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -190,11 +190,11 @@ R:	Security Lead <security-lead@airymaxos.com>
 L:	airymax-security@airymaxos.com
 S:	Supported
 W:	https://airymaxos.com/docs/subsystems/security
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=security
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=security
 T:	git https://atomgit.com/openairymax/security.git
 F:	security/
 H:	cupolas
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-MEMORY SUBSYSTEM (MemoryRovol)
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -202,11 +202,11 @@ R:	Memory Lead <memory-lead@airymaxos.com>
 L:	airymax-memory@airymaxos.com
 S:	Maintained
 W:	https://airymaxos.com/docs/subsystems/memory
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=memory
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=memory
 T:	git https://atomgit.com/openairymax/memory.git
 F:	memory/
 H:	heapstore + memoryrovol
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-COGNITION SUBSYSTEM (CoreLoopThree)
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -214,11 +214,11 @@ R:	Cognition Lead <cognition-lead@airymaxos.com>
 L:	airymax-cognition@airymaxos.com
 S:	Maintained
 W:	https://airymaxos.com/docs/subsystems/cognition
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=cognition
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=cognition
 T:	git https://atomgit.com/openairymax/cognition.git
 F:	cognition/
 H:	coreloopthree + frameworks
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-CLOUDNATIVE SUBSYSTEM
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -226,11 +226,11 @@ R:	Cloud Native Lead <cloudnative-lead@airymaxos.com>
 L:	airymax-cloudnative@airymaxos.com
 S:	Maintained
 W:	https://airymaxos.com/docs/subsystems/cloudnative
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=cloudnative
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=cloudnative
 T:	git https://atomgit.com/openairymax/cloudnative.git
 F:	cloudnative/
 H:	gateway + sdk
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-SYSTEM SUBSYSTEM (commons)
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -238,11 +238,11 @@ R:	System Lead <system-lead@airymaxos.com>
 L:	airymax-system@airymaxos.com
 S:	Supported
 W:	https://airymaxos.com/docs/subsystems/system
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=system
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=system
 T:	git https://atomgit.com/openairymax/system.git
 F:	system/
 H:	commons
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 
 AIRYMAXOS-TESTS-LINUX SUBSYSTEM
 M:	SPHARX Engineering <eng@airymaxos.com>
@@ -250,11 +250,11 @@ R:	Tests Lead <tests-lead@airymaxos.com>
 L:	airymax-tests@airymaxos.com
 S:	Maintained
 W:	https://airymaxos.com/docs/subsystems/tests
-B:	https://gitlab.airymaxos.com/agentrt-linux/-/issues?label=tests
+B:	https://gitlab.airymaxos.com/agent-linux/-/issues?label=tests
 T:	git https://atomgit.com/openairymax/tests-linux.git
 F:	tests-linux/
 H:	全模块测试
-V:	agentrt-linux 1.x / Linux 6.6
+V:	agent-linux 1.x / Linux 6.6
 ```
 
 #### 2.4.3 [SC] 共享契约层的特殊审批流程
@@ -264,7 +264,7 @@ V:	agentrt-linux 1.x / Linux 6.6
 ```
 开发者提交 [SC] 变更 MR
    ↓
-agentrt-linux CI（本仓 CI）
+agent-linux CI（本仓 CI）
    ↓ pass
 agentrt CI（触发镜像 PR，验证 agentrt 编译通过）
    ↓ pass
@@ -277,12 +277,12 @@ L3 总维护者（SPHARX Engineering）最终审批
 
 #### 2.4.4 CODEOWNERS 自动同步机制
 
-GitHub 与 GitLab 使用 `.github/CODEOWNERS`（或 `CODEOWNERS`）文件实现自动审查者指派。agentrt-linux 将 MAINTAINERS 的 `F:` + `M:` 映射为 CODEOWNERS，避免人工维护两份归属信息。
+GitHub 与 GitLab 使用 `.github/CODEOWNERS`（或 `CODEOWNERS`）文件实现自动审查者指派。agent-linux 将 MAINTAINERS 的 `F:` + `M:` 映射为 CODEOWNERS，避免人工维护两份归属信息。
 
-`O:` 字段（§2.2）是 `M:`/`R:` 的 CODEOWNERS 投影——`M:`/`R:` 给人看，`O:` 给机器看。两者必须保持一致，CI 会校验。agentrt-linux 提供 `make codeowners-sync` 目标自动同步：
+`O:` 字段（§2.2）是 `M:`/`R:` 的 CODEOWNERS 投影——`M:`/`R:` 给人看，`O:` 给机器看。两者必须保持一致，CI 会校验。agent-linux 提供 `make codeowners-sync` 目标自动同步：
 
 ```makefile
-# 文件: Makefile（agentrt-linux 仓库根）
+# 文件: Makefile（agent-linux 仓库根）
 
 .PHONY: codeowners-sync codeowners-check
 
@@ -308,7 +308,7 @@ CI 中 `codeowners-check` 作为强制门禁，不一致即拒绝合并。
 
 #### 2.4.5 get_maintainer.pl 集成
 
-Linux 6.6 内核基线 提供 `scripts/get_maintainer.pl`（基于 MAINTAINERS），根据补丁修改的文件查询应 CC 的维护者邮箱列表。agentrt-linux 直接复用此脚本：
+Linux 6.6 内核基线 提供 `scripts/get_maintainer.pl`（基于 MAINTAINERS），根据补丁修改的文件查询应 CC 的维护者邮箱列表。agent-linux 直接复用此脚本：
 
 ```bash
 # 查询补丁应 CC 的维护者
@@ -331,13 +331,13 @@ $ ./scripts/get_maintainer.pl --to --cc patches/0001-*.patch \
 
 ### 3.1 信任链结构
 
-agentrt-linux 的补丁传播遵循严格的信任链分层：
+agent-linux 的补丁传播遵循严格的信任链分层：
 
 ```mermaid
 graph TD
     A["普通贡献者<br/>(Contributor)"] -->|提交 PR| B["子系统维护者<br/>(kernel / services / ...)<br/>8 子仓各自维护者"]
     B -->|pull 请求| C["顶级子系统维护者<br/>(airymaxos 总维护者)<br/>跨子仓协调"]
-    C -->|pull 请求| D["agentrt-linux 总维护者<br/>(BDFL 角色)<br/>最终合并权"]
+    C -->|pull 请求| D["agent-linux 总维护者<br/>(BDFL 角色)<br/>最终合并权"]
     D -->|merge| E["main 主线<br/>(稳定可发布)"]
     B -->|简单补丁可直接合并| E
     A -->| trivial 补丁| B
@@ -350,9 +350,9 @@ graph TD
 信任链的运作遵循四条不可妥协的原则：
 
 1. **逐层背书**：每一层维护者信任下层维护者的选择，只审查"下层送上来的、自己未参与过的"补丁。上级不绕过下级直接审查底层补丁——绕过即破坏信任链。
-2. **链可任意长但实务不超过 2-3 级**：理论上信任链可无限延伸，但超过 3 级会显著增加补丁延迟与合并冲突风险。agentrt-linux 实务上限为 3 级（贡献者 → 子系统维护者 → 总维护者）。
+2. **链可任意长但实务不超过 2-3 级**：理论上信任链可无限延伸，但超过 3 级会显著增加补丁延迟与合并冲突风险。agent-linux 实务上限为 3 级（贡献者 → 子系统维护者 → 总维护者）。
 3. **总维护者信任子系统维护者不送坏补丁上来**：这是信任链的根基。若子系统维护者反复送上未充分审查的补丁，总维护者会逐步降低对该子系统的信任权重，乃至收回合并授权。
-4. **直接处理比例可作为信任链健康度指标**：参考 Linus 约 1.3% 直接处理率，agentrt-linux 总维护者的直接处理比例应维持在 5% 以下（项目规模较小时上限可放宽）。若该比例持续升高，意味着信任链在某一层断裂——下层维护者要么缺位、要么不作为。
+4. **直接处理比例可作为信任链健康度指标**：参考 Linus 约 1.3% 直接处理率，agent-linux 总维护者的直接处理比例应维持在 5% 以下（项目规模较小时上限可放宽）。若该比例持续升高，意味着信任链在某一层断裂——下层维护者要么缺位、要么不作为。
 
 ### 3.3 子系统维护者职责
 
@@ -368,7 +368,7 @@ graph TD
 
 ## 第 4 章 8 子仓维护者分配
 
-agentrt-linux 由 8 个子仓构成，每个子仓对应一个 agentrt 同源模块域。维护者席位由开源极境工程与规范委员会任命，归属关系与同源映射固定如下：
+agent-linux 由 8 个子仓构成，每个子仓对应一个 agentrt 同源模块域。维护者席位由开源极境工程与规范委员会任命，归属关系与同源映射固定如下：
 
 | 子仓 | 中文 | 主维护者 | 审查者 | 状态 | 同源 agentrt 模块 |
 |------|------|---------|--------|------|------------------|
@@ -383,7 +383,7 @@ agentrt-linux 由 8 个子仓构成，每个子仓对应一个 agentrt 同源模
 
 ### 4.1 子仓归属说明
 
-- **kernel**：对应 agentrt `atoms/corekern`，承载 MicroCoreRT 微核心运行时在内核态的实现（IPC、内存、任务、时间四大子系统）。这是整个 agentrt-linux 的内核基座，主维护者须具备 Linux 6.6 内核基线的深度经验。
+- **kernel**：对应 agentrt `atoms/corekern`，承载 MicroCoreRT 微核心运行时在内核态的实现（IPC、内存、任务、时间四大子系统）。这是整个 agent-linux 的内核基座，主维护者须具备 Linux 6.6 内核基线的深度经验。
 - **services**：对应 agentrt `daemons`，承载用户态后台服务（LLM daemon、监控 daemon、工具 daemon 等）。
 - **security**：对应 agentrt `cupolas`，承载安全穹顶（守卫、权限、净化、审计、工作台、金库、网络安全）。
 - **memory**：对应 agentrt `heapstore + memoryrovol`，承载堆存储与四层记忆卷载（原始卷→特征层→结构层→模式层）。
@@ -407,7 +407,7 @@ agentrt-linux 由 8 个子仓构成，每个子仓对应一个 agentrt 同源模
 
 ### 5.1 DCO 1.1 内容
 
-agentrt-linux 沿用 Linux 内核的 Developer's Certificate of Origin 1.1。每一份贡献在提交时，作者须能自我认证以下声明：
+agent-linux 沿用 Linux 内核的 Developer's Certificate of Origin 1.1。每一份贡献在提交时，作者须能自我认证以下声明：
 
 > By making a contribution to this project, I certify that:
 >
@@ -431,11 +431,11 @@ DCO 通过 `Signed-off-by:`（SoB）标签落地。SoB 链条反映补丁从作�
 - **自动添加**：`git commit -s` 自动添加作者 SoB；`git revert -s` 自动添加回退者 SoB。
 - **链必须真实**：SoB 链不得伪造传播路径。若补丁实际经过了 A → B → C，链必须是 `A → B → C`，不得是 `A → C`（跳过 B）或 `C → A`（颠倒顺序）。
 
-agentrt-linux 使用 DCO bot 在 PR 层自动验证 SoB 链完整性：缺少 SoB 的 PR 无法合并。
+agent-linux 使用 DCO bot 在 PR 层自动验证 SoB 链完整性：缺少 SoB 的 PR 无法合并。
 
 ### 5.3 审查标签体系
 
-agentrt-linux 保留 Linux 内核的全部审查标签，语义不变：
+agent-linux 保留 Linux 内核的全部审查标签，语义不变：
 
 | 标签 | 含义 | 何时使用 |
 |------|------|---------|
@@ -459,7 +459,7 @@ agentrt-linux 保留 Linux 内核的全部审查标签，语义不变：
 
 ## 第 6 章 Reviewer's Statement of Oversight
 
-`Reviewed-by:` 标签不是礼貌性点赞，而是审查者签署的一份正式声明。agentrt-linux 沿用 Linux 内核的 Reviewer's Statement of Oversight 语义：
+`Reviewed-by:` 标签不是礼貌性点赞，而是审查者签署的一份正式声明。agent-linux 沿用 Linux 内核的 Reviewer's Statement of Oversight 语义：
 
 ### 6.1 审查者声明该补丁值得加入
 
@@ -473,9 +473,9 @@ agentrt-linux 保留 Linux 内核的全部审查标签，语义不变：
 
 这是 Reviewer's Statement 的关键边界——审查者审查了补丁并认为其健全，但**不提供任何明示或暗示的保证**：不保证补丁能实现其声明的目的，不保证在所有场景下功能正常。`Reviewed-by:` 是一种"值得纳入"的意见表达，不是"无 bug"的担保。
 
-### 6.4 agentrt-linux 等价物
+### 6.4 agent-linux 等价物
 
-agentrt-linux 的 `Reviewed-by:` 标签语义与 Linux 完全一致。在 PR 场景下：
+agent-linux 的 `Reviewed-by:` 标签语义与 Linux 完全一致。在 PR 场景下：
 
 - `Reviewed-by:` 通过 GitHub PR review 的 "Approve" 动作 + 评论 `Reviewed-by: Name <email>` 形式签发。
 - 任何完成审查工作的审查者（不必是维护者）均可提供 `Reviewed-by:`。
@@ -488,13 +488,13 @@ agentrt-linux 的 `Reviewed-by:` 标签语义与 Linux 完全一致。在 PR 场
 
 ## 第 7 章 6 级贡献者成熟度模型
 
-agentrt-linux 采纳 Linux Foundation TAB 提出的贡献者成熟度模型，作为组织层面人才梯队建设的标准。该模型定义"组织允许/期望/鼓励工程师投入多少上游工作"的六级阶梯：
+agent-linux 采纳 Linux Foundation TAB 提出的贡献者成熟度模型，作为组织层面人才梯队建设的标准。该模型定义"组织允许/期望/鼓励工程师投入多少上游工作"的六级阶梯：
 
-| Level | 标准 | agentrt-linux 期望 |
+| Level | 标准 | agent-linux 期望 |
 |-------|------|----------------|
-| 0 | 工程师不允许贡献内核 | 不适用（agentrt-linux 拒绝与此类组织合作） |
+| 0 | 工程师不允许贡献内核 | 不适用（agent-linux 拒绝与此类组织合作） |
 | 1 | 允许贡献（业余或工作时间内） | 起步阶段——新加入的贡献者 |
-| 2 | 期望贡献作为工作职责；支持参加 Linux 会议；贡献计入晋升评审 | **目标 Level**——所有 agentrt-linux 工程师底线 |
+| 2 | 期望贡献作为工作职责；支持参加 Linux 会议；贡献计入晋升评审 | **目标 Level**——所有 agent-linux 工程师底线 |
 | 3 | 期望审查他人补丁；提交论文计入工作；社区贡献计入晋升；定期报告贡献度量 | 进阶 Level——子系统维护者候选 |
 | 4 | 鼓励分配工作时间做 Upstream Work；社区反馈计入绩效 | 高级 Level——子系统维护者 |
 | 5 | Upstream 内核开发是正式岗位（≥1/3 时间）；主动寻求社区反馈；定期报告 Upstream Work 比例 | 终极目标——顶级子系统维护者 |
@@ -505,17 +505,17 @@ Level 3+ 的组织须定期报告以下度量（内部或公开）：
 
 - 团队/组织的上游贡献数量
 - 上游贡献者占内核开发者总数的比例
-- 组织使用的 agentrt-linux 版本与上游基线的时间间隔（落后天数）
+- 组织使用的 agent-linux 版本与上游基线的时间间隔（落后天数）
 - 内核中的 out-of-tree commit 数量
 
-### 7.2 agentrt-linux 适配
+### 7.2 agent-linux 适配
 
-agentrt-linux 在 Linux 模型基础上增加两条适配：
+agent-linux 在 Linux 模型基础上增加两条适配：
 
-1. **"上游"在 agentrt-linux 语境下双指**：既指 agentrt-linux 自身的 main 主线，也指 Linux 6.6 内核基线上游。工程师投入 Linux 上游的贡献（如 EEVDF 调度器改进、MGLRU 改进）同样计入 agentrt-linux 成熟度评估。
-2. **Level 2 为组织合作底线**：与 agentrt-linux 建立商业合作或深度技术合作的组织，其工程团队须达到 Level 2。这是 IRON-9 v3 同源且部分代码共享原则在组织治理上的延伸——agentrt-linux 不与压榨工程师上游贡献时间的组织深度合作。
+1. **"上游"在 agent-linux 语境下双指**：既指 agent-linux 自身的 main 主线，也指 Linux 6.6 内核基线上游。工程师投入 Linux 上游的贡献（如 EEVDF 调度器改进、MGLRU 改进）同样计入 agent-linux 成熟度评估。
+2. **Level 2 为组织合作底线**：与 agent-linux 建立商业合作或深度技术合作的组织，其工程团队须达到 Level 2。这是 IRON-9 v3 同源且部分代码共享原则在组织治理上的延伸——agent-linux 不与压榨工程师上游贡献时间的组织深度合作。
 
-> **OS-STD-GOV-009**：组织 6 级成熟度 Level 2 为底线目标——与 agentrt-linux 深度合作的组织工程团队须达到 Level 2（期望贡献作为工作职责）。（重分类：原 OS-IRON-010 属治理标准而非工程铁律，已迁移至 OS-STD-GOV-009。）
+> **OS-STD-GOV-009**：组织 6 级成熟度 Level 2 为底线目标——与 agent-linux 深度合作的组织工程团队须达到 Level 2（期望贡献作为工作职责）。（重分类：原 OS-IRON-010 属治理标准而非工程铁律，已迁移至 OS-STD-GOV-009。）
 
 ---
 
@@ -567,7 +567,7 @@ Andrew Morton 建议：**每一条未导致代码改动的审查意见，都应�
 
 ## 第 9 章 管理哲学（BDFL 角色）
 
-agentrt-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。该角色的管理哲学直接继承 Linux 内核 `management-style.rst`，并提炼为四条可操作原则。
+agent-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。该角色的管理哲学直接继承 Linux 内核 `management-style.rst`，并提炼为四条可操作原则。
 
 ### 9.1 避免大决策
 
@@ -662,7 +662,7 @@ agentrt-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。
 
 ### 11.1 治理层原则的独立性
 
-五维原则在治理层的映射具有正交性：S-3 关注"谁有权决策"（层级结构），A-3 关注"决策如何传达"（人际礼仪），A-4 关注"决策者如何培养"（成熟度梯队），E-6 关注"决策如何追溯"（DCO 链），IRON-9 关注"决策边界在哪"（同源独立）。五者互不重叠，共同构成 agentrt-linux 治理的完备规则集。
+五维原则在治理层的映射具有正交性：S-3 关注"谁有权决策"（层级结构），A-3 关注"决策如何传达"（人际礼仪），A-4 关注"决策者如何培养"（成熟度梯队），E-6 关注"决策如何追溯"（DCO 链），IRON-9 关注"决策边界在哪"（同源独立）。五者互不重叠，共同构成 agent-linux 治理的完备规则集。
 
 ### 11.2 治理与工程标准的闭环
 
@@ -681,7 +681,7 @@ agentrt-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。
 - `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）
 - IRON-9 v3 工程铁律（17 类规则编号体系，v28.0）
 
-### 12.2 agentrt-linux 工程标准
+### 12.2 agent-linux 工程标准
 
 - `50-engineering-standards/README.md`（工程标准主索引与总纲）
 - `50-engineering-standards/01-coding-standards.md`（代码规范合集，6 Parts）
@@ -707,4 +707,4 @@ agentrt-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。
 
 ---
 
-> **文档结束** | agentrt-linux 工程标准第 7 篇 | 治理层规范 | 0.1.1 版本 P0 优先完成
+> **文档结束** | agent-linux 工程标准第 7 篇 | 治理层规范 | 0.1.1 版本 P0 优先完成

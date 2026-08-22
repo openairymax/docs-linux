@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）运维体系设计
-> **文档定位**：agentrt-linux（AirymaxOS）运维工程体系主索引（部署 + 配置 + 监控 + 告警 + 日志收集 + 12 daemon 清单）\
+# agent-linux（AirymaxOS）运维体系设计
+> **文档定位**：agent-linux（AirymaxOS）运维工程体系主索引（部署 + 配置 + 监控 + 告警 + 日志收集 + 12 daemon 清单）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 运维体系是系统稳定运行的核心保障。它继承 Linux 发行版 30+ 年沉淀的运维哲学（systemd 集成 + 包管理 + 配置管理 + 监控告警 + 故障恢复），并在其上扩展智能体操作系统专属的 Agent 运维（Agent 健康检查、Token 预算监控、记忆卷载运维等）。本目录覆盖五方面职责：
+agent-linux 运维体系是系统稳定运行的核心保障。它继承 Linux 发行版 30+ 年沉淀的运维哲学（systemd 集成 + 包管理 + 配置管理 + 监控告警 + 故障恢复），并在其上扩展智能体操作系统专属的 Agent 运维（Agent 健康检查、Token 预算监控、记忆卷载运维等）。本目录覆盖五方面职责：
 
 1. **部署**：systemd 集成 + RPM/dnf 包管理 + ISO 安装镜像；12 个 daemons 以 `agentrt-*.service` 格式纳入 systemd 单元管理。
 2. **配置**：sysctl 内核运行时参数 + `/etc/agentrt/` 配置文件（与 agentrt 同源）+ A-UCS（Unified Configuration Subsystem）的 JSON/TOML 双向热重载。
@@ -22,7 +22,7 @@ agentrt-linux 运维体系是系统稳定运行的核心保障。它继承 Linux
 
 ### 1.1 12 daemon 清单（统一归属 services/daemons/）
 
-agentrt-linux 的 12 个用户态守护进程统一归属 `services/daemons/` 目录，与 agentrt 同源。每个 daemon 对应一个 systemd 服务单元（`agentrt-*.service` 格式）：
+agent-linux 的 12 个用户态守护进程统一归属 `services/daemons/` 目录，与 agentrt 同源。每个 daemon 对应一个 systemd 服务单元（`agentrt-*.service` 格式）：
 
 | # | Daemon 名称 | systemd 服务 | Unify 模块归属 | 核心职责 |
 |---|------------|-------------|---------------|---------|
@@ -49,10 +49,10 @@ agentrt-linux 的 12 个用户态守护进程统一归属 `services/daemons/` �
 | L4 | 告警 | Alertmanager + 自定义规则 | 异常检测与通知 |
 | L5 | 故障恢复 | systemd restart + Watchdog + Macro-Supervisor 裁决 | 自动恢复 |
 | **L6** | **日志收集** | **A-ULP Ring Buffer + Logger Daemon + Loki** | **日志聚合** |
-| **L7** | **Agent 运维** | **agentrt-linux 专属** | **Agent 健康与 Token** |
-| **L8** | **记忆运维** | **agentrt-linux 专属** | **记忆卷载维护** |
+| **L7** | **Agent 运维** | **agent-linux 专属** | **Agent 健康与 Token** |
+| **L8** | **记忆运维** | **agent-linux 专属** | **记忆卷载维护** |
 
-### 1.3 agentrt-linux 扩展
+### 1.3 agent-linux 扩展
 
 - **Agent 健康检查**：通过 `airy_health_check()` API + systemd watchdog 监控 Agent 进程健康
 - **Token 预算监控**：实时告警 Token 消耗超预算
@@ -63,7 +63,7 @@ agentrt-linux 的 12 个用户态守护进程统一归属 `services/daemons/` �
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。运维体系通过 systemd 单元、监控规则、日志收集策略在运行期守护五大选型不被偏离。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。运维体系通过 systemd 单元、监控规则、日志收集策略在运行期守护五大选型不被偏离。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -111,8 +111,8 @@ agentrt-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内
 - `05-incident-response.md`：故障响应（runbook + 应急预案）
 - `06-backup-recovery.md`：备份恢复
 - `07-systemd-integration.md`：systemd 集成详解（12 daemon 单元规范）
-- `08-agent-operations.md`：agentrt-linux 专属 Agent 运维
-- `09-memory-operations.md`：agentrt-linux 专属记忆卷载运维
+- `08-agent-operations.md`：agent-linux 专属 Agent 运维
+- `09-memory-operations.md`：agent-linux 专属记忆卷载运维
 - `10-devstation.md`：DevStation 开发运维环境
 
 ---
@@ -182,4 +182,4 @@ agentrt-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内
 
 ---
 
-> **文档结束** | agentrt-linux 运维体系设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 运维体系设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

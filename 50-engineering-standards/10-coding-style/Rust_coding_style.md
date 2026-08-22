@@ -4,17 +4,17 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档定位**：Rust 语言编码风格及安全编码规范合集（含 Rust 风格、Rust 安全编码）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)
 
 ---
 
-## Part I: agentrt-linux（AirymaxOS）Rust 语言编码风格规范
+## Part I: agent-linux（AirymaxOS）Rust 语言编码风格规范
 
 ### 1. Rust for Linux 编码约定
 
 #### 1.1 定位与适用范围
 
-agentrt-linux（AirymaxOS）的 Rust 代码仅用于**内核模块**（安全敏感且非热路径的子系统），典型场景包括：
+agent-linux（AirymaxOS）的 Rust 代码仅用于**内核模块**（安全敏感且非热路径的子系统），典型场景包括：
 - 安全策略裁决（LSM hook 实现）
 - 文件系统解析（路径遍历的字符串处理）
 - 配置解析器（Kconfig 派生配置验证）
@@ -24,7 +24,7 @@ agentrt-linux（AirymaxOS）的 Rust 代码仅用于**内核模块**（安全敏
 
 #### 1.2 与 Rust for Linux 社区的关系
 
-agentrt-linux（AirymaxOS）的 Rust 编码风格以 Rust for Linux 社区约定为基线，在此基础上增加：
+agent-linux（AirymaxOS）的 Rust 编码风格以 Rust for Linux 社区约定为基线，在此基础上增加：
 - `airy_` / `airy_` 前缀隔离
 - IRON-9 v3 四层模型代码归属标注
 - 内核模块专属的 unsafe 审计规范
@@ -129,13 +129,13 @@ const AIRY_IPC_HDR_SIZE: usize = 128;
 
 > **OS-STD-034**：Rust 代码同样遵循 `airy_` / `airy_` 前缀隔离规范：
 > - `airy_*` 前缀：同源 API（[SS] 语义同源层），SDK 层与 agentrt 用户态 API 签名一致（同一份源码两端编译），其他层语义同源
-> - `airy_*` 前缀：agentrt-linux（AirymaxOS）专属 API（[IND] 完全独立层）
+> - `airy_*` 前缀：agent-linux（AirymaxOS）专属 API（[IND] 完全独立层）
 
 ```rust
 /// [SS] 语义同源层：与 agentrt 用户态 airy_ipc_send() 签名一致（SDK 层，同一份源码两端编译）
 pub fn airy_ipc_send(channel: u32, msg: &[u8]) -> Result<()> { ... }
 
-/// [IND] 完全独立层：agentrt-linux（AirymaxOS）内核专属
+/// [IND] 完全独立层：agent-linux（AirymaxOS）内核专属
 pub fn airy_lsm_hook_register(hooks: &SecurityHookList) -> Result<()> { ... }
 ```
 
@@ -216,7 +216,7 @@ pub unsafe fn airy_task_desc_read(ptr: *const AirymaxTaskDesc) -> AirymaxTaskDes
 
 #### 5.1 Result<T, E> 优于 panic（OS-STD-036）
 
-> **OS-STD-036**：内核模块 Rust 代码禁止使用 `panic!()` / `unwrap()` / `expect()`，必须使用 `Result<T, E>` 返回错误。内核 panic 等同于系统崩溃，这在 agentrt-linux（AirymaxOS）中不可接受。
+> **OS-STD-036**：内核模块 Rust 代码禁止使用 `panic!()` / `unwrap()` / `expect()`，必须使用 `Result<T, E>` 返回错误。内核 panic 等同于系统崩溃，这在 agent-linux（AirymaxOS）中不可接受。
 
 ```rust
 // 好：返回 Result
@@ -269,7 +269,7 @@ if let Some(task) = airy_task_find(task_id) {
 
 #### 6.1 kernel crate（OS-STD-039）
 
-> **OS-STD-039**：agentrt-linux（AirymaxOS）内核模块 Rust 代码使用 `kernel` crate 提供的安全抽象访问内核 API。禁止直接使用 `bindings::*` 中的裸函数（除非有对应的安全封装）。
+> **OS-STD-039**：agent-linux（AirymaxOS）内核模块 Rust 代码使用 `kernel` crate 提供的安全抽象访问内核 API。禁止直接使用 `bindings::*` 中的裸函数（除非有对应的安全封装）。
 
 ```rust
 use kernel::prelude::*;
@@ -438,7 +438,7 @@ pub unsafe extern "C" fn airy_ipc_channel_create(
 
 ```rust
 // SPDX-License-Identifier: GPL-2.0
-//! agentrt-linux（AirymaxOS）IPC 通道内核模块（Rust 实现）
+//! agent-linux（AirymaxOS）IPC 通道内核模块（Rust 实现）
 //!
 //! [SS] 语义同源层：API 签名与 agentrt 用户态 AgentrtIpcChannel 一致（SDK 层，同一份源码两端编译）。
 //!
@@ -453,7 +453,7 @@ module! {
     type: AgentrtIpcModule,
     name: "airy_ipc",
     author: "SPHARX Ltd.",
-    description: "agentrt-linux（AirymaxOS）IPC Channel Module (Rust)",
+    description: "agent-linux（AirymaxOS）IPC Channel Module (Rust)",
     license: "GPL",
 }
 
@@ -575,13 +575,13 @@ graph TD
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 0.1.1 | 2026-07-07 | 初始版本：基于 Rust for Linux 社区约定，融合 agentrt-linux 专属规范 |
+| 0.1.1 | 2026-07-07 | 初始版本：基于 Rust for Linux 社区约定，融合 agent-linux 专属规范 |
 | 1.0.1 | TBD | 首个开发版本：与代码实现同步验证 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 
 ---
 
-## Part II: agentrt-linux（AirymaxOS）Rust 安全编码规范
+## Part II: agent-linux（AirymaxOS）Rust 安全编码规范
 
 ### 1. unsafe 代码审计规范
 
@@ -589,7 +589,7 @@ graph TD
 
 Rust 的安全保证（无数据竞争、无 UAF、无悬垂指针）在 safe Rust 中由编译器强制执行，但在 unsafe Rust 中由开发者负责。每个 unsafe 块都是 Rust 安全模型的"信任边界"——边界内的代码必须手动维护所有安全不变量，否则整个系统的安全保证就会崩溃。
 
-agentrt-linux（AirymaxOS）内核模块中的 unsafe 代码主要用于以下场景，每个场景都需要专门的审计标准：
+agent-linux（AirymaxOS）内核模块中的 unsafe 代码主要用于以下场景，每个场景都需要专门的审计标准：
 
 | unsafe 场景 | 典型用途 | 审计重点 |
 |-------------|---------|---------|
@@ -676,7 +676,7 @@ Rust 的所有权系统在编译时消除了以下内存安全漏洞类别：
 - 空指针解引用：`Option<T>` 强制处理 `None` 情况
 - 未初始化内存：必须初始化后方可使用
 
-agentrt-linux（AirymaxOS）内核模块 Rust 代码应充分利用这些安全保证，将 unsafe 代码限制在最小范围内。
+agent-linux（AirymaxOS）内核模块 Rust 代码应充分利用这些安全保证，将 unsafe 代码限制在最小范围内。
 
 #### 2.2 借用检查器的利用（OS-SEC-232）
 
@@ -891,7 +891,7 @@ pub fn airy_ipc_send_rs(channel: u32, msg: &[u8]) -> i32 {
 
 #### 5.2 类型布局兼容性（OS-SEC-241）
 
-> **OS-SEC-241**：FFI 边界上的结构体必须使用 `#[repr(C, align(64))]` 确保与 C 的布局兼容。Rust 默认布局（`repr(Rust)`）不保证字段顺序和填充，不能用于 FFI。IRON-9 v3 [SC] 共享契约层的结构体（如 `AirymaxIpcMsgHdr`）在 agentrt 和 agentrt-linux（AirymaxOS）两端必须位级兼容，`#[repr(C, align(64))]` 是保证这一兼容性的前提（对齐 Layout C SSoT 的 `AIRY_ALIGNED(64)`，OS-IRON-016 sanctioned exception，定义于 `uapi_compat.h`；D-9 修复后禁用 `__attribute__((packed))`）。
+> **OS-SEC-241**：FFI 边界上的结构体必须使用 `#[repr(C, align(64))]` 确保与 C 的布局兼容。Rust 默认布局（`repr(Rust)`）不保证字段顺序和填充，不能用于 FFI。IRON-9 v3 [SC] 共享契约层的结构体（如 `AirymaxIpcMsgHdr`）在 agentrt 和 agent-linux（AirymaxOS）两端必须位级兼容，`#[repr(C, align(64))]` 是保证这一兼容性的前提（对齐 Layout C SSoT 的 `AIRY_ALIGNED(64)`，OS-IRON-016 sanctioned exception，定义于 `uapi_compat.h`；D-9 修复后禁用 `__attribute__((packed))`）。
 
 ```rust
 /// [SC] 共享契约层：IPC 消息头，与 C 结构体 struct airy_ipc_msg_hdr 完全一致（Layout C v4）。
@@ -1010,9 +1010,9 @@ fn verify_capability_check() {
 
 #### 7.3 与 seL4 形式化验证的关系
 
-seL4 微内核是形式化验证的标杆——它的 C 代码被完全形式化验证，证明其满足功能正确性、完整性和安全性属性。agentrt-linux（AirymaxOS）的内核形式化验证策略借鉴了 seL4 的方法论，但采取了更务实的路径：
+seL4 微内核是形式化验证的标杆——它的 C 代码被完全形式化验证，证明其满足功能正确性、完整性和安全性属性。agent-linux（AirymaxOS）的内核形式化验证策略借鉴了 seL4 的方法论，但采取了更务实的路径：
 
-| 维度 | seL4 | agentrt-linux（AirymaxOS） |
+| 维度 | seL4 | agent-linux（AirymaxOS） |
 |------|------|---------------------------|
 | 验证对象 | 整个微内核（~10K LOC C） | 安全关键模块（capability、LSM hook、IPC 协议） |
 | 验证方法 | Isabelle/HOL 演绎证明 | Kani 模型检查 + Creusot 演绎验证 |
@@ -1042,7 +1042,7 @@ graph TD
     KANI --> OK
     CREUSOT --> OK
 
-    OK --> DEPLOY["部署到 agentrt-linux 内核"]
+    OK --> DEPLOY["部署到 agent-linux 内核"]
 
     style RUST fill:#1a1a2e,stroke:#e94560,color:#eee
     style SAFE fill:#0f3460,stroke:#00ff88,color:#eee
@@ -1073,7 +1073,7 @@ graph TD
 - [Rust 编码风格规范](Rust_coding_style.md)：内核模块编程风格
 - [C 安全编码规范](C_Cpp_coding_style.md)：内核态安全编码
 - [C 编码风格规范](C_Cpp_coding_style.md)：内核态 C 编程风格
-- [安全模块（110-security）](../../110-security/README.md)：agentrt-linux（AirymaxOS）安全体系
+- [安全模块（110-security）](../../110-security/README.md)：agent-linux（AirymaxOS）安全体系
 - [五维正交 24 原则](../../10-architecture/02-five-dimensional-principles.md)
 - Rust Secure Code Guidelines
 - seL4 形式化验证方法论
@@ -1093,7 +1093,7 @@ graph TD
 
 ---
 
-## Part III: agentrt-linux（AirymaxOS）Rust 驱动开发规范
+## Part III: agent-linux（AirymaxOS）Rust 驱动开发规范
 
 ### 1. 驱动框架 API 约定
 
@@ -1347,8 +1347,8 @@ Rust 驱动 CI 流水线（对齐 `50-engineering-standards/05-development-proce
 ### 6. 相关文档
 
 - [编码规范总览](README.md)：规范体系总索引
-- [Rust 编码风格规范 Part I](#part-i-agentrt-linuxairymaxos-rust-语言编码风格规范)：Rust 风格
-- [Rust 安全编码规范 Part II](#part-ii-agentrt-linuxairymaxos-rust-安全编码规范)：unsafe 审计、FFI 安全
+- [Rust 编码风格规范 Part I](#part-i-agent-linuxairymaxos-rust-语言编码风格规范)：Rust 风格
+- [Rust 安全编码规范 Part II](#part-ii-agent-linuxairymaxos-rust-安全编码规范)：unsafe 审计、FFI 安全
 - [内核设计](../../20-modules/01-kernel.md)：[SC] 共享契约层
 - [安全模块](../../110-security/README.md)：LSM hook 设计
 - [构建系统](../../70-build-system/01-kbuild-system.md)：Kbuild 集成

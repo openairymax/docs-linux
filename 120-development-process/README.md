@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）开发流程设计
-> **文档定位**：agentrt-linux（AirymaxOS）开发流程工程体系主索引（代码审查 + 贡献流程 + 版本管理 + 发布流程 + SSoT v2 单一权威源模型 + CI 强制校验）\
+# agent-linux（AirymaxOS）开发流程设计
+> **文档定位**：agent-linux（AirymaxOS）开发流程工程体系主索引（代码审查 + 贡献流程 + 版本管理 + 发布流程 + SSoT v2 单一权威源模型 + CI 强制校验）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,14 +12,14 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 开发流程是代码从设计到主线再到稳定发布的全生命周期规范。它继承 Linux 内核 30+ 年沉淀的开发流程哲学（补丁生命周期 + 维护者层级 + 审查优先 + 稳定版维护 + LTS），并在其上适配现代化的 GitHub PR 工作流（替代邮件 + git send-email）。本目录覆盖四方面职责：
+agent-linux 开发流程是代码从设计到主线再到稳定发布的全生命周期规范。它继承 Linux 内核 30+ 年沉淀的开发流程哲学（补丁生命周期 + 维护者层级 + 审查优先 + 稳定版维护 + LTS），并在其上适配现代化的 GitHub PR 工作流（替代邮件 + git send-email）。本目录覆盖四方面职责：
 
 1. **代码审查**：GitHub PR review + CODEOWNERS + DCO bot；每个逻辑变更一个 PR；每个 commit 在序列中点都能编译运行（git bisect 友好）；单次 PR 最多 15 个 commit。
 2. **贡献流程**：补丁生命周期 6 阶段（Design → Early review → Wider review → Mainline → Stable release → LTS）；`develop` 分支等价 linux-next 树；`release/*` 分支等价 -stable 树。
 3. **版本管理**：`Fixes:` / `Closes:` / `Link:` / `Reviewed-by:` 标签体系；DCO 签名链；8 子仓协同开发（跨仓 PR / 跨仓审查 / 跨仓 CI）。
-4. **发布流程**：稳定版维护三种提交流径；每 2 年一个 LTS 版本（5 年支持）；季度评审 agentrt ↔ agentrt-linux 同源 API 漂移。
+4. **发布流程**：稳定版维护三种提交流径；每 2 年一个 LTS 版本（5 年支持）；季度评审 agentrt ↔ agent-linux 同源 API 漂移。
 
-> **注意**：本模块聚焦 agentrt-linux 特定的开发流程设计。工程标准层面的开发流程规范（规则与编号）详见 [50-engineering-standards/05-development-process.md](../50-engineering-standards/05-development-process.md)。
+> **注意**：本模块聚焦 agent-linux 特定的开发流程设计。工程标准层面的开发流程规范（规则与编号）详见 [50-engineering-standards/05-development-process.md](../50-engineering-standards/05-development-process.md)。
 
 ### 1.1 开发流程分层
 
@@ -32,7 +32,7 @@ agentrt-linux 开发流程是代码从设计到主线再到稳定发布的全生
 | 5. Stable release | 稳定发布 | main | -stable 分支 | 稳定版团队 |
 | 6. LTS | 长期支持 | -stable | LTS 版本 | LTS 维护者 |
 
-### 1.2 agentrt-linux 适配
+### 1.2 agent-linux 适配
 
 - **SCM 现代化**：GitHub PR（替代邮件 + git send-email）
 - **审查工具**：GitHub PR review + CODEOWNERS + DCO bot
@@ -46,7 +46,7 @@ agentrt-linux 开发流程是代码从设计到主线再到稳定发布的全生
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 开发流程在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。开发流程是五大选型的**流程守护者**——CI 强制校验在每次 PR 提交时阻断任何对五大选型的偏离。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 开发流程在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。开发流程是五大选型的**流程守护者**——CI 强制校验在每次 PR 提交时阻断任何对五大选型的偏离。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -58,7 +58,7 @@ agentrt-linux v1.0 开发流程在内核调度、IPC 传输、安全钩子、内
 
 ### 2.1 SSoT v2 单一权威源模型
 
-agentrt-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权威源模型——每个技术点只允许有一个权威源：
+agent-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权威源模型——每个技术点只允许有一个权威源：
 
 | 技术点 | 权威源 | 物理宿主 |
 |--------|--------|---------|
@@ -96,7 +96,7 @@ agentrt-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权
 |---|------|------|---------|
 | — | [README.md](README.md) | v1.0.1 | 开发流程主索引（本文件，含 SSoT v2 单一权威源模型） |
 | 1 | [01-patch-lifecycle.md](01-patch-lifecycle.md) | v1.0.1 | 补丁生命周期 6 阶段（Design → Early review → Wider review → Mainline → Stable release → LTS）、PR 拆分原则、commit 格式、审查流程、CI 强制校验（`sc-dual-ci.yml` + `ssot-validate.yml` + 五大技术选型回归） |
-| 2 | [02-maintainer-hierarchy.md](02-maintainer-hierarchy.md) | v1.0.1 | 维护者层级制度（Lieutenant System）、CODEOWNERS、DCO bot、8 子仓协同开发、agentrt ↔ agentrt-linux 同源 API 季度评审 |
+| 2 | [02-maintainer-hierarchy.md](02-maintainer-hierarchy.md) | v1.0.1 | 维护者层级制度（Lieutenant System）、CODEOWNERS、DCO bot、8 子仓协同开发、agentrt ↔ agent-linux 同源 API 季度评审 |
 
 ### 3.1 后续规划文档（1.0.1 版本）
 
@@ -118,7 +118,7 @@ agentrt-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权
 
 | Unify 模块 | 关系 | 在本目录的体现 |
 |-----------|------|--------------|
-| **A-UEF** | 治理 | A-UEF 的 [SC] `error.h` 变更必须双向评审（agentrt ↔ agentrt-linux）；CI 强制校验双端逐字节一致 |
+| **A-UEF** | 治理 | A-UEF 的 [SC] `error.h` 变更必须双向评审（agentrt ↔ agent-linux）；CI 强制校验双端逐字节一致 |
 | **A-ULP** | 治理 | A-ULP 的 [SC] `log_types.h` 变更必须双向评审；128B 记录格式变更触发 SSoT 评审 |
 | **A-UCS** | 治理 | A-UCS 的 [SS] 语义同源配置（sysctl ↔ JSON）变更必须同步两端；`airy_defconfig` 锁定五大选型，偏离即 CI 阻断 |
 | **A-ULS** | 治理 | A-ULS 的纯 C LSM 模块变更必须通过安全子系统维护者评审；引入 BPF LSM 的 PR 被 CI 阻断 |
@@ -174,4 +174,4 @@ agentrt-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权
 
 ---
 
-> **文档结束** | agentrt-linux 开发流程设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 开发流程设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

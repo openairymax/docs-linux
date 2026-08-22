@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）错误消息国际化设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）错误消息国际化工程设计文档，覆盖错误码（airy_err_t）与本地化消息分离设计、错误码注册表 SSoT、多语言消息映射\
+# agent-linux（AirymaxOS）错误消息国际化设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）错误消息国际化工程设计文档，覆盖错误码（airy_err_t）与本地化消息分离设计、错误码注册表 SSoT、多语言消息映射\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,12 +14,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操作系统发行版，其错误消息体系是开发者体验与可追溯性的关键。本文档定义错误消息国际化工程设计，目标是：
+agent-linux（AirymaxOS）作为面向全球开发者和用户的智能体操作系统发行版，其错误消息体系是开发者体验与可追溯性的关键。本文档定义错误消息国际化工程设计，目标是：
 
 1. **错误码与消息分离**：错误码（`airy_err_t`）作为机器可读契约，本地化消息作为人类可读呈现，二者严格分离
 2. **错误码注册表 SSoT**：所有错误码唯一定义于 `include/uapi/linux/airymax/error.h`（IRON-9 v3 [SC] 共享契约层），任何文档、代码不得另起定义
 3. **多语言消息映射**：每个错误码映射到多语言消息表，支持 zh_CN、en_US、ja_JP 等 locale
-4. **跨端错误码同源**：agentrt-linux 内核态与 agentrt 用户态运行时错误码完全一致，实现跨端错误可追溯
+4. **跨端错误码同源**：agent-linux 内核态与 agentrt 用户态运行时错误码完全一致，实现跨端错误可追溯
 
 ### 1.2 基线约束
 
@@ -35,7 +35,7 @@ agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操�
 
 ### 1.3 术语规范
 
-本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）。错误码定义共享于 [SC] 共享契约层（两端完全共享代码），错误消息呈现独立于两端实现。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，错误码体系对照一律表述为"主流 Linux 发行版"。
+本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）。错误码定义共享于 [SC] 共享契约层（两端完全共享代码），错误消息呈现独立于两端实现。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，错误码体系对照一律表述为"主流 Linux 发行版"。
 
 ---
 
@@ -43,7 +43,7 @@ agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操�
 
 ### 2.1 体系概览
 
-agentrt-linux 采用双错误码体系，分别适用于不同场景：
+agent-linux 采用双错误码体系，分别适用于不同场景：
 
 | 体系 | 适用场景 | 格式 | 权威源 |
 |------|----------|------|--------|
@@ -213,7 +213,7 @@ Single Source of Truth（SSoT）原则要求：所有错误码唯一定义于 `i
 
 ### 3.2 错误码生成器
 
-agentrt-linux 提供 `airymaxos-error-gen` 工具，从 `include/uapi/linux/airymax/error.h` 自动生成各语言的错误码绑定：
+agent-linux 提供 `airymaxos-error-gen` 工具，从 `include/uapi/linux/airymax/error.h` 自动生成各语言的错误码绑定：
 
 ```python
 #!/usr/bin/env python3
@@ -426,12 +426,12 @@ int airy_strerror_r(airy_err_t err, char *buf, size_t len)
 ### 5.2 zh_CN .po 文件片段
 
 ```po
-# agentrt-linux 错误消息中文翻译
+# agent-linux 错误消息中文翻译
 # Copyright (c) 2025-2026 SPHARX Ltd.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: agentrt-linux 1.0.1\n"
+"Project-Id-Version: agent-linux 1.0.1\n"
 "Language: zh_CN\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -494,12 +494,12 @@ msgstr "locale 不可用"
 ### 5.3 en_US .po 文件片段
 
 ```po
-# agentrt-linux error messages English translation
+# agent-linux error messages English translation
 # Copyright (c) 2025-2026 SPHARX Ltd.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: agentrt-linux 1.0.1\n"
+"Project-Id-Version: agent-linux 1.0.1\n"
 "Language: en_US\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -535,13 +535,13 @@ msgstr "Locale unavailable"
 
 ### 6.1 IRON-9 v3 [SC] 共享
 
-错误码定义位于 IRON-9 v3 [SC] 共享契约层，agentrt-linux 内核态与 agentrt 用户态运行时完全共享同一份 `include/uapi/linux/airymax/error.h`：
+错误码定义位于 IRON-9 v3 [SC] 共享契约层，agent-linux 内核态与 agentrt 用户态运行时完全共享同一份 `include/uapi/linux/airymax/error.h`：
 
 ```
 agentrt 仓库:
   include/uapi/linux/airymax/error.h  ←──┐
                                │ 同一份代码
-agentrt-linux 仓库:           │ （symlink 或 git submodule）
+agent-linux 仓库:           │ （symlink 或 git submodule）
   include/uapi/linux/airymax/error.h  ←──┘
 ```
 
@@ -557,8 +557,8 @@ vim include/uapi/linux/airymax/error.h
 # 2. agentrt 仓库 CI 校验
 cd /path/to/agentrt && make ci-check-error-codes
 
-# 3. agentrt-linux 仓库 CI 校验
-cd /path/to/agentrt-linux && make ci-check-error-codes
+# 3. agent-linux 仓库 CI 校验
+cd /path/to/agent-linux && make ci-check-error-codes
 
 # 4. 双向同步校验（必须两端通过）
 make ci-cross-validate
@@ -599,7 +599,7 @@ airymaxos-error-trace AIRY_IPC_ETIMEDOUT
 | `test_error_msgid_mapping` | 错误码 → msgid | 所有错误码都有对应 msgid |
 | `test_error_translation_complete` | 翻译完整性 | 所有 locale 的 .po 无 untranslated |
 | `test_error_strscpy_safety` | strscpy 安全 | 错误消息拷贝用 strscpy |
-| `test_error_cross_validate` | 跨端校验 | agentrt 与 agentrt-linux 错误码一致 |
+| `test_error_cross_validate` | 跨端校验 | agentrt 与 agent-linux 错误码一致 |
 
 ### 7.2 SSoT 校验测试
 
@@ -705,7 +705,7 @@ int airy_err_registry_init(struct error_registry_cfg *cfg)
     if (err)
         goto out_free_header;
 
-    pr_info("agentrt-linux: 错误码注册表初始化完成\n");
+    pr_info("agent-linux: 错误码注册表初始化完成\n");
     return 0;
 
 out_free_header:
@@ -764,4 +764,4 @@ out_free_reg:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）错误消息国际化设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）错误消息国际化设计 v1.0.1

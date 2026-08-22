@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）长期支持策略
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 6 卷——长期支持（LTS）策略。本文档详述 LTS 版本选择、5 年支持周期、回溯策略、兼容性保证、安全策略、文档维护以及与上游 Linux 6.6 LTS 的对齐关系，是稳定版本发布（05 卷）在长期支持维度的延伸。\
+# agent-linux（AirymaxOS）长期支持策略
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 6 卷——长期支持（LTS）策略。本文档详述 LTS 版本选择、5 年支持周期、回溯策略、兼容性保证、安全策略、文档维护以及与上游 Linux 6.6 LTS 的对齐关系，是稳定版本发布（05 卷）在长期支持维度的延伸。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 6 卷，回答"哪些版本成为 LTS、LTS 支持多久、如何从 mainline 回溯、如何保证兼容性、如何应对安全漏洞、如何维护文档、如何对齐上游 Linux LTS"。它继承 Linux 6.6 LTS 的维护规则，并将其适配到 agentrt-linux 的五大技术选型与 IRON-9 v3 四层模型。
+本文档是 120-development-process 模块的第 6 卷，回答"哪些版本成为 LTS、LTS 支持多久、如何从 mainline 回溯、如何保证兼容性、如何应对安全漏洞、如何维护文档、如何对齐上游 Linux LTS"。它继承 Linux 6.6 LTS 的维护规则，并将其适配到 agent-linux 的五大技术选型与 IRON-9 v3 四层模型。
 
 ### 1.1 与稳定版本发布的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于被 SSoT 委员会选为 LTS 的 agentrt-linux minor 版本。当前规划的 LTS 候选包括 v1.0、v1.4、v2.0、v2.4 等（每 4 个 minor 选 1 个，实际由 SSoT 委员会决议）。
+本文档适用于被 SSoT 委员会选为 LTS 的 agent-linux minor 版本。当前规划的 LTS 候选包括 v1.0、v1.4、v2.0、v2.4 等（每 4 个 minor 选 1 个，实际由 SSoT 委员会决议）。
 
 ### 1.3 关键术语
 
@@ -66,7 +66,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - **分支**：从 `release/<MAJOR.MINOR>` 稳定分支派生 `lts-vX.Y`（保留 `release/<MAJOR.MINOR>` 作为稳定分支）。
 - **tag**：在 LTS 起始时标记 `vX.Y.0-lts`。
 - **文档**：在 README 与 release notes 中标记该版本为 LTS。
-- **RPM**：LTS 版本的 RPM 包名附加 `-lts` 后缀，例如 `agentrt-linux-kernel-lts-0.1.1`。
+- **RPM**：LTS 版本的 RPM 包名附加 `-lts` 后缀，例如 `agent-linux-kernel-lts-0.1.1`。
 
 ---
 
@@ -76,7 +76,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ```mermaid
 gantt
-    title agentrt-linux v1.0（首发 v1.0.1）LTS 5 年支持周期
+    title agent-linux v1.0（首发 v1.0.1）LTS 5 年支持周期
     dateFormat YYYY-MM-DD
     axisFormat %Y-%m
     section 阶段一：Bug Fix（2 年）
@@ -163,10 +163,10 @@ LTS 分支的 commit 来源有三：
 - **跟踪机制**：LTS 团队每周跟踪 Linux 6.6 LTS 分支（`linux-6.6.y`）的 commit。
 - **筛选规则**：
   - 仅回溯 bug fix 与安全修复 commit。
-  - 跳过与 agentrt-linux 无关的子系统 commit（如 agentrt-linux 不使用的驱动）。
+  - 跳过与 agent-linux 无关的子系统 commit（如 agent-linux 不使用的驱动）。
   - 跳过引入新功能的 commit（Linux LTS 不会引入新功能，但需警惕）。
 - **回溯审查**：
-  - commit 必须能 clean cherry-pick 到 agentrt-linux LTS 分支。
+  - commit 必须能 clean cherry-pick 到 agent-linux LTS 分支。
   - 若冲突，LTS 团队手动适配，并在 commit 消息中记录适配内容。
   - 适配后的 commit 必须通过 CI 全绿。
 - **OS-DEV-602**：上游 Linux LTS 回溯的 commit 必须保留原始 `commit-hash` 与 `Signed-off-by` 链，附加 `Backport: <上游 commit-hash>` 标签。
@@ -262,7 +262,7 @@ LTS 分支的 commit 来源有三：
 ### 6.4 上游 Linux LTS 安全回溯
 
 - 跟踪 linux-cve-announce 邮件列表与 NVD 数据库。
-- 影响 agentrt-linux 的上游 CVE 必须在 7 天内评估影响。
+- 影响 agent-linux 的上游 CVE 必须在 7 天内评估影响。
 - 需要修复的上游 CVE 按 6.1 节 SLA 回溯到 LTS 分支。
 
 ---
@@ -304,28 +304,28 @@ LTS 文档分支维护以下内容：
 - **上游支持周期**：
   - 主流支持：2026 年 12 月（预计）。
   - 扩展支持（CIP）：2028 年 12 月（预计）。
-- **agentrt-linux 跟踪策略**：
+- **agent-linux 跟踪策略**：
   - v1.0 LTS 跟踪 Linux 6.6 LTS 主流支持期。
-  - 若 v1.0 LTS 需要支持到 2031 年，需在 Linux 6.6 LTS EOL 后由 agentrt-linux 团队自行维护内核安全修复。
+  - 若 v1.0 LTS 需要支持到 2031 年，需在 Linux 6.6 LTS EOL 后由 agent-linux 团队自行维护内核安全修复。
 
 ### 8.2 上游回溯策略
 
 - **回溯来源**：Linux 6.6 LTS 分支（`linux-6.6.y`）。
 - **回溯频率**：每周跟踪上游 commit，每月批量回溯。
 - **回溯审查**：见第 4.3 节。
-- **OS-DEV-608**：上游 Linux LTS EOL 后，agentrt-linux LTS 团队需制定"自维护内核安全修复计划"，由 SSoT 委员会评审。
+- **OS-DEV-608**：上游 Linux LTS EOL 后，agent-linux LTS 团队需制定"自维护内核安全修复计划"，由 SSoT 委员会评审。
 
 ### 8.3 上游贡献
 
-- agentrt-linux 团队发现的通用内核 bug 应直接报告上游 Linux 社区。
-- 上游接受的 fix 会自然进入 Linux 6.6 LTS 分支，再回溯到 agentrt-linux LTS。
-- **OS-DEV-609**：禁止在 agentrt-linux LTS 中保留未上游化的通用内核 fix（会导致与上游分叉）。
+- agent-linux 团队发现的通用内核 bug 应直接报告上游 Linux 社区。
+- 上游接受的 fix 会自然进入 Linux 6.6 LTS 分支，再回溯到 agent-linux LTS。
+- **OS-DEV-609**：禁止在 agent-linux LTS 中保留未上游化的通用内核 fix（会导致与上游分叉）。
 
 ### 8.4 上游 Linux LTS EOL 应对
 
 - 上游 Linux 6.6 LTS EOL 前 6 个月，SSoT 委员会评估：
   - 是否升级到新上游 LTS（如 Linux 6.12 LTS）。
-  - 是否进入"自维护"模式（agentrt-linux 团队自行维护内核安全修复）。
+  - 是否进入"自维护"模式（agent-linux 团队自行维护内核安全修复）。
 - 评估结果记入 LTS 治理文档，并向社区公告。
 
 ---
@@ -401,4 +401,4 @@ LTS patch 版本发布必须满足以下质量门：
 
 ---
 
-> **文档结束** | agentrt-linux 长期支持策略 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 长期支持策略 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

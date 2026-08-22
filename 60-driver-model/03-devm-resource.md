@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — devm 资源托管与智能体资源扩展
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第三篇——`devm_` 资源托管机制与智能体资源生命周期扩展\
+# agent-linux（AirymaxOS）驱动模型 — devm 资源托管与智能体资源扩展
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第三篇——`devm_` 资源托管机制与智能体资源生命周期扩展\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[60-driver-model README](README.md)\
@@ -15,11 +15,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 Linux 内核 `devm_`（Device-Managed）资源托管机制是驱动模型的核心基础设施——它将资源生命周期与 `struct device` 绑定，设备从驱动解绑时（`remove` 回调返回后）所有 devm 资源按申请逆序自动释放。这一机制消除了驱动开发者手工管理资源的负担，将"忘记释放"类资源泄漏从设计层面根除。
 
-agentrt-linux v1.0.1 在继承 Linux 6.6 `devm_` 完整语义的基础上，将其扩展至智能体（Agent）工作负载所需的"软资源"——Token 预算、记忆卷载（memory volume）、IPC 通道、io_uring DMA 描述符池等。这些资源不属于传统硬件资源（MMIO 寄存器、IRQ 线），但同样是 Agent 设备生命周期内必须托管的对象。
+agent-linux v1.0.1 在继承 Linux 6.6 `devm_` 完整语义的基础上，将其扩展至智能体（Agent）工作负载所需的"软资源"——Token 预算、记忆卷载（memory volume）、IPC 通道、io_uring DMA 描述符池等。这些资源不属于传统硬件资源（MMIO 寄存器、IRQ 线），但同样是 Agent 设备生命周期内必须托管的对象。
 
 本文档覆盖五大主题：`devres` 框架核心机制、`devm_` 资源族与申请逆序释放、Agent 虚拟设备资源托管扩展（`devm_airy_*` 族）、与 A-ULS 模块的关系（dev_d daemon 管理设备资源生命周期）、资源配额机制（每个 Agent 可分配的最大设备资源数）。
 
-| 资源类别 | Linux 6.6 devm 资源 | agentrt-linux devm_airy 扩展 |
+| 资源类别 | Linux 6.6 devm 资源 | agent-linux devm_airy 扩展 |
 |---------|--------------------|------------------------------|
 | 内存映射 | `devm_ioremap_resource` | `devm_airy_mem_volume_map`（记忆卷载映射） |
 | IRQ 注册 | `devm_request_irq` | `devm_airy_ipc_channel`（IPC 通道绑定） |
@@ -27,7 +27,7 @@ agentrt-linux v1.0.1 在继承 Linux 6.6 `devm_` 完整语义的基础上，将�
 | 时钟使能 | `devm_clk_get` / `devm_clk_prepare_enable` | `devm_airy_token_budget`（Token 预算配额） |
 | regulator | `devm_regulator_get` | `devm_airy_quota_slot`（资源配额槽位） |
 
-> **OS-DRV-040**： agentrt-linux 内核态 devm 资源族（`devm_ioremap_resource`、`devm_request_irq` 等）的字段、签名、释放回调语义必须与 Linux 6.6 内核基线保持二进制兼容。任何扩展通过包装结构实现，禁止修改上游 `struct devres_node`。
+> **OS-DRV-040**： agent-linux 内核态 devm 资源族（`devm_ioremap_resource`、`devm_request_irq` 等）的字段、签名、释放回调语义必须与 Linux 6.6 内核基线保持二进制兼容。任何扩展通过包装结构实现，禁止修改上游 `struct devres_node`。
 
 > **OS-DRV-041**： `devm_airy_*` 资源族扩展不得破坏 devm 资源链表的逆序释放保证——所有扩展资源必须通过 `devres_alloc` + `devres_add` 注册，禁止绕过 devres 框架手工管理。
 
@@ -111,7 +111,7 @@ typedef void (*dr_release_t)(struct device *dev, void *res);
 
 ### 3.1 设计目标
 
-agentrt-linux v1.0.1 将 devm 资源托管扩展至 Agent 虚拟设备资源，目标是：
+agent-linux v1.0.1 将 devm 资源托管扩展至 Agent 虚拟设备资源，目标是：
 
 1. **资源生命周期绑定 Agent 设备**：Token 预算、记忆卷载、IPC 通道等资源的生命周期与 Agent 虚拟设备绑定，设备注销时自动释放
 2. **资源配额强约束**：每个 Agent 可分配的资源数有上限，由 A-ULS 模块的 dev_d daemon 强制
@@ -120,7 +120,7 @@ agentrt-linux v1.0.1 将 devm 资源托管扩展至 Agent 虚拟设备资源，�
 
 ### 3.2 struct agent_dev_resource
 
-agentrt-linux 自研的 Agent 设备资源描述结构（位于 `include/airymax/devm_agent.h`）：
+agent-linux 自研的 Agent 设备资源描述结构（位于 `include/airymax/devm_agent.h`）：
 
 ```c
 /**
@@ -330,7 +330,7 @@ sequenceDiagram
 
 ### 5.1 三级配额模型
 
-agentrt-linux v1.0.1 采用三级资源配额模型：
+agent-linux v1.0.1 采用三级资源配额模型：
 
 1. **全局配额**（Global Quota）：系统级上限，由 A-UCS 配置（`/etc/agentrt/dev_quota.yaml`）
 2. **Agent 类配额**（Class Quota）：按 Agent 类别（cognitive/memory/tool）分配的上限
@@ -403,7 +403,7 @@ static inline int airy_quota_check(struct device *dev,
 
 ### 6.1 CAP_DEV_ALLOC / CAP_DEV_FREE
 
-agentrt-linux Capability 模型在传统 Linux capability 之外扩展了智能体专属 capability。设备资源相关的两个 capability：
+agent-linux Capability 模型在传统 Linux capability 之外扩展了智能体专属 capability。设备资源相关的两个 capability：
 
 ```c
 /* include/uapi/linux/airymax/capability.h */
@@ -660,4 +660,4 @@ v1.0（`01-device-model.md`）已定义 `devm_` 框架核心机制与 Linux 上�
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 — devm 资源托管与智能体资源扩展 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型 — devm 资源托管与智能体资源扩展 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

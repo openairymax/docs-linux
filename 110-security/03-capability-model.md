@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # seL4 风格 Capability 安全模型
-> **文档定位**：agentrt-linux（AirymaxOS）Capability 安全模型的完整工程契约，定义 CNode/MDB 数据模型、派生算法、POSIX capability 集成、令牌生命周期、Cupolas blob 布局、策略裁决与 Vault backend 抽象；并落地 A-IPC Capability Folding 单平面架构下的 Badge 64-bit Native Word 模型与 fastpath C-S9 内联校验\
+> **文档定位**：agent-linux（AirymaxOS）Capability 安全模型的完整工程契约，定义 CNode/MDB 数据模型、派生算法、POSIX capability 集成、令牌生命周期、Cupolas blob 布局、策略裁决与 Vault backend 抽象；并落地 A-IPC Capability Folding 单平面架构下的 Badge 64-bit Native Word 模型与 fastpath C-S9 内联校验\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-30\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：seL4 `src/object/cnode.c`（CNode 操作）+ `src/object/cnode.c:cteRevoke`（递归撤销）+ Linux 6.6 `security/commoncap.c`（POSIX capability）+ agentrt Cupolas 权限模型\
 > **文档性质**：实现方案文档（非设计文档）。本契约在 [01-lsm-framework.md](01-lsm-framework.md) 第 7 章 LSM 与 capability 共存的基础上，补充完整的 capability 数据模型、派生算法、生命周期与接口定义\
 > **设计参考**：seL4 `src/object/cnode.c`（CNode mint/mintcopy/move/copy/revoke/delete）+ seL4 `src/kernel/mdb.c`（MDB 派生链）+ 主流 Linux 发行版 Linux 6.6 内核基线 `security/commoncap.c`（POSIX cap 检查）+ `include/linux/cred.h`（credential 结构）
@@ -13,9 +13,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## SSoT 声明
 
-> **单一权威源声明**：本文件是 **agentrt-linux Capability 安全模型** 的唯一权威源。CNode/CSpace 数据模型、MDB 派生链、capability 44 ID 枚举（41 POSIX + 3 Airymax 扩展）、令牌 7 状态生命周期、2 类安全 blob（`airy_task_sec` / `airy_inode_sec`）、4 值策略裁决、Vault backend 抽象、**Capability Folding Badge 64-bit Native Word 模型**、**fastpath C-S9 内联校验**、**`agent_caps` 静态数组（1024 slot，字段 80B、sizeof 128B（AIRY_ALIGNED(64)），128KB，sec_d 唯一写者）** 均以本文件为唯一权威定义。其余文档只能引用本文件，禁止重新定义 capability 数据模型与 Badge 校验机制。
+> **单一权威源声明**：本文件是 **agent-linux Capability 安全模型** 的唯一权威源。CNode/CSpace 数据模型、MDB 派生链、capability 44 ID 枚举（41 POSIX + 3 Airymax 扩展）、令牌 7 状态生命周期、2 类安全 blob（`airy_task_sec` / `airy_inode_sec`）、4 值策略裁决、Vault backend 抽象、**Capability Folding Badge 64-bit Native Word 模型**、**fastpath C-S9 内联校验**、**`agent_caps` 静态数组（1024 slot，字段 80B、sizeof 128B（AIRY_ALIGNED(64)），128KB，sec_d 唯一写者）** 均以本文件为唯一权威定义。其余文档只能引用本文件，禁止重新定义 capability 数据模型与 Badge 校验机制。
 >
-> **v1.0.1 Capability Folding 集成声明**（A-IPC 第一块基石）：自 v1.0.1 起，agentrt-linux 的 seL4 风格 capability 校验路径从"独立前置 `airy_cap_check()` + per-cpu 缓存"重构为 **fastpath C-S9 内联 Badge 校验**。物理载体是 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段（64-bit Native Word：Epoch 16位 + Random Tag 32位 + Perms 16位）；执行点是 fastpath `airy_cap_badge_ok()`（~10ns，3 个 READ_ONCE + 位运算 + 比较）；存储是 `agent_caps` 静态数组（1024 slot，字段 80B、sizeof 128B（AIRY_ALIGNED(64)），128KB，sec_d 唯一写者）。6 条硬约束 H1-H6 不可妥协。详见 §13 与 [10-unify-design.md §8](../10-architecture/10-unify-design.md)。
+> **v1.0.1 Capability Folding 集成声明**（A-IPC 第一块基石）：自 v1.0.1 起，agent-linux 的 seL4 风格 capability 校验路径从"独立前置 `airy_cap_check()` + per-cpu 缓存"重构为 **fastpath C-S9 内联 Badge 校验**。物理载体是 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段（64-bit Native Word：Epoch 16位 + Random Tag 32位 + Perms 16位）；执行点是 fastpath `airy_cap_badge_ok()`（~10ns，3 个 READ_ONCE + 位运算 + 比较）；存储是 `agent_caps` 静态数组（1024 slot，字段 80B、sizeof 128B（AIRY_ALIGNED(64)），128KB，sec_d 唯一写者）。6 条硬约束 H1-H6 不可妥协。详见 §13 与 [10-unify-design.md §8](../10-architecture/10-unify-design.md)。
 
 ---
 
@@ -23,9 +23,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 为什么选择 seL4 风格
 
-agentrt-linux 选择 seL4 风格的 capability 安全模型，而非传统 ACL（访问控制列表）或纯 POSIX capability，原因在于：
+agent-linux 选择 seL4 风格的 capability 安全模型，而非传统 ACL（访问控制列表）或纯 POSIX capability，原因在于：
 
-| 维度 | ACL | POSIX capability | seL4 capability | agentrt-linux 选择 |
+| 维度 | ACL | POSIX capability | seL4 capability | agent-linux 选择 |
 |------|-----|-----------------|-----------------|-------------------|
 | 权限传递 | 通过组/用户 | 进程位图 | 不可伪造令牌传递 | seL4（Agent 间传递） |
 | 权限撤销 | 困难（需遍历 ACL） | 不支持运行时撤销 | 递归级联撤销 | seL4（Agent 终止时） |
@@ -35,11 +35,11 @@ agentrt-linux 选择 seL4 风格的 capability 安全模型，而非传统 ACL�
 
 ### 1.2 混合模型设计
 
-agentrt-linux 采用 **seL4 风格 + POSIX 混合** capability 模型：
+agent-linux 采用 **seL4 风格 + POSIX 混合** capability 模型：
 
 - **seL4 风格**：用于 Agent 间的细粒度权限传递与撤销（令牌级、不可伪造、递归撤销）
 - **POSIX capability**：用于传统 Linux 兼容性（41 个标准 cap，进程级位图）
-- **LSM 桥接**：POSIX capability 模块（Linux 内核 `security/commoncap.c`）作为 `LSM_ORDER_FIRST` 第一个 LSM（OLK 6.6 硬编码，仅用于 capabilities）；agentrt-linux 的 `airy_lsm` 模块使用 `LSM_ORDER_MUTABLE` + `CONFIG_LSM` 首位（详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.2），与 Landlock/Cupolas 共存
+- **LSM 桥接**：POSIX capability 模块（Linux 内核 `security/commoncap.c`）作为 `LSM_ORDER_FIRST` 第一个 LSM（OLK 6.6 硬编码，仅用于 capabilities）；agent-linux 的 `airy_lsm` 模块使用 `LSM_ORDER_MUTABLE` + `CONFIG_LSM` 首位（详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.2），与 Landlock/Cupolas 共存
 
 ### 1.3 设计目标
 
@@ -67,7 +67,7 @@ agentrt-linux 采用 **seL4 风格 + POSIX 混合** capability 模型：
 
 ### 2.1 CNode（Capability Node）结构
 
-借鉴 seL4 `src/object/cnode.c` 的 CNode 设计，agentrt-linux 的 capability 存储在 CNode 表中：
+借鉴 seL4 `src/object/cnode.c` 的 CNode 设计，agent-linux 的 capability 存储在 CNode 表中：
 
 ```c
 /**
@@ -214,7 +214,7 @@ graph TD
  *   - 内存占用: 1024 × 128B = 128KB（静态数组，字段 80B、sizeof 128B（AIRY_ALIGNED(64)））
  *   - 校验延迟: ~10ns（vs radix tree ~50-100ns）
  *
- * 设计依据: Capability Folding H4 硬约束——agentrt-linux 内核 Badge
+ * 设计依据: Capability Folding H4 硬约束——agent-linux 内核 Badge
  * 由 sec_d 编译、fastpath C-S9 校验。编译期静态数组（AIRY_ALIGNED(64)）
  * 消除每操作动态分配开销与 RCU 同步开销，是 fastpath 100 行代码
  * CBMC 全函数验证的前提。
@@ -331,7 +331,7 @@ static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
 | Badge 泄露 | sec_d 编译时绑定 Agent ID，跨 Agent 不可复用 | agent_caps[agent_id].randtag 比对 |
 | 暴力枚举 | 2^48（Random Tag + Epoch）组合空间，单次校验 ~10ns | 不可行（10^15 ns ≈ 31 年）|
 
-**Epoch 溢出处理**：16 位 Epoch 理论上 65535 次撤销后溢出。实际场景中，agentrt-linux 单节点 Agent 终止-重启频率 < 1 次/秒，溢出周期 > 18 小时。溢出时 sec_d 重新编译所有 Badge（全量刷新），不影响系统可用性。
+**Epoch 溢出处理**：16 位 Epoch 理论上 65535 次撤销后溢出。实际场景中，agent-linux 单节点 Agent 终止-重启频率 < 1 次/秒，溢出周期 > 18 小时。溢出时 sec_d 重新编译所有 Badge（全量刷新），不影响系统可用性。
 
 ### 2.6 Badge 编译与校验完整实现（v1.0.1 新增）
 
@@ -510,9 +510,9 @@ spinlock_t airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR] = {
 
 ### 3.1.x seL4 完整派生操作映射（v1.0.1）
 
-agentrt-linux 借鉴 seL4 的 7 种核心 CNode 派生操作（`src/object/cnode.c`），**v1.0.1 已实现全部 7 种**（实现位于 `security/airy/airy_cap_derive.c`）：
+agent-linux 借鉴 seL4 的 7 种核心 CNode 派生操作（`src/object/cnode.c`），**v1.0.1 已实现全部 7 种**（实现位于 `security/airy/airy_cap_derive.c`）：
 
-| seL4 操作 | agentrt-linux 映射 | 状态 | 说明 |
+| seL4 操作 | agent-linux 映射 | 状态 | 说明 |
 |-----------|-------------------|------|------|
 | **Copy** | `airy_cap_derive(...,AIRY_CAP_OP_COPY,new_perms)` | v1.0.1 | 复制 capability；`new_perms==0` 原样克隆，`new_perms!=0` 权限降级（`perms = new_perms & src.perms`，对齐 seL4 `maskCapRights`） |
 | **Mint** | `airy_cap_derive(...,AIRY_CAP_OP_MINT,new_perms)` | v1.0.1 | 铸造 capability（始终降级 `perms = new_perms & src.perms`） |
@@ -529,7 +529,7 @@ agentrt-linux 借鉴 seL4 的 7 种核心 CNode 派生操作（`src/object/cnode
 
 ### 3.2 派生操作统一入口（airy_cap_derive）
 
-seL4 的 mint/mintcopy 语义在 agentrt-linux 中统一收敛到 `airy_cap_derive()` 单一入口（**无独立 `airy_cap_mint` / `airy_cap_mintcopy` 函数**）。实现位于 `security/airy/airy_cap_derive.c`，签名对齐 [SC] `security_types.h` 的 `enum airy_cap_op`：
+seL4 的 mint/mintcopy 语义在 agent-linux 中统一收敛到 `airy_cap_derive()` 单一入口（**无独立 `airy_cap_mint` / `airy_cap_mintcopy` 函数**）。实现位于 `security/airy/airy_cap_derive.c`，签名对齐 [SC] `security_types.h` 的 `enum airy_cap_op`：
 
 ```c
 /* 真实签名（security/airy/airy_cap.h）*/
@@ -582,7 +582,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
  *（子树规模受 AIRY_CAP_MAX_AGENTS=1024 上界约束，最坏 1024 节点）。
  *
  * 对齐 seL4 src/object/cnode.c cteRevoke：seL4 递归遍历 CNode
- * 子树并 cteDelete 每个后代；agentrt-linux 用 epoch+randtag 失效
+ * 子树并 cteDelete 每个后代；agent-linux 用 epoch+randtag 失效
  * 替代物理删除，语义等价且可恢复（重新 mint 即可）。
  *
  * @since 1.0.1（P1-2 重构：从 per-agent epoch O(1) 改为 MDB 级联 O(N)）
@@ -614,7 +614,7 @@ static void airy_cap_revoke_subtree(__u32 agent_id, __u16 new_epoch)
 
 ### 4.1 44 ID 枚举
 
-对齐 `security_types.h`（[SC] 共享头文件）定义的 POSIX capability 41 ID（0-40） 枚举。agentrt-linux 在 Linux 6.6 标准 41 个 POSIX capability（编号 0-40，CAP_LAST_CAP=CAP_CHECKPOINT_RESTORE=40，无废弃）基础上，新增 Airymax 专属 capability（编号 41-43）：
+对齐 `security_types.h`（[SC] 共享头文件）定义的 POSIX capability 41 ID（0-40） 枚举。agent-linux 在 Linux 6.6 标准 41 个 POSIX capability（编号 0-40，CAP_LAST_CAP=CAP_CHECKPOINT_RESTORE=40，无废弃）基础上，新增 Airymax 专属 capability（编号 41-43）：
 
 ```c
 /**
@@ -1054,7 +1054,7 @@ int airy_vault_seal_tpm(uint32_t cap_id, uint32_t tpm_handle);
 
 ### 9.1 v1.0.1 Capability 系统调用总览
 
-**v1.0.1 起，agentrt-linux 仅保留 4 个核心 syscall（548-551）**，原 592-600 共 9 个 capability 相关 syscall 全部废弃，统一收敛到 `airy_sys_call`(548) + 子命令。详细映射见 [30-interfaces/01-syscalls.md §2.2](../30-interfaces/01-syscalls.md)。
+**v1.0.1 起，agent-linux 仅保留 4 个核心 syscall（548-551）**，原 592-600 共 9 个 capability 相关 syscall 全部废弃，统一收敛到 `airy_sys_call`(548) + 子命令。详细映射见 [30-interfaces/01-syscalls.md §2.2](../30-interfaces/01-syscalls.md)。
 
 | v1.0.1 syscall | 编号 | 子命令 | 功能 | 调用者 |
 |--------------|------|--------|------|--------|
@@ -1170,7 +1170,7 @@ io_uring_submit(sq_send);                 /* A-IPC fastpath C-S9 校验 Badge */
 
 ### 10.1 POSIX capability 模块注册（LSM_ORDER_FIRST）
 
-对齐 [01-lsm-framework.md](01-lsm-framework.md) 第 7 章，**POSIX capability 模块**（Linux 内核 `security/commoncap.c`，非 agentrt-linux 的 `airy_lsm`）作为 `LSM_ORDER_FIRST` 永远第一个执行（OLK 6.6 硬编码，仅用于 capabilities）：
+对齐 [01-lsm-framework.md](01-lsm-framework.md) 第 7 章，**POSIX capability 模块**（Linux 内核 `security/commoncap.c`，非 agent-linux 的 `airy_lsm`）作为 `LSM_ORDER_FIRST` 永远第一个执行（OLK 6.6 硬编码，仅用于 capabilities）：
 
 ```c
 /* security/commoncap.c（借鉴 Linux 6.6 实现）*/
@@ -1187,7 +1187,7 @@ DEFINE_LSM(capability) = {
 };
 ```
 
-> **关键区分**：上述 `LSM_ORDER_FIRST` 注册的是 **Linux 内核 POSIX capability 模块**（`security/commoncap.c`，不申请 blob，`LSMBLOB_NOT_NEEDED`），不是 agentrt-linux 的 `airy_lsm` 模块。agentrt-linux 的 `airy_lsm`（`security/airy/airy_lsm.c`）使用 `LSM_ORDER_MUTABLE`，通过 `CONFIG_LSM` 显式配置使其生效（当前 defconfig 未设置 `CONFIG_LSM`，需显式配置，见 known-caveats；详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.2）。OLK 6.6 `include/linux/lsm_hooks.h:113` 注释明确 `LSM_ORDER_FIRST` "This is only for capabilities."
+> **关键区分**：上述 `LSM_ORDER_FIRST` 注册的是 **Linux 内核 POSIX capability 模块**（`security/commoncap.c`，不申请 blob，`LSMBLOB_NOT_NEEDED`），不是 agent-linux 的 `airy_lsm` 模块。agent-linux 的 `airy_lsm`（`security/airy/airy_lsm.c`）使用 `LSM_ORDER_MUTABLE`，通过 `CONFIG_LSM` 显式配置使其生效（当前 defconfig 未设置 `CONFIG_LSM`，需显式配置，见 known-caveats；详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.2）。OLK 6.6 `include/linux/lsm_hooks.h:113` 注释明确 `LSM_ORDER_FIRST` "This is only for capabilities."
 
 ### 10.2 与 Landlock/Cupolas 共存
 
@@ -1354,7 +1354,7 @@ io_uring_wait_cqe(ring, &cqe);
 
 ### 12.1 [SC] 层共享
 
-`security_types.h` 是 agentrt 与 agentrt-linux 的 [SC] 共享头文件，包含：
+`security_types.h` 是 agentrt 与 agent-linux 的 [SC] 共享头文件，包含：
 
 | 共享内容 | 影响 |
 |---------|------|
@@ -1367,7 +1367,7 @@ io_uring_wait_cqe(ring, &cqe);
 
 ### 12.2 [SS] 层语义同源
 
-| 维度 | agentrt 用户态 | agentrt-linux OS 层 | 同源语义 |
+| 维度 | agentrt 用户态 | agent-linux OS 层 | 同源语义 |
 |------|---------------|-------------------|---------|
 | 权限模型 | Cupolas 应用权限 | seL4 风格 + POSIX | 不可伪造、最小权限 |
 | 令牌生成 | 用户态 opaque handle | 内核态 cap_id | 不可伪造语义一致 |
@@ -1376,7 +1376,7 @@ io_uring_wait_cqe(ring, &cqe);
 
 ### 12.3 [IND] 层独立
 
-agentrt-linux 独有：
+agent-linux 独有：
 - 内核态 CNode 表（**v1.0.1: `agent_caps` 静态数组 `__airymax_cap_table[1024]`（128KB，AIRY_ALIGNED(64)）**，sec_d 唯一写者）
 - 内核态 Badge 64-bit Native Word 模型（v1.0.1 新增，agentrt 用户态 badge=0）
 - fastpath C-S9 内联 Badge 校验（v1.0.1 新增，~10ns）
@@ -1408,7 +1408,7 @@ agentrt-linux 独有：
 | **H1** | Layout C v4 总长 128B / magic 0x41524531 / `capability_badge` offset 40-47 | [SC] `ipc.h`（§2.5）|
 | **H2** | `capability_badge` 字段进 [SC] `ipc.h`，但 Badge 校验机制属 [SS] `airy_cap_badge_ok()` | 本文件 §4.3.1 + [02-ipc-protocol.md §2.6](../30-interfaces/02-ipc-protocol.md) |
 | **H3** | agentrt 用户态 `capability_badge=0`（跳过 C-S9） | [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md) [IND] 层 |
-| **H4** | agentrt-linux 内核 Badge 由 sec_d 编译、fastpath C-S9 校验 | 本文件 §2.4 + §9 |
+| **H4** | agent-linux 内核 Badge 由 sec_d 编译、fastpath C-S9 校验 | 本文件 §2.4 + §9 |
 | **H5** | 纯 C LSM 职责不变（不使用 BPF LSM） | [01-lsm-framework.md](01-lsm-framework.md) |
 | **H6** | [DSL] 降级 `capability_badge=0` 跳过 C-S9 | 本文件 §12.4 + [11-degraded-survival-layer.md §4.4](../10-architecture/11-degraded-survival-layer.md) |
 
@@ -2166,7 +2166,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——内核空指针解引用导致 panic） |
 | **根因** | K9-1 改为 per-agent epoch 后，REVOKE 需 `src->epoch++`，但原代码对 REVOKE 跳过 `src = airy_cap_lookup(src_agent)`，导致 `src` 未初始化即解引用 |
-| **修复** | [airy_cap_derive.c:55-62](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 source lookup 并校验 |
+| **修复** | [airy_cap_derive.c:55-62](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 source lookup 并校验 |
 | **seL4 对照** | `cteRevoke`（[cnode.c:528](../../.engineer-reference/seL4-master/src/object/cnode.c#L528)）直接使用传入 `slot` 参数，从不跳过源查找 |
 | **Linux 6.6 对照** | `key_revoke`（[key.c:1117](../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1117)）直接访问传入 `key` 参数，先 `key_check(key)` 校验 |
 
@@ -2176,7 +2176,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——所有派生 capability fastpath C-S9.1 校验失败） |
 | **根因** | K9-1 引入 per-agent epoch 后，COPY/MINT/MOVE 创建新 slot 时未继承 source 的 epoch，新 slot epoch=0 而 badge epoch 来自源（如 1），epoch 不匹配 |
-| **修复** | [airy_cap_derive.c:83,108,129](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L83) 在 COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` |
+| **修复** | [airy_cap_derive.c:83,108,129](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L83) 在 COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` |
 | **seL4 对照** | `cteInsert`（[cnode.c:435-436](../../.engineer-reference/seL4-master/src/object/cnode.c#L435)）`destSlot->cap = newCap; destSlot->cteMDBNode = newMDB` 完整复制所有字段 |
 | **Linux 6.6 对照** | `prepare_creds`（[cred.c:218](../../.engineer-reference/kernel-OLK-6.6/kernel/cred.c#L218)）`memcpy(new, old, sizeof(struct cred))` 整结构体复制 |
 
@@ -2186,7 +2186,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P1（高危——信息泄漏 + 重用混淆） |
 | **根因** | DELETE/MOVE 使源 slot 失效时，badge 置为 NULL 但 epoch 残留旧值，可能导致重注册时混淆或攻击者推断历史撤销次数 |
-| **修复** | [airy_cap_derive.c:137,175](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除 |
+| **修复** | [airy_cap_derive.c:137,175](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除 |
 | **seL4 对照** | `cteMove`（[cnode.c:458-460](../../.engineer-reference/seL4-master/src/object/cnode.c#L458)）`srcSlot->cap = cap_null_cap_new(); srcSlot->cteMDBNode = nullMDBNode` 清除源所有字段 |
 | **seL4 对照** | `emptySlot`（[cnode.c:587-588](../../.engineer-reference/seL4-master/src/object/cnode.c#L587)）`slot->cap = cap_null_cap_new(); slot->cteMDBNode = nullMDBNode` DELETE 时清除所有字段 |
 
@@ -2196,7 +2196,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——新注册 Agent 首次 fastpath 校验即失败） |
 | **根因** | `airy_cap_register` 从 badge 提取 perms 和 randtag 但未提取 epoch，新 slot epoch 与 badge epoch 不一致 |
-| **修复** | [airy_cap_array.c:64](../../agentrt-linux/kernel/security/airy/airy_cap_array.c#L64) 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` |
+| **修复** | [airy_cap_array.c:64](../../agent-linux/kernel/security/airy/airy_cap_array.c#L64) 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` |
 | **seL4 对照** | `insertNewCap`（[cnode.c:750-751](../../.engineer-reference/seL4-master/src/object/cnode.c#L750)）`slot->cap = cap; slot->cteMDBNode = mdb_node_new(...)` 初始化所有字段 |
 | **Linux 6.6 对照** | `prepare_creds` memcpy 后手动调整 `atomic_long_set(&new->usage, 1)` 等，确保每字段有确定值 |
 
@@ -2206,7 +2206,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——竞态条件导致 badge 不一致状态） |
 | **根因** | 原 `airy_cap_rotate` 独立实现轮换逻辑无锁保护，与 `airy_cap_derive_lock` spinlock 不协调，并发 rotate + derive(REVOKE) 会导致 randtag 与 epoch 写入交错 |
-| **修复** | [airy_cap_rotate.c:32-35](../../agentrt-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) 重写为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock |
+| **修复** | [airy_cap_rotate.c:32-35](../../agent-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) 重写为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock |
 | **Linux 6.6 对照** | `key_revoke`（[key.c:1128](../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1128)）`down_write_nested(&key->sem, 1)` 串行化所有撤销类操作 |
 | **Linux 6.6 对照** | keyring `__key_link_begin` 用 `keyring_serialise_sem` 串行化链接操作 |
 

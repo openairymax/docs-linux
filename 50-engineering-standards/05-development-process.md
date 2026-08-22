@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）开发流程标准
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准规范第 5 卷——开发流程。本卷规定从设计构想进入主线、稳定版到长期维护的完整生命周期，以及维护者层级制度、补丁格式、审查响应与稳定版规则。\
+# agent-linux（AirymaxOS）开发流程标准
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范第 5 卷——开发流程。本卷规定从设计构想进入主线、稳定版到长期维护的完整生命周期，以及维护者层级制度、补丁格式、审查响应与稳定版规则。\
 > **文档版本**：1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ Linux 6.6 内核基线 `Documentation/process/development-process.rst\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
-> **SSoT 声明**：本卷为 agentrt-linux **开发流程规则**的唯一权威来源（SSoT）。本卷规则编号的目标体系为 **OS-STD-PROD-NNN**（4 段前缀，PROD = Process/Development）。本卷正文中现存的历史编号 **OS-STD-101~234**（与 06-toolchain-and-automation.md 共用 OS-STD-101~158 段导致 30+ 项语义冲突）将迁移为 OS-STD-PROD-101~234，迁移映射见 §0.2。历史编号与 OS-STD-PROD 编号**并存且等价**，规则效力以本卷正文为准。\
+> **SSoT 声明**：本卷为 agent-linux **开发流程规则**的唯一权威来源（SSoT）。本卷规则编号的目标体系为 **OS-STD-PROD-NNN**（4 段前缀，PROD = Process/Development）。本卷正文中现存的历史编号 **OS-STD-101~234**（与 06-toolchain-and-automation.md 共用 OS-STD-101~158 段导致 30+ 项语义冲突）将迁移为 OS-STD-PROD-101~234，迁移映射见 §0.2。历史编号与 OS-STD-PROD 编号**并存且等价**，规则效力以本卷正文为准。\
 > **合并说明（2026-07-12）**：本卷已合并原 `06-toolchain-and-automation.md`（→ Part II）、`08-compliance-checklist.md`（→ Part III）、`110-spdx-license-compliance.md`（→ Part IV）。原文件已物理删除，所有引用须指向本卷对应 Part。
 
 ---
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 工程标准 7 主题文档中的第 5 卷，回答"代码怎么进入主线"这一问题。它在 04 工程思想（双层稳定性、策略机制分离）与 06 工具链自动化（7 层验证、CI/CD）之间形成承上启下的桥梁：
+本卷是 agent-linux 工程标准 7 主题文档中的第 5 卷，回答"代码怎么进入主线"这一问题。它在 04 工程思想（双层稳定性、策略机制分离）与 06 工具链自动化（7 层验证、CI/CD）之间形成承上启下的桥梁：
 
 - **上游依赖**：04 工程思想定义"为什么"——稳定性哲学、可追溯性、审查优先；本卷定义"怎么做"——补丁生命周期、维护者层级、审查响应规范。
 - **下游依赖**：06 工具链自动化定义"规范怎么被执行"——7 层验证、checkpatch、覆盖率门槛；本卷定义"规范在哪个阶段被执行"——每个生命周期阶段的强制工具链关卡。
@@ -52,9 +52,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 补丁（Patch） | 一个 git commit，对应一个逻辑变更；在 GitHub 流程中表现为 PR 中的一个提交 |
 | 补丁序列（Patch Series） | 一组相互关联、按依赖顺序排列的补丁；在 GitHub 流程中表现为单个 PR 内的多个提交 |
 | 子系统树 | 维护者维护的分支（等价 Linux 子系统树），是补丁进入主线的中间站 |
-| `develop` 分支 | agentrt-linux 预览集成分支，等价 linux-next 树 |
-| `release/*` 分支 | agentrt-linux 稳定版分支，等价 Linux -stable 树 |
-| MicroCoreRT | Airymax 微核心运行时基座（Minimal Core Runtime），agentrt-linux 内核态对其保持同源语义 |
+| `develop` 分支 | agent-linux 预览集成分支，等价 linux-next 树 |
+| `release/*` 分支 | agent-linux 稳定版分支，等价 Linux -stable 树 |
+| MicroCoreRT | Airymax 微核心运行时基座（Minimal Core Runtime），agent-linux 内核态对其保持同源语义 |
 | AgentsIPC | Airymax 智能体进程间通信协议，128B 定长消息头；本卷涉及的协议改动必须经专门审查 |
 | 五维正交 24 原则 | Airymax 架构设计原则体系（S/K/C/E/A 五维，每维 4-8 项原则） |
 
@@ -62,7 +62,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 补丁生命周期（6 阶段）
 
-agentrt-linux 继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型，并将其适配到 GitHub PR 流程。每个阶段有明确的输入、输出、责任人和 SLA。
+agent-linux 继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型，并将其适配到 GitHub PR 流程。每个阶段有明确的输入、输出、责任人和 SLA。
 
 ### 1.1 阶段一：Design（设计）
 
@@ -77,7 +77,7 @@ agentrt-linux 继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型�
 
 将补丁序列提交到相关子系统维护者的 GitHub PR。
 
-- **目标审查者**：由 `MAINTAINERS` 文件（agentrt-linux 等价物，详见 07 卷）和 `CODEOWNERS` 自动识别。
+- **目标审查者**：由 `MAINTAINERS` 文件（agent-linux 等价物，详见 07 卷）和 `CODEOWNERS` 自动识别。
 - **SLA**：子系统维护者通常在 **1 周内**给出审查反馈，否则可能 PR 发错了地方。
 - **OS-STD-103**：早期审查 PR 必须包含完整的补丁描述（问题描述、用户可见影响、量化权衡），禁止"占位描述"。
 - **OS-STD-104**：早期审查阶段发现的所有审查意见必须在 PR 内联回复，禁止离线沟通。
@@ -95,10 +95,10 @@ agentrt-linux 继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型�
 
 由顶级子系统维护者发起 pull request 到 `main` 分支。
 
-- **合并窗口**：参照 Linux Merge Window 模型，agentrt-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏（详见 130-roadmap）。
+- **合并窗口**：参照 Linux Merge Window 模型，agent-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏（详见 130-roadmap）。
 - **RC 期间仅接受修复**：RC1 发布后，新特性补丁必须等待下一个 Merge Window。
 - **OS-STD-107**：合并入 `main` 的补丁必须包含至少 1 个 `Reviewed-by:` 标签（来自非作者维护者）。
-- **OS-STD-108**：合并入 `main` 的补丁若修改 AgentsIPC 128B 消息头布局，必须由 agentrt-linux 工程规范委员会额外签字（详见 30-interfaces）。
+- **OS-STD-108**：合并入 `main` 的补丁若修改 AgentsIPC 128B 消息头布局，必须由 agent-linux 工程规范委员会额外签字（详见 30-interfaces）。
 
 ### 1.5 阶段五：Stable Release（稳定发布）
 
@@ -112,7 +112,7 @@ agentrt-linux 继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型�
 
 作者需持续负责其合并入主线的代码。
 
-- **"the development community remembers developers who lose interest in their code after it's merged"**——这是 Linux 内核社区的明确警告，agentrt-linux 完全继承此原则。
+- **"the development community remembers developers who lose interest in their code after it's merged"**——这是 Linux 内核社区的明确警告，agent-linux 完全继承此原则。
 - **OS-STD-111**：补丁作者在代码合并后 12 个月内，须响应与其补丁相关的所有 bug 报告与审查请求；若长期无响应，维护者可将其代码标记为 `Orphaned` 并寻找新维护者。
 - **OS-STD-112**：长期维护期间发现的修复需通过 `Fixes:` 标签溯源到引入 bug 的原始提交（详见 §4.3）。
 
@@ -147,7 +147,7 @@ flowchart LR
 
 ## 2. 维护者层级制度（Lieutenant System / Chain of Trust）
 
-agentrt-linux 继承 Linux 内核的 Lieutenant System（副手系统）——一条从普通贡献者到总维护者的信任链。
+agent-linux 继承 Linux 内核的 Lieutenant System（副手系统）——一条从普通贡献者到总维护者的信任链。
 
 ### 2.1 信任链结构
 
@@ -170,7 +170,7 @@ main 分支
 ### 2.2 信任链长度
 
 - **链可任意长，但很少超过 2-3 级**——超过 3 级通常意味着子系统拆分不合理。
-- agentrt-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）各设 1 名顶级子系统维护者，其下可有 2-3 层子系统维护者。
+- agent-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）各设 1 名顶级子系统维护者，其下可有 2-3 层子系统维护者。
 
 ### 2.3 信任传递规则
 
@@ -180,11 +180,11 @@ main 分支
 - **OS-STD-122**：上层 maintainer 保留对下层补丁的最终否决权（NACK）；下层 maintainer 必须响应 NACK 并修改或撤回。
 - **OS-STD-123**：信任链中任意一层断裂（如某层 maintainer 失联超过 30 天），上层 maintainer 可越级接管其分支，并启动维护者补选流程（详见 07 卷）。
 
-### 2.4 agentrt-linux 适配：从 git send-email 到 GitHub PR
+### 2.4 agent-linux 适配：从 git send-email 到 GitHub PR
 
-Linux 内核使用邮件列表 + `git send-email` 流程，agentrt-linux 将其适配为 GitHub PR 流程，但保留同源语义：
+Linux 内核使用邮件列表 + `git send-email` 流程，agent-linux 将其适配为 GitHub PR 流程，但保留同源语义：
 
-| Linux 内核概念 | agentrt-linux 等价物 | 同源语义 |
+| Linux 内核概念 | agent-linux 等价物 | 同源语义 |
 |---------------|------------------|---------|
 | 邮件列表（mailing list） | GitHub PR + 子仓 issue tracker | 公开讨论存档 |
 | `git send-email` | GitHub PR 内联提交 | 补丁可被引用、逐行评论 |
@@ -230,14 +230,14 @@ flowchart TD
 
 ### 3.1 linux-next 等价物：`develop` 分支
 
-- `develop` 分支是 agentrt-linux 的预览集成分支，等价 Linux 的 linux-next 树。
+- `develop` 分支是 agent-linux 的预览集成分支，等价 Linux 的 linux-next 树。
 - 所有进入 `main` 之前、已通过子系统树审查的补丁，会汇聚到 `develop` 分支进行跨子系统联调。
 - **OS-STD-PROD-131**：`develop` 分支每天至少运行 1 次 nightly build，覆盖 x86_64 / aarch64 / riscv64 三个架构 × allmodconfig / allnoconfig / defconfig 三种配置。
 - **OS-STD-132**：`develop` 分支 nightly build 失败必须在 24 小时内修复或回滚；连续 3 天失败的子系统，其补丁将被冻结进入下一轮 Merge Window。
 
 ### 3.2 -mm 等价物：无明确子系统树的补丁归宿
 
-Linux 内核历史上由 Andrew Morton 维护的 -mm 树，承担"无明确子系统归属的补丁"。agentrt-linux 等价物为 `airymax-mm` 分支：
+Linux 内核历史上由 Andrew Morton 维护的 -mm 树，承担"无明确子系统归属的补丁"。agent-linux 等价物为 `airymax-mm` 分支：
 
 - 由总维护者直接管辖，作为"维护者最后手段"（maintainer of last resort）。
 - 适合跨子系统、不属于任何单一子仓的补丁（如构建系统、文档、CI 配置）。
@@ -245,13 +245,13 @@ Linux 内核历史上由 Andrew Morton 维护的 -mm 树，承担"无明确子�
 
 ### 3.3 staging tree 等价物
 
-Linux 内核的 `drivers/staging/` 是质量未达标的代码暂存地。agentrt-linux 等价物为 `staging/` 目录与 `feature/staging-*` 分支：
+Linux 内核的 `drivers/staging/` 是质量未达标的代码暂存地。agent-linux 等价物为 `staging/` 目录与 `feature/staging-*` 分支：
 
 - 进入 `staging/` 的代码不视为正式主线代码，不享受 ABI 稳定性保证。
 - **OS-STD-134**：`staging/` 代码必须在每个文件顶部标注 `// STAGING: 未达主线质量标准` 注释。
 - **OS-STD-135**：`staging/` 代码必须在 2 个发布周期内毕业到正式目录，否则移除。
 
-### 3.4 agentrt-linux 专属：feature/* 分支命名规范
+### 3.4 agent-linux 专属：feature/* 分支命名规范
 
 | 分支前缀 | 用途 | 生命周期 |
 |---------|------|---------|
@@ -269,12 +269,12 @@ Linux 内核的 `drivers/staging/` 是质量未达标的代码暂存地。agentr
 
 ### 4.1 补丁拆分原则
 
-agentrt-linux 继承 Linux 内核的"一补丁一逻辑"原则，并增加量化约束：
+agent-linux 继承 Linux 内核的"一补丁一逻辑"原则，并增加量化约束：
 
 - **每个逻辑变更一个补丁**：不混合不同类型改动（bug fix / 性能优化 / API 改动 / 新驱动）。
 - **每个补丁必须能独立审查、独立验证**：审查者可在不阅读其他补丁的前提下理解单个补丁。
 - **每个 patch 在序列中点都应能编译运行**——这是 `git bisect` 友好的硬性要求。
-- **不要过度拆分**：曾有人单文件提交 500 补丁，被社区嫌弃为噪音；agentrt-linux 设定单 PR 上限。
+- **不要过度拆分**：曾有人单文件提交 500 补丁，被社区嫌弃为噪音；agent-linux 设定单 PR 上限。
 - **OS-STD-141**：单个 PR 最多 15 个 commit；超过 15 个必须拆分为多个 PR，并在 PR 描述中标注依赖关系。
 - **OS-STD-142**：单个 commit 的 diff 不超过 1000 行（含上下文）；超过 1000 行必须在 commit message 中说明不可拆分的理由。
 - **OS-STD-143**：补丁序列中任意中间点 `git bisect` 后必须能成功编译，违反此规则的序列将被整体退回。
@@ -282,7 +282,7 @@ agentrt-linux 继承 Linux 内核的"一补丁一逻辑"原则，并增加量化
 
 ### 4.2 PR / Commit 格式
 
-agentrt-linux 采用与 Linux 内核同源的补丁格式，适配为 GitHub commit message 规范：
+agent-linux 采用与 Linux 内核同源的补丁格式，适配为 GitHub commit message 规范：
 
 ```
 [PATCH 001/123] subsystem: summary phrase
@@ -306,7 +306,7 @@ Reviewed-by: Reviewer Name <reviewer@example.com>
 
 ### 4.3 描述规范
 
-补丁描述必须说服审查者"这个问题值得修复"。agentrt-linux 强制以下要素：
+补丁描述必须说服审查者"这个问题值得修复"。agent-linux 强制以下要素：
 
 - **必须描述问题**：无论是 1 行 bug 修复还是 5000 行新特性，都必须解释底层问题。
 - **必须描述用户可见影响**：包括崩溃、卡死、数据损坏、性能回退、延迟尖峰、dmesg 输出等。
@@ -320,7 +320,7 @@ Reviewed-by: Reviewer Name <reviewer@example.com>
   platform_set_drvdata(), but left the variable "dev" unused.
   ```
 
-  agentrt-linux 仓库对象众多，6-8 字符 SHA-1 有碰撞风险，必须使用至少 12 字符。
+  agent-linux 仓库对象众多，6-8 字符 SHA-1 有碰撞风险，必须使用至少 12 字符。
 
 - **用 `Link:` 指向讨论存档**：GitHub PR / issue 链接、邮件列表存档、设计文档 URL。
 - **修复 bug 用 `Closes:`**：指向公开 bug tracker；私有 tracker 与无效 URL 被禁止。
@@ -336,7 +336,7 @@ Reviewed-by: Reviewer Name <reviewer@example.com>
 
 ### 4.4 PR 礼仪
 
-agentrt-linux 完全继承 Linux 内核审查礼仪，并将其适配到 GitHub：
+agent-linux 完全继承 Linux 内核审查礼仪，并将其适配到 GitHub：
 
 - **使用 GitHub PR 内联提交**：每个 commit 必须可被逐行评论，禁止将整个 PR 作为单一 diff 评论。
 - **用 interleaved（inline）回复，禁止 top-posting**：回复审查意见时，将回复插入到对应引用下方，并修剪无关引用。
@@ -354,7 +354,7 @@ agentrt-linux 完全继承 Linux 内核审查礼仪，并将其适配到 GitHub�
 ### 5.1 审查响应
 
 - **必须响应每条审查意见**：不同意需解释技术理由，不能沉默忽略。
-- **忽略审查是致命错误**：在 Linux 内核社区，忽略审查者的开发者会被社区忽略；agentrt-linux 同样如此。
+- **忽略审查是致命错误**：在 Linux 内核社区，忽略审查者的开发者会被社区忽略；agent-linux 同样如此。
 - **Andrew Morton 建议**：每条未导致代码改动的审查意见都应转化为代码注释或 changelog 条目——这既是对审查者的尊重，也是对后续维护者的文档。
 - **OS-STD-181**：PR 作者必须在收到审查意见后 7 天内响应（即使只是"已记录，将在 v2 修改"）；超过 7 天无响应的 PR 将被标记为 `stale` 并最终关闭。
 - **OS-STD-182**：审查者 NAK 必须附带技术理由，禁止"感觉不对"式的无理由 NAK。
@@ -366,11 +366,11 @@ agentrt-linux 完全继承 Linux 内核审查礼仪，并将其适配到 GitHub�
 - **进入子系统树后可见性提升**：更多测试者会运行你的代码。
 - **进入主线后会有新评论和 bug 报告**：稳定版发布后，用户基数扩大一个数量级。
 - **regression 是最严重的 bug**：任何导致已工作功能失效的改动都是 P0 优先级。
-- **"the development community remembers developers who lose interest in their code after it's merged"**——这是 Linux 内核社区的明确警告，agentrt-linux 完全继承。
+- **"the development community remembers developers who lose interest in their code after it's merged"**——这是 Linux 内核社区的明确警告，agent-linux 完全继承。
 
 ### 5.3 审查者声明（Reviewer's Statement of Oversight）
 
-agentrt-linux 沿用 Linux 内核的 Reviewed-by 标签语义——给出 `Reviewed-by:` 即声明：
+agent-linux 沿用 Linux 内核的 Reviewed-by 标签语义——给出 `Reviewed-by:` 即声明：
 
 > (a) 我已对该补丁进行了技术审查，评估其是否适合进入主线。
 > (b) 任何与补丁相关的问题、疑虑或提问已反馈给提交者，且我对提交者的回应满意。
@@ -385,7 +385,7 @@ agentrt-linux 沿用 Linux 内核的 Reviewed-by 标签语义——给出 `Revie
 
 ### 6.1 -stable 树规则（等价物：release/* 分支）
 
-agentrt-linux 的 `release/<version>` 分支等价 Linux -stable 树，遵循以下规则：
+agent-linux 的 `release/<version>` 分支等价 Linux -stable 树，遵循以下规则：
 
 - 补丁或其等价修复**必须已存在于 main 分支**（上游）。
 - 补丁必须**显然正确且已测试**。
@@ -414,7 +414,7 @@ agentrt-linux 的 `release/<version>` 分支等价 Linux -stable 树，遵循以
 
 ### 6.4 安全补丁直接由安全团队处理
 
-- 安全补丁**不走常规稳定版审查流程**，由 agentrt-linux 安全团队直接处理（详见 110-security）。
+- 安全补丁**不走常规稳定版审查流程**，由 agent-linux 安全团队直接处理（详见 110-security）。
 - 严重安全漏洞可能进入短期 embargo，允许发行版先行准备补丁；embargo 期间补丁禁止进入任何公开分支或 PR。
 - **OS-STD-192**：安全补丁的 `Fixes:` 标签必须指向引入漏洞的 commit；若无法溯源，必须在 commit message 中说明原因。
 
@@ -424,7 +424,7 @@ agentrt-linux 的 `release/<version>` 分支等价 Linux -stable 树，遵循以
 
 ### 7.1 LTS 内核选择
 
-Linux 内核社区将部分内核指定为 "long term" 内核，提供长期维护。agentrt-linux 继承此模型：
+Linux 内核社区将部分内核指定为 "long term" 内核，提供长期维护。agent-linux 继承此模型：
 
 - LTS 版本从正式发布版本中遴选，由专门的 LTS 维护者团队负责。
 - LTS 版本只接受 bug 修复与安全补丁，不接受新特性。
@@ -435,7 +435,7 @@ Linux 内核社区将部分内核指定为 "long term" 内核，提供长期维�
 - 该版本在企业生产环境中已有显著部署基数。
 - 该版本与最新主线版本的 API 差异可控（避免回溯成本过高）。
 
-### 7.3 agentrt-linux LTS 策略
+### 7.3 agent-linux LTS 策略
 
 - **每 2 年一个 LTS 版本**：如 1.0 LTS、3.0 LTS、5.0 LTS。
 - LTS 维护周期：**5 年**（含 2 年积极维护 + 3 年仅安全补丁）。
@@ -476,7 +476,7 @@ Andrew Morton 的建议：**新人从修复真实 bug 起步**，而非从拼写
 
 ### 8.2 6 级成熟度模型
 
-agentrt-linux 采用与 agentrt 同源的 6 级贡献者成熟度模型（详见 04-engineering-philosophy.md §10）：
+agent-linux 采用与 agentrt 同源的 6 级贡献者成熟度模型（详见 04-engineering-philosophy.md §10）：
 
 | 级别 | 角色 | 能力 |
 |------|------|------|
@@ -502,23 +502,23 @@ agentrt-linux 采用与 agentrt 同源的 6 级贡献者成熟度模型（详见
 
 ### 9.1 网络设备手册
 
-继承 Linux `Documentation/networking/netdevices.rst`，agentrt-linux 网络子系统手册规定：
+继承 Linux `Documentation/networking/netdevices.rst`，agent-linux 网络子系统手册规定：
 
 - 网络设备驱动的注册/注销流程。
 - NAPI 轮询接口契约。
-- XDP / AF_XDP 在 agentrt-linux 中的扩展（用于 Agent 高速 IPC）。
+- XDP / AF_XDP 在 agent-linux 中的扩展（用于 Agent 高速 IPC）。
 
 ### 9.2 SoC 平台手册
 
-继承 Linux `Documentation/devicetree/` 与 SoC 平台手册，agentrt-linux SoC 平台手册规定：
+继承 Linux `Documentation/devicetree/` 与 SoC 平台手册，agent-linux SoC 平台手册规定：
 
 - 设备树绑定规范。
 - SoC 平台移植 checklist。
 - MicroCoreRT 在不同 SoC 上的适配指南。
 
-### 9.3 agentrt-linux 专属：8 子仓各自手册
+### 9.3 agent-linux 专属：8 子仓各自手册
 
-agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁：
+agent-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁：
 
 | 子仓 | 手册路径 | 核心规范 |
 |------|---------|---------|
@@ -539,13 +539,13 @@ agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁
 
 ### 10.1 git（主导 SCM）
 
-- git 是 agentrt-linux 唯一主导 SCM，所有补丁以 git commit 形式存在。
+- git 是 agent-linux 唯一主导 SCM，所有补丁以 git commit 形式存在。
 - **OS-STD-PROD-031**：所有 commit 必须用 `git commit -s` 添加 DCO 签名。
 - **OS-STD-PROD-032**：禁止 `git push --force` 到 `main` / `develop` / `release/*` 分支；feature 分支允许 force-push 但须在 PR 描述中说明。
 
 ### 10.2 GitHub（PR + CODEOWNERS + Actions）
 
-- GitHub 是 agentrt-linux 的代码托管与审查平台。
+- GitHub 是 agent-linux 的代码托管与审查平台。
 - `CODEOWNERS` 自动识别审查者。
 - GitHub Actions 执行 7 层自动化验证（详见 06 卷）。
 - **OS-STD-PROD-033**：所有 PR 必须通过 GitHub Actions 全部检查才能合并；任一检查失败的 PR 禁止合并（即使审查者已 ACK）。
@@ -553,7 +553,7 @@ agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁
 ### 10.3 patchwork 等价物（GitHub Projects）
 
 - Linux 内核的 patchwork 用于追踪补丁状态（New / Under Review / Accepted / Rejected）。
-- agentrt-linux 等价物为 GitHub Projects 看板，每个子仓一个 Projects。
+- agent-linux 等价物为 GitHub Projects 看板，每个子仓一个 Projects。
 - **OS-STD-PROD-034**：PR 状态变更（如从"待审查"到"已合并"）必须同步到 GitHub Projects 看板。
 
 ---
@@ -670,7 +670,7 @@ agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 工程标准 7 主题文档中的第 6 卷，回答"规范怎么被执行"这一问题。它在 05 开发流程（补丁生命周期、审查响应）与 07 维护者制度（治理、DCO、成熟度模型）之间形成自动化执行层：
+本卷是 agent-linux 工程标准 7 主题文档中的第 6 卷，回答"规范怎么被执行"这一问题。它在 05 开发流程（补丁生命周期、审查响应）与 07 维护者制度（治理、DCO、成熟度模型）之间形成自动化执行层：
 
 - **上游依赖**：05 开发流程定义"规范在哪个阶段被执行"——每个生命周期阶段的强制工具链关卡；本卷定义"规范怎么被执行"——7 层验证流水线、CI/CD 矩阵、覆盖率门槛。
 - **下游依赖**：07 维护者制度定义"谁来执行规范"——CODEOWNERS、审查者、DCO bot；本卷定义"机器怎么协助人执行规范"——GitHub Actions、DCO bot、format-check。
@@ -703,8 +703,8 @@ agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁
 
 | 术语 | 定义 |
 |------|------|
-| 7 层验证 | agentrt-linux 的核心自动化验证体系，从编译期到发布期共 7 层 |
-| checkpatch | Linux 内核风格检查脚本（`scripts/checkpatch.pl`），agentrt-linux 沿用并扩展 |
+| 7 层验证 | agent-linux 的核心自动化验证体系，从编译期到发布期共 7 层 |
+| checkpatch | Linux 内核风格检查脚本（`scripts/checkpatch.pl`），agent-linux 沿用并扩展 |
 | KUnit | Linux 内核白盒单元测试框架，毫秒级运行 |
 | kselftest | Linux 内核用户态系统级测试框架 |
 | KASAN / KFENCE / UBSAN / KCSAN | Linux 内核动态分析工具（地址/内存/未定义行为/并发消毒器） |
@@ -716,7 +716,7 @@ agentrt-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁
 
 ## 1. 7 层自动化验证体系（Airymax 核心机制）
 
-agentrt-linux 在 Linux 6.6 内核基线工程工具链之上，构建了 7 层自动化验证体系。这是 agentrt-linux 区别于普通 Linux 发行版的核心机制——每一层都是一个独立的反馈闭环，任何一层失败都阻断后续流程。
+agent-linux 在 Linux 6.6 内核基线工程工具链之上，构建了 7 层自动化验证体系。这是 agent-linux 区别于普通 Linux 发行版的核心机制——每一层都是一个独立的反馈闭环，任何一层失败都阻断后续流程。
 
 ### 1.1 第 1 层：编译期验证
 
@@ -767,7 +767,7 @@ agentrt-linux 在 Linux 6.6 内核基线工程工具链之上，构建了 7 层�
 
 - **工具**：签名 / 校验和 / 模块签名
 - **检查项**：GPG 签名、SHA-256 校验和、内核模块签名（CONFIG_MODULE_SIG_FORCE）
-- **OS-STD-061**：正式发布版本必须由 agentrt-linux 发布密钥 GPG 签名。
+- **OS-STD-061**：正式发布版本必须由 agent-linux 发布密钥 GPG 签名。
 - **OS-STD-062**：所有可加载内核模块必须签名；未签名模块禁止加载（生产配置）。
 
 ### 1.8 7 层验证流水线图
@@ -848,7 +848,7 @@ flowchart TD
 
 ### 2.5 Rust 编译
 
-- agentrt-linux 在安全敏感且非热路径的子系统（如安全策略、文件系统解析）使用 Rust 内核模块。
+- agent-linux 在安全敏感且非热路径的子系统（如安全策略、文件系统解析）使用 Rust 内核模块。
 - **OS-STD-075**：Rust 代码必须通过 `cargo build --target x86_64-unknown-none` 编译。
 - **OS-STD-076**：Rust 代码必须通过 `cargo clippy -- -D warnings`（clippy 警告视为错误）。
 - **OS-STD-077**：Rust 代码必须通过 `cargo fmt --check`（rustfmt 格式化）。
@@ -865,9 +865,9 @@ flowchart TD
 
 #### 3.1.1 sparse W 警告分级体系（对齐 OLK-6.6）
 
-Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6.6 `Documentation/dev-tools/sparse.rst` 对齐）。agentrt-linux 沿用此分级，明确各阶段强制等级：
+Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6.6 `Documentation/dev-tools/sparse.rst` 对齐）。agent-linux 沿用此分级，明确各阶段强制等级：
 
-| 等级 | 命令 | 启用检查范围 | agentrt-linux 用途 |
+| 等级 | 命令 | 启用检查范围 | agent-linux 用途 |
 |------|------|-------------|--------------------|
 | `W=0` | `make W=0 C=2` | 仅 sparse 默认检查（关闭额外警告） | ❌ 不推荐（漏检风险高） |
 | `W=1` | `make W=1 C=2` | 默认 + bitwise 类型 + RCU 锁注解 + 字节序注解 | ✅ **本地开发默认**（与 OLK-6.6 一致） |
@@ -888,7 +888,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 
 > **OS-STD-TOOL-081-REL**（发布前审计等级）：发布前必须执行 `make W=2 C=2` 全量检查，历史代码不允许存在新增 W=2 级 sparse 警告。
 
-> **对齐说明**：本分级体系与 OLK-6.6 `Documentation/dev-tools/sparse.rst` 完全一致——OLK-6.6 默认 W=1，CI 强制 W=2。agentrt-linux 沿用此约定，确保 sparse 检查覆盖率与上游内核一致。
+> **对齐说明**：本分级体系与 OLK-6.6 `Documentation/dev-tools/sparse.rst` 完全一致——OLK-6.6 默认 W=1，CI 强制 W=2。agent-linux 沿用此约定，确保 sparse 检查覆盖率与上游内核一致。
 
 ### 3.2 Smatch（模式匹配）
 
@@ -916,7 +916,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 - 命令：`cargo clippy -- -D warnings`
 - **OS-STD-085**：所有 Rust 代码必须 clippy 0 警告（与 OS-STD-076 对齐）。
 
-### 3.6 agentrt-linux 专属：AgentsIPC 协议静态校验器
+### 3.6 agent-linux 专属：AgentsIPC 协议静态校验器
 
 - `airymax-ipc-check` 工具：静态校验 AgentsIPC 128B 消息头布局、字段对齐、版本号一致性。
 - 检查项：
@@ -987,7 +987,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 
 ### 5.1 checkpatch.pl（Linux 内核风格检查）
 
-- `scripts/checkpatch.pl` 是 Linux 内核风格检查脚本，agentrt-linux 完全沿用并扩展。
+- `scripts/checkpatch.pl` 是 Linux 内核风格检查脚本，agent-linux 完全沿用并扩展。
 - 三级报告：
   - **ERROR**：极可能错误的项
   - **WARNING**：需仔细审查的项
@@ -995,7 +995,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 - **OS-STD-TOOL-101**：所有 commit 的 diff 必须通过 `scripts/checkpatch.pl --strict` 检查，ERROR 禁止存在。
 - **OS-STD-102**：剩余的 WARNING/CHECK 必须可被作者辩护（justified）。
 
-> **交叉引用**：本节是 checkpatch 在 7 层验证体系中的框架定位。Linux 6.6 内核基线 `scripts/checkpatch.pl` 中 ≥30 条 ERROR/WARNING/CHECK 规则到 agentrt-linux 规则编号（OS-STD-CODE-NNN）的逐条映射表、每条规则的 Linux 6.6 内核基线 源码行号与触发示例，详见 [01-coding-standards.md Part IV](01-coding-standards.md) §1-§8（55 条规则映射）与 §10（CI 集成与门禁配置）。
+> **交叉引用**：本节是 checkpatch 在 7 层验证体系中的框架定位。Linux 6.6 内核基线 `scripts/checkpatch.pl` 中 ≥30 条 ERROR/WARNING/CHECK 规则到 agent-linux 规则编号（OS-STD-CODE-NNN）的逐条映射表、每条规则的 Linux 6.6 内核基线 源码行号与触发示例，详见 [01-coding-standards.md Part IV](01-coding-standards.md) §1-§8（55 条规则映射）与 §10（CI 集成与门禁配置）。
 
 ### 5.2 .clang-format（C/C++ 格式化）
 
@@ -1063,7 +1063,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 - 配置：`CONFIG_FAULT_INJECTION=y` / `CONFIG_FAILSLAB=y` / `CONFIG_FAIL_PAGE_ALLOC=y`
 - **OS-STD-114**：所有新增代码路径必须经过至少 slab/page 分配失败注入测试。
 
-### 6.5 agentrt-linux 专属：Agent 行为契约测试 + 模糊测试
+### 6.5 agent-linux 专属：Agent 行为契约测试 + 模糊测试
 
 - **Agent 行为契约测试**：每个 Agent SDK 接口定义输入 → 输出契约，测试覆盖正常路径与异常路径。
 - **模糊测试**：使用 libFuzzer / syzkaller 对 AgentsIPC 128B 消息头、系统调用接口进行模糊测试。
@@ -1116,7 +1116,7 @@ Linux 内核通过 `make W=<level>` 控制 sparse 警告输出等级（与 OLK-6
 
 ### 8.1 GitHub Actions workflow
 
-- agentrt-linux 的 CI/CD 流水线基于 GitHub Actions。
+- agent-linux 的 CI/CD 流水线基于 GitHub Actions。
 - 每个子仓一个 `.github/workflows/` 目录，包含多个 workflow 文件。
 - **OS-STD-TOOL-131**：所有子仓必须维护 `ci.yml`（PR 触发）、`nightly.yml`（定时触发）、`release.yml`（标签触发）三个核心 workflow。
 
@@ -1200,11 +1200,11 @@ flowchart TD
 
 ## 9. 提交检查清单（24 项）
 
-本节是 Linux `Documentation/process/submit-checklist.rst` 的 agentrt-linux 等价物，扩展为 24 项强制检查。
+本节是 Linux `Documentation/process/submit-checklist.rst` 的 agent-linux 等价物，扩展为 24 项强制检查。
 
 ### 9.1 Linux submit-checklist.rst 等价物
 
-agentrt-linux 继承 Linux 内核的 24 项提交检查清单，并新增 agentrt-linux 专属检查项。
+agent-linux 继承 Linux 内核的 24 项提交检查清单，并新增 agent-linux 专属检查项。
 
 ### 9.2 24 项检查清单
 
@@ -1238,9 +1238,9 @@ agentrt-linux 继承 Linux 内核的 24 项提交检查清单，并新增 agentr
 | 23 | 新增 ioctl 更新 ioctl-number.rst | OS-STD-156 |
 | 24 | 相关 Kconfig 符号禁用/`=m` 组合下多次构建测试 | OS-STD-157 |
 
-### 9.3 agentrt-linux 专属新增检查项
+### 9.3 agent-linux 专属新增检查项
 
-在 24 项基础检查之上，agentrt-linux 新增以下专属检查：
+在 24 项基础检查之上，agent-linux 新增以下专属检查：
 
 | # | 检查项 | OS-STD |
 |---|--------|--------|
@@ -1375,7 +1375,7 @@ agentrt-linux 继承 Linux 内核的 24 项提交检查清单，并新增 agentr
 
 ## 12. 工具链配置即代码
 
-agentrt-linux 的工具链配置以代码形式存放在仓库中，确保所有开发者与 CI 使用一致配置。
+agent-linux 的工具链配置以代码形式存放在仓库中，确保所有开发者与 CI 使用一致配置。
 
 ### 12.1 配置文件清单
 
@@ -1440,7 +1440,7 @@ agentrt-linux 的工具链配置以代码形式存放在仓库中，确保所有
 
 建立系统化的规范符合性检查机制，对所有设计文档和代码实现进行标准化审查，减少因不规范导致的潜在技术风险。本检查机制是开源极境工程与规范委员会决策指南第 4 点的直接落地：
 
-> "制定并严格执行 agentrt-linux 工程标准规范；对所有设计文档和代码实现进行标准化审查；建立规范符合性检查机制，减少因不规范导致的潜在技术风险"
+> "制定并严格执行 agent-linux 工程标准规范；对所有设计文档和代码实现进行标准化审查；建立规范符合性检查机制，减少因不规范导致的潜在技术风险"
 
 ### 1.2 检查范围
 
@@ -1761,9 +1761,9 @@ find atoms/ daemons/ commons/ memoryrovol/ -name "*.c" -o -name "*.h" | \
 | `are_` | 标准接口层（ABI 稳定，跨 [SC]/[SS]/[IND] 统一入口） | `are_ipc_send()` |
 | `airy_` | 原生实现层通用前缀（[SS] 语义同源层） | `airy_ipc_send()` |
 | `airy_core_` | CoreKern 专属前缀（微核心原语实现层） | `airy_core_sched_enqueue()` |
-| `airy_` | agentrt-linux 专属 API（[IND] 独立层） | `airy_kthread_create()` |
+| `airy_` | agent-linux 专属 API（[IND] 独立层） | `airy_kthread_create()` |
 | `AIRY_` | agentrt 宏/常量（[SC] 共享层） | `AIRY_API` / `AIRY_SYS_*` |
-| `AIRYMAXOS_` | agentrt-linux 宏/常量（[IND] 独立层） | `AIRYMAXOS_CONFIG_*` |
+| `AIRYMAXOS_` | agent-linux 宏/常量（[IND] 独立层） | `AIRYMAXOS_CONFIG_*` |
 
 **检查脚本**：
 ```bash
@@ -1900,7 +1900,7 @@ echo "OK: seL4 scope check passed (only ES-SEL4-1~5 architecture layer allowed)"
 
 ### 4.1 [SC] 共享契约层一致性检查
 
-**规则 OS-CHK-IRON-01**：[SC] 共享契约层的 12 个头文件必须 agentrt 与 agentrt-linux 完全一致。
+**规则 OS-CHK-IRON-01**：[SC] 共享契约层的 12 个头文件必须 agentrt 与 agent-linux 完全一致。
 
 **检查方法**：
 ```bash
@@ -1916,10 +1916,10 @@ SC_HEADERS="
 "
 
 for h in $SC_HEADERS; do
-    # 对比 agentrt 仓库与 agentrt-linux 仓库的同名文件
+    # 对比 agentrt 仓库与 agent-linux 仓库的同名文件
     diff "agentrt/$h" "airymaxos/$h" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
-        echo "SC MISMATCH: $h differs between agentrt and agentrt-linux"
+        echo "SC MISMATCH: $h differs between agentrt and agent-linux"
     fi
 done
 ```
@@ -1928,9 +1928,9 @@ done
 
 ### 4.2 [SS] 语义同源层 API 一致性检查
 
-**规则 OS-CHK-IRON-02**：[SS] 语义同源层：SDK 层 API 签名应与 agentrt 同源 API 一致（同一份源码两端编译）；系统调用层签名因抽象层级不同而独立演进（agentrt JSON-RPC ↔ agentrt-linux 编号 syscall），仅要求概念操作语义同源。
+**规则 OS-CHK-IRON-02**：[SS] 语义同源层：SDK 层 API 签名应与 agentrt 同源 API 一致（同一份源码两端编译）；系统调用层签名因抽象层级不同而独立演进（agentrt JSON-RPC ↔ agent-linux 编号 syscall），仅要求概念操作语义同源。
 
-**检查方法**：使用 `diff` 对比 agentrt 与 agentrt-linux 的头文件 API 声明部分。
+**检查方法**：使用 `diff` 对比 agentrt 与 agent-linux 的头文件 API 声明部分。
 
 ### 4.3 [IND] 独立层隔离检查
 
@@ -1940,9 +1940,9 @@ done
 ```bash
 #!/bin/bash
 # check-ind-isolation.sh
-# agentrt-linux（AirymaxOS）不应引用 agentrt 内部实现
+# agent-linux（AirymaxOS）不应引用 agentrt 内部实现
 grep -rn "#include.*agentrt/" kernel/ 2>/dev/null
-# agentrt 不应引用 agentrt-linux 内部实现
+# agentrt 不应引用 agent-linux 内部实现
 grep -rn "#include.*airymaxos/" agentrt/ 2>/dev/null
 ```
 
@@ -1950,7 +1950,7 @@ grep -rn "#include.*airymaxos/" agentrt/ 2>/dev/null
 
 ### 4.4 主流发行版兼容性检查
 
-**规则 OS-CHK-IRON-04**：agentrt-linux 工程思想与上游 Linux 保持一致性。
+**规则 OS-CHK-IRON-04**：agent-linux 工程思想与上游 Linux 保持一致性。
 
 **检查项**：
 
@@ -1964,7 +1964,7 @@ grep -rn "#include.*airymaxos/" agentrt/ 2>/dev/null
 
 ### 4.5 seL4 MAINTAINERS 文件范式检查
 
-**规则 OS-CHK-IRON-18**：agentrt-linux 采用 MAINTAINERS 文件范式（继承 Linux 6.6 内核基线 14 字段 + 3 新增字段），而非 seL4 的 TSC 集中治理模式。此规则验证 MAINTAINERS 文件的范式合规性。
+**规则 OS-CHK-IRON-18**：agent-linux 采用 MAINTAINERS 文件范式（继承 Linux 6.6 内核基线 14 字段 + 3 新增字段），而非 seL4 的 TSC 集中治理模式。此规则验证 MAINTAINERS 文件的范式合规性。
 
 **检查脚本**：
 ```bash
@@ -1973,7 +1973,7 @@ grep -rn "#include.*airymaxos/" agentrt/ 2>/dev/null
 # TODO: 依赖 R-03（MAINTAINERS 文件范式）落地
 # 当前为规范形式检查，验证 8 子仓 MAINTAINERS 文件的字段完整性
 
-# agentrt-linux MAINTAINERS 必填字段（14 Linux + 3 新增 = 17 字段）
+# agent-linux MAINTAINERS 必填字段（14 Linux + 3 新增 = 17 字段）
 REQUIRED_FIELDS="M: R: L: S: W: B: T: F: H: V:"
 # 注：O: 字段为 CODEOWNERS 投影，与 M:/R: 一致性由 CI 校验
 
@@ -2161,7 +2161,7 @@ scripts/
 | Copyright 检查 | 每次提交 | CI |
 | IRON-9 v3 标注检查 | 每次提交 | CI |
 | 链接完整性检查 | 每日 | 定时任务 + CI |
-| [SC] 一致性检查 | 每次提交 | CI（双向：agentrt + agentrt-linux） |
+| [SC] 一致性检查 | 每次提交 | CI（双向：agentrt + agent-linux） |
 | 主流发行版兼容性检查 | 每次内核基线升级 | 手动 + CI |
 | 全量检查 | 每日 | 定时任务 |
 
@@ -2194,7 +2194,7 @@ scripts/
 
 ### 0.1 背景：历史三套策略并存
 
-经审查发现 agentrt-linux 文档与代码中存在三套 SPDX 许可证策略，且各类文件的适用边界未声明：
+经审查发现 agent-linux 文档与代码中存在三套 SPDX 许可证策略，且各类文件的适用边界未声明：
 
 | 历史策略 | 出现位置 | 适用范围（隐含） |
 |---------|---------|----------------|
@@ -2219,7 +2219,7 @@ scripts/
 
 ### 0.4 术语约束
 
-- agentrt（用户态）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）
+- agentrt（用户态）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）
 - 禁止使用特定上游发行版名称，统一用"主流 Linux 发行版"
 
 ---
@@ -2228,7 +2228,7 @@ scripts/
 
 ### 1.1 规则 OS-STD-SPDX-001：按文件类型分类使用许可证
 
-agentrt-linux 仓库中所有文件按以下 5 类分类，每类使用对应的 SPDX 许可证标识：
+agent-linux 仓库中所有文件按以下 5 类分类，每类使用对应的 SPDX 许可证标识：
 
 | 类别 | 文件类型 | SPDX 标识 | 适用子仓 | 对齐依据 |
 |------|---------|-----------|---------|---------|
@@ -2245,7 +2245,7 @@ agentrt-linux 仓库中所有文件按以下 5 类分类，每类使用对应的
 ```c
 // SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
 /*
- * airy_ipc.c - agentrt-linux AgentsIPC 内核实现
+ * airy_ipc.c - agent-linux AgentsIPC 内核实现
  *
  * Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
  */
@@ -2262,7 +2262,7 @@ agentrt-linux 仓库中所有文件按以下 5 类分类，每类使用对应的
 
 ```rust
 // SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
-//! agentrt-linux Rust kernel module: Airymax task accounting.
+//! agent-linux Rust kernel module: Airymax task accounting.
 ```
 
 #### C 文档
@@ -2270,7 +2270,7 @@ agentrt-linux 仓库中所有文件按以下 5 类分类，每类使用对应的
 ```markdown
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）文档标题
+# agent-linux（AirymaxOS）文档标题
 
 > **文档定位**： ...
 > **SPDX-License-Identifier**： AGPL-3.0-or-later OR Apache-2.0
@@ -2308,7 +2308,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 层次 | 许可证策略 | 说明 |
 |------|-----------|------|
 | **[SC] 共享契约层** | `GPL-2.0-only WITH Linux-syscall-note` | 12 个头文件含 UAPI 定义，遵循内核 UAPI 许可证 |
-| **[SS] 语义同源层** | 各自独立许可证 | agentrt 端用户态用 AGPL-3.0 OR Apache-2.0；agentrt-linux 端内核态用 GPL-2.0-only WITH Linux-syscall-note |
+| **[SS] 语义同源层** | 各自独立许可证 | agentrt 端用户态用 AGPL-3.0 OR Apache-2.0；agent-linux 端内核态用 GPL-2.0-only WITH Linux-syscall-note |
 | **[IND] 完全独立层** | 各自独立许可证 | 按文件类型适用本矩阵 §1.1 |
 
 ### 2.3 构建脚本与检查脚本的区分
@@ -2348,7 +2348,7 @@ SPDX 标识**必须**使用与文件类型匹配的注释样式：
 
 ```c
 /*
- * airy_ipc.c - agentrt-linux IPC channel implementation
+ * airy_ipc.c - agent-linux IPC channel implementation
  * WRONG: 缺 SPDX-License-Identifier 行
  */
 ```
@@ -2380,7 +2380,7 @@ SPDX 标识**必须**使用与文件类型匹配的注释样式：
 
 ### 4.1 spdx-check-classified.sh 脚本
 
-agentrt-linux CI 使用以下脚本按 5 类许可证分类校验所有文件：
+agent-linux CI 使用以下脚本按 5 类许可证分类校验所有文件：
 
 ```bash
 #!/bin/bash
@@ -2526,7 +2526,7 @@ spdx-check:
 
 ```makefile
 # SPDX-License-Identifier: GPL-2.0
-# 文件: Makefile（agentrt-linux 仓库根）
+# 文件: Makefile（agent-linux 仓库根）
 
 .PHONY: spdx-check
 
@@ -2592,7 +2592,7 @@ Linux 6.6 内核基线 `scripts/checkpatch.pl:3772-3807` 的 `SPDX_LICENSE_TAG` 
 
 ### 7.2 LICENSES 目录结构
 
-agentrt-linux 在 `LICENSES/` 目录中需包含以下许可证文本文件，供 checkpatch 校验合法性：
+agent-linux 在 `LICENSES/` 目录中需包含以下许可证文本文件，供 checkpatch 校验合法性：
 
 ```
 LICENSES/
@@ -2608,7 +2608,7 @@ LICENSES/
 
 ### 7.3 双重校验
 
-agentrt-linux CI 同时运行：
+agent-linux CI 同时运行：
 
 1. `spdx-check-classified.sh`（本规范定义）—— 按 5 类分类校验许可证字符串
 2. `checkpatch.pl`（Linux 6.6 内核基线）—— 校验注释样式与许可证合法性

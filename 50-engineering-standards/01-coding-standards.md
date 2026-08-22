@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）代码规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准规范 / 代码规范\
+# agent-linux（AirymaxOS）代码规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范 / 代码规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：`50-engineering-standards/README.md` §3；`00-architectural-principles.md` 五维正交 24 原则\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
-> **适用范围**：agentrt-linux 内核态（C / 内联汇编）与同源用户态组件（C / Rust / Python / TypeScript）\
-> **SSoT 声明**：本卷为 agentrt-linux **语义层代码规则**（命名/函数/注释/类型/错误处理/内存/锁）的唯一权威来源（SSoT）。语义规则编号体系为 **OS-STD-CODE-NNN**（4 段前缀，CODE = Coding），覆盖命名、函数、注释、类型、错误处理、内存与锁的全部语义层规则。\
+> **适用范围**：agent-linux 内核态（C / 内联汇编）与同源用户态组件（C / Rust / Python / TypeScript）\
+> **SSoT 声明**：本卷为 agent-linux **语义层代码规则**（命名/函数/注释/类型/错误处理/内存/锁）的唯一权威来源（SSoT）。语义规则编号体系为 **OS-STD-CODE-NNN**（4 段前缀，CODE = Coding），覆盖命名、函数、注释、类型、错误处理、内存与锁的全部语义层规则。\
 > **合并说明（2026-07-12）**：本卷已合并原 `02-code-format.md`（→ Part II）、`03-code-style.md`（→ Part III）、`60-checkpatch-rule-map.md`（→ Part IV）、`70-kernel-doc-standard.md`（→ Part V）、`80-clang-format-enforcement.md`（→ Part VI）。原文件已物理删除，所有引用须指向本卷对应 Part。
 
 ***
@@ -17,9 +17,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 文档说明
 
-本文档是 agentrt-linux 工程标准规范第一份子文档，定义**语义层**代码规则。它不是 Linux `coding-style.rst` 的译本，而是基于 Linux 6.6 内核基线沉淀的工程思想，融合 Airymax 五维正交 24 原则后，针对智能体操作系统场景重新表述的工程契约。代码格式（缩进 / 行宽 / clang-format）见本文档 Part II，代码风格（模块化 / 抽象层次）见本文档 Part III。
+本文档是 agent-linux 工程标准规范第一份子文档，定义**语义层**代码规则。它不是 Linux `coding-style.rst` 的译本，而是基于 Linux 6.6 内核基线沉淀的工程思想，融合 Airymax 五维正交 24 原则后，针对智能体操作系统场景重新表述的工程契约。代码格式（缩进 / 行宽 / clang-format）见本文档 Part II，代码风格（模块化 / 抽象层次）见本文档 Part III。
 
-**权威声明**：本卷是 agentrt-linux **语义层代码规则**（命名/函数/注释/类型/错误处理/内存/锁）的唯一权威来源（SSoT）。`10-coding-style/C_Cpp_coding_style.md Part I` 中的命名约定（§3）、函数定义（§4）、错误处理（§7）、类型（§6）、内存管理（§8）、锁与并发（§9）均引用本卷，不得重新定义。若发现不一致，以本卷为准。
+**权威声明**：本卷是 agent-linux **语义层代码规则**（命名/函数/注释/类型/错误处理/内存/锁）的唯一权威来源（SSoT）。`10-coding-style/C_Cpp_coding_style.md Part I` 中的命名约定（§3）、函数定义（§4）、错误处理（§7）、类型（§6）、内存管理（§8）、锁与并发（§9）均引用本卷，不得重新定义。若发现不一致，以本卷为准。
 
 **规则编号**：每条强制规则赋予唯一编号。`OS-KER-xxx` 为内核工程规则（强制，agentrt 不涉及内核态）；`OS-STD-CODE-xxx` 为标准编码规则；`OS-BAN-xxx` 为禁止规则；`OS-ACC-xxx` 为验收标准。多语言对照追求语义等价而非逐字翻译——同一规则在不同语言中以该语言最自然的方式落地。规则编号注册表汇总于 `07-maintainers-and-governance.md`；**模块前缀注册表**的唯一权威来源（SSoT）为 [`10-coding-style/coding_conventions.md Part IV §4.4.3`](10-coding-style/coding_conventions.md#模块前缀清单总表)。
 
@@ -27,7 +27,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 命名规范
 
-C 是朴素的语言，命名应与之相称。agentrt-linux 命名遵循两条核心准则：**全局可见者必语义完备，局部可见者宜短小精悍**。
+C 是朴素的语言，命名应与之相称。agent-linux 命名遵循两条核心准则：**全局可见者必语义完备，局部可见者宜短小精悍**。
 
 ### 1.1 全局变量与全局函数
 
@@ -93,9 +93,9 @@ fn airy_task_submit(t: &mut Task) -> Result<(), ErrCode>;
 fn airy_task_is_pending(t: &Task) -> bool;
 ```
 
-### 1.6 agentrt-linux 专属前缀
+### 1.6 agent-linux 专属前缀
 
-> **前缀隔离**（权威定义：`10-coding-style/coding_conventions.md` Part IV §4.4；编号登记见 09 §4.1，注意 OS-STD-CODE-005 为"代码重复抽出"）： `airy_*` 前缀保留给 agentrt 同源 API；`airy_*` 前缀用于 agentrt-linux 内核 / 发行版专属 API。两者共享 Airymax 同源语义（MicroCoreRT / AgentsIPC / Cupolas / MemoryRovol / CoreLoopThree），但代码归属与 ABI 边界不同，前缀隔离确保无适配层互操作时不冲突。
+> **前缀隔离**（权威定义：`10-coding-style/coding_conventions.md` Part IV §4.4；编号登记见 09 §4.1，注意 OS-STD-CODE-005 为"代码重复抽出"）： `airy_*` 前缀保留给 agentrt 同源 API；`airy_*` 前缀用于 agent-linux 内核 / 发行版专属 API。两者共享 Airymax 同源语义（MicroCoreRT / AgentsIPC / Cupolas / MemoryRovol / CoreLoopThree），但代码归属与 ABI 边界不同，前缀隔离确保无适配层互操作时不冲突。
 
 ```c
 int airy_ipc_send(u32 ch, const void *msg, size_t len);     /* agentrt 同源 */
@@ -206,7 +206,7 @@ struct airy_task {
 };
 ```
 
-### 3.5 agentrt-linux 多语言注释规范
+### 3.5 agent-linux 多语言注释规范
 
 > **OS-STD-CODE-014**： C 用 kernel-doc；Rust 用 rustdoc；Python 用 Google docstring；TypeScript 用 JSDoc。
 
@@ -368,7 +368,7 @@ bitflags::bitflags! { pub struct TaskFlags: u8 {
 
 ## 7. 错误处理规范（强制范式）
 
-错误处理是 agentrt-linux 工程观的核心。本章所有规则均为强制。
+错误处理是 agent-linux 工程观的核心。本章所有规则均为强制。
 
 ### 7.1 goto 集中出口模式
 
@@ -456,7 +456,7 @@ pr_info("handler at %pS\n", task->handler);           /* 好 */
 pr_info("task at %p\n", task);                          /* 坏：已哈希，无意义 */
 ```
 
-### 7.7 agentrt-linux 多语言错误处理
+### 7.7 agent-linux 多语言错误处理
 
 > **OS-STD-CODE-022**： C 用 goto 集中出口；Rust 用 `?` + `Result` + RAII；Python 用异常 + 上下文管理器；TypeScript 用 try-finally。
 
@@ -527,7 +527,7 @@ while (readl(base + AIRY_REG_STATUS) & AIRY_STATUS_BUSY)
 
 ### 8.5 Rust Send/Sync 强制要求
 
-> **OS-STD-CODE-023**： Rust 跨线程传递的类型必须实现 `Send`；跨线程共享的类型必须实现 `Sync`。agentrt-linux Rust 同源组件禁止 `unsafe impl Send/Sync`，除非有书面论证与 unsafe audit。
+> **OS-STD-CODE-023**： Rust 跨线程传递的类型必须实现 `Send`；跨线程共享的类型必须实现 `Sync`。agent-linux Rust 同源组件禁止 `unsafe impl Send/Sync`，除非有书面论证与 unsafe audit。
 
 ```rust
 struct AgentrtChannel { inner: Mutex<ChannelInner> }  /* Mutex<T> 自动提供 Sync */
@@ -578,7 +578,7 @@ if (IS_ENABLED(CONFIG_AIRY_AUDIT)) { airy_audit_enable(); }  /* 好 */
 
 ### 9.4 magic number 必须注册
 
-> **OS-KER-010**： 受保护的数据结构应在结构体开头声明 `magic` 字段，并将该 magic number 注册到 agentrt-linux 维护的 `magic-numbers.md`。magic number 用于运行时检测结构体被覆盖或类型误传，在数组越界覆盖相邻结构的场景中尤其有效。
+> **OS-KER-010**： 受保护的数据结构应在结构体开头声明 `magic` 字段，并将该 magic number 注册到 agent-linux 维护的 `magic-numbers.md`。magic number 用于运行时检测结构体被覆盖或类型误传，在数组越界覆盖相邻结构的场景中尤其有效。
 
 ```c
 #define AIRY_SESSION_MAGIC  0x41475331  /* 'AGS1' */
@@ -623,7 +623,7 @@ config AIRY_DEVMEM_RW
 | 8 并发   | K-2 接口契约 | E-1 / E-3 资源确定性       | A-2 细节关注 |
 | 9 条件编译 | K-2 接口契约 | E-1 / E-7 文档即代码       | A-3 人文关怀 |
 
-> **同源语义注**： 本章规则在 agentrt 用户态运行时侧有等价表述（agentrt `IRON-1`\~`IRON-10` 同源铁律），两端通过 AgentsIPC 128B 消息头协议实现无适配层互操作——这是 agentrt-linux 与 agentrt "同源且部分代码共享（IRON-9 v3）"关系在代码规范层的体现。
+> **同源语义注**： 本章规则在 agentrt 用户态运行时侧有等价表述（agentrt `IRON-1`\~`IRON-10` 同源铁律），两端通过 AgentsIPC 128B 消息头协议实现无适配层互操作——这是 agent-linux 与 agentrt "同源且部分代码共享（IRON-9 v3）"关系在代码规范层的体现。
 
 ***
 
@@ -634,7 +634,7 @@ config AIRY_DEVMEM_RW
 | OS-STD-CODE-001 | 标准  | 全局符号描述性命名                                |
 | OS-BAN-001      | 禁止  | 敏感术语 master/slave、blacklist/whitelist   |
 | OS-STD-CODE-005 | 标准  | 代码重复 3 处以上应抽出到 lib/ 或 commons/（§1.3） |
-| OS-STD-CODE-006 | 标准  | agentrt-linux 4 层接口稳定性分级（§5.4） |
+| OS-STD-CODE-006 | 标准  | agent-linux 4 层接口稳定性分级（§5.4） |
 | OS-STD-CODE-007 | 标准  | 跨语言 FFI 边界显式声明（§8.3） |
 | OS-STD-CODE-008 | 标准  | 原型必须含参数名                                |
 | OS-BAN-007      | 禁止  | 函数声明禁止 `extern`                         |
@@ -688,7 +688,7 @@ config AIRY_DEVMEM_RW
 - `50-engineering-standards/04-engineering-philosophy.md` — 工程思想（双层稳定性 / 策略机制分离）
 - `50-engineering-standards/07-maintainers-and-governance.md` — 维护者制度与规则编号注册表
 - `docs/AirymaxRT/10-architecture/00-architectural-principles.md` — Airymax 五维正交 24 原则
-- `50-engineering-standards/magic-numbers.md` — agentrt-linux magic number 注册表
+- `50-engineering-standards/magic-numbers.md` — agent-linux magic number 注册表
 - `30-interfaces/01-syscall-spec.md` — 系统调用规范（UABI 边界）
 
 ***
@@ -697,11 +697,11 @@ config AIRY_DEVMEM_RW
 
 ## 0. 章节定位
 
-本卷回答"代码长什么样"——纯机械的格式规则。它不讨论"该怎么写代码"（01 代码规范）、"该怎么思考"（03 代码风格）或"工程体系怎么建立"（04 工程思想），只规定视觉层面的可由工具 100% 自动化的规则。agentrt-linux 的格式哲学是：
+本卷回答"代码长什么样"——纯机械的格式规则。它不讨论"该怎么写代码"（01 代码规范）、"该怎么思考"（03 代码风格）或"工程体系怎么建立"（04 工程思想），只规定视觉层面的可由工具 100% 自动化的规则。agent-linux 的格式哲学是：
 
 > **配置即代码（OS-STD-FMT-030）**：每一条格式规则必须有对应的格式化工具配置项；规则若无法被工具强制，等同于不存在。
 
-- **权威声明**：本卷是 agentrt-linux 代码格式规则的**唯一权威来源（SSoT）**。`10-coding-style/C_Cpp_coding_style.md Part I` 和 `10-coding-style/C_Cpp_coding_style.md Part II` 中的格式规则（缩进/行宽/大括号/空格）均引用本卷，不得重新定义。若发现不一致，以本卷为准。
+- **权威声明**：本卷是 agent-linux 代码格式规则的**唯一权威来源（SSoT）**。`10-coding-style/C_Cpp_coding_style.md Part I` 和 `10-coding-style/C_Cpp_coding_style.md Part II` 中的格式规则（缩进/行宽/大括号/空格）均引用本卷，不得重新定义。若发现不一致，以本卷为准。
 - **上游依赖**：04 工程思想定义"为什么"——双层稳定性、可读性优先、cache 影响是头等大事；本卷定义"长什么样"。
 - **下游依赖**：06 工具链与自动化定义"格式检查在哪一层执行"——预提交钩子（Layer 3）+ CI 门禁（Layer 4）必须运行 `make format-check`；本卷定义"被检查的内容"。
 
@@ -713,7 +713,7 @@ config AIRY_DEVMEM_RW
 |------|------|
 | Tab 宽度 | Tab 字符在显示时占用的列数；内核 C 代码统一为 8 |
 | K&R 风格 | Kernighan & Ritchie 在《The C Programming Language》中确立的大括号放置风格 |
-| 行尾空白 | 行末 Tab 或空格序列；agentrt-linux 全部禁用 |
+| 行尾空白 | 行末 Tab 或空格序列；agent-linux 全部禁用 |
 | 后继行 | 被断行的长行的续行；必须显著短于父行并右移 |
 | 配置即代码 | 格式规则与格式化工具配置项一一对应，无人工裁量空间 |
 
@@ -755,7 +755,7 @@ config AIRY_DEVMEM_RW
 |---------|------------|----------|---------|
 | OS-STD-201 | OS-STD-FMT-030 | 配置即代码——每条格式规则必须有对应格式化工具配置项 | Part II §0 |
 | OS-STD-212 | OS-STD-CODE-005 | 代码重复 3 处以上应抽出到 lib/ 或 commons/ | §1.3 |
-| OS-STD-213 | OS-STD-STY-003 | agentrt-linux 分层职责：热路径 C / 慢路径 Rust | §1.4 |
+| OS-STD-213 | OS-STD-STY-003 | agent-linux 分层职责：热路径 C / 慢路径 Rust | §1.4 |
 | OS-STD-214 | OS-STD-CODE-006 | 4 层接口稳定性分级 | §5.4 |
 | OS-STD-215 | OS-STD-CODE-007 | 跨语言 FFI 边界显式声明 | §8.3 |
 | OS-STD-216 | OS-STD-STY-004 | Agent 工作负载考量——Token 能效与记忆卷载 | §8.4 |
@@ -789,7 +789,7 @@ config AIRY_DEVMEM_RW
 
 ## 1. 缩进规范
 
-缩进是控制流块边界的视觉表达。agentrt-linux 内核 C 代码严格沿用 Linux 6.6 内核基线 8 字符 Tab——这是 30+ 年沉淀的可读性经验，任何"4 空格更美观"的论调在内核上下文中都是噪声。
+缩进是控制流块边界的视觉表达。agent-linux 内核 C 代码严格沿用 Linux 6.6 内核基线 8 字符 Tab——这是 30+ 年沉淀的可读性经验，任何"4 空格更美观"的论调在内核上下文中都是噪声。
 
 ### 1.1 C 内核代码：Tab，8 字符宽（OS-STD-FMT-001）
 
@@ -850,10 +850,10 @@ pub async fn submit_task(&self, desc: TaskDesc) -> Result<i32, Error> {
 
 ```kconfig
 config AIRYMAXOS_IPC
-	bool "agentrt-linux AgentsIPC subsystem"
+	bool "agent-linux AgentsIPC subsystem"
 	depends on NET
 	help
-	  Enable the agentrt-linux AgentsIPC subsystem (128B fixed header).
+	  Enable the agent-linux AgentsIPC subsystem (128B fixed header).
 	  Required by all agent workloads.
 ```
 
@@ -905,7 +905,7 @@ int airy_dispatcher_select(struct airy_task_desc *desc,
 
 ## 3. 大括号位置（K&R 风格）
 
-K&R 大括号放置是 Linux 6.6 内核基线的工程惯例，agentrt-linux 完全继承。其核心价值是**最小化空行占用**——在 25 行终端屏幕时代确立，至今仍是代码密度与可读性的最佳平衡。
+K&R 大括号放置是 Linux 6.6 内核基线的工程惯例，agent-linux 完全继承。其核心价值是**最小化空行占用**——在 25 行终端屏幕时代确立，至今仍是代码密度与可读性的最佳平衡。
 
 ### 3.1 非函数语句块：开括号在行末（OS-STD-FMT-003）
 
@@ -1136,7 +1136,7 @@ if (condition) {
 
 ### 7.3 禁止单行多赋值（OS-STD-FMT-014）
 
-**OS-STD-FMT-014**：禁止一行内多个赋值；每个赋值独占一行。agentrt-linux 内核代码风格简单——避免技巧性表达。
+**OS-STD-FMT-014**：禁止一行内多个赋值；每个赋值独占一行。agent-linux 内核代码风格简单——避免技巧性表达。
 
 ```c
 /* 错误 */
@@ -1154,7 +1154,7 @@ c = 3;
 
 ### 8.1 `.clang-format`（C/C++，OS-STD-FMT-025）
 
-**OS-STD-FMT-025**：kernel / security / services 仓库根目录必须维护 `.clang-format`（基于 Linux 6.6 内核基线 689 行版本 + ForEachMacros 列表 + agentrt-linux 专属宏扩展）。
+**OS-STD-FMT-025**：kernel / security / services 仓库根目录必须维护 `.clang-format`（基于 Linux 6.6 内核基线 689 行版本 + ForEachMacros 列表 + agent-linux 专属宏扩展）。
 
 ### 8.2 `.rustfmt.toml`（Rust，OS-STD-FMT-026）
 
@@ -1180,7 +1180,7 @@ c = 3;
 
 > **SSoT 对齐**：本节是规则到配置项的速查映射表（原 80-clang-format-enforcement.md（→ 本文档 Part VI）§1/§2 已合并于此）。完整 `.clang-format` YAML 文件与每个配置项的 Linux 6.6 内核基线 源码行号标注随代码实现补全。
 
-agentrt-linux `.clang-format` 在 Linux 6.6 内核基线 689 行配置基础上扩展。下表列出关键项及其与第 1-7 章规则的对应关系：
+agent-linux `.clang-format` 在 Linux 6.6 内核基线 689 行配置基础上扩展。下表列出关键项及其与第 1-7 章规则的对应关系：
 
 | 配置项 | 值 | 对应规则 | 说明 |
 |--------|-----|----------|------|
@@ -1204,7 +1204,7 @@ agentrt-linux `.clang-format` 在 Linux 6.6 内核基线 689 行配置基础上�
 | `AllowShortLoopsOnASingleLine` | `false` | OS-STD-FMT-004 | 同上 |
 | `MaxEmptyLinesToKeep` | `1` | OS-STD-206 | 连续空行最多 1 |
 | `BreakStringLiterals` | `false` | OS-STD-FMT-008 | 禁止断字符串 |
-| `ForEachMacros` | 560 项 | — | 内核 for_each 宏列表，agentrt-linux 扩展 `airy_for_each_*` |
+| `ForEachMacros` | 560 项 | — | 内核 for_each 宏列表，agent-linux 扩展 `airy_for_each_*` |
 
 ---
 
@@ -1239,7 +1239,7 @@ agentrt-linux `.clang-format` 在 Linux 6.6 内核基线 689 行配置基础上�
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | 0.1.1 | 2026-07-06 | 初始版本（含 §1-§10 全部规则 + clang-format 配置表 + 五维映射） |
-| 1.0.1 | 2026-07-12 | OS-KER/OS-STD 格式规则编号统一迁移为 OS-STD-FMT-NNN 子域（29 条）；消解 10 处跨文档编号冲突；ForEachMacros 扩展至包含 agentrt-linux 专属宏 |
+| 1.0.1 | 2026-07-12 | OS-KER/OS-STD 格式规则编号统一迁移为 OS-STD-FMT-NNN 子域（29 条）；消解 10 处跨文档编号冲突；ForEachMacros 扩展至包含 agent-linux 专属宏 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 
 ---
@@ -1259,7 +1259,7 @@ agentrt-linux `.clang-format` 在 Linux 6.6 内核基线 689 行配置基础上�
 - **函数与数据结构的结构风格**——helper 抽取、引用计数强制（§3、§4）
 - **抽象层次的稳定性分级**——内核内部 API 不稳定、用户 ABI 稳定（§5）
 - **防御性与性能的工程权衡**——fault injection、cache 影响是头等大事（§6、§7）
-- **agentrt-linux 多语言协作的专属风格**——热/冷路径分层、FFI 边界（§8）
+- **agent-linux 多语言协作的专属风格**——热/冷路径分层、FFI 边界（§8）
 - **工具链使用风格**——gcc -W、sparse、lockdep、checkpatch（§9）
 
 - **上游依赖**：04 工程思想定义"为什么"——双层稳定性、策略机制分离是设计哲学；本卷定义"如何落实"。
@@ -1306,15 +1306,15 @@ struct airy_dispatcher_ops {
 
 ### 1.2 反对隐藏硬件访问的多 OS 抽象层（OS-KER-119）
 
-**OS-KER-119**：agentrt-linux 是 Linux 6.6 内核基线专属发行版，不维护"在 Linux / Windows / RTOS 之间切换"的硬件抽象层。若需跨平台一致性，由 agentrt 在用户空间承担（E-4 原则），agentrt-linux 内核态不背跨平台包袱。
+**OS-KER-119**：agent-linux 是 Linux 6.6 内核基线专属发行版，不维护"在 Linux / Windows / RTOS 之间切换"的硬件抽象层。若需跨平台一致性，由 agentrt 在用户空间承担（E-4 原则），agent-linux 内核态不背跨平台包袱。
 
 ### 1.3 代码重复应抽出到库（OS-STD-CODE-005）
 
 **OS-STD-CODE-005**：当代码在 3 处以上重复时，应抽出到 `lib/` 或 `commons/` 子模块；当代码在 2 处重复时，可暂保留，但需在 PR 描述中标注"已知重复，待第三处出现时抽出"。该规则避免"过早抽象"与"放任重复"两极。
 
-### 1.4 agentrt-linux 专属分层职责（OS-STD-STY-003）
+### 1.4 agent-linux 专属分层职责（OS-STD-STY-003）
 
-**OS-STD-STY-003**：agentrt-linux 按 C-1 双系统协同原则分层选择实现语言：
+**OS-STD-STY-003**：agent-linux 按 C-1 双系统协同原则分层选择实现语言：
 
 | 层 | 子仓 | 主语言 | 选择理由 |
 |----|------|--------|----------|
@@ -1332,7 +1332,7 @@ struct airy_dispatcher_ops {
 
 ### 2.2 策略外移至用户空间或可插拔模块（OS-KER-121）
 
-**OS-KER-121**：策略必须可在不重新编译内核的情况下替换。agentrt-linux 通过两类机制实现：用户态守护进程（K-3 服务隔离）+ eBPF / sched_tac 用户态调度器（K-4 可插拔策略）。
+**OS-KER-121**：策略必须可在不重新编译内核的情况下替换。agent-linux 通过两类机制实现：用户态守护进程（K-3 服务隔离）+ eBPF / sched_tac 用户态调度器（K-4 可插拔策略）。
 
 ```c
 /* 错误：策略硬编码进内核 */
@@ -1354,7 +1354,7 @@ struct airy_sched_ops airy_agent_sched = {
 
 **OS-KER-122**：禁 sched_ext 立场——`sched_tac` 必须基于原生调度类（SCHED_DEADLINE/SCHED_FIFO/EEVDF）实现，禁止 SCHED_AGENT 宏（标准 Linux 6.6 主线不含 sched_ext，禁止 backport）。用户态调度器在用户态编写、动态加载、热替换，而无需内核重新编译或重启。任何把调度策略硬编码进 `kernel/sched/` 或引入 sched_ext 的 PR 直接拒绝。
 
-### 2.4 agentrt-linux 专属：K-4 可插拔策略原则映射
+### 2.4 agent-linux 专属：K-4 可插拔策略原则映射
 
 K-4 可插拔策略是 Airymax 五维正交 24 原则在调度、IPC 路由、安全裁决、记忆检索等"算法选择"上的统一约束。所有算法维度必须暴露策略接口，可在运行时替换。详见 [10-architecture/02-five-dimensional-principles.md](../10-architecture/02-five-dimensional-principles.md) §3.4。
 
@@ -1412,7 +1412,7 @@ int airy_init(void)
 
 ### 4.1 引用计数强制（OS-KER-127）
 
-**OS-KER-127**：多线程可见的数据结构必须有引用计数。agentrt-linux 内核无 GC（垃圾回收），任何可被另一线程找到的数据结构都必须维护"使用者数量"——归零方可释放。agentrt-linux 的 E-3 资源确定性原则在此处落地。
+**OS-KER-127**：多线程可见的数据结构必须有引用计数。agent-linux 内核无 GC（垃圾回收），任何可被另一线程找到的数据结构都必须维护"使用者数量"——归零方可释放。agent-linux 的 E-3 资源确定性原则在此处落地。
 
 ```c
 struct airy_task_desc {
@@ -1495,7 +1495,7 @@ struct flags_good {
 
 ### 5.1 不维护稳定内核内部 API（OS-KER-131）
 
-**OS-KER-131**：agentrt-linux 内核子系统之间的内部 API **不保证稳定**，这是 deliberate design decision（深思熟虑的设计决策）。允许持续重构是降低主线维护成本的核心机制——若每次重构都需兼顾二进制兼容，代码会迅速被历史包袱压垮。配套规则：API 改动者必须同时修复所有受影响代码（"you broke it, you fix it"）。
+**OS-KER-131**：agent-linux 内核子系统之间的内部 API **不保证稳定**，这是 deliberate design decision（深思熟虑的设计决策）。允许持续重构是降低主线维护成本的核心机制——若每次重构都需兼顾二进制兼容，代码会迅速被历史包袱压垮。配套规则：API 改动者必须同时修复所有受影响代码（"you broke it, you fix it"）。
 
 ### 5.2 用户空间 ABI 必须稳定（OS-KER-132）
 
@@ -1505,9 +1505,9 @@ struct flags_good {
 
 **OS-KER-133**：抽象是有成本的——一层间接调用、一份额外内存、一份认知负担。只有在"已经存在 3 处以上重复"或"已经能预见第二使用者"时才抽出抽象。空抽象比无抽象更糟——它会让后续维护者误以为存在多处使用者，不敢删除。
 
-### 5.4 agentrt-linux 4 层接口稳定性分级（OS-STD-CODE-006）
+### 5.4 agent-linux 4 层接口稳定性分级（OS-STD-CODE-006）
 
-**OS-STD-CODE-006**：agentrt-linux 在双层稳定性（内核内部 / 用户 ABI）基础上扩展为 4 层：
+**OS-STD-CODE-006**：agent-linux 在双层稳定性（内核内部 / 用户 ABI）基础上扩展为 4 层：
 
 | 层 | 接口类型 | 稳定性 | 变更流程 |
 |----|---------|--------|---------|
@@ -1522,7 +1522,7 @@ struct flags_good {
 
 ### 6.1 错误路径必须测试（OS-KER-134）
 
-**OS-KER-134**：所有错误路径必须有对应测试用例。agentrt-linux 通过 fault injection 框架强制执行——`make kmalloc-fail` / `should_fail_alloc_page` 等机制可在运行时注入分配失败，验证错误路径是否真正可达且不破坏状态。任何未测试错误路径等同于未实现。
+**OS-KER-134**：所有错误路径必须有对应测试用例。agent-linux 通过 fault injection 框架强制执行——`make kmalloc-fail` / `should_fail_alloc_page` 等机制可在运行时注入分配失败，验证错误路径是否真正可达且不破坏状态。任何未测试错误路径等同于未实现。
 
 ### 6.2 溢出检查（OS-KER-135）
 
@@ -1636,7 +1636,7 @@ arr = kcalloc(n, sizeof(*arr), GFP_KERNEL);
 
 ---
 
-## 8. agentrt-linux 专属风格
+## 8. agent-linux 专属风格
 
 ### 8.1 热路径 vs 冷路径分层（OS-KER-143）
 
@@ -1652,11 +1652,11 @@ arr = kcalloc(n, sizeof(*arr), GFP_KERNEL);
 
 ### 8.4 Agent 工作负载考量——Token 能效与记忆卷载（OS-STD-STY-004）
 
-**OS-STD-STY-004**：agentrt-linux 设计须考虑 Agent 工作负载特性——Token 能效（每 token 的 CPU/J 预算）、记忆卷载（C-3，L1-L4 分层卷载模式）。详见 [40-dataflows/01-cognition-flow.md](../40-dataflows/01-cognition-flow.md) 与 [40-dataflows/02-memory-flow.md](../40-dataflows/02-memory-flow.md)。Agent 任务在调度器中应作为 `sched_tac` 用户态调度器策略（stc_agent 枚举），与普通进程隔离调度，避免被普通负载饿死或反噬。
+**OS-STD-STY-004**：agent-linux 设计须考虑 Agent 工作负载特性——Token 能效（每 token 的 CPU/J 预算）、记忆卷载（C-3，L1-L4 分层卷载模式）。详见 [40-dataflows/01-cognition-flow.md](../40-dataflows/01-cognition-flow.md) 与 [40-dataflows/02-memory-flow.md](../40-dataflows/02-memory-flow.md)。Agent 任务在调度器中应作为 `sched_tac` 用户态调度器策略（stc_agent 枚举），与普通进程隔离调度，避免被普通负载饿死或反噬。
 
 ### 8.5 OLK-6.6 品味哲学——8 项隐性工程智慧（OS-STD-STY-005~012）
 
-> **来源**：Linux 6.6 内核基线（openEuler OLK-6.6 标杆）源码深度提炼，`_review_0.9.0/01-olk66-code-taste-distillation.md`。以下 8 项隐性工程智慧不在 Linux 内核编码风格文档中显式书写，但在 OLK-6.6 源码中反复体现，是 Linus Torvalds 所称"代码品味（code taste）"的核心组成。agentrt-linux（AirymaxOS）内核态 C 代码必须遵循。
+> **来源**：Linux 6.6 内核基线（openEuler OLK-6.6 标杆）源码深度提炼，`_review_0.9.0/01-olk66-code-taste-distillation.md`。以下 8 项隐性工程智慧不在 Linux 内核编码风格文档中显式书写，但在 OLK-6.6 源码中反复体现，是 Linus Torvalds 所称"代码品味（code taste）"的核心组成。agent-linux（AirymaxOS）内核态 C 代码必须遵循。
 
 #### 8.5.1 信任读者——暴露而非封装（OS-STD-STY-005）
 
@@ -1835,7 +1835,7 @@ static inline struct task_struct *mutex_owner(struct mutex *lock)
 
 #### 8.5.7 `__read_mostly`——缓存友好的数据布局（OS-STD-STY-011）
 
-**OS-STD-STY-011**：频繁读取但很少修改的全局变量必须使用 `__read_mostly` 注解。`__read_mostly` 将变量放入 `.data..read_mostly` 段，与频繁修改的数据分离，减少 false sharing 导致的缓存行失效。agentrt-linux 的 Agent 注册表、调度器配置等 mostly-read 数据应使用此注解。
+**OS-STD-STY-011**：频繁读取但很少修改的全局变量必须使用 `__read_mostly` 注解。`__read_mostly` 将变量放入 `.data..read_mostly` 段，与频繁修改的数据分离，减少 false sharing 导致的缓存行失效。agent-linux 的 Agent 注册表、调度器配置等 mostly-read 数据应使用此注解。
 
 **OLK-6.6 源码证据**：`kernel/sched/core.c` L168/178/7786——`sysctl_resched_latency_warn_ms`、`scheduler_running`、`sched_smp_initialized` 等全局变量使用 `__read_mostly` 注解。
 
@@ -1845,7 +1845,7 @@ __read_mostly int scheduler_running;
 __read_mostly bool sched_smp_initialized;
 __read_mostly int sysctl_resched_latency_warn_ms = 100;
 
-/* agentrt-linux 应用 */
+/* agent-linux 应用 */
 static __read_mostly struct airy_sched_class
 				*airy_sched_classes[MAX_SCHED_CLASSES];
 static __read_mostly atomic_t airy_agent_count = ATOMIC_INIT(0);
@@ -1856,7 +1856,7 @@ __read_mostly atomic_t airy_current_token_usage;  /* 频繁更新，不应使用
 
 #### 8.5.8 `__randomize_layout`——结构体布局随机化（OS-STD-STY-012）
 
-**OS-STD-STY-012**：安全敏感的结构体（含函数指针表、含权限字段、含内核地址）必须使用 `__randomize_layout` 注解。`__randomize_layout` 在编译时随机化结构体字段顺序，防止攻击者通过预测结构布局实施函数指针劫持或信息泄露。agentrt-linux 的 `airy_task_struct`、`airy_security_ops` 等安全敏感结构体应使用此注解（需 `CONFIG_RANDSTRUCT` 启用）。
+**OS-STD-STY-012**：安全敏感的结构体（含函数指针表、含权限字段、含内核地址）必须使用 `__randomize_layout` 注解。`__randomize_layout` 在编译时随机化结构体字段顺序，防止攻击者通过预测结构布局实施函数指针劫持或信息泄露。agent-linux 的 `airy_task_struct`、`airy_security_ops` 等安全敏感结构体应使用此注解（需 `CONFIG_RANDSTRUCT` 启用）。
 
 **OLK-6.6 源码证据**：`include/linux/sched.h` L658——`struct task_struct` 使用 `__randomize_layout` 注解。
 
@@ -1866,7 +1866,7 @@ struct task_struct {
 	/* ... 大量字段 ... */
 } __randomize_layout;
 
-/* agentrt-linux 应用——安全敏感结构体 */
+/* agent-linux 应用——安全敏感结构体 */
 struct airy_task_struct {
 	void (*sched_class)(struct airy_task_struct *);
 	u32 capability_mask;
@@ -1905,7 +1905,7 @@ struct airy_task_struct {
 
 ### 9.1 gcc -W（OS-KER-145）
 
-**OS-KER-145**：编译必须开启 `-Wall -Wextra -Werror`；新增警告项必须立即修复或显式 `// NOLINT: <reason>` 标注。零警告是 agentrt-linux 不可妥协的底线。
+**OS-KER-145**：编译必须开启 `-Wall -Wextra -Werror`；新增警告项必须立即修复或显式 `// NOLINT: <reason>` 标注。零警告是 agent-linux 不可妥协的底线。
 
 ### 9.2 sparse——类型检查（OS-KER-146）
 
@@ -1921,7 +1921,7 @@ struct airy_task_struct {
 
 ### 9.5 checkpatch.pl（OS-STD-TOOL-160）
 
-**OS-STD-TOOL-160**：每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`，无 ERROR / WARNING。checkpatch 检查 Linux 6.6 内核基线规则 + agentrt-linux 扩展规则（详见 06 卷 §3.2）。
+**OS-STD-TOOL-160**：每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`，无 ERROR / WARNING。checkpatch 检查 Linux 6.6 内核基线规则 + agent-linux 扩展规则（详见 06 卷 §3.2）。
 
 ### 9.6 多配置构建（OS-STD-TOOL-161）
 
@@ -1966,7 +1966,7 @@ struct airy_task_struct {
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 0.1.1 | 2026-07-06 | 初始版本（含 §1-§10 全部规则 + 11 条五维映射 + agentrt-linux 专属风格） |
+| 0.1.1 | 2026-07-06 | 初始版本（含 §1-§10 全部规则 + 11 条五维映射 + agent-linux 专属风格） |
 | 1.0.1 | TBD | 与代码实现同步验证；Agent 工作负载 Token 能效基准确立 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 
@@ -1982,7 +1982,7 @@ struct airy_task_struct {
 
 ### 0.1 目的与范围
 
-本文件研究 Linux 6.6 内核基线 `scripts/checkpatch.pl`（239KB，约 7800 行）中定义的所有补丁检查规则，提取 ≥30 条 ERROR/WARNING 类型规则，建立到 agentrt-linux 规则编号体系的映射。
+本文件研究 Linux 6.6 内核基线 `scripts/checkpatch.pl`（239KB，约 7800 行）中定义的所有补丁检查规则，提取 ≥30 条 ERROR/WARNING 类型规则，建立到 agent-linux 规则编号体系的映射。
 
 每条规则包含以下字段：
 
@@ -1990,16 +1990,16 @@ struct airy_task_struct {
 - **级别**：ERROR / WARNING / CHECK
 - **检查内容**：规则触发条件的中文化描述
 - **Linux 6.6 内核基线 源码行号**：`scripts/checkpatch.pl:行号` 格式
-- **agentrt-linux 规则编号**：OS-STD-CODE-NNN
+- **agent-linux 规则编号**：OS-STD-CODE-NNN
 - **示例**：触发该规则的代码片段
 
-> **交叉引用**：本 Part 是 checkpatch 规则到 agentrt-linux 规则编号的逐条映射表（规则映射层）。checkpatch 在 7 层验证体系中的框架定位（第 2 层静态分析 + 第 3 层预提交 + 第 4 层 CI 门禁）、三级报告策略、CI 调用方式与退出码处理，详见 [05-development-process.md](05-development-process.md) Part II §5.1（checkpatch.pl）与 §1.2-§1.4（7 层验证体系第 2-4 层）。.clang-format 配置项与格式规则定义，详见 本文档 Part II §8/§9（原 80-clang-format-enforcement.md 已合并入本文档 Part II/Part VI；clang-format 与 checkpatch 的协作流水线顺序随代码实现补全）。
+> **交叉引用**：本 Part 是 checkpatch 规则到 agent-linux 规则编号的逐条映射表（规则映射层）。checkpatch 在 7 层验证体系中的框架定位（第 2 层静态分析 + 第 3 层预提交 + 第 4 层 CI 门禁）、三级报告策略、CI 调用方式与退出码处理，详见 [05-development-process.md](05-development-process.md) Part II §5.1（checkpatch.pl）与 §1.2-§1.4（7 层验证体系第 2-4 层）。.clang-format 配置项与格式规则定义，详见 本文档 Part II §8/§9（原 80-clang-format-enforcement.md 已合并入本文档 Part II/Part VI；clang-format 与 checkpatch 的协作流水线顺序随代码实现补全）。
 
 ### 0.2 checkpatch 规则分级约定
 
-agentrt-linux 对 checkpatch 规则的分级处理：
+agent-linux 对 checkpatch 规则的分级处理：
 
-| checkpatch 级别 | agentrt-linux 处理策略 |
+| checkpatch 级别 | agent-linux 处理策略 |
 |----------------|---------------------|
 | **ERROR** | CI 强制门禁，0 容忍，违反即拒合并 |
 | **WARNING** | CI 强制门禁，0 容忍（升级为 ERROR），违反即拒合并 |
@@ -2007,9 +2007,9 @@ agentrt-linux 对 checkpatch 规则的分级处理：
 
 ### 0.3 规则编号体系
 
-agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
+agent-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 
-- `OS`：归属 agentrt-linux（OS 发行版）
+- `OS`：归属 agent-linux（OS 发行版）
 - `STD-CODE`：编码标准 - 代码规则子类
 - `NNN`：三位数字序号（001-999）
 
@@ -2025,7 +2025,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `strcpy()` 调用，建议改用 `strscpy`。`strcpy` 无边界检查，可导致线性溢出。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7029-7031` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-010 |
+| **agent-linux 规则编号** | OS-STD-CODE-010 |
 | **示例** | `strcpy(dst, src);` → 触发 "Prefer strscpy over strcpy" |
 
 ### 规则 2：STRLCPY
@@ -2036,7 +2036,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `strlcpy()` 调用，建议改用 `strscpy`。`strlcpy` 多余读源且可能溢出。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7035-7037` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-010 |
+| **agent-linux 规则编号** | OS-STD-CODE-010 |
 | **示例** | `strlcpy(dst, src, len);` → 触发 "Prefer strscpy over strlcpy" |
 
 ### 规则 3：STRNCPY
@@ -2047,7 +2047,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `strncpy()` 调用，建议改用 `strscpy`/`strscpy_pad`/`__nonstring`。`strncpy` 不保证 NUL 终止。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7041-7043` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-010 |
+| **agent-linux 规则编号** | OS-STD-CODE-010 |
 | **示例** | `strncpy(dst, src, n);` → 触发 "Prefer strscpy, strscpy_pad, or __nonstring" |
 
 ### 规则 4：MEMSET
@@ -2058,7 +2058,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR / WARNING |
 | **检查内容** | 检测 `memset(p, 0, sizeof(*p))` 模式，建议改用 `kzalloc` 或显式零初始化。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6978-6981` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-018 |
+| **agent-linux 规则编号** | OS-STD-CODE-018 |
 | **示例** | `p = kmalloc(...); memset(p, 0, sizeof(*p));` → 建议用 `kzalloc` |
 
 ### 规则 5：ALLOC_WITH_MULTIPLY
@@ -2069,7 +2069,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `kmalloc(n * sizeof(...))` 模式，建议改用 `kmalloc_array`/`kcalloc`（含溢出检查）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7255` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-012 |
+| **agent-linux 规则编号** | OS-STD-CODE-012 |
 | **示例** | `kmalloc(n * sizeof(struct x), GFP)` → 建议用 `kcalloc(n, sizeof(*p), GFP)` |
 
 ### 规则 6：ALLOC_SIZEOF_STRUCT
@@ -2080,7 +2080,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | CHECK |
 | **检查内容** | 检测 `kmalloc(sizeof(struct xxx), ...)` 模式，建议改用 `sizeof(*p)`。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7229` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-012 |
+| **agent-linux 规则编号** | OS-STD-CODE-012 |
 | **示例** | `kmalloc(struct foo, GFP)` → 建议用 `kmalloc(sizeof(*p), GFP)` |
 
 ### 规则 7：KREALLOC_ARG_REUSE
@@ -2091,7 +2091,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `p = krealloc(p, ...)` 模式，重用参数 p 在失败时会泄漏原 p。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7268` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-019 |
+| **agent-linux 规则编号** | OS-STD-CODE-019 |
 | **示例** | `p = krealloc(p, n, GFP);` → 应用临时变量 |
 
 ---
@@ -2106,7 +2106,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测用空格而非 Tab 进行代码缩进。代码必须用 Tab 缩进。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3916` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-001 |
+| **agent-linux 规则编号** | OS-STD-FMT-001 |
 | **示例** | `    foo();`（4 空格） → 触发 "code indent should use tabs where possible" |
 
 ### 规则 9：SPACE_BEFORE_TAB
@@ -2117,7 +2117,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 Tab 前有空格的混合缩进（如 `\t  \t`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3926` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-001 |
+| **agent-linux 规则编号** | OS-STD-FMT-001 |
 | **示例** | `  \tfoo` → 触发 "please, no space before tabs" |
 
 ### 规则 10：TABSTOP
@@ -2128,7 +2128,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测行内出现 Tab 字符（用于代码对齐位置之外）。Tab 仅用于行首缩进。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3967` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-001 |
+| **agent-linux 规则编号** | OS-STD-FMT-001 |
 | **示例** | `printk("a\tb");` 中 Tab 用于对齐 → 触发警告 |
 
 ### 规则 11：TRAILING_WHITESPACE
@@ -2139,7 +2139,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测行尾空白字符（空格或 Tab）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3599` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-007 |
+| **agent-linux 规则编号** | OS-STD-FMT-007 |
 | **示例** | `foo();  ` → 触发 "trailing whitespace" |
 
 ### 规则 12：SPACING
@@ -2150,7 +2150,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR / WARNING |
 | **检查内容** | 检测关键字后缺空格、`sizeof` 后多余空格、逗号后缺空格、`(`后多余空格等多种空格规范。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4967,5014,5192-5348,5444-5491,5665-5708`（多处） |
-| **agentrt-linux 规则编号** | OS-STD-CODE-021 |
+| **agent-linux 规则编号** | OS-STD-CODE-021 |
 | **示例** | `if(x)` → 触发 "space required after the 'if' keyword" |
 
 ### 规则 13：LEADING_SPACE
@@ -2161,7 +2161,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测文件首行有空格而非 Tab 缩进。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4161` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-001 |
+| **agent-linux 规则编号** | OS-STD-FMT-001 |
 | **示例** | 文件首行 `    #include` → 触发警告 |
 
 ---
@@ -2176,7 +2176,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测大括号位置错误：非函数块（if/for/while/switch）的 `{` 应在行尾，函数的 `{` 应在新行首。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4361,4568,4931,4950,7204` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-022 |
+| **agent-linux 规则编号** | OS-STD-CODE-022 |
 | **示例** | `if (x)\n{` → 触发 "open brace '{' following if go on the same line" |
 
 ### 规则 15：BRACKET_SPACE
@@ -2187,7 +2187,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测数组声明 `[` 前多余空格（如 `char buf [8]`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5054` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-021 |
+| **agent-linux 规则编号** | OS-STD-CODE-021 |
 | **示例** | `char buf [8]` → 触发 "space prohibited before open square bracket" |
 
 ### 规则 16：SWITCH_CASE_INDENT_LEVEL
@@ -2198,7 +2198,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `switch` 与 `case` 标签未对齐到同一列（应同列而非 case 多缩进一级）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4326` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-023 |
+| **agent-linux 规则编号** | OS-STD-CODE-023 |
 | **示例** | `switch` 后 `case` 多缩进一级 → 触发错误 |
 
 ### 规则 17：ASSIGN_IN_IF
@@ -2209,7 +2209,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `if ((a = b))` 在 if 条件中赋值的反模式。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5708` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-024 |
+| **agent-linux 规则编号** | OS-STD-CODE-024 |
 | **示例** | `if ((ret = foo()))` → 建议拆分为 `ret = foo(); if (ret)` |
 
 ### 规则 18：TRAILING_STATEMENTS
@@ -2220,7 +2220,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `if/while` 后同行跟语句（如 `if (x) foo();`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5754,5792,5798,5809` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-025 |
+| **agent-linux 规则编号** | OS-STD-CODE-025 |
 | **示例** | `if (x) do_this();` → 触发 "trailing statements should be on next line" |
 
 ### 规则 19：DEFAULT_NO_BREAK
@@ -2231,7 +2231,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `switch` 的 `case` 末尾缺少 `break`/`fallthrough`/`return`/`goto`/`continue`。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7344` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-015 |
+| **agent-linux 规则编号** | OS-STD-CODE-015 |
 | **示例** | `case A: foo(); case B:` → 触发 "break/return/goto/continue/fallthrough expected" |
 
 ### 规则 20：ELSE_AFTER_BRACE
@@ -2242,7 +2242,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `}` 与 `else` 未同行（`}\nelse` 应为 `} else`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5817` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-022 |
+| **agent-linux 规则编号** | OS-STD-CODE-022 |
 | **示例** | `}\nelse` → 触发 "else should follow close brace" |
 
 ### 规则 21：WHILE_AFTER_BRACE
@@ -2253,7 +2253,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `do { ... }\n while` 中 `while` 未与 `}` 同行（应为 `} while`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5843` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-022 |
+| **agent-linux 规则编号** | OS-STD-CODE-022 |
 | **示例** | `}\nwhile (x);` → 触发 "while should follow close brace" |
 
 ---
@@ -2268,7 +2268,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测新增 `typedef`，禁止为结构体/指针新增 typedef。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4783-4790` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-020 |
+| **agent-linux 规则编号** | OS-STD-CODE-020 |
 | **示例** | `typedef struct { ... } foo_t;` → 触发 "do not add new typedefs" |
 
 ### 规则 23：POINTER_LOCATION
@@ -2279,7 +2279,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `*` 紧贴类型而非变量名（如 `char* p` 应为 `char *p`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4808,4835` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-026 |
+| **agent-linux 规则编号** | OS-STD-CODE-026 |
 | **示例** | `char* p` → 触发 "\"foo* bar\" should be \"foo *bar\"" |
 
 ### 规则 24：GLOBAL_INITIALISERS
@@ -2290,7 +2290,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测全局变量使用位置初始化器而非指定初始化器。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4662` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-014 |
+| **agent-linux 规则编号** | OS-STD-CODE-014 |
 | **示例** | `int arr[] = {1, 2, 3};` → 建议用 `{ [0] = 1, ... }` |
 
 ### 规则 25：INITIALISED_STATIC
@@ -2301,7 +2301,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `static` 变量初始化为 0/NULL（BSS 段已默认零初始化，无需显式）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4670` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-027 |
+| **agent-linux 规则编号** | OS-STD-CODE-027 |
 | **示例** | `static int x = 0;` → 触发 "do not initialise statics to 0" |
 
 ### 规则 26：AVOID_EXTERNS
@@ -2312,7 +2312,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING / CHECK |
 | **检查内容** | 检测函数原型使用 `extern` 关键字（多余且使行变长）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7121,7141,7160,7168` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-055 |
+| **agent-linux 规则编号** | OS-STD-CODE-055 |
 | **示例** | `extern int foo(void);` → 触发 "function prototypes should not be extern" |
 
 ### 规则 27：FUNCTION_ARGUMENTS
@@ -2323,7 +2323,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测函数原型参数无名称（参数应含描述性名称以助可读性）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7146,7180` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-056 |
+| **agent-linux 规则编号** | OS-STD-CODE-056 |
 | **示例** | `int foo(int, char*);` → 建议用 `int foo(int count, char *name)` |
 
 ### 规则 28：VOLATILE
@@ -2334,7 +2334,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `volatile` 使用，建议改用 `READ_ONCE`/`WRITE_ONCE`/屏障。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6275` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-057 |
+| **agent-linux 规则编号** | OS-STD-CODE-057 |
 | **示例** | `volatile int flag;` → 触发 "Use of volatile is usually wrong" |
 
 ---
@@ -2349,7 +2349,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测多语句宏未用 `do { ... } while (0)` 包裹（避免 if 嵌套错乱）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6016,6019,6022` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-058 |
+| **agent-linux 规则编号** | OS-STD-CODE-058 |
 | **示例** | `#define FOO(a) a++; b--;` → 建议用 `do { a++; b--; } while (0)` |
 
 ### 规则 30：COMPLEX_MACRO
@@ -2360,7 +2360,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测宏内运算未加括号（参数与表达式都需括号保护优先级）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6022` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-032 |
+| **agent-linux 规则编号** | OS-STD-CODE-032 |
 | **示例** | `#define X(a) a + 1` → 建议用 `#define X(a) ((a) + 1)` |
 
 ### 规则 31：MACRO_WITH_FLOW_CONTROL
@@ -2371,7 +2371,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测宏内含 `return`/`break`/`goto` 等控制流（破坏调用方控制流预期）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6073` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-033 |
+| **agent-linux 规则编号** | OS-STD-CODE-033 |
 | **示例** | `#define FOO(x) if (x < 0) return -1;` → 建议用 inline 函数 |
 
 ### 规则 32：TRAILING_SEMICOLON
@@ -2382,7 +2382,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测宏定义末尾多余分号（导致 `if (cond) MACRO;` 错乱）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6131` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-034 |
+| **agent-linux 规则编号** | OS-STD-CODE-034 |
 | **示例** | `#define FOO(x) do_bar(x);` → 建议去掉末尾分号 |
 
 ### 规则 33：MACRO_ARG_PRECEDENCE
@@ -2393,7 +2393,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | CHECK |
 | **检查内容** | 检测宏参数在表达式中未加括号（优先级风险）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6062` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-035 |
+| **agent-linux 规则编号** | OS-STD-CODE-035 |
 | **示例** | `#define X(a) a * 2` → 建议用 `(a) * 2` |
 
 ---
@@ -2408,7 +2408,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测多行块注释样式不符（首行应几乎为空，左侧星号列对齐）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4038,4047,4070` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-036 |
+| **agent-linux 规则编号** | OS-STD-CODE-036 |
 | **示例** | `/* line1\n * line2 */` → 建议用 `/*\n * line1\n */` |
 
 ### 规则 35：NETWORKING_BLOCK_COMMENT_STYLE
@@ -2419,7 +2419,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | `net/` 与 `drivers/net/` 下文件的多行注释首行不应为空（特殊风格）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4028` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-059 |
+| **agent-linux 规则编号** | OS-STD-CODE-059 |
 | **示例** | net/ 下 `/*\n * foo */` → 建议用 `/* foo\n */` |
 
 ### 规则 36：C99_COMMENTS
@@ -2430,7 +2430,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `//` 单行注释（部分场景禁止，建议用 `/* */`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4601` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-037 |
+| **agent-linux 规则编号** | OS-STD-CODE-037 |
 | **示例** | UAPI 头文件中 `// comment` → 触发 "do not use C99 // comments" |
 
 ---
@@ -2445,7 +2445,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `#include` 语法错误（如 `#include <foo.h` 缺 `>`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4590` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-038 |
+| **agent-linux 规则编号** | OS-STD-CODE-038 |
 | **示例** | `#include <foo.h` → 触发 "malformed #include" |
 
 ### 规则 38：UAPI_INCLUDE
@@ -2456,7 +2456,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测内核内部代码包含 `include/uapi/` 头文件（应包含 `include/linux/`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4594` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-039 |
+| **agent-linux 规则编号** | OS-STD-CODE-039 |
 | **示例** | 内核代码 `#include <uapi/linux/foo.h>` → 建议用 `<linux/foo.h>` |
 
 ### 规则 39：SPDX_LICENSE_TAG
@@ -2467,7 +2467,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 SPDX 许可证标识缺失、格式错误或不被 LICENSES/ 支持。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3776,3782,3787,3803,3812,3823` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-040 |
+| **agent-linux 规则编号** | OS-STD-CODE-040 |
 | **示例** | `// SPDX-License-Identifier: GPL-2.0` 在 .c 文件中 → 建议用 `/* */` 注释 |
 
 ---
@@ -2482,7 +2482,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR / WARNING |
 | **检查内容** | 检测调用 `deprecated_apis` 表中的废弃 API（如 `kmap`/`synchronize_sched`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6456-6458,7424` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-041 |
+| **agent-linux 规则编号** | OS-STD-CODE-041 |
 | **示例** | `kmap(page)` → 建议用 `kmap_local_page(page)` |
 
 ### 规则 41：DEEP_INDENTATION
@@ -2493,7 +2493,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测续行过度缩进（>6 级）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4339` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-042 |
+| **agent-linux 规则编号** | OS-STD-CODE-042 |
 | **示例** | 续行缩进 8 级 → 触发警告 |
 
 ### 规则 42：SUSPECT_CODE_INDENT
@@ -2504,7 +2504,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 if/else 块内代码缩进与条件不一致（混合 Tab/空格的典型症状）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:4474` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-001 |
+| **agent-linux 规则编号** | OS-STD-FMT-001 |
 | **示例** | `if (x)\n        foo();`（空格而非 Tab） → 触发 "suspect code indent" |
 
 ### 规则 43：RETURN_PARENTHESES
@@ -2515,7 +2515,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `return (x);` 多余括号。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5595` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-043 |
+| **agent-linux 规则编号** | OS-STD-CODE-043 |
 | **示例** | `return (ret);` → 建议用 `return ret;` |
 
 ### 规则 44：USE_NEGATIVE_ERRNO
@@ -2526,7 +2526,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `return ENOENT;`（应返回负 errno `-ENOENT`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:5663` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-044 |
+| **agent-linux 规则编号** | OS-STD-CODE-044 |
 | **示例** | `return ENOENT;` → 建议用 `return -ENOENT;` |
 
 ### 规则 45：DATE_TIME
@@ -2537,7 +2537,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测代码中嵌入 `__DATE__`/`__TIME__`（导致不可重现构建）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7359` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-045 |
+| **agent-linux 规则编号** | OS-STD-CODE-045 |
 | **示例** | `pr_info("built at %s %s", __DATE__, __TIME__);` → 触发错误 |
 
 ### 规则 46：EXECUTE_PERMISSIONS
@@ -2548,7 +2548,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测源码文件（.c/.h）被设为可执行权限。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:2957` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-046 |
+| **agent-linux 规则编号** | OS-STD-CODE-046 |
 | **示例** | `-rwxr-xr-x foo.c` → 触发 "do not set execute permissions for source files" |
 
 ### 规则 47：DOS_LINE_ENDINGS
@@ -2559,7 +2559,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 CRLF（\r\n）行尾，必须用 LF（\n）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3592` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-047 |
+| **agent-linux 规则编号** | OS-STD-CODE-047 |
 | **示例** | 文件含 `\r\n` → 触发 "DOS line endings" |
 
 ### 规则 48：MISSING_EOF_NEWLINE
@@ -2570,7 +2570,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测文件末尾无换行符（POSIX 要求文件以换行结尾）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:3893` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-048 |
+| **agent-linux 规则编号** | OS-STD-CODE-048 |
 | **示例** | 文件末行无 `\n` → 触发 "Missing a newline at the end of the file" |
 
 ### 规则 49：SPLIT_STRING
@@ -2581,7 +2581,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测字符串字面量被折断（如 `"foo"\n"bar"`）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6286` |
-| **agentrt-linux 规则编号** | OS-STD-FMT-002 |
+| **agent-linux 规则编号** | OS-STD-FMT-002 |
 | **示例** | `pr_info("foo " "bar");` → 触发 "quoted string split across lines" |
 
 ### 规则 50：FLEXIBLE_ARRAY
@@ -2592,7 +2592,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测结构体末尾使用零长/单元素数组，应改用 C99 柔性数组 `items[]`。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7479` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-049 |
+| **agent-linux 规则编号** | OS-STD-CODE-049 |
 | **示例** | `struct x { int n; struct y items[1]; };` → 建议用 `items[]` |
 
 ### 规则 51：MEMORY_BARRIER
@@ -2603,7 +2603,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `smp_mb()`/`smp_rmb()`/`smp_wmb()`，建议用 `smp_store_release`/`smp_load_acquire`。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6695,6706` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-050 |
+| **agent-linux 规则编号** | OS-STD-CODE-050 |
 | **示例** | `smp_mb();` → 建议用 `smp_store_release()` |
 
 ### 规则 52：INLINE
@@ -2614,7 +2614,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `inline` 滥用（>3 行函数不建议 inline）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6757` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-051 |
+| **agent-linux 规则编号** | OS-STD-CODE-051 |
 | **示例** | 大函数加 `inline` → 触发 "inline is usually wrong" |
 
 ### 规则 53：LIKELY_MISUSE
@@ -2625,7 +2625,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `likely()`/`unlikely()` 滥用（不应在普通条件分支上用）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7461,7488` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-052 |
+| **agent-linux 规则编号** | OS-STD-CODE-052 |
 | **示例** | `if (likely(x > 0))` → 触发 "likely/unlikely misuse" |
 
 ### 规则 54：CONST_STRUCT
@@ -2636,7 +2636,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | WARNING |
 | **检查内容** | 检测 `static struct foo` 应为 `static const struct foo`（只读结构体应 const 化）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:7433` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-053 |
+| **agent-linux 规则编号** | OS-STD-CODE-053 |
 | **示例** | `static struct foo default = {...};` → 建议用 `static const struct foo` |
 
 ### 规则 55：INLINE_LOCATION
@@ -2647,7 +2647,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 | **级别** | ERROR |
 | **检查内容** | 检测 `inline` 函数定义在 .c 文件而非 .h 文件（应放头文件以便共享）。 |
 | **Linux 6.6 内核基线 源码行号** | `scripts/checkpatch.pl:6750` |
-| **agentrt-linux 规则编号** | OS-STD-CODE-054 |
+| **agent-linux 规则编号** | OS-STD-CODE-054 |
 | **示例** | `.c` 文件中 `static inline int foo(void) {...}` 且被多文件用 → 触发错误 |
 
 ---
@@ -2665,7 +2665,7 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 
 ### 9.2 按主题分类统计
 
-| 主题 | 规则数 | agentrt-linux 规则编号区间 |
+| 主题 | 规则数 | agent-linux 规则编号区间 |
 |------|--------|--------------------------|
 | 字符串与内存安全 | 7 | OS-STD-CODE-010/012/018/019 |
 | 缩进与空格 | 6 | OS-STD-FMT-001 / OS-STD-FMT-007 / OS-STD-CODE-021 |
@@ -2701,10 +2701,10 @@ agentrt-linux 编码规则编号采用 `OS-STD-CODE-NNN` 三段式：
 
 ### 10.1 checkpatch CI 调用
 
-agentrt-linux CI 在每次合并请求中按以下方式调用 checkpatch：
+agent-linux CI 在每次合并请求中按以下方式调用 checkpatch：
 
 ```bash
-# 基准路径（agentrt-linux 仓库根）
+# 基准路径（agent-linux 仓库根）
 $ ./scripts/checkpatch.pl --no-tree --no-summary --no-tree \
     --strict --codespell --min-conf-desc-length=1 \
     --max-line-length=80 \
@@ -2720,7 +2720,7 @@ $ ./scripts/checkpatch.pl --no-tree --no-summary --no-tree \
 
 ### 10.2 退出码处理
 
-| 退出码 | 含义 | agentrt-linux 处理 |
+| 退出码 | 含义 | agent-linux 处理 |
 |--------|------|------------------|
 | 0 | 0 ERROR / 0 WARNING | 通过，允许合并 |
 | 1 | ≥1 ERROR | 拒绝合并 |
@@ -2759,11 +2759,11 @@ drivers/airymax/legacy/compat.c STRCPY 已知遗留代码，迁移中
 
 ### 0.1 目的与范围
 
-本规范定义 agentrt-linux 内核态 C 代码的 kernel-doc 注释强制标准，源自由 Linux 6.6 内核基线 `scripts/kernel-doc`（68KB Perl 脚本）所解析的内核文档注释语法。所有导出函数、公共结构体、枚举、typedef 必须有 kernel-doc 注释，CI 通过 `scripts/kernel-doc` 提取并校验。
+本规范定义 agent-linux 内核态 C 代码的 kernel-doc 注释强制标准，源自由 Linux 6.6 内核基线 `scripts/kernel-doc`（68KB Perl 脚本）所解析的内核文档注释语法。所有导出函数、公共结构体、枚举、typedef 必须有 kernel-doc 注释，CI 通过 `scripts/kernel-doc` 提取并校验。
 
 ### 0.2 术语约束
 
-- agentrt（用户态）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）
+- agentrt（用户态）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）
 - 共享原语称"微核心原语"（不称"微内核原语"）
 - 禁止使用特定上游发行版名称，统一用"主流 Linux 发行版"
 
@@ -2960,7 +2960,7 @@ int airy_ipc_send_batch(struct airy_ipc_chan *chan,
  * @magic: Magic 0x41475453 ('AGTS') for descriptor validation.
  *
  * Describes a single agent task managed by the micro-core scheduler.
- * Shared between agentrt (user-space) and agentrt-linux (kernel)
+ * Shared between agentrt (user-space) and agent-linux (kernel)
  * via the [SC] contract layer.
  *
  * Locking: state and token_budget are protected by the owning
@@ -3077,7 +3077,7 @@ struct airy_sched_ops {
 
 ### 6.1 规则 OS-STD-DOC-011：仅允许 typedef 的 kernel-doc
 
-agentrt-linux 禁止结构体 typedef（OS-STD-CODE-020，原 OS-KER-013），但允许 (a)-(e) 类 typedef（如 `airy_q16_t`）。这些允许的 typedef **必须**有 kernel-doc 注释，描述其底层类型与语义。
+agent-linux 禁止结构体 typedef（OS-STD-CODE-020，原 OS-KER-013），但允许 (a)-(e) 类 typedef（如 `airy_q16_t`）。这些允许的 typedef **必须**有 kernel-doc 注释，描述其底层类型与语义。
 
 **Linux 6.6 内核基线 源码路径**: `scripts/kernel-doc:73` (`$type_typedef` 正则)
 
@@ -3151,7 +3151,7 @@ kernel-doc 注释中引用其他符号时**必须**使用以下标记：
 /**
  * DOC: Agent IPC channel implementation
  *
- * This file implements the agentrt-linux IPC channel, which is the
+ * This file implements the agent-linux IPC channel, which is the
  * kernel-side counterpart of the agentrt user-space IPC. The protocol
  * is defined in include/uapi/linux/airymax/ipc.h ([SC] contract layer).
  *
@@ -3168,7 +3168,7 @@ kernel-doc 注释中引用其他符号时**必须**使用以下标记：
 
 ### 9.1 规则 OS-STD-DOC-014：kernel-doc CI 校验
 
-agentrt-linux CI 必须在每次合并请求中调用 `scripts/kernel-doc` 校验所有新增/修改的 `.c`/`.h` 文件：
+agent-linux CI 必须在每次合并请求中调用 `scripts/kernel-doc` 校验所有新增/修改的 `.c`/`.h` 文件：
 
 ```bash
 # 检查所有导出符号是否有 kernel-doc
@@ -3183,7 +3183,7 @@ $ ./scripts/kernel-doc -Wall -internal \
 
 ### 9.2 校验级别
 
-| 校验开关 | 含义 | agentrt-linux 处理 |
+| 校验开关 | 含义 | agent-linux 处理 |
 |---------|------|------------------|
 | `-Wall` | 启用所有警告 | 强制 |
 | `-Wreturn` | 检查 `Return:` 缺失 | 强制 |
@@ -3215,7 +3215,7 @@ $ ./scripts/kernel-doc -Wall -internal \
  * DOC: Airymax IPC shared contract ([SC] layer)
  *
  * This header is shared verbatim between agentrt (user-space micro-core)
- * and agentrt-linux (kernel micro-kernel). Changes here trigger
+ * and agent-linux (kernel micro-kernel). Changes here trigger
  * bidirectional CI validation; see 120-cross-project-code-sharing.md.
  *
  * The IPC magic 0x41524531 ('ARE1') is constant and must never change.
@@ -3241,7 +3241,7 @@ $ ./scripts/kernel-doc -Wall -internal \
  * @payload_len: Payload length in bytes; 0 if no payload.
  * @reserved: Reserved for future use; must be zero.
  *
- * Fixed 128-byte header shared between agentrt and agentrt-linux.
+ * Fixed 128-byte header shared between agentrt and agent-linux.
  * Layout is part of the [SC] contract layer and must not change
  * without coordinated update on both sides.
  *
@@ -3301,9 +3301,9 @@ struct airy_ipc_msg_hdr {
 
 ### 0.1 目的与范围
 
-本文件研究 Linux 6.6 内核基线 `.clang-format`（689 行配置），提取关键格式化选项，制定 agentrt-linux 定制版 `.clang-format`，并定义 CI 中的 `make format-check` 门禁流程。所有 agentrt-linux 内核态 C 文件必须通过 `clang-format` 校验。
+本文件研究 Linux 6.6 内核基线 `.clang-format`（689 行配置），提取关键格式化选项，制定 agent-linux 定制版 `.clang-format`，并定义 CI 中的 `make format-check` 门禁流程。所有 agent-linux 内核态 C 文件必须通过 `clang-format` 校验。
 
-> **交叉引用**：本 Part 是 `.clang-format` 的工具配置层（完整 YAML + Linux 6.6 内核基线 源码行号 + CI 门禁流程）。`.clang-format` 在 7 层验证体系中的框架定位（第 3 层预提交 + 第 4 层 CI 门禁）、7 层验证流水线全图、CI/CD 矩阵配置与其他工具链（sparse / Smatch / Coccinelle / KUnit / kselftest）的协同关系，详见 [05-development-process.md](05-development-process.md) Part II §5（格式化与风格检查）与 §1（7 层自动化验证体系）。格式规则定义（OS-STD-FMT-001~029）与规则到配置项的速查映射表，详见 本文档 Part II §1-§7（格式规则）与 §9（clang-format 关键配置项表）。checkpatch 规则到 agentrt-linux 规则编号的逐条映射表，详见 本文档 Part IV §1-§8（55 条规则映射）。
+> **交叉引用**：本 Part 是 `.clang-format` 的工具配置层（完整 YAML + Linux 6.6 内核基线 源码行号 + CI 门禁流程）。`.clang-format` 在 7 层验证体系中的框架定位（第 3 层预提交 + 第 4 层 CI 门禁）、7 层验证流水线全图、CI/CD 矩阵配置与其他工具链（sparse / Smatch / Coccinelle / KUnit / kselftest）的协同关系，详见 [05-development-process.md](05-development-process.md) Part II §5（格式化与风格检查）与 §1（7 层自动化验证体系）。格式规则定义（OS-STD-FMT-001~029）与规则到配置项的速查映射表，详见 本文档 Part II §1-§7（格式规则）与 §9（clang-format 关键配置项表）。checkpatch 规则到 agent-linux 规则编号的逐条映射表，详见 本文档 Part IV §1-§8（55 条规则映射）。
 
 ### 0.2 Linux 6.6 内核基线 源码路径
 
@@ -3320,7 +3320,7 @@ struct airy_ipc_msg_hdr {
 
 ### 0.3 术语约束
 
-- agentrt（用户态）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）
+- agentrt（用户态）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）
 - 禁止使用特定上游发行版名称，统一用"主流 Linux 发行版"
 
 ---
@@ -3459,28 +3459,28 @@ AllowShortLoopsOnASingleLine: false		# 不允许单行循环
 
 **Linux 6.6 内核基线 源码路径**: `.clang-format:71-635`（约 565 个宏）
 
-`ForEachMacros` 列表告知 `clang-format` 哪些宏是 `for_each` 风格的循环宏（如 `list_for_each_entry`），使其在格式化时正确处理。agentrt-linux 在此基础上需追加自定义宏：
+`ForEachMacros` 列表告知 `clang-format` 哪些宏是 `for_each` 风格的循环宏（如 `list_for_each_entry`），使其在格式化时正确处理。agent-linux 在此基础上需追加自定义宏：
 
 ```yaml
 ForEachMacros:
   # ... 保留 Linux 6.6 内核基线 全部 565 个宏 ...
-  - 'airy_for_each_task'		# agentrt-linux 自定义
+  - 'airy_for_each_task'		# agent-linux 自定义
   - 'airy_for_each_chan'
   - 'airy_for_each_token'
 ```
 
 ---
 
-## 2. agentrt-linux 定制版 .clang-format
+## 2. agent-linux 定制版 .clang-format
 
 ### 2.1 完整配置文件
 
-以下是 agentrt-linux 仓库根目录 `.clang-format` 的完整内容（基于 Linux 6.6 内核基线 定制）：
+以下是 agent-linux 仓库根目录 `.clang-format` 的完整内容（基于 Linux 6.6 内核基线 定制）：
 
 ```yaml
 # SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
 #
-# clang-format configuration for agentrt-linux (AirymaxOS).
+# clang-format configuration for agent-linux (AirymaxOS).
 # Based on Linux 6.6 .clang-format (Linux 6.6 内核基线) with agent-specific macros.
 # Intended for clang-format >= 11.
 #
@@ -3549,7 +3549,7 @@ ForEachMacros:
   - 'for_each_online_cpu'
   - 'xa_for_each'
   # ... (full list inherited from Linux 6.6 内核 .clang-format:71-635) ...
-  # ----- agentrt-linux custom -----
+  # ----- agent-linux custom -----
   - 'airy_for_each_task'
   - 'airy_for_each_chan'
   - 'airy_for_each_sched'
@@ -3609,7 +3609,7 @@ UseTab: Always
 
 ### 2.2 与 Linux 6.6 内核基线的差异
 
-| 配置项 | Linux 6.6 内核基线 值 | agentrt-linux 值 | 差异说明 |
+| 配置项 | Linux 6.6 内核基线 值 | agent-linux 值 | 差异说明 |
 |--------|-----------|-----------------|---------|
 | `ForEachMacros` | 565 个上游宏 | 565 + 5 个 agent 自定义 | 追加 agentrt 自定义宏 |
 | SPDX 标识 | `GPL-2.0` | `AGPL-3.0-or-later OR Apache-2.0` | 许可证变更 |
@@ -3621,16 +3621,16 @@ UseTab: Always
 
 ### 3.1 规则 OS-STD-FMT-029：format-check 强制门禁（复用 02 §8.5）
 
-agentrt-linux CI 在每次合并请求中**必须**运行 `make format-check`，校验所有 C 文件符合 `.clang-format`。任何格式偏差即视为构建失败。
+agent-linux CI 在每次合并请求中**必须**运行 `make format-check`，校验所有 C 文件符合 `.clang-format`。任何格式偏差即视为构建失败。
 
 > **C8 冲突消解说明（2026-07-12）**：本节原使用 `OS-STD-FMT-001` 标注 format-check 门禁，与 07 §10.2.2 / 02 §1.1 中 `OS-STD-FMT-001 = "Tab 8 字符宽"` 冲突。已改为复用 02 §8.5 定义的 `OS-STD-FMT-029`（CI 强制 `make format-check`），消除编号双义。
 
 ### 3.2 Makefile 集成
 
-在 agentrt-linux 仓库根 `Makefile` 中添加以下目标：
+在 agent-linux 仓库根 `Makefile` 中添加以下目标：
 
 ```makefile
-# 文件: Makefile（agentrt-linux 仓库根）
+# 文件: Makefile（agent-linux 仓库根）
 
 CLANG_FORMAT ?= clang-format
 FORMAT_SOURCES := $(shell find . -name '*.c' -o -name '*.h' | \
@@ -3869,7 +3869,7 @@ merge allowed
 
 | 日期 | 版本 | 变更摘要 | 责任人 |
 |------|------|---------|--------|
-| 2026-07-09 | 0.1.1 | 初始创建，定义 agentrt-linux 定制 .clang-format + CI 门禁 | SPHARX 工程标准组 |
+| 2026-07-09 | 0.1.1 | 初始创建，定义 agent-linux 定制 .clang-format + CI 门禁 | SPHARX 工程标准组 |
 | 2026-07-12 | 0.1.1 | Phase 1 格式迁移遗留消解：§1.1/§1.2/§5.3/§6 速查表中原残留 OS-KER-011/012/013/015 全量迁移为 OS-STD-FMT-001/002 + OS-STD-CODE-020 + OS-BAN-002，与本文档 Part II SSoT 完全一致 | 工程规范委员会 |
 
 ---

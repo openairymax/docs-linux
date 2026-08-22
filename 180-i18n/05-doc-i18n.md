@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）文档国际化设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）文档国际化工程设计文档，覆盖中英双语文档维护机制、README.md / README_zh.md 同步策略、术语表（10-terminology.md）治理、文档翻译流程\
+# agent-linux（AirymaxOS）文档国际化设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）文档国际化工程设计文档，覆盖中英双语文档维护机制、README.md / README_zh.md 同步策略、术语表（10-terminology.md）治理、文档翻译流程\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操作系统发行版，其文档体系是知识传递的核心载体。本文档定义文档国际化工程设计，目标是：
+agent-linux（AirymaxOS）作为面向全球开发者和用户的智能体操作系统发行版，其文档体系是知识传递的核心载体。本文档定义文档国际化工程设计，目标是：
 
 1. **中英双语强制**：所有设计文档、API 文档、用户指南必须同时维护中文与英文两个版本
 2. **README.md / README_zh.md 同步**：英文为权威源（SSoT），中文为翻译镜像，二者内容必须同步
@@ -35,7 +35,7 @@ agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操�
 
 ### 1.3 术语规范
 
-本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）。文档结构共享于 [SS] 语义同源层，但内容独立（agentrt-linux 文档聚焦 OS 发行版视角）。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，文档体系对照一律表述为"主流 Linux 发行版"。
+本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）。文档结构共享于 [SS] 语义同源层，但内容独立（agent-linux 文档聚焦 OS 发行版视角）。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，文档体系对照一律表述为"主流 Linux 发行版"。
 
 ---
 
@@ -45,7 +45,7 @@ agentrt-linux（AirymaxOS）作为面向全球开发者和用户的智能体操�
 
 > **规划态声明**：以下"英文权威 + 中文翻译"双语机制为**规划目标**，当前 `docs/AirymaxOS/` 全目录为**中文单语**（无 `README_zh.md` / `*_zh.md` 翻译镜像文件）。双语化将在后续版本按本规范分批实施。
 
-agentrt-linux 文档体系采用"英文权威 + 中文翻译"的命名规范：
+agent-linux 文档体系采用"英文权威 + 中文翻译"的命名规范：
 
 ```
 docs/AirymaxOS/
@@ -85,7 +85,7 @@ docs/AirymaxOS/
 ```markdown
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux (AirymaxOS) Document Title
+# agent-linux (AirymaxOS) Document Title
 
 > **Document Position**： ...
 > **Version**： 0.1.1 (doc system complete) / 1.0.1 (development)
@@ -101,7 +101,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ```markdown
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）文档标题
+# agent-linux（AirymaxOS）文档标题
 
 > **文档定位**： ...
 > **版本**： 0.1.1
@@ -131,7 +131,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 3.2 同步校验脚本
 
-agentrt-linux 提供 `airymaxos-doc-sync-check` 工具校验双语文档同步：
+agent-linux 提供 `airymaxos-doc-sync-check` 工具校验双语文档同步：
 
 ```python
 #!/usr/bin/env python3
@@ -242,7 +242,7 @@ jobs:
 
 ### 4.1 术语表角色
 
-10-terminology.md 是 agentrt-linux 规范体系的唯一权威术语参考。当不同文档间存在术语冲突时，以 10-terminology.md 为准。该文件采用双语合体形式（单文件包含中英对照），避免双语同步问题。
+10-terminology.md 是 agent-linux 规范体系的唯一权威术语参考。当不同文档间存在术语冲突时，以 10-terminology.md 为准。该文件采用双语合体形式（单文件包含中英对照），避免双语同步问题。
 
 ### 4.2 术语表结构
 
@@ -260,8 +260,8 @@ jobs:
   - Microkernel / 微内核
   - ...
 
-三、agentrt-linux 特有架构术语
-  - agentrt-linux（AirymaxOS / 极境智能体操作系统）
+三、agent-linux 特有架构术语
+  - agent-linux（AirymaxOS / 极境智能体操作系统）
   - MicroCoreRT / 微核心运行时
   - AgentsIPC / Agent 进程间通信
   - Cupolas / 安全穹顶
@@ -302,7 +302,7 @@ jobs:
 
 ### 4.4 术语合规校验
 
-agentrt-linux 提供 `airymaxos-term-check` 工具校验文档术语合规：
+agent-linux 提供 `airymaxos-term-check` 工具校验文档术语合规：
 
 ```python
 #!/usr/bin/env python3
@@ -488,7 +488,7 @@ int main(void)
 
 ### 5.3 翻译质量评分
 
-agentrt-linux 文档翻译质量按以下维度评分：
+agent-linux 文档翻译质量按以下维度评分：
 
 | 维度 | 权重 | 评分标准 |
 |------|------|---------|
@@ -661,7 +661,7 @@ int airy_doc_validate(const char *doc_path)
     if (err)
         goto out_free_doc;
 
-    pr_info("agentrt-linux: 文档 %s 校验通过\n", doc_path);
+    pr_info("agent-linux: 文档 %s 校验通过\n", doc_path);
     return 0;
 
 out_free_doc:
@@ -718,4 +718,4 @@ out_free_ctx:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）文档国际化设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）文档国际化设计 v1.0.1

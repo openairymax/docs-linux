@@ -4,7 +4,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档定位**：代码注释、配置审计、日志、命名约定与安全设计规范合集\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)
 
 ---
 
@@ -2590,18 +2590,18 @@ Airymax 函数 API 分为三个层次，层次关系与 ABI 稳定性约定如�
 
 ##### 4.4.2 项目隔离前缀规则
 
-agentrt（用户态运行底座）与 agentrt-linux（智能体操作系统）共享 IRON-9 v3 四层模型，前缀按 IRON-9 v3 层次隔离：
+agentrt（用户态运行底座）与 agent-linux（智能体操作系统）共享 IRON-9 v3 四层模型，前缀按 IRON-9 v3 层次隔离：
 
 | 前缀 | IRON-9 v3 层次 | 适用项目 | 用途 | 示例 |
 |------|---------------|---------|------|------|
-| `airy_*` | [SC] / [SS] | agentrt + agentrt-linux 共享 | 同源 API 与共享契约层符号 | `airy_ipc_send()`、`airy_log_write()` |
-| `AIRY_*` | [SC] | agentrt + agentrt-linux 共享 | 共享宏与常量 | `AIRY_API`、`AIRY_SYS_CALL` |
-| `AIRYMAXOS_*` | [IND] | agentrt-linux 专属 | 内核态/发行版专属宏与常量 | `AIRYMAXOS_CONFIG_*` |
+| `airy_*` | [SC] / [SS] | agentrt + agent-linux 共享 | 同源 API 与共享契约层符号 | `airy_ipc_send()`、`airy_log_write()` |
+| `AIRY_*` | [SC] | agentrt + agent-linux 共享 | 共享宏与常量 | `AIRY_API`、`AIRY_SYS_CALL` |
+| `AIRYMAXOS_*` | [IND] | agent-linux 专属 | 内核态/发行版专属宏与常量 | `AIRYMAXOS_CONFIG_*` |
 
 **选择规则**：
 
 1. **同源符号**（[SC]/[SS] 层）使用 `airy_*` 前缀——两端代码 byte-identical 或语义同源
-2. **agentrt-linux 专属符号**（[IND] 层）使用 `airy_*` 前缀（应用层函数）或 `AIRYMAXOS_*`（内核态/发行版专属宏与常量）——对齐 06-iron9 §3.12：[SC] 共享契约层与应用层共用 `airy_*` 前缀，体现"共享契约即应用基础"的设计理念
+2. **agent-linux 专属符号**（[IND] 层）使用 `airy_*` 前缀（应用层函数）或 `AIRYMAXOS_*`（内核态/发行版专属宏与常量）——对齐 06-iron9 §3.12：[SC] 共享契约层与应用层共用 `airy_*` 前缀，体现"共享契约即应用基础"的设计理念
 3. **标准 ABI 层使用 `are_*` 前缀**——对外发布的稳定 ABI 接口（SDK 公开符号）使用 `are_` 前缀（**ARE** = AiRtymax Engine/ABI）；`are_*` 不得用于 [SC]/[SS] 共享层或应用层内部实现
 4. **禁止使用 `agentrt_*` 前缀**——仓库名 `agentrt` 是工程组织名称，不应作为函数前缀（06-iron9 §3.12）
 5. **`agentos_*` / `airymaxos_*` 已废弃**——0.1.1 完成改名后已统一改用 `airy_*`，禁止使用（06-iron9 §3.12）
@@ -2779,7 +2779,7 @@ airy_mr_checkpoint_restore    → 5 + 3 + 18 = 26 字符 ✓
    - 是 → 使用 `are_*` 前缀（§1.10），并通过适配层桥接至 `airy_*` 实现
    - 否 → 进入下一步
 
-2. **是否为 agentrt-linux 内核态/发行版专属功能？**
+2. **是否为 agent-linux 内核态/发行版专属功能？**
    - 是 → 使用 `airy_*` 前缀（[IND] 层）
    - 否 → 进入下一步
 

@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）内存性能工程设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）内存子系统性能工程详细设计\
+# agent-linux（AirymaxOS）内存性能工程设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）内存子系统性能工程详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）内存性能工程为 MemoryRovol（记忆卷载）四层记忆架构提供硬件级加速支撑。本设计聚焦三大目标：
+agent-linux（AirymaxOS）内存性能工程为 MemoryRovol（记忆卷载）四层记忆架构提供硬件级加速支撑。本设计聚焦三大目标：
 
 1. **MemoryRovol L1-L4 分级内存访问延迟 SLO**：L1 ≤ 0.1ms、L2 ≤ 1ms、L3 ≤ 10ms、L4 ≤ 100ms
 2. **MGLRU 多代 LRU 与遗忘机制语义对齐**：冷热数据分层命中率按层分级——L1 ≥ 85%、L2 ≥ 72%、L3 ≥ 91%、L4 ≥ 95%（加权综合 ≥ 90%），与 Forgetting Engine 衰减公式协同
@@ -29,7 +29,7 @@ agentrt-linux（AirymaxOS）内存性能工程为 MemoryRovol（记忆卷载）�
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。MemoryRovol 在 agentrt-linux 中基于 CXL + MGLRU 内核态实现，与 agentrt 基于 HeapStore 用户态实现属于 IRON-9 v3 [SS] 语义同源层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。MemoryRovol 在 agent-linux 中基于 CXL + MGLRU 内核态实现，与 agentrt 基于 HeapStore 用户态实现属于 IRON-9 v3 [SS] 语义同源层。
 
 ### 1.4 内存性能 SLO 矩阵
 
@@ -199,7 +199,7 @@ echo "1" > /sys/kernel/agentrt/memory_rovol/l4_pat_pmem_enable
 
 ### 3.1 MGLRU 基线参数
 
-Linux 6.6 内核基线原生支持 MGLRU 多代 LRU（非 2.0 版本）。agentrt-linux 调优后的默认参数：
+Linux 6.6 内核基线原生支持 MGLRU 多代 LRU（非 2.0 版本）。agent-linux 调优后的默认参数：
 
 ```bash
 # /etc/airymaxos/mglru.conf —— MGLRU 调优配置
@@ -217,7 +217,7 @@ cat /sys/kernel/mm/lru_gen/enabled
 # 注意：Linux 6.6 的 MGLRU 代数为固定的 4 代（MAX_NR_GENS=4，mm/vmscan.c），
 # 内核 sysfs 接口不存在 min_ttl_ms / max_nr_generations / lru_gen_enabled_bit
 # 节点；代间保留时长与代数调整由 lru_gen 用户态控制接口（CONFIG_LRU_GEN_STATS
-# + debugfs lru_gen 文件）与 Forgetting Engine 衰减策略在 agentrt-linux 层
+# + debugfs lru_gen 文件）与 Forgetting Engine 衰减策略在 agent-linux 层
 # 协同实现，不新增内核节点。
 
 # 查看各代统计（需 CONFIG_LRU_GEN_STATS=y）
@@ -276,7 +276,7 @@ static int airy_mglru_apply_forgetting(void *ctx,
 	return 0;
 
 out_err:
-	pr_warn("agentrt-linux: mglru apply forgetting failed gen=%u ret=%d\n",
+	pr_warn("agent-linux: mglru apply forgetting failed gen=%u ret=%d\n",
 		gen, ret);
 	return ret;
 }
@@ -316,7 +316,7 @@ static const struct airy_mr_mglru_bind mglru_binds[] = {
 
 ### 4.1 混合内存带宽模型
 
-agentrt-linux 内存层级带宽与延迟模型：
+agent-linux 内存层级带宽与延迟模型：
 
 | 层级 | 设备 | 延迟（ns） | 带宽（GB/s） | 容量 |
 |------|------|-----------|--------------|------|
@@ -375,7 +375,7 @@ int airy_memory_tiering_submit(struct airy_migrate_mgr *mgr,
 	return 0;
 
 out_err:
-	pr_warn("agentrt-linux: migrate submit failed ret=%d\n", ret);
+	pr_warn("agent-linux: migrate submit failed ret=%d\n", ret);
 	return ret;
 }
 
@@ -407,7 +407,7 @@ static int airy_memory_tiering_thread(void *data)
 			atomic_dec(&mgr->pending);
 			ret = airy_memory_do_migrate(&batch[i]);
 			if (ret < 0)
-				pr_warn("agentrt-linux: migrate failed i=%d\n", i);
+				pr_warn("agent-linux: migrate failed i=%d\n", i);
 		}
 	}
 	return 0;
@@ -429,7 +429,7 @@ int airy_memory_tiering_init(struct airy_migrate_mgr *mgr)
 	return 0;
 
 out_err:
-	pr_err("agentrt-linux: tiering init failed ret=%d\n", ret);
+	pr_err("agent-linux: tiering init failed ret=%d\n", ret);
 	return ret;
 }
 ```
@@ -600,7 +600,7 @@ echo "[完成] 报告保存于 $RESULT_DIR"
 
 ### 5.3 性能指标对照表
 
-| 指标 | 默认 MGLRU | agentrt-linux 调优 | 提升 |
+| 指标 | 默认 MGLRU | agent-linux 调优 | 提升 |
 |------|-----------|----------------------|------|
 | L1 命中率 | 0.72 | 0.85 | +18% |
 | L2 命中率 | 0.58 | 0.72 | +24% |
@@ -612,7 +612,7 @@ echo "[完成] 报告保存于 $RESULT_DIR"
 
 ## 6. 错误码体系对接
 
-内存子系统错误码纳入 agentrt-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**。MemoryRoVol 段为 **141-160**（原文档虚构的 -600 ~ -699 段 `AIRY_E_MEMORY_*` 符号在 [SC] error.h 中不存在，已废弃）：
+内存子系统错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**。MemoryRoVol 段为 **141-160**（原文档虚构的 -600 ~ -699 段 `AIRY_E_MEMORY_*` 符号在 [SC] error.h 中不存在，已废弃）：
 
 | 错误码 | 数值 | 含义 | 原文档符号（已废弃） |
 |--------|------|------|---------------------|
@@ -699,7 +699,7 @@ out_err:
 
 ## 8. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
+| 组件 | agent-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
 |------|------------------------|------------------|--------------|
 | 记忆模型 | CXL + MGLRU 内核态 | HeapStore 用户态 | `enum airy_mem_level` |
 | GFP 掩码 | `AIRY_GFP_HOT/WARM/COLD/PMEM` | `AIRY_GFP_HOT/WARM/COLD/PMEM` | `memory_types.h` |
@@ -741,4 +741,4 @@ out_err:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）内存性能工程设计 
+> **文档结束** | agent-linux（AirymaxOS）内存性能工程设计 

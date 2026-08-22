@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）构建系统设计
-> **文档定位**：agentrt-linux（AirymaxOS）构建系统工程设计主索引（Kconfig + Kbuild + CMake + RPM spec + airy_defconfig）\
+# agent-linux（AirymaxOS）构建系统设计
+> **文档定位**：agent-linux（AirymaxOS）构建系统工程设计主索引（Kconfig + Kbuild + CMake + RPM spec + airy_defconfig）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 构建系统是连接源代码与可分发产物的核心工程基础设施。它继承 Linux Kbuild 系统 30+ 年沉淀的工程思想（递归构建 + `if_changed` 增量构建 + `obj-$(CONFIG_*)` 配置门控），并在其上扩展智能体操作系统的多语言、多仓、多平台构建需求。本目录覆盖五方面职责：
+agent-linux 构建系统是连接源代码与可分发产物的核心工程基础设施。它继承 Linux Kbuild 系统 30+ 年沉淀的工程思想（递归构建 + `if_changed` 增量构建 + `obj-$(CONFIG_*)` 配置门控），并在其上扩展智能体操作系统的多语言、多仓、多平台构建需求。本目录覆盖五方面职责：
 
 1. **Kconfig 配置系统**：`lib/Kconfig.airymaxos` 作为通用型配置聚合点，子系统特定配置嵌入各原生 Kconfig；`obj-$(CONFIG_*)` 模式使配置开关直接控制构建。
 2. **Kbuild 递归构建**：顶层 `Kbuild` 定义子系统 descending 顺序，`scripts/Kbuild.include` 提供 `if_changed` 增量构建宏，`Makefile.airymaxos` 通过 `filechk` 注入版本号。
@@ -31,7 +31,7 @@ agentrt-linux 构建系统是连接源代码与可分发产物的核心工程基
 | **airy_defconfig** | A-UCS 构建期配置基线 | `arch/$(SRCARCH)/configs/airy_defconfig` |
 | **模块构建** | 可加载模块 `.ko` | `scripts/Makefile.modpost` |
 
-### 1.2 agentrt-linux 扩展
+### 1.2 agent-linux 扩展
 
 - **多语言构建**：C（Kbuild）+ Rust（cargo）+ Python（poetry）+ TypeScript（tsc/webpack）
 - **多仓集成**：8 子仓 + agentrt 同源仓库的统一构建入口
@@ -42,7 +42,7 @@ agentrt-linux 构建系统是连接源代码与可分发产物的核心工程基
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 构建系统在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。构建系统通过 `airy_defconfig` 与 Kconfig 选项在编译期锁定五大选型，任何偏离均会导致构建失败。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 构建系统在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。构建系统通过 `airy_defconfig` 与 Kconfig 选项在编译期锁定五大选型，任何偏离均会导致构建失败。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -89,7 +89,7 @@ agentrt-linux v1.0 构建系统在内核调度、IPC 传输、安全钩子、内
 
 - `04-makefile-patterns.md`：Makefile 模式与惯用法
 - `05-cross-compilation.md`：跨平台编译（x86_64/aarch64/riscv/loongarch/sw_64）
-- `06-airymaxos-build.md`：agentrt-linux 多仓多语言构建集成
+- `06-airymaxos-build.md`：agent-linux 多仓多语言构建集成
 - `07-cmake-userland.md`：用户态 CMake 构建工具链（对齐 agentrt `cmake/`）
 - `08-rpm-spec.md`：RPM spec 打包规范
 - `09-build-reproducibility.md`：可重现构建
@@ -108,10 +108,10 @@ AirymaxOS 全面复用 openEuler 24.03 LTS 构建体系（LAYER 方案，详见 
 **关键约束**：
 
 1. **不 fork 原则**：仅通过配置覆盖实现定制，不 fork openEuler 构建工具链（imageTailor/Yocto/isocut/Anaconda/OBS/dnf）
-2. **版本对齐**：agentrt-linux 内核基线 6.6.149（OLK-6.6 为 openEuler 在 6.6.0 分叉并自带补丁维护，非 vanilla 同版本号对应）
+2. **版本对齐**：agent-linux 内核基线 6.6.149（OLK-6.6 为 openEuler 在 6.6.0 分叉并自带补丁维护，非 vanilla 同版本号对应）
 3. **IRON-7 不变**：openeuler_defconfig 中触及核心子系统的 CONFIG 由 `configs/defconfig-agent` 覆盖回 vanilla 默认值
 
-> 详细构建与烧录策略见闭源文档 [12-build-and-flash-strategy.md](../../../docs-closed/agentrt-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)。
+> 详细构建与烧录策略见闭源文档 [12-build-and-flash-strategy.md](../../../docs-closed/agent-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)。
 
 ---
 
@@ -174,4 +174,4 @@ AirymaxOS 全面复用 openEuler 24.03 LTS 构建体系（LAYER 方案，详见 
 
 ---
 
-> **文档结束** | agentrt-linux 构建系统设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 构建系统设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

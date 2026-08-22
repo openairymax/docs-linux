@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）CI/CD 流水线详细设计
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 8 卷——CI/CD 流水线详细设计。本文档详述 6 个 CI workflow 的设计、触发条件、资源管理、失败处理，是补丁生命周期（01 卷）CI 强制校验在工具层的完整展开。\
+# agent-linux（AirymaxOS）CI/CD 流水线详细设计
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 8 卷——CI/CD 流水线详细设计。本文档详述 6 个 CI workflow 的设计、触发条件、资源管理、失败处理，是补丁生命周期（01 卷）CI 强制校验在工具层的完整展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 8 卷，回答"6 个 CI workflow 各做什么、何时触发、如何并行、如何缓存、失败如何处理"。它继承 Linux 内核 CI（kernelci.org + Intel 0-Day）的设计哲学，并将其适配到 agentrt-linux 的 GitHub Actions 工作流。
+本文档是 120-development-process 模块的第 8 卷，回答"6 个 CI workflow 各做什么、何时触发、如何并行、如何缓存、失败如何处理"。它继承 Linux 内核 CI（kernelci.org + Intel 0-Day）的设计哲学，并将其适配到 agent-linux 的 GitHub Actions 工作流。
 
 ### 1.1 与工程标准层的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 8 子仓以及管理仓库 `agentrt-linux-mgmt`。所有 PR、push、定时任务、手动触发的 CI 都在本文档覆盖范围内。
+本文档适用于 agent-linux 8 子仓以及管理仓库 `agent-linux-mgmt`。所有 PR、push、定时任务、手动触发的 CI 都在本文档覆盖范围内。
 
 ### 1.3 关键术语
 
@@ -72,7 +72,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | `sc-dual-ci.yml` | `kernel/include/uapi/linux/airymax/**`（仅 12 个 [SC] 头文件） | — |
 | `nightly.yml` | 全部 | — |
 | `release.yml` | tag `v*` | — |
-| `mgmt-orchestrator.yml` | `agentrt-linux-mgmt/**` | — |
+| `mgmt-orchestrator.yml` | `agent-linux-mgmt/**` | — |
 
 ### 2.3 分支保护规则
 
@@ -188,7 +188,7 @@ flowchart TD
 
 ### 3.6 Job 3：kunit
 
-- **测试范围**：agentrt-linux 内核模块的 KUnit 测试。
+- **测试范围**：agent-linux 内核模块的 KUnit 测试。
 - **步骤**：
   1. 编译内核时启用 `CONFIG_KUNIT=y`。
   2. 在 QEMU 中启动内核，运行 KUnit 测试。
@@ -198,7 +198,7 @@ flowchart TD
 
 ### 3.7 Job 4：kselftest
 
-- **测试范围**：agentrt-linux 相关的 kselftest 套件。
+- **测试范围**：agent-linux 相关的 kselftest 套件。
 - **步骤**：
   1. 编译 kselftest。
   2. 在 QEMU 中运行 kselftest。
@@ -291,8 +291,8 @@ on:
 
 - **校验内容**：每个变更文件必须明确归属到 IRON-9 v3 四层模型之一：
   - **[SC]**：共享契约层（12 个头文件）。
-  - **[SS]**：语义同源层（agentrt 与 agentrt-linux 共享语义但独立实现）。
-  - **[IND]**：独立实现层（agentrt-linux 独有）。
+  - **[SS]**：语义同源层（agentrt 与 agent-linux 共享语义但独立实现）。
+  - **[IND]**：独立实现层（agent-linux 独有）。
   - **[DSL]**：降级生存层（fallback 实现）。
 - **校验方式**：根据文件路径与 SSoT 注册表比对。
 - **失败处理**：归属错误即 job 失败。
@@ -343,7 +343,7 @@ on:
 
 ### 5.1 设计目标
 
-`sc-dual-ci.yml` 守护 12 个 [SC] 头文件的双端（agentrt 与 agentrt-linux）逐字节一致性，以及编译器无关性。
+`sc-dual-ci.yml` 守护 12 个 [SC] 头文件的双端（agentrt 与 agent-linux）逐字节一致性，以及编译器无关性。
 
 ### 5.2 触发条件
 
@@ -371,14 +371,14 @@ on:
 
 ### 5.4 Job 1：双端 PR 检测
 
-- **校验内容**：agentrt-linux 端的 [SC] PR 必须在 agentrt 端有对应 PR。
+- **校验内容**：agent-linux 端的 [SC] PR 必须在 agentrt 端有对应 PR。
 - **校验方式**：解析 PR 描述中的 agentrt 端 PR 链接，验证链接有效且 PR 存在。
 - **失败处理**：未提供 agentrt 端 PR 链接或链接无效即 job 失败。
 
 ### 5.5 Job 2：双端逐字节校验
 
 - **校验步骤**：
-  1. 从 agentrt-linux 拉取本 PR 分支。
+  1. 从 agent-linux 拉取本 PR 分支。
   2. 从 agentrt 拉取对应 PR 分支（使用 GitHub API）。
   3. 提取双端的 12 个 [SC] 头文件。
   4. 对每个文件运行 `diff -u`。
@@ -489,7 +489,7 @@ on:
 ### 6.7 Job 7：上游 Linux LTS 跟踪
 
 - **跟踪内容**：Linux 6.6 LTS 分支（`linux-6.6.y`）的新 commit。
-- **报告**：列出本日新增的 commit，标记是否需要回溯到 agentrt-linux LTS。
+- **报告**：列出本日新增的 commit，标记是否需要回溯到 agent-linux LTS。
 - **告警**：发现安全相关 commit 自动通知 LTS 团队。
 
 ---
@@ -535,9 +535,9 @@ on:
 
 | RPM | 架构 | 构建工具 |
 |-----|------|---------|
-| `agentrt-linux-kernel` | x86_64 / aarch64 / riscv64 / loongarch64 | `rpmbuild` |
+| `agent-linux-kernel` | x86_64 / aarch64 / riscv64 / loongarch64 | `rpmbuild` |
 | 12 daemon RPM | x86_64 / aarch64 | `rpmbuild` |
-| `agentrt-linux-devstation` | x86_64 | `rpmbuild` |
+| `agent-linux-devstation` | x86_64 | `rpmbuild` |
 
 - **依赖**：daemon RPM 依赖 kernel RPM。
 - **签名**：RPM 构建后使用 GPG 密钥签名。
@@ -759,4 +759,4 @@ concurrency:
 
 ---
 
-> **文档结束** | agentrt-linux CI/CD 流水线详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux CI/CD 流水线详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）发布流程详细设计
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 9 卷——发布流程详细设计。本文档详述发布前准备、发布物料清单、发布签名、发布渠道、发布后验证与回滚策略，是稳定版本发布（05 卷）在工程操作层的完整展开。\
+# agent-linux（AirymaxOS）发布流程详细设计
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 9 卷——发布流程详细设计。本文档详述发布前准备、发布物料清单、发布签名、发布渠道、发布后验证与回滚策略，是稳定版本发布（05 卷）在工程操作层的完整展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 9 卷，回答"发布具体做什么、产出什么物料、如何签名、发布到哪里、发布后如何验证、如何回滚"。它继承 Linux 6.6 内核发布流程（kernel.org 发布工具链），并将其适配到 agentrt-linux 的 RPM 发行模型与 AtomGit 发布渠道。
+本文档是 120-development-process 模块的第 9 卷，回答"发布具体做什么、产出什么物料、如何签名、发布到哪里、发布后如何验证、如何回滚"。它继承 Linux 6.6 内核发布流程（kernel.org 发布工具链），并将其适配到 agent-linux 的 RPM 发行模型与 AtomGit 发布渠道。
 
 ### 1.1 与稳定版本发布的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 所有版本的发布（minor / patch / LTS），包括 8 子仓的源码发布与 14 个 RPM 的二进制发布。
+本文档适用于 agent-linux 所有版本的发布（minor / patch / LTS），包括 8 子仓的源码发布与 14 个 RPM 的二进制发布。
 
 ### 1.3 关键术语
 
@@ -33,9 +33,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | CycloneDX | SBOM 标准（JSON 格式） |
 | GPG 签名 | GNU Privacy Guard 数字签名 |
 | 实时签名 | Sigstore / 类似服务的在线签名 |
-| airy-rollback | agentrt-linux 回滚命令 |
+| airy-rollback | agent-linux 回滚命令 |
 | 文档快照 | 发布时点的文档分支快照 |
-| airy_defconfig | agentrt-linux 内核默认配置文件 |
+| airy_defconfig | agent-linux 内核默认配置文件 |
 | devstation | 开发工作站 RPM 包（含 SDK + 工具 + 文档） |
 
 ---
@@ -83,7 +83,7 @@ flowchart TD
   2. 在 `release/<MAJOR.MINOR>` 标记 `vMAJOR.MINOR-rc1` tag。
   3. 触发 `release.yml` workflow 构建 RC1 物料。
 - **RC1 物料**：
-  - 源码 tarball：`agentrt-linux-MAJOR.MINOR-rc1.tar.xz`。
+  - 源码 tarball：`agent-linux-MAJOR.MINOR-rc1.tar.xz`。
   - 14 个 RPM（RC 版本，标记 `rc1`）。
   - SBOM（RC 版本）。
   - `airy_defconfig` 快照。
@@ -127,7 +127,7 @@ flowchart TD
 - **决议**：
   - 通过：签核发布，进入物料构建。
   - 延期：列出阻塞项与重新签核时间。
-- **签核记录**：在 `agentrt-linux-mgmt` 仓库创建签核 issue，记录每位签核人的签字。
+- **签核记录**：在 `agent-linux-mgmt` 仓库创建签核 issue，记录每位签核人的签字。
 
 ---
 
@@ -147,40 +147,40 @@ flowchart TD
 | 8 | release notes | Markdown | GPG | AtomGit releases |
 | 9 | 校验和文件 | `.sha256sum` | GPG | AtomGit releases |
 | 10 | 公钥 | `.asc` | — | AtomGit releases + keys.openpgp.org |
-| 11 | 签核记录 | Markdown | GPG | `agentrt-linux-mgmt` |
+| 11 | 签核记录 | Markdown | GPG | `agent-linux-mgmt` |
 | 12 | ABI 报告 | Markdown | GPG | AtomGit releases |
 
 ### 3.2 源码 tarball
 
-- **生成命令**：`git archive --format=tar --prefix=agentrt-linux-MAJOR.MINOR.PATCH/ vMAJOR.MINOR.PATCH | xz > agentrt-linux-MAJOR.MINOR.PATCH.tar.xz`
+- **生成命令**：`git archive --format=tar --prefix=agent-linux-MAJOR.MINOR.PATCH/ vMAJOR.MINOR.PATCH | xz > agent-linux-MAJOR.MINOR.PATCH.tar.xz`
 - **内容**：8 子仓的源码 + 文档 + 构建脚本。
 - **大小**：约 200 MB（含 .tar.xz 压缩）。
-- **校验和**：`sha256sum agentrt-linux-MAJOR.MINOR.PATCH.tar.xz > agentrt-linux-MAJOR.MINOR.PATCH.tar.xz.sha256sum`
+- **校验和**：`sha256sum agent-linux-MAJOR.MINOR.PATCH.tar.xz > agent-linux-MAJOR.MINOR.PATCH.tar.xz.sha256sum`
 
 ### 3.3 RPM 包清单
 
 | # | RPM 包名 | 内容 | 架构 |
 |---|---------|------|------|
-| 1 | `agentrt-linux-kernel` | 内核镜像 + 模块 + `airy_defconfig` | x86_64 / aarch64 / riscv64 / loongarch64 |
-| 2 | `agentrt-linux-macro-superv` | macro_d daemon | x86_64 / aarch64 |
-| 3 | `agentrt-linux-logger` | logger_d | x86_64 / aarch64 |
-| 4 | `agentrt-linux-config` | config_d | x86_64 / aarch64 |
-| 5 | `agentrt-linux-gateway` | gateway_d | x86_64 / aarch64 |
-| 6 | `agentrt-linux-sched` | sched_d | x86_64 / aarch64 |
-| 7 | `agentrt-linux-vfs` | vfs_d | x86_64 / aarch64 |
-| 8 | `agentrt-linux-net` | net_d | x86_64 / aarch64 |
-| 9 | `agentrt-linux-mem` | mem_d | x86_64 / aarch64 |
-| 10 | `agentrt-linux-cogn` | cogn_d | x86_64 / aarch64 |
-| 11 | `agentrt-linux-sec` | sec_d + 纯 C LSM 模块 | x86_64 / aarch64 |
-| 12 | `agentrt-linux-audit` | audit_d | x86_64 / aarch64 |
-| 13 | `agentrt-linux-dev` | dev_d | x86_64 / aarch64 |
-| 14 | `agentrt-linux-devstation` | 开发工具 + SDK + 文档 | x86_64 |
+| 1 | `agent-linux-kernel` | 内核镜像 + 模块 + `airy_defconfig` | x86_64 / aarch64 / riscv64 / loongarch64 |
+| 2 | `agent-linux-macro-superv` | macro_d daemon | x86_64 / aarch64 |
+| 3 | `agent-linux-logger` | logger_d | x86_64 / aarch64 |
+| 4 | `agent-linux-config` | config_d | x86_64 / aarch64 |
+| 5 | `agent-linux-gateway` | gateway_d | x86_64 / aarch64 |
+| 6 | `agent-linux-sched` | sched_d | x86_64 / aarch64 |
+| 7 | `agent-linux-vfs` | vfs_d | x86_64 / aarch64 |
+| 8 | `agent-linux-net` | net_d | x86_64 / aarch64 |
+| 9 | `agent-linux-mem` | mem_d | x86_64 / aarch64 |
+| 10 | `agent-linux-cogn` | cogn_d | x86_64 / aarch64 |
+| 11 | `agent-linux-sec` | sec_d + 纯 C LSM 模块 | x86_64 / aarch64 |
+| 12 | `agent-linux-audit` | audit_d | x86_64 / aarch64 |
+| 13 | `agent-linux-dev` | dev_d | x86_64 / aarch64 |
+| 14 | `agent-linux-devstation` | 开发工具 + SDK + 文档 | x86_64 |
 
 ### 3.4 SBOM 内容
 
 SBOM 采用 CycloneDX 1.5 JSON 格式，内容包括：
 
-- **顶层组件**：agentrt-linux vMAJOR.MINOR.PATCH。
+- **顶层组件**：agent-linux vMAJOR.MINOR.PATCH。
 - **子组件**：12 daemon + kernel + devstation。
 - **依赖关系**：组件间的依赖图。
 - **第三方组件**：所有第三方库（musl libc、busybox、liburcu 等）。
@@ -197,7 +197,7 @@ SBOM 采用 CycloneDX 1.5 JSON 格式，内容包括：
   - `CONFIG_IO_URING=y`
   - `# CONFIG_BPF_LSM is not set`
   - `CONFIG_SECURITY_AIRY_LSM=y`
-  - 其他 agentrt-linux 特有配置。
+  - 其他 agent-linux 特有配置。
 - **用途**：用户可基于此配置自行编译内核。
 
 ### 3.6 文档快照
@@ -286,13 +286,13 @@ flowchart LR
 gpg --recv-keys <主密钥指纹>
 
 # 验证 tarball 签名
-gpg --verify agentrt-linux-1.0.1.tar.xz.asc agentrt-linux-1.0.1.tar.xz
+gpg --verify agent-linux-1.0.1.tar.xz.asc agent-linux-1.0.1.tar.xz
 
 # 验证 RPM 签名
-rpm --checksig agentrt-linux-kernel-1.0.1.x86_64.rpm
+rpm --checksig agent-linux-kernel-1.0.1.x86_64.rpm
 
 # 验证校验和
-sha256sum -c agentrt-linux-1.0.1.tar.xz.sha256sum
+sha256sum -c agent-linux-1.0.1.tar.xz.sha256sum
 ```
 
 ---
@@ -305,14 +305,14 @@ sha256sum -c agentrt-linux-1.0.1.tar.xz.sha256sum
 |------|------|------|
 | AtomGit releases | tarball + SBOM + defconfig + 文档 + release notes + 公钥 | 所有用户 |
 | RPM 仓库 | 14 个 RPM | RPM 用户 |
-| 容器镜像仓库 | agentrt-linux 容器镜像 | 容器用户 |
+| 容器镜像仓库 | agent-linux 容器镜像 | 容器用户 |
 | 文档站点 | 在线文档（含本版本快照） | 所有用户 |
 | 邮件列表 | 发布公告 | 订阅者 |
 | 聊天频道 | 发布公告 | 社区成员 |
 
 ### 5.2 AtomGit releases
 
-- **release 标题**：`agentrt-linux vMAJOR.MINOR.PATCH`。
+- **release 标题**：`agent-linux vMAJOR.MINOR.PATCH`。
 - **release 描述**：release notes 内容。
 - **附件**：所有物料（tarball、SBOM、defconfig、文档、release notes、校验和、公钥、签名）。
 - **标签**：`latest`（最新稳定版）/ `lts`（LTS 版本）/ `rc`（RC 版本）/ `archived`（已 EOL 版本）。
@@ -339,12 +339,12 @@ rpm-repo/
 ```
 
 - **仓库元数据**：`repodata/repomd.xml`（含 GPG 签名）。
-- **用户配置**：用户在 `/etc/yum.repos.d/agentrt-linux.repo` 配置仓库地址。
+- **用户配置**：用户在 `/etc/yum.repos.d/agent-linux.repo` 配置仓库地址。
 
 ### 5.4 容器镜像仓库
 
-- **镜像名**：`spharx/agentrt-linux:vMAJOR.MINOR.PATCH`。
-- **镜像内容**：最小化 agentrt-linux 系统（内核 + 12 daemon + 必要工具）。
+- **镜像名**：`spharx/agent-linux:vMAJOR.MINOR.PATCH`。
+- **镜像内容**：最小化 agent-linux 系统（内核 + 12 daemon + 必要工具）。
 - **签名**：容器镜像使用 Cosign 签名。
 - **架构**：x86_64 / aarch64 多架构镜像。
 
@@ -372,8 +372,8 @@ flowchart LR
 
 - **环境**：干净的虚拟机 / 物理机（x86_64 + aarch64）。
 - **步骤**：
-  1. 安装内核 RPM：`dnf install agentrt-linux-kernel-1.0.1`。
-  2. 安装 12 daemon RPM：`dnf install agentrt-linux-*`。
+  1. 安装内核 RPM：`dnf install agent-linux-kernel-1.0.1`。
+  2. 安装 12 daemon RPM：`dnf install agent-linux-*`。
   3. 重启系统。
   4. 验证 12 daemon 启动：`systemctl status macro-superv logger ...`。
   5. 验证五大选型：`zcat /proc/config.gz | grep -E 'SCHED_EXT|IO_URING|BPF_LSM|AIRY_LSM'`。
@@ -384,7 +384,7 @@ flowchart LR
 
 - **环境**：已安装上一版本（如 v0.1.1）。
 - **步骤**：
-  1. `dnf upgrade agentrt-linux-*`。
+  1. `dnf upgrade agent-linux-*`。
   2. 重启系统。
   3. 验证 12 daemon 启动。
   4. 验证配置兼容性（`airy_defconfig` 不变）。
@@ -427,7 +427,7 @@ flowchart LR
 
 ### 7.2 回滚命令：airy-rollback
 
-agentrt-linux 提供 `airy-rollback` 命令用于一键回滚：
+agent-linux 提供 `airy-rollback` 命令用于一键回滚：
 
 ```bash
 # 回滚到上一版本
@@ -462,10 +462,10 @@ flowchart TD
 
 ### 7.4 快照恢复机制
 
-- **快照创建**：每次安装/升级 agentrt-linux 时，自动创建系统快照：
-  - 内核镜像快照（`/boot/agentrt-linux-<version>.img`）。
-  - daemon 二进制快照（`/var/lib/agentrt-linux/snapshots/<version>/`）。
-  - 配置快照（`/etc/agentrt-linux/snapshots/<version>/`）。
+- **快照创建**：每次安装/升级 agent-linux 时，自动创建系统快照：
+  - 内核镜像快照（`/boot/agent-linux-<version>.img`）。
+  - daemon 二进制快照（`/var/lib/agent-linux/snapshots/<version>/`）。
+  - 配置快照（`/etc/agent-linux/snapshots/<version>/`）。
 - **快照保留**：保留最近 3 个版本的快照。
 - **恢复方式**：`airy-rollback` 从快照恢复，无需重新下载 RPM。
 
@@ -526,7 +526,7 @@ flowchart TD
 | `airy_defconfig` | AtomGit releases | 永久 |
 | 文档快照 | `docs-AirymaxOS-vMAJOR.MINOR` 分支 | 永久 |
 | release notes | `docs/AirymaxOS/190-distribution/release-notes/` | 永久 |
-| 签核记录 | `agentrt-linux-mgmt/releases/MAJOR.MINOR.PATCH/` | 永久 |
+| 签核记录 | `agent-linux-mgmt/releases/MAJOR.MINOR.PATCH/` | 永久 |
 | ABI 报告 | `abi-reports/MAJOR.MINOR.PATCH/` | 永久 |
 | 构建日志 | CI 系统 | 1 年 |
 
@@ -599,4 +599,4 @@ flowchart TD
 
 ---
 
-> **文档结束** | agentrt-linux 发布流程详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 发布流程详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

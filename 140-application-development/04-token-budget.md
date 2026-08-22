@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Token 预算契约
-> **文档定位**：agentrt-linux（AirymaxOS）Agent Token 预算的完整工程契约，定义令牌桶算法、数据结构、分配策略、消耗计量、耗尽处理、恢复机制、系统调用集成、调度集成与 SDK 集成\
+> **文档定位**：agent-linux（AirymaxOS）Agent Token 预算的完整工程契约，定义令牌桶算法、数据结构、分配策略、消耗计量、耗尽处理、恢复机制、系统调用集成、调度集成与 SDK 集成\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：Linux 6.6 CFS 带宽控制（`cpu.cfs_quota_us` / `cpu.cfs_period_us`）+ seL4 MCS 调度上下文（Scheduling Context）+ agentrt Token 能效工程\
 > **文档性质**：实现方案文档（非设计文档）。本契约在 [01-agent-lifecycle.md](01-agent-lifecycle.md) 第 3.3 节 Token 预算管理与 [170-performance/01-scheduling-performance.md](../170-performance/01-scheduling-performance.md) 第 3.3 节 Token 预算感知权重的基础上，补充完整的预算模型、接口定义、状态机与错误处理\
 > **设计参考**：主流 Linux 发行版 Linux 6.6 内核基线 `kernel/sched/fair.c`（CFS 带宽控制 `sched_cfs_period_timer`）+ seL4 `src/object/schedcontext.c`（调度上下文预算消耗）
@@ -21,7 +21,7 @@ Agent 应用的核心资源消耗是 LLM Token，而非传统 CPU 时间或内�
 - **资源饥饿**：单个 Agent 独占 GPU/NPU 推理资源，其他 Agent 排队等待
 - **级联故障**：Token 消耗引发 GPU OOM，导致整个节点不可用
 
-Token 预算契约是 agentrt-linux 的**第一公民资源管理机制**——如同 Linux cfs 带宽控制管理 CPU 时间、memcg 管理内存、io_uring 管理 I/O 带宽，Token 预算管理 LLM 推理资源的分配与消耗。
+Token 预算契约是 agent-linux 的**第一公民资源管理机制**——如同 Linux cfs 带宽控制管理 CPU 时间、memcg 管理内存、io_uring 管理 I/O 带宽，Token 预算管理 LLM 推理资源的分配与消耗。
 
 ### 1.2 与传统资源配额的区别
 
@@ -961,7 +961,7 @@ static void test_budget_exhaustion(struct kunit *test)
 
 ### 15.1 [SS] 层语义同源
 
-| 维度 | agentrt 用户态 | agentrt-linux OS 层 | 同源语义 |
+| 维度 | agentrt 用户态 | agent-linux OS 层 | 同源语义 |
 |------|---------------|-------------------|---------|
 | 预算模型 | 用户态令牌桶 | 内核态令牌桶 | 算法语义一致 |
 | 预算配置 | `airy_token_budget_config` | 同结构体 | [SC] 共享结构体 |
@@ -970,11 +970,11 @@ static void test_budget_exhaustion(struct kunit *test)
 
 ### 15.2 [SC] 层共享
 
-Token 预算的 `airy_token_budget` 为**文档级结构体**（定义见本文档 §3.1），尚未注册为 [SC] 头文件类型——[SC] `sched.h` 当前仅定义 `struct airy_task_desc`（11 字段，64B）。待 [SC] 注册后 agentrt 与 agentrt-linux 代码字面共享。
+Token 预算的 `airy_token_budget` 为**文档级结构体**（定义见本文档 §3.1），尚未注册为 [SC] 头文件类型——[SC] `sched.h` 当前仅定义 `struct airy_task_desc`（11 字段，64B）。待 [SC] 注册后 agentrt 与 agent-linux 代码字面共享。
 
 ### 15.3 [IND] 层独立
 
-agentrt-linux 独有的维度：
+agent-linux 独有的维度：
 - 调度权重感知（token_factor 注入 stc_agent）
 - sysfs 统计导出
 - 内核态审计日志（SHA-256 哈希链）

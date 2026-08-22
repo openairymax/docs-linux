@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）debugfs/tracefs 接口
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L4 层——调试与追踪接口 debugfs/tracefs 的工程规范\
+# agent-linux（AirymaxOS）debugfs/tracefs 接口
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L4 层——调试与追踪接口 debugfs/tracefs 的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
@@ -19,7 +19,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [第 4 章 调度器调试接口](#第-4-章-调度器调试接口)
 - [第 5 章 IPC 调试接口](#第-5-章-ipc-调试接口)
 - [第 6 章 tracefs 集成](#第-6-章-tracefs-集成)
-- [第 7 章 agentrt-linux 事件追踪](#第-7-章-agentrt-linux-事件追踪)
+- [第 7 章 agent-linux 事件追踪](#第-7-章-agent-linux-事件追踪)
 - [第 8 章 与 ftrace 框架的关系](#第-8-章-与-ftrace-框架的关系)
 - [第 9 章 Airymax Unify Design 映射](#第-9-章-airymax-unify-design-映射)
 - [第 10 章 相关文档与版本维护](#第-10-章-相关文档与版本维护)
@@ -30,13 +30,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪文件系统。debugfs 用于内核调试信息的临时导出（无稳定 ABI 保证），tracefs 用于 ftrace 与 tracepoint 事件的配置与输出。agentrt-linux 选择 debugfs/tracefs 作为可观测性 L4 层的调试补充，原因有三：
+debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪文件系统。debugfs 用于内核调试信息的临时导出（无稳定 ABI 保证），tracefs 用于 ftrace 与 tracepoint 事件的配置与输出。agent-linux 选择 debugfs/tracefs 作为可观测性 L4 层的调试补充，原因有三：
 
 1. **调试场景专用**：debugfs 文件无 ABI 稳定性约束，可在不同版本间自由调整格式，适合调试期频繁迭代；与 sysfs 的"稳定 ABI"职责严格分离。
 2. **与 ftrace 原生集成**：tracefs 是 ftrace 的标准接口，所有 tracepoint 事件通过 `events/` 子目录暴露，无需自创追踪文件系统。
 3. **生产可关闭**：debugfs 默认不挂载，仅在调试构建或 `airy_debug=1` 启动参数下挂载，符合 A-ULS 模块 macro_d 的"生产环境最小调试面"原则。
 
-**OS-OBS-051: debugfs 与 tracefs 是 agentrt-linux 可观测性 L4 层调试接口的强制基线，调试信息必须经 debugfs 导出，不得在生产 sysfs 中混入调试字段。**
+**OS-OBS-051: debugfs 与 tracefs 是 agent-linux 可观测性 L4 层调试接口的强制基线，调试信息必须经 debugfs 导出，不得在生产 sysfs 中混入调试字段。**
 
 **OS-KER-141: kernel 的 defconfig 必须开启 CONFIG_DEBUG_FS、CONFIG_TRACING、CONFIG_EVENT_TRACING；内建 Airy LSM 必须在 `airy_init()` 阶段完成 debugfs 子目录注册（仅当 debugfs 已挂载时，非 agentrt.ko）。**
 
@@ -399,7 +399,7 @@ denial_log (last 10):
 
 ### 6.1 tracefs 挂载
 
-tracefs 标准挂载点为 `/sys/kernel/tracing`，agentrt-linux 在 init 阶段自动挂载：
+tracefs 标准挂载点为 `/sys/kernel/tracing`，agent-linux 在 init 阶段自动挂载：
 
 ```bash
 # 标准挂载
@@ -414,7 +414,7 @@ tracefs 的 `events/` 子目录按子系统组织 tracepoint 事件：
 
 ```
 /sys/kernel/tracing/events/
-├── airy/                    # agentrt-linux 自定义事件
+├── airy/                    # agent-linux 自定义事件
 │   ├── sched_switch/        # Agent 调度切换事件
 │   │   ├── format           # 事件字段格式
 │   │   ├── enable           # 启用/禁用
@@ -504,7 +504,7 @@ print fmt: "agent=%u prev=%u next=%u class=%u latency=%lluns",
 
 ---
 
-## 第 7 章 agentrt-linux 事件追踪
+## 第 7 章 agent-linux 事件追踪
 
 > **⚠️ 规划标注**：本章 6 个 `TRACE_EVENT`（airy_sched_switch / airy_ipc_send / airy_agent_state_change / airy_cognition_enter / airy_cognition_exit / airy_memory_access）在**当前 kernel 源码中均不存在**（`include/trace/events/airy.h` 未创建），属**规划设计**。落地时需新增 `include/trace/events/airy.h` 并注册到 `kernel/trace/Makefile` 的 `TRACE_EVENT` 编译列表。Agent 生命周期事件字段应对齐 [SC] `sched.h` `enum airy_agent_state` 8 态。
 
@@ -633,7 +633,7 @@ $ cat /sys/kernel/tracing/trace | tail -10
 
 ### 8.1 tracefs 作为 ftrace 接口
 
-tracefs 是 ftrace 的标准文件系统接口，agentrt-linux 不创建独立的追踪文件系统，完全复用 tracefs。详细 ftrace 框架规范见 [01-ftrace-framework.md](01-ftrace-framework.md)。
+tracefs 是 ftrace 的标准文件系统接口，agent-linux 不创建独立的追踪文件系统，完全复用 tracefs。详细 ftrace 框架规范见 [01-ftrace-framework.md](01-ftrace-framework.md)。
 
 ### 8.2 tracefs 关键控制文件
 
@@ -741,4 +741,4 @@ bpftool prog load airy_trace.o /sys/fs/bpf/airy_trace \
 
 ---
 
-> **文档结束** | agentrt-linux debugfs/tracefs 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Debugging is twice as hard as writing the code in the first place."
+> **文档结束** | agent-linux debugfs/tracefs 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Debugging is twice as hard as writing the code in the first place."

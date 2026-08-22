@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # MemoryRovol 记忆卷载 API 契约
-> **文档定位**：agentrt-linux（AirymaxOS）MemoryRovol 记忆卷载子系统的完整应用层 API 契约，通过单一 `airy_sys_rovol_ctl` (549) + op-dispatch 模型定义 10 项操作的签名、参数语义、状态机、数据流、错误处理与 SDK 集成\
+> **文档定位**：agent-linux（AirymaxOS）MemoryRovol 记忆卷载子系统的完整应用层 API 契约，通过单一 `airy_sys_rovol_ctl` (549) + op-dispatch 模型定义 10 项操作的签名、参数语义、状态机、数据流、错误处理与 SDK 集成\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-22\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt memoryrovol（记忆卷载）+ Linux 6.6 mm 子系统（MGLRU/userfaultfd/CXL）+ seL4 Untyped retype（记忆重派生）\
 > **文档性质**：实现方案文档（非设计文档）。本契约在 [02-memory-flow.md](../40-dataflows/02-memory-flow.md) 数据流设计与 [04-memory.md](../20-modules/04-memory.md) 子仓设计的基础上，补充完整的 API 签名、状态机与接口定义\
 > **设计参考**：Linux 6.6 `mm/vmscan.c`（MGLRU aging/eviction）+ `mm/userfaultfd.c`（缺页迁移）+ `drivers/cxl/`（CXL 3.0 池化）+ seL4 `src/object/untyped.c`（retype 派生）+ agentrt memoryrovol L1-L4 模型\
@@ -17,7 +17,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 为什么需要此 API 契约
 
-MemoryRovol 是 agentrt-linux 区别于通用操作系统的核心特征——它将"记忆"作为一等资源进行卷载管理，而非传统的文件系统或数据库存储。MemoryRovol 的设计已分散在 [02-memory-flow.md](../40-dataflows/02-memory-flow.md)（数据流）、[04-memory.md](../20-modules/04-memory.md)（子仓设计）、[contracts.md](../50-engineering-standards/20-contracts/contracts.md) 第 7 章（系统调用编号）中。
+MemoryRovol 是 agent-linux 区别于通用操作系统的核心特征——它将"记忆"作为一等资源进行卷载管理，而非传统的文件系统或数据库存储。MemoryRovol 的设计已分散在 [02-memory-flow.md](../40-dataflows/02-memory-flow.md)（数据流）、[04-memory.md](../20-modules/04-memory.md)（子仓设计）、[contracts.md](../50-engineering-standards/20-contracts/contracts.md) 第 7 章（系统调用编号）中。
 
 本契约文档作为**实现层 SSoT**（Single Source of Truth），收口以下问题：
 
@@ -194,7 +194,7 @@ graph TD
 
 ### 3.1 [SC] 共享契约层引用
 
-MemoryRovol API 的所有数据结构定义在 [SC] 共享契约层头文件 `include/uapi/linux/airymax/memory_types.h` 中，agentrt 用户态与 agentrt-linux 内核态**完全共享代码**。完整定义见 [02-memory-flow.md](../40-dataflows/02-memory-flow.md) 第 3 章。
+MemoryRovol API 的所有数据结构定义在 [SC] 共享契约层头文件 `include/uapi/linux/airymax/memory_types.h` 中，agentrt 用户态与 agent-linux 内核态**完全共享代码**。完整定义见 [02-memory-flow.md](../40-dataflows/02-memory-flow.md) 第 3 章。
 
 本契约仅引用关键结构，不重复定义：
 
@@ -207,7 +207,7 @@ MemoryRovol API 的所有数据结构定义在 [SC] 共享契约层头文件 `in
  * airy_l3_node_t / airy_l3_edge_t / airy_l4_barcode_t。SSoT 实际定义
  * 仅包含 enum airy_mem_level、AIRY_GFP_*、AIRY_PAGE_CLASS_*、
  * AIRY_SC_FALLBACK DSL Fallback 块。L1-L4 专属数据结构由 agentrt
- * 用户态与 agentrt-linux 内核态各自独立定义（[IND] 层）。 */
+ * 用户态与 agent-linux 内核态各自独立定义（[IND] 层）。 */
 
 /* L1 原始记录条目（仅追加，PMEM 持久，SHA-256 哈希链保护）—— 说明性示例 */
 typedef struct __attribute__((aligned(64))) airy_l1_record {
@@ -1038,13 +1038,13 @@ MemoryRovol API 的数据结构通过 [SC] 共享契约层与 agentrt 用户态*
 | `AIRY_SC_FALLBACK` DSL 块 | `include/uapi/linux/airymax/memory_types.h` | [DSL] 退化生存层 Fallback |
 | `airy_q16_t` + 转换宏 | `include/uapi/linux/airymax/cognition_types.h` | 定点数算术（内核态禁用 float） |
 
-> **⚠️ 说明性示例，非 SSoT 定义**：§3.2 等章节中的 `airy_l1_record_t` / `airy_l2_feature_t` / `airy_l3_node_t` / `airy_l3_edge_t` / `airy_l4_barcode_t` / `airy_pmem_flush_fn` 均为**说明性示例**，SSoT 头文件 `memory_types.h` 中**并未定义**这些类型。L1-L4 专属数据结构由 agentrt 用户态与 agentrt-linux 内核态各自独立定义（[IND] 层），参见 §3.2 的说明性示例代码块。
+> **⚠️ 说明性示例，非 SSoT 定义**：§3.2 等章节中的 `airy_l1_record_t` / `airy_l2_feature_t` / `airy_l3_node_t` / `airy_l3_edge_t` / `airy_l4_barcode_t` / `airy_pmem_flush_fn` 均为**说明性示例**，SSoT 头文件 `memory_types.h` 中**并未定义**这些类型。L1-L4 专属数据结构由 agentrt 用户态与 agent-linux 内核态各自独立定义（[IND] 层），参见 §3.2 的说明性示例代码块。
 
 ### 11.2 [SS] 语义同源层
 
-MemoryRovol API 的 6 项核心操作与 agentrt 用户态**操作模式同源（概念操作一致），函数签名因抽象层级不同而独立**。agentrt-linux 内核侧统一通过 `airy_sys_rovol_ctl` (549) + op-dispatch 入口承载：
+MemoryRovol API 的 6 项核心操作与 agentrt 用户态**操作模式同源（概念操作一致），函数签名因抽象层级不同而独立**。agent-linux 内核侧统一通过 `airy_sys_rovol_ctl` (549) + op-dispatch 入口承载：
 
-| 序号 | agentrt 用户态 API | agentrt-linux 系统调用 | 语义 | 实现差异 |
+| 序号 | agentrt 用户态 API | agent-linux 系统调用 | 语义 | 实现差异 |
 |------|-------------------|----------------------|------|---------|
 | 1 | `airy_rovol_snapshot()` | `airy_sys_rovol_ctl(AIRY_ROVOL_SNAPSHOT, ...)` | 创建快照 | 用户态 fork+COW / 内核 fork+userfaultfd |
 | 2 | `airy_rovol_restore()` | `airy_sys_rovol_ctl(AIRY_ROVOL_RESTORE, ...)` | 恢复记忆 | 用户态 mmap / 内核 mmap+userfaultfd |
@@ -1055,7 +1055,7 @@ MemoryRovol API 的 6 项核心操作与 agentrt 用户态**操作模式同源�
 
 ### 11.3 [IND] 完全独立层
 
-MemoryRovol API 的以下部分为 agentrt-linux 内核态**完全独立**，agentrt 用户态不实现：
+MemoryRovol API 的以下部分为 agent-linux 内核态**完全独立**，agentrt 用户态不实现：
 
 | [IND] 独立内容 | 独立原因 |
 |---------------|---------|

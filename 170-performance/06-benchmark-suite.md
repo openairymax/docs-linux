@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 基准测试套件实现方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义统一的基准测试框架、测试用例与回归检测机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义统一的基准测试框架、测试用例与回归检测机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 性能基线（IRON-9 v3 [SS] 语义同源层，基准测试语义同源）\
 > **理论根基**：Linux 6.6 perf benchmark + seL4 l4bench 基准思想 + Airymax E-8 可测试性 + A-4 完美主义\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[SS] 语义同源层（基准测试语义与 agentrt 同源）+ [IND] 完全独立层（内核态基准测试为 agentrt-linux 专属）
+> **IRON-9 v3 层次**：[SS] 语义同源层（基准测试语义与 agentrt 同源）+ [IND] 完全独立层（内核态基准测试为 agent-linux 专属）
 
 ---
 
@@ -41,7 +41,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-基准测试套件是 agentrt-linux 性能工程的验收基准。它提供一套标准化的、可重现的、可比较的测试框架，达成以下工程目标：
+基准测试套件是 agent-linux 性能工程的验收基准。它提供一套标准化的、可重现的、可比较的测试框架，达成以下工程目标：
 
 1. **全覆盖**：覆盖微基准、子系统基准、端到端基准、压力测试 4 个层次
 2. **可重现**：相同环境与配置下测试结果可重现（变异系数 < 2%）
@@ -58,7 +58,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - **回归隐蔽**：单次提交的性能影响可能很小，累积后显著
 - **缺乏基准**：没有统一的基准就无法判断"好"与"坏"
 
-agentrt-linux 需要建立完整的基准测试套件，参考 Linux 6.6 perf benchmark（`tools/perf/bench/`）与 seL4 l4bench 基准思想，覆盖从系统调用延迟到 Agent 端到端延迟的全栈性能。
+agent-linux 需要建立完整的基准测试套件，参考 Linux 6.6 perf benchmark（`tools/perf/bench/`）与 seL4 l4bench 基准思想，覆盖从系统调用延迟到 Agent 端到端延迟的全栈性能。
 
 ### 1.3 设计哲学
 
@@ -841,7 +841,7 @@ graph TD
 |------|---------|-----------|
 | [SC] 共享契约层 | 无（基准测试为 [IND]） | 不涉及 |
 | [SS] 语义同源层 | 基准测试语义 | 与 agentrt 用户态性能基线语义同源 |
-| [IND] 完全独立层 | 测试框架 + 测试用例 + 回归检测 | agentrt-linux 专属 |
+| [IND] 完全独立层 | 测试框架 + 测试用例 + 回归检测 | agent-linux 专属 |
 
 ---
 

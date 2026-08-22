@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Agent 部署与运行契约
-> **文档定位**：agentrt-linux（AirymaxOS）Agent 应用的完整部署与运行工程契约，定义 Agent 包格式、清单规范、部署状态机、运行时沙箱、健康检查、滚动更新、回滚机制与资源配额\
+> **文档定位**：agent-linux（AirymaxOS）Agent 应用的完整部署与运行工程契约，定义 Agent 包格式、清单规范、部署状态机、运行时沙箱、健康检查、滚动更新、回滚机制与资源配额\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt gateway（Agent 网关）+ Linux 6.6 容器与进程模型 + OCI 镜像标准 + Kubernetes CRD + seL4 isolation\
 > **文档性质**：实现方案文档（非设计文档）。本契约在 [01-agent-lifecycle.md](01-agent-lifecycle.md) Agent 生命周期管理与 [190-distribution/README.md](../190-distribution/README.md) Agent 应用商店设计的基础上，补充完整的部署、打包、分发与运行模型\
 > **设计参考**：Linux 6.6 `kernel/cgroup/cgroup-v2.c`（资源隔离）+ `security/landlock/`（用户态沙箱）+ OCI image spec v1.1 + Kubernetes 1.30 + CRIU（进程迁移）+ seL4 `src/object/tcb.c`（线程隔离）
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 为什么需要此契约
 
-Agent 部署是 agentrt-linux 区别于通用操作系统的另一核心特征——它将"Agent"作为一等公民进行部署管理，而非传统的进程或容器。Agent 部署涉及的设计已分散在 [01-agent-lifecycle.md](01-agent-lifecycle.md)（生命周期）、[150-cloudnative/README.md](../150-cloudnative/README.md)（容器化）、[190-distribution/README.md](../190-distribution/README.md)（RPM 分发）中。
+Agent 部署是 agent-linux 区别于通用操作系统的另一核心特征——它将"Agent"作为一等公民进行部署管理，而非传统的进程或容器。Agent 部署涉及的设计已分散在 [01-agent-lifecycle.md](01-agent-lifecycle.md)（生命周期）、[150-cloudnative/README.md](../150-cloudnative/README.md)（容器化）、[190-distribution/README.md](../190-distribution/README.md)（RPM 分发）中。
 
 本契约文档作为**部署层 SSoT**（Single Source of Truth），收口以下问题：
 
@@ -92,7 +92,7 @@ graph LR
     RPM --> DNF[dnf install]
     OCI --> CTRD[containerd pull]
 
-    VERIFY --> DEPLOY[部署到 agentrt-linux]
+    VERIFY --> DEPLOY[部署到 agent-linux]
     DNF --> DEPLOY
     CTRD --> DEPLOY
 
@@ -134,7 +134,7 @@ my-agent-1.0.1.agentpkg
 
 ### 2.3 OCI 镜像扩展标签
 
-基于 OCI Image Spec v1.1，agentrt-linux 扩展以下标签（对齐 [150-cloudnative/README.md](../150-cloudnative/README.md) 第 4.1 节）：
+基于 OCI Image Spec v1.1，agent-linux 扩展以下标签（对齐 [150-cloudnative/README.md](../150-cloudnative/README.md) 第 4.1 节）：
 
 ```yaml
 # OCI 镜像 config 的 annotations 字段
@@ -158,10 +158,10 @@ annotations:
 Name:    my-agent
 Version: 1.0.1
 Release: 1%{?dist}
-Summary: Cognition Agent for agentrt-linux
+Summary: Cognition Agent for agent-linux
 License: AGPLv3+
 
-# 依赖 agentrt-linux SDK
+# 依赖 agent-linux SDK
 Requires: airymaxos-sdk-python >= 1.0.1
 Requires: airymaxos-memory >= 1.0.1
 Requires: airymaxos-cognition >= 1.0.1
@@ -773,7 +773,7 @@ Canary 策略流程：
 
 ### 8.1 基于 MemoryRovol 快照的回滚
 
-agentrt-linux 的回滚机制基于 [05-memory-rovol-api.md](05-memory-rovol-api.md) 的 MemoryRovol 快照：
+agent-linux 的回滚机制基于 [05-memory-rovol-api.md](05-memory-rovol-api.md) 的 MemoryRovol 快照：
 
 ```mermaid
 sequenceDiagram
@@ -1195,7 +1195,7 @@ Agent 清单的 `security.capabilities` 遵循最小权限原则：
 
 Agent 部署体系与 agentrt 用户态 `gateway_d` daemon 同源：
 
-| 维度 | agentrt gateway_d | agentrt-linux agentdeploy | 同源标注 |
+| 维度 | agentrt gateway_d | agent-linux agentdeploy | 同源标注 |
 |------|-------------------|--------------------------|---------|
 | 部署编排 | 用户态进程编排 | OS 级 Agent 编排 | [SS] 语义同源 |
 | 包格式 | 用户态 zip | RPM + OCI + .agentpkg | [IND] 独立实现 |
@@ -1206,7 +1206,7 @@ Agent 部署体系与 agentrt 用户态 `gateway_d` daemon 同源：
 
 ### 14.2 [SS] 语义同源层
 
-| 序号 | agentrt API | agentrt-linux API | 语义 |
+| 序号 | agentrt API | agent-linux API | 语义 |
 |------|-------------|-------------------|------|
 | 1 | `gateway.deploy()` | `agentdeploy apply` | 部署 Agent |
 | 2 | `gateway.update()` | `agentdeploy update` | 更新 Agent |

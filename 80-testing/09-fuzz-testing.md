@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）模糊测试
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 9 卷——模糊测试（Fuzz Testing）。本卷规定 syzkaller 内核模糊测试框架集成、Agent syscall（548-551 编号）+ io_uring IORING_OP_URING_CMD 模糊测试、io_uring IORING_OP_URING_CMD 参数模糊、Agent 设备驱动 ioctl 参数模糊、持续模糊测试 CI 集成与长时间运行策略。\
+# agent-linux（AirymaxOS）模糊测试
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 9 卷——模糊测试（Fuzz Testing）。本卷规定 syzkaller 内核模糊测试框架集成、Agent syscall（548-551 编号）+ io_uring IORING_OP_URING_CMD 模糊测试、io_uring IORING_OP_URING_CMD 参数模糊、Agent 设备驱动 ioctl 参数模糊、持续模糊测试 CI 集成与长时间运行策略。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L9（模糊测试）+ Linux 6.6 内核基线 syzkaller 框架、KCOV 覆盖率引导\
 > **理论根基**：Linux 6.6 内核基线模糊测试思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环 / A-4 完美主义）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——agentrt-linux 专属 syscall 描述以独立 `airy_*.txt` 形式注入 syzkaller，禁止改写上游 `sys/linux/*.txt`；CI 持续模糊测试必须覆盖 4 核心 Agent syscall（编号 548-551）+ io_uring IORING_OP_URING_CMD cmd_op 全集。
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属 syscall 描述以独立 `airy_*.txt` 形式注入 syzkaller，禁止改写上游 `sys/linux/*.txt`；CI 持续模糊测试必须覆盖 4 核心 Agent syscall（编号 548-551）+ io_uring IORING_OP_URING_CMD cmd_op 全集。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 9 卷，回答"输入边界怎么测"。它在 08-agent-contract-testing（Agent 行为契约测试）与 10-formal-verification（形式化验证）之间形成模糊测试层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 9 卷，回答"输入边界怎么测"。它在 08-agent-contract-testing（Agent 行为契约测试）与 10-formal-verification（形式化验证）之间形成模糊测试层：
 
 - **上游依赖**：README 定义"测试体系分层"——L9 模糊测试由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 15 层（模糊测试层）。
 - **下游依赖**：10-formal-verification 定义"形式化验证怎么做"——本卷的模糊测试发现的缺陷是形式化验证属性集的输入。
@@ -27,12 +27,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | syzkaller | Linux 内核模糊测试框架，由 Google Dmitry Vyukov 创建 |
 | KCOV | 内核覆盖率收集机制，为 syzkaller 提供覆盖率引导 |
 | syscall 描述 | syzkaller 的 `.txt` 文件，描述 syscall 签名与参数类型 |
-| Agent syscall | agentrt-linux 专属 syscall，编号 548-551，共 4 核心（v1.0.1 Capability Folding） |
+| Agent syscall | agent-linux 专属 syscall，编号 548-551，共 4 核心（v1.0.1 Capability Folding） |
 | op-dispatch | 操作码分派，4 核心 syscall 通过 op 参数承载多种操作 |
 | `IORING_OP_URING_CMD` | io_uring 命令操作码，IPC fastpath 路径 |
 | `fuzzing corpus` | 模糊测试输入语料库 |
 | `crash` | 模糊测试触发的内核崩溃（KASAN 报告 / panic / hang） |
-| ` airy_fuzz_*` | agentrt-linux 专属模糊测试扩展 |
+| ` airy_fuzz_*` | agent-linux 专属模糊测试扩展 |
 
 ---
 
@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 内核模糊测试是 Linux 6.6 内核基线中"通过随机输入发现内核漏洞"的机制。其设计目标有三：**自动化发现**（无需人工设计测试用例）、**覆盖率引导**（KCOV 反馈覆盖率，引导输入变异）、**持续运行**（长期目标 7×24 小时，当前 CI 以 12 小时为上限——发现偶发缺陷）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的 syzkaller 模糊测试框架（`syzkaller/`、KCOV 覆盖率引导），不修改任何上游源文件。agentrt-linux 专属 syscall 描述以独立 `airy_*.txt` 文件形式驻留于 `syzkaller/sys/airymaxos/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
+agent-linux 完整继承 Linux 6.6 内核基线的 syzkaller 模糊测试框架（`syzkaller/`、KCOV 覆盖率引导），不修改任何上游源文件。agent-linux 专属 syscall 描述以独立 `airy_*.txt` 文件形式驻留于 `syzkaller/sys/airymaxos/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
 
 ```mermaid
 flowchart TB
@@ -61,7 +61,7 @@ flowchart TB
     B -->|crash| E
     E -->|report| A
     A -->|corpus| F
-    subgraph "agentrt-linux 扩展层（[IND]）"
+    subgraph "agent-linux 扩展层（[IND]）"
         G["airy_syscall.txt<br/>Agent syscall 描述（548-551）+ op-dispatch"]
         H["airy_io_uring.txt<br/>IORING_OP_URING_CMD 参数描述"]
         I["airy_dev_ioctl.txt<br/>Agent 设备 ioctl 描述"]
@@ -161,7 +161,7 @@ CONFIG_KALLSYMS_ALL=y
 
 ### 3.1 Agent syscall 编号分配
 
-agentrt-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 + 20 预留）；其中 4 核心 syscall 占用 548-551，编号起点 548 以避开 x86_64 x32 历史遗留区域 512-547。IPC 数据面走 io_uring `IORING_OP_URING_CMD`（零 syscall），能力校验经 v1.0.1 Capability Folding 折叠到 IPC fastpath C-S9。
+agent-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 + 20 预留）；其中 4 核心 syscall 占用 548-551，编号起点 548 以避开 x86_64 x32 历史遗留区域 512-547。IPC 数据面走 io_uring `IORING_OP_URING_CMD`（零 syscall），能力校验经 v1.0.1 Capability Folding 折叠到 IPC fastpath C-S9。
 
 ```c
 /* include/uapi/linux/airymax/syscall.h（[SC] 共享契约层） */
@@ -189,7 +189,7 @@ agentrt-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 
 
 ```
 # syzkaller/sys/airymaxos/airy_syscall.txt
-# agentrt-linux Agent syscall 描述（编号 548-551）+ op-dispatch
+# agent-linux Agent syscall 描述（编号 548-551）+ op-dispatch
 
 include <uapi/linux/airymax/syscall.h>
 include <uapi/linux/airymax/syscalls.h>
@@ -251,7 +251,7 @@ airy_sys_clt_notify(99, AIRY_CLT_PHASE_NOTIFY)              # 通知 task 99 进
 
 ### 4.1 IORING_OP_URING_CMD 参数模糊
 
-`IORING_OP_URING_CMD` 是 agentrt-linux IPC fastpath 的核心操作码，syzkaller 必须对其参数进行模糊：
+`IORING_OP_URING_CMD` 是 agent-linux IPC fastpath 的核心操作码，syzkaller 必须对其参数进行模糊：
 
 ```
 # syzkaller/sys/airymaxos/airy_io_uring.txt
@@ -299,7 +299,7 @@ AIRY_CMD_OP_MAX = 63  # 64 个 IPC 命令操作码
 
 ### 5.1 ioctl 参数模糊
 
-agentrt-linux 暴露多个 Agent 设备文件（`/dev/airy_<agent_id>_<dev_type>`，如 `/dev/airy_0_agent` / `/dev/airy_0_ipc`，对齐 60-driver-model），通过 ioctl 接口管理。syzkaller 必须对 ioctl 参数进行模糊：
+agent-linux 暴露多个 Agent 设备文件（`/dev/airy_<agent_id>_<dev_type>`，如 `/dev/airy_0_agent` / `/dev/airy_0_ipc`，对齐 60-driver-model），通过 ioctl 接口管理。syzkaller 必须对 ioctl 参数进行模糊：
 
 ```
 # syzkaller/sys/airymaxos/airy_dev_ioctl.txt
@@ -473,11 +473,11 @@ jobs:
 
 syzkaller 语料库（`workdir/corpus.db`）跨运行持久化，包含历史发现的有效输入：
 
-- **种子语料**：agentrt-linux 提供 `airy_fuzz_seed/` 包含业务典型 syscall 序列（如完整 Agent 生命周期）。
+- **种子语料**：agent-linux 提供 `airy_fuzz_seed/` 包含业务典型 syscall 序列（如完整 Agent 生命周期）。
 - **变异语料**：syzkaller 基于种子变异生成新输入，扩展覆盖率。
 - **跨运行复用**：每次运行结束后语料库自动上传至 artifact，下次运行下载复用。
 
-**OS-STD-112**：种子语料 `airy_fuzz_seed/` 必须包含至少 20 个典型 Agent 业务场景（spawn/stop / IPC 通信 / 记忆读写 / Token 消耗）；每个场景作为独立 `.syz` 文件，由 agentrt-linux 业务专家维护。
+**OS-STD-112**：种子语料 `airy_fuzz_seed/` 必须包含至少 20 个典型 Agent 业务场景（spawn/stop / IPC 通信 / 记忆读写 / Token 消耗）；每个场景作为独立 `.syz` 文件，由 agent-linux 业务专家维护。
 
 ---
 
@@ -516,14 +516,14 @@ syzkaller 语料库（`workdir/corpus.db`）跨运行持久化，包含历史发
 
 ### 8.1 上游 syzbot 集成
 
-agentrt-linux 计划在 v1.0.1 版本接入 Google syzbot 公开实例（`syzkaller.appspot.com`），将 agentrt-linux 内核作为 syzbot 的一个 instance：
+agent-linux 计划在 v1.0.1 版本接入 Google syzbot 公开实例（`syzkaller.appspot.com`），将 agent-linux 内核作为 syzbot 的一个 instance：
 
 - **instance 名称**：`airymaxos`
 - **kernel 配置**：`airy_fuzz_defconfig`（含 KASAN + KCOV）
 - **syscall 描述**：`syzkaller/sys/airymaxos/airy_*.txt`
 - **crash 上报**：syzbot 自动上报至 `airymaxos@syzkaller.appspot.com`
 
-**OS-TEST-106**：接入 syzbot 后，agentrt-linux 必须在 72 小时内响应 syzbot 上报的 crash；超时未响应的 crash 自动升级至维护者委员会复议。
+**OS-TEST-106**：接入 syzbot 后，agent-linux 必须在 72 小时内响应 syzbot 上报的 crash；超时未响应的 crash 自动升级至维护者委员会复议。
 
 ---
 
@@ -798,4 +798,4 @@ v1.0.1 Capability Folding fuzz 集成至现有 `continuous-fuzzing` workflow（�
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 9 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 9 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

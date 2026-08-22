@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 安全威胁模型与防护设计
+# agent-linux 安全威胁模型与防护设计
 
-> **文档定位**：agentrt-linux（AirymaxOS）安全威胁模型与防护设计，基于 STRIDE 框架识别资产、分析威胁、设计防护措施，作为 1.0.1 开发阶段安全设计的总纲\
+> **文档定位**：agent-linux（AirymaxOS）安全威胁模型与防护设计，基于 STRIDE 框架识别资产、分析威胁、设计防护措施，作为 1.0.1 开发阶段安全设计的总纲\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-22\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：STRIDE 威胁建模方法论 + seL4 capability 安全模型（ADR-014）+ Linux 6.6 LSM/Landlock/capability\
 > **版本基线**：1.x.x 锁定 Linux 6.6 LTS / 2.x.x 锁定 Linux 7.1（ADR-016）\
 > **SSoT 依赖声明**：本文档涉及的所有安全规则编号（OS-SEC-001\~299、OS-STD-SEC-010\~011、OS-IRON-001/014 等）的**唯一权威来源**为 [`50-engineering-standards/09-ssot-registry.md`](../50-engineering-standards/09-ssot-registry.md)。本文档不是规则编号 SSoT，仅作为威胁模型与防护设计的技术阐述载体。当本文档与 SSoT 注册表冲突时，以 SSoT 注册表为准。
@@ -29,9 +29,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 威胁建模方法论
 
-agentrt-linux（AirymaxOS）采用 **STRIDE** 威胁建模方法论作为安全设计的统一框架。STRIDE 将威胁划分为六个正交维度，覆盖智能体操作系统在内核态、用户态、Agent 应用层与网络边界所面临的全部典型威胁类别：
+agent-linux（AirymaxOS）采用 **STRIDE** 威胁建模方法论作为安全设计的统一框架。STRIDE 将威胁划分为六个正交维度，覆盖智能体操作系统在内核态、用户态、Agent 应用层与网络边界所面临的全部典型威胁类别：
 
-| 维度    | 英文全称                   | 威胁本质 | 在 agentrt-linux 中的核心关切                     |
+| 维度    | 英文全称                   | 威胁本质 | 在 agent-linux 中的核心关切                     |
 | ----- | ---------------------- | ---- | ------------------------------------------ |
 | **S** | Spoofing               | 身份伪造 | 伪造 Agent 身份、伪造 syscall 来源、伪造 capability 令牌 |
 | **T** | Tampering              | 数据篡改 | 篡改 IPC 消息、篡改 \[SC] 共享契约头文件、篡改 capability 表 |
@@ -40,11 +40,11 @@ agentrt-linux（AirymaxOS）采用 **STRIDE** 威胁建模方法论作为安全�
 | **D** | Denial of Service      | 拒绝服务 | 资源耗尽、IPC 风暴、LLM 推理饥饿、capability 表膨胀        |
 | **E** | Elevation of Privilege | 权限提升 | 内核提权、capability 绕过、Landlock 沙箱逃逸           |
 
-STRIDE 与 agentrt-linux 的 capability 安全模型（ADR-014，seL4 风格）形成正交覆盖：capability 解决"谁能做什么"的授权问题，STRIDE 解决"还会出什么问题"的威胁面问题。两者共同构成 1.0.1 开发阶段安全设计的双支柱。
+STRIDE 与 agent-linux 的 capability 安全模型（ADR-014，seL4 风格）形成正交覆盖：capability 解决"谁能做什么"的授权问题，STRIDE 解决"还会出什么问题"的威胁面问题。两者共同构成 1.0.1 开发阶段安全设计的双支柱。
 
 ### 1.2 安全边界
 
-agentrt-linux 划定三类安全边界，威胁分析以边界为坐标系展开：
+agent-linux 划定三类安全边界，威胁分析以边界为坐标系展开：
 
 | 边界            | 划分依据                               | 隔离机制                                          | 跨边界通信通道                                                       |
 | ------------- | ---------------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
@@ -54,7 +54,7 @@ agentrt-linux 划定三类安全边界，威胁分析以边界为坐标系展开
 
 ### 1.3 信任边界定义
 
-agentrt-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README.md`](../110-security/README.md) 第 1.1 节安全体系分层对齐。本文档聚焦威胁建模视角的信任边界，与 L1-L9 安全体系分层在语义上对应但视角不同：
+agent-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README.md`](../110-security/README.md) 第 1.1 节安全体系分层对齐。本文档聚焦威胁建模视角的信任边界，与 L1-L9 安全体系分层在语义上对应但视角不同：
 
 | 信任级别   | 名称         | 信任主体                                                         | 信任依据                                                 | 失效后果              |
 | ------ | ---------- | ------------------------------------------------------------ | ---------------------------------------------------- | ----------------- |
@@ -68,7 +68,7 @@ agentrt-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README
 
 ## 2. 资产识别
 
-资产识别是威胁建模的起点。agentrt-linux 识别以下 8 类核心安全资产，每类资产标注其信任级别、价值评估与泄露/篡改后果：
+资产识别是威胁建模的起点。agent-linux 识别以下 8 类核心安全资产，每类资产标注其信任级别、价值评估与泄露/篡改后果：
 
 | #  | 资产                                      | 信任级别  | 价值评估 | 关联 SSoT 规则       | 泄露/篡改后果                  |
 | -- | --------------------------------------- | ----- | ---- | ---------------- | ------------------------ |
@@ -85,7 +85,7 @@ agentrt-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README
 
 **A1 内核内存空间**：包括内核代码段、数据段、堆栈、slab/slub 缓存。内核内存是 L1 信任根的物理载体，任何向用户态泄露内核地址（`copy_to_user` 含内核指针）或未初始化内存的行为均违反 OS-SEC-125/126。防护依赖 `copy_from_user`/`copy_to_user` 边界检查（OS-SEC-111）、`memzero_explicit`/`kfree_sensitive` 敏感数据清零（OS-SEC-127）与 KASLR。
 
-**A2 \[SC] 共享契约层头文件（12 个）**：12 个 [SC] 头文件（`error.h`、`log_types.h`、`memory_types.h`、`security_types.h`、`cognition_types.h`、`sched.h`、`ipc.h`、`syscalls.h`、`syscall.h`、`uapi_compat.h`、`lsm_types.h`、`bpf_struct_ops.h`），唯一物理宿主于 `kernel/include/uapi/linux/airymax/`。OS-IRON-014 强制其为单一数据源，禁止物理副本。任何篡改将导致 agentrt 用户态与 agentrt-linux 内核态契约不一致，引发 ABI 破坏与内存破坏。
+**A2 \[SC] 共享契约层头文件（12 个）**：12 个 [SC] 头文件（`error.h`、`log_types.h`、`memory_types.h`、`security_types.h`、`cognition_types.h`、`sched.h`、`ipc.h`、`syscalls.h`、`syscall.h`、`uapi_compat.h`、`lsm_types.h`、`bpf_struct_ops.h`），唯一物理宿主于 `kernel/include/uapi/linux/airymax/`。OS-IRON-014 强制其为单一数据源，禁止物理副本。任何篡改将导致 agentrt 用户态与 agent-linux 内核态契约不一致，引发 ABI 破坏与内存破坏。
 
 **A3 Capability 表**：seL4 风格 CNode 表 + POSIX 41 ID capability（编号 0-40，`CAP_LAST_CAP=CAP_CHECKPOINT_RESTORE=40`）+ 3 个 Airymax 专属（编号 41-43，`AIRY_CAP_AGENT_SPAWN` 等）。capability 使用 `LSM_ORDER_FIRST`（OLK 6.6 硬编码，仅用于 capabilities），永远在 Landlock/Cupolas 之前执行；airy_lsm 使用 `LSM_ORDER_MUTABLE` + `CONFIG_LSM` 首位置于 capability 之后。伪造或绕过 capability 检查直接导致权限提升（OS-SEC-121）。
 
@@ -180,7 +180,7 @@ agentrt-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README
 
 ### 4.1 Capability-Based Security（OS-SEC-001\~099）
 
-agentrt-linux 采用 **seL4 风格 + POSIX 混合** capability 安全模型，详细工程契约见 [`110-security/03-capability-model.md`](../110-security/03-capability-model.md)。
+agent-linux 采用 **seL4 风格 + POSIX 混合** capability 安全模型，详细工程契约见 [`110-security/03-capability-model.md`](../110-security/03-capability-model.md)。
 
 #### 4.1.1 seL4 风格 capability 模型
 
@@ -223,7 +223,7 @@ capability 令牌经安全通道传递，禁止日志打印原始值（OS-SEC-12
 
 #### 4.2.1 airy_lsm LSM 钩子（7 个实现，250 框架总槽位）
 
-agentrt-linux airy_lsm 作为纯 C LSM 注册到框架（`DEFINE_LSM(airy)`，`LSM_ORDER_MUTABLE`），与 capability、Landlock、Yama 等共存（不打 `LSM_FLAG_EXCLUSIVE` 标记）。airy_lsm 实现 7 个钩子（`AIRY_LSM_HOOK_IMPLEMENTED=7`，见 `airy_lsm.c`）；Linux 6.6 LSM 框架共暴露约 250 个钩子槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL=250`，`lsm_types.h`，仅作规划上界，不用于数组定长）：
+agent-linux airy_lsm 作为纯 C LSM 注册到框架（`DEFINE_LSM(airy)`，`LSM_ORDER_MUTABLE`），与 capability、Landlock、Yama 等共存（不打 `LSM_FLAG_EXCLUSIVE` 标记）。airy_lsm 实现 7 个钩子（`AIRY_LSM_HOOK_IMPLEMENTED=7`，见 `airy_lsm.c`）；Linux 6.6 LSM 框架共暴露约 250 个钩子槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL=250`，`lsm_types.h`，仅作规划上界，不用于数组定长）：
 
 | 钩子类别   | 实现钩子                                           | airy_lsm 职责                        |
 | ------ | ---------------------------------------------- | --------------------------------- |
@@ -237,7 +237,7 @@ agentrt-linux airy_lsm 作为纯 C LSM 注册到框架（`DEFINE_LSM(airy)`，`L
 
 #### 4.2.2 Landlock 用户态沙箱
 
-Landlock 允许非特权进程定义自己的安全策略，提供文件系统与网络细粒度访问控制。在 agentrt-linux 中用于 Agent 进程级隔离（L3 信任边界）。
+Landlock 允许非特权进程定义自己的安全策略，提供文件系统与网络细粒度访问控制。在 agent-linux 中用于 Agent 进程级隔离（L3 信任边界）。
 
 #### 4.2.3 沙箱失败必须中止启动（OS-STD-SEC-011）
 
@@ -301,7 +301,7 @@ struct airy_ipc_msg_hdr {
 
 #### 4.4.1 TDX/SEV-SNP 集成方案
 
-agentrt-linux 机密计算基于 CVM（Confidential Virtual Machine），支持两类硬件 TEE：
+agent-linux 机密计算基于 CVM（Confidential Virtual Machine），支持两类硬件 TEE：
 
 | 方案          | 厂商    | 隔离语义                | 适用场景       |
 | ----------- | ----- | ------------------- | ---------- |
@@ -352,23 +352,23 @@ CVM 启动时生成硬件 attestation report，由远程证明服务验证 VM �
 
 ### 5.2 不保证的安全属性
 
-agentrt-linux 明确声明以下安全属性**不在保证范围**，使用者需通过部署环境补充防护：
+agent-linux 明确声明以下安全属性**不在保证范围**，使用者需通过部署环境补充防护：
 
 | 属性                    | 不保证原因                                          | 缓解建议                           |
 | --------------------- | ---------------------------------------------- | ------------------------------ |
 | **侧信道攻击防护**（时序/功耗/缓存） | Linux 6.6 内核未提供完整侧信道防护，capability/IPC 路径存在时序差异 | 部署于隔离核心、关闭超线程、机密计算屏蔽部分侧信道      |
 | **物理攻击防护**            | 物理攻击（冷启动、DMA、硬件探针）超出 OS 软件防护范围                 | TPM + 硬件安全模块 + 物理安保            |
-| **固件级攻击防护**           | 固件（UEFI/BMC/微码）漏洞超出 agentrt-linux 信任根          | 固件签名验证 + 固件更新 + 供应链可信          |
+| **固件级攻击防护**           | 固件（UEFI/BMC/微码）漏洞超出 agent-linux 信任根          | 固件签名验证 + 固件更新 + 供应链可信          |
 | **硬件漏洞防护**            | CPU 硬件漏洞（如推测执行类）依赖微码与编译缓解                      | 启用 Retpoline/KPTI 等软件缓解 + 微码更新 |
 | **零日漏洞绝对免疫**          | 内核零日漏洞可能绕过所有防护                                 | 及时安全更新 + 漏洞响应流程（§7）+ 最小权限部署    |
 
-> **边界声明**：agentrt-linux 的安全保证止于 L1 内核信任根的软件边界。硬件、固件、物理层面需部署环境配套防护。
+> **边界声明**：agent-linux 的安全保证止于 L1 内核信任根的软件边界。硬件、固件、物理层面需部署环境配套防护。
 
 ***
 
 ## 6. 安全 CI 门禁
 
-agentrt-linux 在 CI 流水线中设置多层安全门禁，所有合并请求必须通过方可合入。安全 CI 门禁与 [`50-engineering-standards/05-development-process.md`](../50-engineering-standards/05-development-process.md) 的工程纪律对齐。
+agent-linux 在 CI 流水线中设置多层安全门禁，所有合并请求必须通过方可合入。安全 CI 门禁与 [`50-engineering-standards/05-development-process.md`](../50-engineering-standards/05-development-process.md) 的工程纪律对齐。
 
 ### 6.1 静态分析工具链
 
@@ -383,7 +383,7 @@ agentrt-linux 在 CI 流水线中设置多层安全门禁，所有合并请求�
 
 ### 6.2 Fuzzing 集成（syzkaller 风格）
 
-agentrt-linux 集成 syzkaller 风格的内核 fuzzing：
+agent-linux 集成 syzkaller 风格的内核 fuzzing：
 
 | Fuzzing 目标      | 覆盖 syscall                   | 关注威胁    |
 | --------------- | ---------------------------- | ------- |
@@ -418,7 +418,7 @@ Fuzzing 发现的崩溃自动归档为安全 issue，进入漏洞响应流程（
 
 采用 CVSS v3.1 标准分级：
 
-| 等级       | CVSS 区间  | agentrt-linux 典型场景      |
+| 等级       | CVSS 区间  | agent-linux 典型场景      |
 | -------- | -------- | ----------------------- |
 | Critical | 9.0-10.0 | 内核提权、capability 绕过、沙箱逃逸 |
 | High     | 7.0-8.9  | 跨租户数据泄露、IPC 篡改、密钥泄露     |
@@ -436,7 +436,7 @@ Fuzzing 发现的崩溃自动归档为安全 issue，进入漏洞响应流程（
 
 ### 7.4 披露策略
 
-agentrt-linux 采用**协调披露 + 90 天宽限期**策略：
+agent-linux 采用**协调披露 + 90 天宽限期**策略：
 
 1. **私密修复**：报告者与维护者私密协作修复
 2. **修复发布**：修复随版本发布，同步发布安全公告（CVE 编号，如适用）
@@ -493,5 +493,5 @@ agentrt-linux 采用**协调披露 + 90 天宽限期**策略：
 
 ***
 
-> **文档结束** | agentrt-linux（AirymaxOS）安全威胁模型与防护设计 v1.0.1 | 父文档：[架构设计](README.md) | SSoT：[09-ssot-registry.md](../50-engineering-standards/09-ssot-registry.md)
+> **文档结束** | agent-linux（AirymaxOS）安全威胁模型与防护设计 v1.0.1 | 父文档：[架构设计](README.md) | SSoT：[09-ssot-registry.md](../50-engineering-standards/09-ssot-registry.md)
 

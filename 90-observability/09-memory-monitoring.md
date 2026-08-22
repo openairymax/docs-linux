@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）记忆监控
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L10 层——agentrt-linux 专属记忆卷载监控的工程规范\
+# agent-linux（AirymaxOS）记忆监控
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L10 层——agent-linux 专属记忆卷载监控的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + MemoryRovol L1-L4 记忆层级 + mem_d daemon\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + C-3 记忆卷载\
-> **核心约束**：记忆监控是 agentrt-linux 专属 L10 层可观测性，A-ULS 模块强制监管记忆配额
+> **核心约束**：记忆监控是 agent-linux 专属 L10 层可观测性，A-ULS 模块强制监管记忆配额
 
 ---
 
@@ -31,13 +31,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-记忆监控是 agentrt-linux 专属的可观测性 L10 层，专门监控智能体操作系统中每个 Agent 的 MemoryRovol 四层记忆层级的运行状态与性能指标。与传统 Linux 内核监控物理内存/swap 不同，记忆监控聚焦于智能体特有的语义层级：L1 工作记忆、L2 短期记忆、L3 长期记忆、L4 经验记忆。agentrt-linux 将记忆监控作为可观测性体系的底层语义层，原因有三：
+记忆监控是 agent-linux 专属的可观测性 L10 层，专门监控智能体操作系统中每个 Agent 的 MemoryRovol 四层记忆层级的运行状态与性能指标。与传统 Linux 内核监控物理内存/swap 不同，记忆监控聚焦于智能体特有的语义层级：L1 工作记忆、L2 短期记忆、L3 长期记忆、L4 经验记忆。agent-linux 将记忆监控作为可观测性体系的底层语义层，原因有三：
 
 1. **认知性能基础**：Agent 的认知循环性能直接取决于记忆访问效率。L1 工作记忆命中率低会导致频繁的 L2/L3 回填，认知延迟增加 10-100 倍。记忆监控是认知性能归因的基础。
 2. **资源配额约束**：记忆层级占用物理内存与磁盘空间，无约束的记忆增长会导致系统 OOM 或磁盘耗尽。记忆配额监控是 A-ULS 模块 macro_d 执行记忆监管的数据基础。
 3. **C-3 记忆卷载理论落地**：MemoryRovol L1-L4 四层模型是 Airymax C-3 记忆卷载理论的核心，记忆监控是该理论在可观测性侧的镜像，验证四层模型的实际运行效果。
 
-**OS-OBS-091: 记忆监控是 agentrt-linux 可观测性 L10 层的强制基线，所有 Agent 必须接受 L1-L4 记忆层级监控，不得存在"匿名记忆访问"路径。**
+**OS-OBS-091: 记忆监控是 agent-linux 可观测性 L10 层的强制基线，所有 Agent 必须接受 L1-L4 记忆层级监控，不得存在"匿名记忆访问"路径。**
 
 **OS-KER-181: 记忆监控规划配置项 `CONFIG_AIRY_MEMORY_MONITOR`（**当前 kernel 源码中不存在，属规划**）；落地时由内建 Airy LSM（非 agentrt.ko）在 `airy_init()` 阶段注册记忆监控数据结构。**
 
@@ -69,7 +69,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 四层记忆模型
 
-MemoryRovol 是 agentrt-linux 的记忆卷载理论，定义四层记忆层级：
+MemoryRovol 是 agent-linux 的记忆卷载理论，定义四层记忆层级：
 
 | 层级 | 名称 | 存储介质 | 容量 | 延迟 | 用途 |
 |------|------|---------|------|------|------|
@@ -101,7 +101,7 @@ graph LR
 
 ### 2.3 记忆层级与物理内存的关系
 
-agentrt-linux 的记忆层级基于 `alloc_pages + mmap` 实现，不使用 DMA 一致性内存：
+agent-linux 的记忆层级基于 `alloc_pages + mmap` 实现，不使用 DMA 一致性内存：
 
 | 层级 | 物理内存来源 | 映射方式 | 生命周期 |
 |------|------------|---------|---------|
@@ -167,7 +167,7 @@ perf stat -e L1-dcache-loads,L1-dcache-load-misses \
 #  # 99.0% L1 hit rate
 ```
 
-agentrt-linux 在内核态通过 PMU 中断采样 L1 访问模式：
+agent-linux 在内核态通过 PMU 中断采样 L1 访问模式：
 
 ```c
 /* kernel/corekern/airy/airy_mem_monitor.c（规划） */
@@ -528,7 +528,7 @@ static int memory_stats_show(struct seq_file *m, void *v)
 
 ### 8.1 mem_d 职责
 
-mem_d daemon 是 agentrt-linux 的记忆卷载守护进程，负责：
+mem_d daemon 是 agent-linux 的记忆卷载守护进程，负责：
 
 1. **L2 短期记忆管理**：分配/释放 L2 页面，执行 LRU 淘汰。
 2. **L3 长期记忆管理**：持久化至 NVMe，维护索引，执行压缩。
@@ -724,4 +724,4 @@ $ grep "MEMORY_QUOTA" /var/log/airy/agentrt.log | tail -5
 
 ---
 
-> **文档结束** | agentrt-linux 记忆监控 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Memory is the treasury and guardian of all things."
+> **文档结束** | agent-linux 记忆监控 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Memory is the treasury and guardian of all things."

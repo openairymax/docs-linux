@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）内核自测试
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 3 卷——`lib/test_*` 内核自检（Boot-time Kernel Selftests）扩展。本卷规定 `lib/test_*.c` 模型、`CONFIG_TEST_*` Kconfig 选项、`/sys/kernel/debug/selftest/` 触发接口、`kernel_init()` 阶段执行顺序，以及 agentrt-linux 专属自测试（sched_tac 调度延迟、IORING_OP_URING_CMD 零拷贝、41 ID Capability、253 钩子纯 C LSM、[SC] 头文件逐字节校验）。\
+# agent-linux（AirymaxOS）内核自测试
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 3 卷——`lib/test_*` 内核自检（Boot-time Kernel Selftests）扩展。本卷规定 `lib/test_*.c` 模型、`CONFIG_TEST_*` Kconfig 选项、`/sys/kernel/debug/selftest/` 触发接口、`kernel_init()` 阶段执行顺序，以及 agent-linux 专属自测试（sched_tac 调度延迟、IORING_OP_URING_CMD 零拷贝、41 ID Capability、253 钩子纯 C LSM、[SC] 头文件逐字节校验）。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L3（内核自检）+ Linux 6.6 内核基线 `lib/test_*.c`、`init/Kconfig`\
 > **理论根基**：Linux 6.6 内核基线自检思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——agentrt-linux 专属自测试以独立 `lib/test_airy_*.c` 形式注入，禁止改写上游 `lib/test_*.c`；`sc-dual-ci.yml` 强制校验 [SC] 头文件逐字节一致。
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属自测试以独立 `lib/test_airy_*.c` 形式注入，禁止改写上游 `lib/test_*.c`；`sc-dual-ci.yml` 强制校验 [SC] 头文件逐字节一致。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 3 卷，回答"内核启动时自检怎么启用"。它在 02-kselftest（用户态系统级测试）与 04-dynamic-analysis（运行时动态分析）之间形成内核态自检执行层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 3 卷，回答"内核启动时自检怎么启用"。它在 02-kselftest（用户态系统级测试）与 04-dynamic-analysis（运行时动态分析）之间形成内核态自检执行层：
 
 - **上游依赖**：README 定义"测试体系分层"——L3 内核自检由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 9 层（内核自检层）。
 - **下游依赖**：04-dynamic-analysis 定义"运行时内存/并发怎么测"；07-ftrace-selftest 定义"ftrace 启动自检怎么跑"——本卷定义"内核启动时哪些自检必须执行"。
@@ -29,7 +29,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | `late_initcall` | 自检模块注册的初始化调用级别，确保子系统已就绪 |
 | `selftest` 触发接口 | `/sys/kernel/debug/selftest/` 或 boot 参数 `selftest=on` |
 | `printk` 报告 | 自检通过 `printk(KERN_INFO "selftest: %s: pass\n", name)` 上报结果 |
-| `airy_selftest` | agentrt-linux 专属自检聚合模块，串接所有 `lib/test_airy_*.c` |
+| `airy_selftest` | agent-linux 专属自检聚合模块，串接所有 `lib/test_airy_*.c` |
 
 ---
 
@@ -39,7 +39,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 内核自检是 Linux 6.6 内核基线中"在内核启动阶段验证内核特性正确性"的轻量级机制。其设计目标有三：**早期反馈**（启动期即可发现回归，无需用户态介入）、**零依赖**（不依赖用户态库或测试运行时，仅需 `printk` 输出）、**最小侵入**（通过 `late_initcall` 注入，不污染核心初始化路径）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的自检机制（`lib/test_*.c`、`CONFIG_TEST_*` Kconfig 选项、`late_initcall` 注册）。agentrt-linux 专属自检以独立 `lib/test_airy_*.c` 形式驻留于内核源树，遵循 IRON-9 v3 [IND] 独立实现层原则——不修改上游 `lib/test_*.c`，仅在 `init/Kconfig` 通过 `source "lib/airymax/Kconfig"` 单行追加。
+agent-linux 完整继承 Linux 6.6 内核基线的自检机制（`lib/test_*.c`、`CONFIG_TEST_*` Kconfig 选项、`late_initcall` 注册）。agent-linux 专属自检以独立 `lib/test_airy_*.c` 形式驻留于内核源树，遵循 IRON-9 v3 [IND] 独立实现层原则——不修改上游 `lib/test_*.c`，仅在 `init/Kconfig` 通过 `source "lib/airymax/Kconfig"` 单行追加。
 
 ```mermaid
 flowchart TB
@@ -57,7 +57,7 @@ flowchart TB
     C --> E
     C --> F
     C --> G
-    subgraph "agentrt-linux 扩展层（独立文件，[IND]）"
+    subgraph "agent-linux 扩展层（独立文件，[IND]）"
         H["lib/airymax/test_airy_sched.c<br/>sched_tac 调度延迟自检"]
         I["lib/airymax/test_airy_ipc.c<br/>IORING_OP_URING_CMD 零拷贝自检"]
         J["lib/airymax/test_airy_cap.c<br/>41 ID Capability 自检"]
@@ -82,7 +82,7 @@ flowchart TB
 | T4 | `do_initcalls()` level 7 (`late`) | `late_initcall`——所有 selftest 在此执行 | 完全可用 |
 | T5 | `do_basic_setup()` 完成 | 用户态启动 | 自检已结束 |
 
-**OS-TEST-030**：所有 agentrt-linux 专属自检必须注册到 `late_initcall` 阶段；若需更早执行（如调度器自检依赖 `subsys_initcall`），必须在文档中显式声明依赖子系统初始化顺序，并经内核维护者审批。
+**OS-TEST-030**：所有 agent-linux 专属自检必须注册到 `late_initcall` 阶段；若需更早执行（如调度器自检依赖 `subsys_initcall`），必须在文档中显式声明依赖子系统初始化顺序，并经内核维护者审批。
 
 **OS-KER-101**：自检禁止调用任何会阻塞的函数（`msleep()` > 100ms、`mutex_lock_interruptible()`）；自检应在 100ms 内完成，超时由 `selftest_timeout` 参数控制（默认 1000ms）。
 
@@ -92,7 +92,7 @@ flowchart TB
 
 ### 2.1 上游自检模块清单
 
-Linux 6.6 内核基线在 `lib/` 下提供 50+ 自检模块，每个模块对应一个 `CONFIG_TEST_*` Kconfig 选项。agentrt-linux 默认启用以下基础自检：
+Linux 6.6 内核基线在 `lib/` 下提供 50+ 自检模块，每个模块对应一个 `CONFIG_TEST_*` Kconfig 选项。agent-linux 默认启用以下基础自检：
 
 | 模块 | Kconfig | 验证内容 | 默认启用 |
 |------|---------|---------|---------|
@@ -124,7 +124,7 @@ CONFIG_TEST_BITMAP=y
 CONFIG_TEST_UUID=y
 CONFIG_TEST_HASH=y
 
-# agentrt-linux 专属自检（必启）
+# agent-linux 专属自检（必启）
 CONFIG_AIRY_TEST_SCHED=y       # sched_tac 调度延迟
 CONFIG_AIRY_TEST_IPC=y         # IORING_OP_URING_CMD 零拷贝
 CONFIG_AIRY_TEST_CAP=y         # 41 ID Capability
@@ -141,7 +141,7 @@ CONFIG_AIRY_TEST_SELECTION=y   # 五大技术选型回归断言
 
 ---
 
-## 3. agentrt-linux 专属自检扩展
+## 3. agent-linux 专属自检扩展
 
 ### 3.1 sched_tac 调度延迟自检
 
@@ -368,7 +368,7 @@ late_initcall(test_airy_cap_41_ids);
 
 ### 3.4 253 钩子纯 C LSM 自检
 
-`lib/airymax/test_airy_lsm.c` 验证纯 C LSM（`airy_lsm`）的 253 个安全钩子覆盖完整性。Linux 6.6 LSM 框架定义 253 个 `security_list_options` 钩子点，agentrt-linux 必须全部注册或显式声明豁免。
+`lib/airymax/test_airy_lsm.c` 验证纯 C LSM（`airy_lsm`）的 253 个安全钩子覆盖完整性。Linux 6.6 LSM 框架定义 253 个 `security_list_options` 钩子点，agent-linux 必须全部注册或显式声明豁免。
 
 ```c
 /* lib/airymax/test_airy_lsm.c */
@@ -553,7 +553,7 @@ int  airy_sc_compute_sha256(int idx, u8 out[32]);
 `airy_selftest_summary()` 在所有 `lib/airymax/test_airy_*.c` 执行完毕后打印汇总：
 
 ```
-[    3.142857] airy_selftest: === agentrt-linux Boot-time Selftest Summary ===
+[    3.142857] airy_selftest: === agent-linux Boot-time Selftest Summary ===
 [    3.143012] airy_selftest:   sched  (sched_tac latency) ............ PASS  (1.2ms)
 [    3.143138] airy_selftest:   ipc    (URING_CMD zero-copy) ....... PASS  (0.8ms)
 [    3.143261] airy_selftest:   cap    (41 IDs grant/revoke) ....... PASS  (12.3ms)
@@ -569,7 +569,7 @@ int  airy_sc_compute_sha256(int idx, u8 out[32]);
 | 参数 | 取值 | 行为 |
 |------|------|------|
 | `airy_selftest=on` | 默认 | 启动时执行全部 `lib/airymax/test_airy_*.c` |
-| `airy_selftest=off` | — | 跳过所有 agentrt-linux 专属自检 |
+| `airy_selftest=off` | — | 跳过所有 agent-linux 专属自检 |
 | `airy_selftest=sched,ipc` | 逗号分隔 | 仅执行指定子集 |
 | `airy_selftest_timeout=2000` | 毫秒 | 单个自检超时阈值（默认 1000ms） |
 | `airy_sc_panic_on_mismatch` | 无值 | [SC] 头文件不匹配时触发 `panic()` |
@@ -631,16 +631,16 @@ jobs:
       - uses: actions/checkout@v4
         with: { repository: spx/agentrt,         path: agentrt }
       - uses: actions/checkout@v4
-        with: { repository: spx/agentrt-linux,   path: agentrt-linux }
+        with: { repository: spx/agent-linux,   path: agent-linux }
       - name: Diff 12 [SC] headers
         run: |
           for h in error.h log_types.h ipc.h sched.h memory_types.h \
                    security_types.h cognition_types.h syscalls.h syscall.h \
                    uapi_compat.h lsm_types.h bpf_struct_ops.h; do
             if ! diff -q agentrt/include/uapi/linux/airymax/$h \
-                        agentrt-linux/include/uapi/linux/airymax/$h >/dev/null; then
+                        agent-linux/include/uapi/linux/airymax/$h >/dev/null; then
               echo "::error::[SC] header $h byte-for-byte mismatch"
-              diff agentrt/include/uapi/linux/airymax/$h agentrt-linux/include/uapi/linux/airymax/$h
+              diff agentrt/include/uapi/linux/airymax/$h agent-linux/include/uapi/linux/airymax/$h
               exit 1
             fi
           done
@@ -688,7 +688,7 @@ kselftest（02 卷）是用户态系统级测试，启动用户态进程后通�
 
 ### 6.3 与 ftrace 启动自检的关系
 
-07-ftrace-selftest 定义 ftrace 自身功能的启动自检（`trace_selftest_startup_*`），与本卷的 agentrt-linux 专属自检在同一 `late_initcall` 阶段执行，但属于不同模块。CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前缀的输出。
+07-ftrace-selftest 定义 ftrace 自身功能的启动自检（`trace_selftest_startup_*`），与本卷的 agent-linux 专属自检在同一 `late_initcall` 阶段执行，但属于不同模块。CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前缀的输出。
 
 ---
 
@@ -745,8 +745,8 @@ kselftest（02 卷）是用户态系统级测试，启动用户态进程后通�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义 `lib/test_*.c` 内核自检模型、`CONFIG_TEST_*` Kconfig、`airy_defconfig` 自检配置；新增 agentrt-linux 专属自检 5 项（sched_tac 调度延迟、IORING_OP_URING_CMD 零拷贝、41 ID Capability、253 钩子纯 C LSM、[SC] 头文件逐字节）；定义 `airy_selftest` 聚合框架与 CI 集成 |
+| v1.0.1 | 2026-07-18 | 初始版本：定义 `lib/test_*.c` 内核自检模型、`CONFIG_TEST_*` Kconfig、`airy_defconfig` 自检配置；新增 agent-linux 专属自检 5 项（sched_tac 调度延迟、IORING_OP_URING_CMD 零拷贝、41 ID Capability、253 钩子纯 C LSM、[SC] 头文件逐字节）；定义 `airy_selftest` 聚合框架与 CI 集成 |
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 3 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 3 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

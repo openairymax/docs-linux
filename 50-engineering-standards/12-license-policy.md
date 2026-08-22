@@ -140,7 +140,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | 仓库组 | 子仓 |
 |--------|------|
 | agentrt | atoms, commons, cupolas, daemons, gateway, heapstore, protocols, (agentrt 根) |
-| agentrt-linux (除 kernel) | cloudnative, cognition, memory, security, services, system, tests-linux, (agentrt-linux 根) |
+| agent-linux (除 kernel) | cloudnative, cognition, memory, security, services, system, tests-linux, (agent-linux 根) |
 | sdk | cli, sdk-go, sdk-python, sdk-rust, sdk-typescript, tui, (sdk 根) |
 | ecosystem | examples, manager, openlab, prompts, skills, (ecosystem 根) |
 | products (除 memoryrovol) | docker, desktop, (products 根) |
@@ -168,9 +168,9 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 // SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
 ```
 
-**特殊情况：agentrt-linux 内核模块混合代码**
+**特殊情况：agent-linux 内核模块混合代码**
 
-由于 agentrt-linux 其他子仓（services/security/cognition 等）可能混合包含：
+由于 agent-linux 其他子仓（services/security/cognition 等）可能混合包含：
 1. **用户态代码**：使用双许可证 `AGPL-3.0-or-later OR Apache-2.0`
 2. **内核模块代码**（`.ko` 文件或包含 `#include <linux/module.h>`）：必须使用 `GPL-2.0-only`
 
@@ -186,8 +186,8 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 |------|-----|
 | **许可证** | GNU General Public License v2 only |
 | **SPDX 标识符** | `GPL-2.0-only` |
-| **覆盖路径** | `agentrt-linux/kernel/` |
-| **LICENSE 文件** | `agentrt-linux/kernel/LICENSE` |
+| **覆盖路径** | `agent-linux/kernel/` |
+| **LICENSE 文件** | `agent-linux/kernel/LICENSE` |
 | **目的** | 与 Linux 内核（6.6 LTS / 7.1）许可证保持兼容 |
 
 **为什么必须使用 GPL-2.0-only**:
@@ -277,16 +277,16 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | 25 | `products/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 26 | `products/docker/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 27 | `products/desktop/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 28 | `agentrt-linux/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 29 | `agentrt-linux/cloudnative/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 30 | `agentrt-linux/cognition/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 31 | `agentrt-linux/memory/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 32 | `agentrt-linux/security/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 33 | `agentrt-linux/services/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 34 | `agentrt-linux/system/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 35 | `agentrt-linux/tests-linux/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 28 | `agent-linux/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 29 | `agent-linux/cloudnative/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 30 | `agent-linux/cognition/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 31 | `agent-linux/memory/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 32 | `agent-linux/security/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 33 | `agent-linux/services/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 34 | `agent-linux/system/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 35 | `agent-linux/tests-linux/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 36 | `devtools/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 37 | `agentrt-linux/kernel/LICENSE` | **L4** | `GPL-2.0-only` |
+| 37 | `agent-linux/kernel/LICENSE` | **L4** | `GPL-2.0-only` |
 | 38 | `products/memoryrovol/LICENSE` | **L5** | `LicenseRef-SPHARX-MemoryRovol-EULA-1.0` |
 
 ---
@@ -313,10 +313,10 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | `docs/OpenStandards/` 下的源代码（若有） | `CC-BY-4.0` |
 | `docs/` 下的源代码（若有） | `CC-BY-NC-4.0` |
 | `agentrt/`, `sdk/`, `ecosystem/`, `products/{docker,desktop}/`, `devtools/` 下 | `AGPL-3.0-or-later OR Apache-2.0` |
-| `agentrt-linux/kernel/` 下 | `GPL-2.0-only` |
-| `agentrt-linux/kernel/include/uapi/` 下 UAPI 头文件（Linux syscall-note 例外） | `GPL-2.0-only WITH Linux-syscall-note` |
-| `agentrt-linux/{其他子仓}` 用户态代码 | `AGPL-3.0-or-later OR Apache-2.0` |
-| `agentrt-linux/{其他子仓}` 内核模块代码（含 `#include <linux/module.h>`） | `GPL-2.0-only` |
+| `agent-linux/kernel/` 下 | `GPL-2.0-only` |
+| `agent-linux/kernel/include/uapi/` 下 UAPI 头文件（Linux syscall-note 例外） | `GPL-2.0-only WITH Linux-syscall-note` |
+| `agent-linux/{其他子仓}` 用户态代码 | `AGPL-3.0-or-later OR Apache-2.0` |
+| `agent-linux/{其他子仓}` 内核模块代码（含 `#include <linux/module.h>`） | `GPL-2.0-only` |
 | `products/memoryrovol/` 下 | `LicenseRef-SPHARX-MemoryRovol-EULA-1.0` |
 
 ### 5.4 检查命令
@@ -460,7 +460,7 @@ set(PROJECT_LICENSE "AGPL-3.0-or-later OR Apache-2.0")
 | **LC-01** | airymaxhub/LICENSE 存在并包含 5 层策略概述 | `ls airymaxhub/LICENSE` |
 | **LC-02** | docs/OpenStandards/LICENSE 为 CC-BY-4.0 | `head -1 docs/OpenStandards/LICENSE` |
 | **LC-03** | docs/LICENSE 为 CC-BY-NC-4.0 | `head -1 docs/LICENSE` |
-| **LC-04** | agentrt-linux/kernel/LICENSE 为 GPL-2.0-only | `head -10 agentrt-linux/kernel/LICENSE \| grep SPDX` |
+| **LC-04** | agent-linux/kernel/LICENSE 为 GPL-2.0-only | `head -10 agent-linux/kernel/LICENSE \| grep SPDX` |
 | **LC-05** | products/memoryrovol/LICENSE 为 SPHARX EULA | `head -1 products/memoryrovol/LICENSE` |
 | **LC-06** | L3 层 33 个 LICENSE 文件均为双许可证 | `find ... -name LICENSE -exec grep -l "AGPL-3.0-or-later OR Apache-2.0" {} \;` |
 
@@ -469,8 +469,8 @@ set(PROJECT_LICENSE "AGPL-3.0-or-later OR Apache-2.0")
 | 编号 | 描述 | 验证方法 |
 |------|------|----------|
 | **LC-07** | agentrt/ 所有源代码包含 SPDX 标签 | 见 5.4 检查命令 |
-| **LC-08** | agentrt-linux/kernel/ 所有源代码 SPDX 为 GPL-2.0-only | `grep -r "SPDX-License-Identifier" agentrt-linux/kernel/` |
-| **LC-09** | agentrt-linux/{其他子仓} 用户态代码 SPDX 为双许可证 | 逐文件检查 |
+| **LC-08** | agent-linux/kernel/ 所有源代码 SPDX 为 GPL-2.0-only | `grep -r "SPDX-License-Identifier" agent-linux/kernel/` |
+| **LC-09** | agent-linux/{其他子仓} 用户态代码 SPDX 为双许可证 | 逐文件检查 |
 | **LC-10** | sdk/, products/{docker,desktop}/, ecosystem/, devtools/ 源代码 SPDX 为双许可证 | 见 5.4 检查命令 |
 
 ### 9.3 文档与配置验收
@@ -514,7 +514,7 @@ set(PROJECT_LICENSE "AGPL-3.0-or-later OR Apache-2.0")
 
 **变更记录**:
 - v1.0 (2026-07-18): 初版，确立 5 层许可证分层策略
-- v1.0.1 (2026-07-29): 版本号统一（按 IRON-7 铁律）；§5.3 SPDX 表新增 UAPI 头文件例外行——`agentrt-linux/kernel/include/uapi/` 下 UAPI 头文件使用 `GPL-2.0-only WITH Linux-syscall-note`（Linux 内核 UAPI 惯例，允许用户态程序 sysctl 包含）
+- v1.0.1 (2026-07-29): 版本号统一（按 IRON-7 铁律）；§5.3 SPDX 表新增 UAPI 头文件例外行——`agent-linux/kernel/include/uapi/` 下 UAPI 头文件使用 `GPL-2.0-only WITH Linux-syscall-note`（Linux 内核 UAPI 惯例，允许用户态程序 sysctl 包含）
 
 ---
 

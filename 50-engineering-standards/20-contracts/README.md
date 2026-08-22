@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux OS 层契约规范总览
-> **文档定位**：agentrt-linux（AirymaxOS）OS 层契约规范体系的入口与索引\
+# agent-linux OS 层契约规范总览
+> **文档定位**：agent-linux（AirymaxOS）OS 层契约规范体系的入口与索引\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[工程标准规范手册](../00-engineering-standards-handbook.md)\
@@ -14,11 +14,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 什么是 OS 层契约
 
-agentrt-linux（AirymaxOS）的 OS 层契约规范定义各组件间的交互协议，是 agentrt-linux 内核态与用户态、进程与进程之间通信的"法律文书"。契约规范位于 agentrt-linux 文档体系的 `50-engineering-standards/20-contracts/` 目录下，与 agentrt 用户态契约规范形成互补——前者定义 OS 层（内核级）契约，后者定义应用层（用户态运行时）契约。
+agent-linux（AirymaxOS）的 OS 层契约规范定义各组件间的交互协议，是 agent-linux 内核态与用户态、进程与进程之间通信的"法律文书"。契约规范位于 agent-linux 文档体系的 `50-engineering-standards/20-contracts/` 目录下，与 agentrt 用户态契约规范形成互补——前者定义 OS 层（内核级）契约，后者定义应用层（用户态运行时）契约。
 
 ### 1.2 与 agentrt 用户态契约的关系
 
-agentrt-linux 与 agentrt 遵循"同源且部分代码共享"原则（IRON-9 v3）。在契约层面，这一关系表现为三层结构：
+agent-linux 与 agentrt 遵循"同源且部分代码共享"原则（IRON-9 v3）。在契约层面，这一关系表现为三层结构：
 
 | 契约层 | IRON-9 v3 分层 | 共享方式 | 涵盖内容 |
 |--------|---------------|---------|---------|
@@ -29,7 +29,7 @@ agentrt-linux 与 agentrt 遵循"同源且部分代码共享"原则（IRON-9 v3�
 **关键区分**：
 
 - agentrt 用户态契约：定义应用层组件间的交互协议（HTTP/WS/Stdio 网关、JSON-RPC 2.0、Agent 契约、Skill 契约），位于 `docs/AirymaxRT/30-interfaces/07-rpc-api/`。
-- agentrt-linux OS 层契约：定义 OS 级组件间的交互协议（系统调用 API、IPC 协议、驱动接口、日志格式），位于本目录。
+- agent-linux OS 层契约：定义 OS 级组件间的交互协议（系统调用 API、IPC 协议、驱动接口、日志格式），位于本目录。
 
 ### 1.3 契约在 OS 架构中的位置
 
@@ -41,7 +41,7 @@ graph TB
         A3[agentrt SDK]
     end
 
-    subgraph "agentrt-linux（AirymaxOS）OS 层"
+    subgraph "agent-linux（AirymaxOS）OS 层"
         subgraph "用户态服务层"
             B1[认知运行时<br/>CoreLoopThree kthread]
             B2[系统守护进程<br/>12 daemons]
@@ -76,7 +76,7 @@ graph TB
     style C4 fill:#e1f5fe,stroke:#0288d1
 ```
 
-**图 1**：agentrt-linux OS 层契约在整体架构中的位置。契约层位于用户态服务层与内核态之间，定义两者的交互边界。
+**图 1**：agent-linux OS 层契约在整体架构中的位置。契约层位于用户态服务层与内核态之间，定义两者的交互边界。
 
 ---
 
@@ -84,7 +84,7 @@ graph TB
 
 ### 2.1 [SC] 共享契约层：12 个共享头文件
 
-[SC] 层是 agentrt 与 agentrt-linux 代码字面一致的头文件库，位于 `include/uapi/linux/airymax/` 目录。这 12 个头文件（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`）是 agentrt-linux OS 层契约的"共享基础"：
+[SC] 层是 agentrt 与 agent-linux 代码字面一致的头文件库，位于 `include/uapi/linux/airymax/` 目录。这 12 个头文件（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`）是 agent-linux OS 层契约的"共享基础"：
 
 | 头文件 | 全路径 | 定义内容 | 对应契约 |
 |--------|--------|---------|---------|
@@ -103,16 +103,16 @@ graph TB
 
 **共享规则**：
 
-1. [SC] 层头文件由 agentrt 和 agentrt-linux 的维护者共同维护，变更需双方工程规范委员会批准。
+1. [SC] 层头文件由 agentrt 和 agent-linux 的维护者共同维护，变更需双方工程规范委员会批准。
 2. 头文件遵循语义化版本，MAJOR 版本变更需重新评审全部依赖方。
 3. 头文件不得包含平台特定代码（如 `#ifdef __linux__`），跨平台兼容性由 agentrt 承担。
 4. 每个头文件必须包含 `@since` 与 `@deprecated` 版本标记。
 
 ### 2.2 [SS] 语义同源层
 
-[SS] 层涵盖语义一致但实现独立的契约维度。agentrt-linux 在 OS 层对这些契约进行内核级实现，agentrt 在用户态实现：
+[SS] 层涵盖语义一致但实现独立的契约维度。agent-linux 在 OS 层对这些契约进行内核级实现，agentrt 在用户态实现：
 
-| 契约维度 | agentrt 用户态 | agentrt-linux OS 层 | 同源语义 |
+| 契约维度 | agentrt 用户态 | agent-linux OS 层 | 同源语义 |
 |---------|---------------|-------------------|---------|
 | syscall API | 无（用户态运行时） | `AIRY_SYS_*` 系统调用 | 任务管理、调度、记忆卷载语义一致 |
 | IPC 128B 消息头 | AgentsIPC 用户态消息队列 | io_uring 零拷贝内核通道 | 消息头字段布局完全兼容 |
@@ -121,7 +121,7 @@ graph TB
 
 ### 2.3 [IND] 完全独立层
 
-[IND] 层涵盖 agentrt-linux 独有的 OS 级契约，agentrt 不涉及：
+[IND] 层涵盖 agent-linux 独有的 OS 级契约，agentrt 不涉及：
 
 | 契约维度 | 说明 | 对应文档 |
 |---------|------|---------|
@@ -169,7 +169,7 @@ graph TB
 
 ### 4.1 语义化版本
 
-agentrt-linux OS 层契约采用语义化版本（Semantic Versioning），版本号格式为 `MAJOR.MINOR.PATCH`：
+agent-linux OS 层契约采用语义化版本（Semantic Versioning），版本号格式为 `MAJOR.MINOR.PATCH`：
 
 | 版本号 | 变更类型 | 示例 | 评审要求 |
 |--------|---------|------|---------|
@@ -204,7 +204,7 @@ agentrt-linux OS 层契约采用语义化版本（Semantic Versioning），版�
 
 所有契约变更必须通过以下流程：
 
-1. **提案**：在 `agentrt-linux` 仓库提交 Issue，描述变更内容与理由。
+1. **提案**：在 `agent-linux` 仓库提交 Issue，描述变更内容与理由。
 2. **评审**：对应子仓维护者 + 工程规范委员会成员评审，评估影响范围。
 3. **ADR 记录**：重大变更需创建架构决策记录（ADR），详见 [10-architecture/05-adrs.md](../../10-architecture/05-adrs.md)。
 4. **实施**：更新头文件、文档、测试用例。
@@ -217,7 +217,7 @@ agentrt-linux OS 层契约采用语义化版本（Semantic Versioning），版�
 
 ### 5.1 ABI 兼容性承诺
 
-agentrt-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
+agent-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 
 | 契约维度 | 兼容性承诺 | 保障机制 |
 |---------|-----------|---------|
@@ -230,9 +230,9 @@ agentrt-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 
 ### 5.2 跨版本兼容策略
 
-- **向前兼容**：新版本 agentrt-linux 内核必须能处理旧版本用户态服务发出的契约请求（通过 IPC 版本协商降级）。
-- **向后兼容**：旧版本用户态服务可在新版本 agentrt-linux 内核上运行（通过系统调用编号不变性保证）。
-- **同源兼容**：agentrt 用户态运行时在 agentrt-linux 上运行，IPC 消息头无需协议转换（[SS] 语义同源层保证）。
+- **向前兼容**：新版本 agent-linux 内核必须能处理旧版本用户态服务发出的契约请求（通过 IPC 版本协商降级）。
+- **向后兼容**：旧版本用户态服务可在新版本 agent-linux 内核上运行（通过系统调用编号不变性保证）。
+- **同源兼容**：agentrt 用户态运行时在 agent-linux 上运行，IPC 消息头无需协议转换（[SS] 语义同源层保证）。
 
 ### 5.3 兼容性测试
 
@@ -242,7 +242,7 @@ agentrt-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 | IPC 消息头布局校验 | 128B 布局 | `static_assert` + `scripts/check_ipc_layout.sh` | 每次 PR |
 | 日志格式 Schema 校验 | JSON Schema | `scripts/validate_log_schema.py` | 每次 PR |
 | 跨版本兼容性测试 | MAJOR 版本间 | `tests-linux/compat/` | 每次发布 |
-| 同源兼容性测试 | agentrt ↔ agentrt-linux | `tests-linux/homology/` | 每次发布 |
+| 同源兼容性测试 | agentrt ↔ agent-linux | `tests-linux/homology/` | 每次发布 |
 
 ---
 
@@ -271,7 +271,7 @@ agentrt-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 
 ## 7. 相关文档
 
-- [agentrt-linux 设计文档](../../README.md)
+- [agent-linux 设计文档](../../README.md)
 - [架构设计](../../10-architecture/01-system-architecture.md)
 - [五维正交 24 原则](../../10-architecture/02-five-dimensional-principles.md)
 - [接口设计](../../30-interfaces/README.md)
@@ -286,7 +286,7 @@ agentrt-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 
 ### 8.1 契约治理模型
 
-agentrt-linux OS 层契约的治理遵循"分层负责、架构仲裁"模型：
+agent-linux OS 层契约的治理遵循"分层负责、架构仲裁"模型：
 
 | 治理层级 | 角色 | 职责 | 对应契约 |
 |---------|------|------|---------|
@@ -309,10 +309,10 @@ agentrt-linux OS 层契约的治理遵循"分层负责、架构仲裁"模型：
 
 ### 8.3 契约冲突解决
 
-当 agentrt 用户态契约与 agentrt-linux OS 层契约出现语义冲突时，按以下优先级解决：
+当 agentrt 用户态契约与 agent-linux OS 层契约出现语义冲突时，按以下优先级解决：
 
 1. **[SC] 共享契约层优先**：共享头文件定义为准，双方必须一致。
-2. **[SS] 语义同源层协商**：语义冲突通过工程规范委员会协商，以 agentrt-linux OS 层实现可行性为底线。
+2. **[SS] 语义同源层协商**：语义冲突通过工程规范委员会协商，以 agent-linux OS 层实现可行性为底线。
 3. **[IND] 完全独立层自主**：各自独立演进，不存在冲突。
 4. **工程规范委员会最终仲裁**：无法协商解决的冲突，由工程规范委员会投票裁决。
 
@@ -351,7 +351,7 @@ agentrt-linux OS 层契约的治理遵循"分层负责、架构仲裁"模型：
 
 本目录契约文档使用的核心术语与 agentrt 用户态契约保持同源语义：
 
-| 术语 | agentrt-linux OS 层含义 | 同源 agentrt 含义 | IRON-9 v3 分层 |
+| 术语 | agent-linux OS 层含义 | 同源 agentrt 含义 | IRON-9 v3 分层 |
 |------|------------------------|-------------------|---------------|
 | 契约 (Contract) | 组件间交互协议的法律定义 | 同源 | [SC] / [SS] |
 | 系统调用 (Syscall) | 用户态进入内核态的唯一入口 | 不适用（agentrt 无内核态） | [IND] |
@@ -398,7 +398,7 @@ flowchart TD
     style J fill:#e1f5fe,stroke:#0288d1
 ```
 
-**图 2**：agentrt-linux OS 层契约变更与版本管理流程。MAJOR 变更需工程规范委员会全票通过并记录 ADR，MINOR 变更由子仓维护者审批，PATCH 变更直接合并。
+**图 2**：agent-linux OS 层契约变更与版本管理流程。MAJOR 变更需工程规范委员会全票通过并记录 ADR，MINOR 变更由子仓维护者审批，PATCH 变更直接合并。
 
 ---
 
@@ -406,7 +406,7 @@ flowchart TD
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 0.1.1 | 2026-07-07 | 初始版本（agentrt-linux OS 层契约规范总览，含 IRON-9 v3 四层契约分层、4 大契约规范索引、版本管理策略、兼容性保证） |
+| 0.1.1 | 2026-07-07 | 初始版本（agent-linux OS 层契约规范总览，含 IRON-9 v3 四层契约分层、4 大契约规范索引、版本管理策略、兼容性保证） |
 | 0.1.1 | 2026-07-13 | seL4 SEL4-01~08 + 6 项新发现设计模式对齐 + [SC] 物理宿主 Tab 8 缩进验证 |
 | 1.0.1 | 2027-XX-XX | 首个开发版本（契约实现与代码同步验证） |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |

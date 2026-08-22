@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # POSIX 兼容性设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义 agentrt-linux 对 POSIX 标准的兼容层次、syscall 兼容性分类与语义扩展\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义 agent-linux 对 POSIX 标准的兼容层次、syscall 兼容性分类与语义扩展\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：Linux 6.6 KABI / ABI 兼容性体系（IRON-9 v3 [IND] 完全独立层）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[IND] 完全独立层（POSIX 兼容性为 agentrt-linux 作为 OS 发行版的专属设计）
+> **IRON-9 v3 层次**：[IND] 完全独立层（POSIX 兼容性为 agent-linux 作为 OS 发行版的专属设计）
 
 ---
 
@@ -16,12 +16,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操作系统发行版，必须保持与 POSIX 标准及主流 Linux 发行版的兼容性。POSIX 兼容性设计达成以下工程目标：
+agent-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操作系统发行版，必须保持与 POSIX 标准及主流 Linux 发行版的兼容性。POSIX 兼容性设计达成以下工程目标：
 
 1. **POSIX.1-2017 兼容**：完全兼容 POSIX.1-2017（IEEE Std 1003.1-2017）核心 syscall
 2. **主流发行版二进制兼容**：在 Ubuntu/Debian/Fedora/RHEL 上编译的二进制可直接运行
 3. **Agent 语义扩展**：在不破坏 POSIX 兼容的前提下，扩展 Agent 专属语义
-4. **降级运行支持**：Agent 专属 syscall 在非 agentrt-linux 环境下可降级
+4. **降级运行支持**：Agent 专属 syscall 在非 agent-linux 环境下可降级
 5. **测试套件验证**：通过 POSIX 测试套件（PCTS）+ LSB 验证
 
 ### 1.2 POSIX 兼容分层
@@ -50,7 +50,7 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操�
 
 以下 syscall 与 POSIX.1-2017 完全兼容，语义一致：
 
-| syscall | POSIX 定义 | agentrt-linux 实现 |
+| syscall | POSIX 定义 | agent-linux 实现 |
 |---------|------------|---------------------|
 | `read()` | 从 fd 读取字节 | 直接转发至 VFS |
 | `write()` | 向 fd 写入字节 | 直接转发至 VFS |
@@ -67,7 +67,7 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操�
 
 以下 syscall 保留 POSIX 签名，但行为针对 Agent 工作负载扩展：
 
-| syscall | POSIX 语义 | agentrt-linux 扩展 |
+| syscall | POSIX 语义 | agent-linux 扩展 |
 |---------|------------|---------------------|
 | `fork()` | 创建子进程 | 创建子 Agent（capability 继承） |
 | `clone()` | 创建轻量进程 | 创建 Agent 线程（stc_agent） |
@@ -80,7 +80,7 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操�
 
 以下 syscall 行为与 POSIX 存在差异，但保留签名：
 
-| syscall | POSIX 行为 | agentrt-linux 差异 | 原因 |
+| syscall | POSIX 行为 | agent-linux 差异 | 原因 |
 |---------|------------|---------------------|------|
 | `sched_yield()` | 让出 CPU | 让出 CPU + Token 预算检查 | Agent 调度感知 |
 | `nice()` | 调整 nice 值 | 映射至 stc_agent 优先级 | 调度类差异 |
@@ -105,9 +105,9 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 内核基线的智能体操�
 
 ### 3.1 语义差异对比表
 
-agentrt-linux 提供两种进程创建接口：标准 POSIX `fork()` 与 Agent 专属 `airy_agent_fork()`。下表详细对比两者语义差异：
+agent-linux 提供两种进程创建接口：标准 POSIX `fork()` 与 Agent 专属 `airy_agent_fork()`。下表详细对比两者语义差异：
 
-| 维度 | `fork()`（POSIX） | `airy_agent_fork()`（agentrt-linux 扩展） |
+| 维度 | `fork()`（POSIX） | `airy_agent_fork()`（agent-linux 扩展） |
 |------|-------------------|-----------------------------------------------|
 | **创建对象** | 子进程（拷贝父进程映像） | 子 Agent（独立租户） |
 | **资源隔离** | COW 共享父进程地址空间 | cgroup v2 + Landlock + capability 三重隔离 |
@@ -129,7 +129,7 @@ agentrt-linux 提供两种进程创建接口：标准 POSIX `fork()` 与 Agent �
  * sys_fork - 标准 POSIX fork
  *
  * 行为：完全 POSIX 兼容，创建子进程
- * agentrt-linux 扩展：子进程默认继承父进程 Agent 状态
+ * agent-linux 扩展：子进程默认继承父进程 Agent 状态
  * 若父进程是 Agent，子进程自动注册为子 Agent
  */
 SYSCALL_DEFINE0(fork)
@@ -220,7 +220,7 @@ SYSCALL_DEFINE1(airy_agent_fork,
 
 ### 4.1 语义扩展
 
-`mmap()` 在 agentrt-linux 中扩展支持映射 MemoryRovol 卷：
+`mmap()` 在 agent-linux 中扩展支持映射 MemoryRovol 卷：
 
 ```c
 /*
@@ -246,8 +246,8 @@ void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
 | 调用方式 | 行为 |
 |----------|------|
 | `mmap(addr, len, prot, flags, fd, offset)` 标准调用 | 完全 POSIX 兼容 |
-| `mmap()` + `MAP_MEMORYROVOL` | agentrt-linux 扩展 |
-| 在非 agentrt-linux 上用 `MAP_MEMORYROVOL` | 返回 -EINVAL（未知标志） |
+| `mmap()` + `MAP_MEMORYROVOL` | agent-linux 扩展 |
+| 在非 agent-linux 上用 `MAP_MEMORYROVOL` | 返回 -EINVAL（未知标志） |
 
 ---
 
@@ -286,7 +286,7 @@ int airy_sched_set_agent_param(pid_t pid, const struct airy_sched_param *ap);
 | 调用方式 | 行为 |
 |----------|------|
 | `sched_setscheduler(pid, SCHED_OTHER, &param)` | POSIX 兼容 |
-| `sched_setscheduler(pid, SCHED_DEADLINE, &param)` | agentrt-linux 扩展（sched_tac SCHED_DEADLINE=6） |
+| `sched_setscheduler(pid, SCHED_DEADLINE, &param)` | agent-linux 扩展（sched_tac SCHED_DEADLINE=6） |
 | 非 Agent 进程设置 stc_agent 策略 | 返回 -EPERM |
 
 ---
@@ -295,7 +295,7 @@ int airy_sched_set_agent_param(pid_t pid, const struct airy_sched_param *ap);
 
 ### 6.1 glibc 兼容性
 
-agentrt-linux 内置 glibc 2.34+，与主流发行版二进制兼容：
+agent-linux 内置 glibc 2.34+，与主流发行版二进制兼容：
 
 | 发行版 | glibc 版本 | 二进制兼容 |
 |--------|------------|------------|
@@ -310,21 +310,21 @@ agentrt-linux 内置 glibc 2.34+，与主流发行版二进制兼容：
 # 在 Ubuntu 22.04 上编译二进制
 gcc -o myapp myapp.c
 
-# 复制到 agentrt-linux 运行
-scp myapp agentrt-linux-host:/tmp/
-ssh agentrt-linux-host /tmp/myapp
+# 复制到 agent-linux 运行
+scp myapp agent-linux-host:/tmp/
+ssh agent-linux-host /tmp/myapp
 # 预期：正常运行，无需重新编译
 ```
 
 ### 6.3 动态链接兼容
 
-agentrt-linux 提供以下动态链接兼容：
+agent-linux 提供以下动态链接兼容：
 
 | 库 | 兼容性 | 说明 |
 |----|--------|------|
 | glibc | 完全兼容 | 与主流发行版二进制兼容 |
-| libagentrt.so | agentrt-linux 专属 | SDK 库 |
-| libcupolas.so | agentrt-linux 专属 | 安全库 |
+| libagentrt.so | agent-linux 专属 | SDK 库 |
+| libcupolas.so | agent-linux 专属 | 安全库 |
 | libpthread | 兼容 | NPTL 实现 |
 
 ---
@@ -333,7 +333,7 @@ agentrt-linux 提供以下动态链接兼容：
 
 ### 7.1 测试套件
 
-agentrt-linux 通过以下测试套件验证 POSIX 兼容性：
+agent-linux 通过以下测试套件验证 POSIX 兼容性：
 
 | 测试套件 | 验证范围 | 通过标准 |
 |----------|----------|----------|
@@ -354,9 +354,9 @@ agentrt-linux 通过以下测试套件验证 POSIX 兼容性：
 
 ## 8. 降级运行支持
 
-### 8.1 非 agentrt-linux 环境降级
+### 8.1 非 agent-linux 环境降级
 
-Agent 应用在非 agentrt-linux 环境下，SDK 自动降级：
+Agent 应用在非 agent-linux 环境下，SDK 自动降级：
 
 ```python
 # SDK 检测宿主环境，自动降级
@@ -366,14 +366,14 @@ client = CognitionClient()
 result = client.process("hello")
 
 # SDK 内部：
-#   - agentrt-linux: syscall(AIRY_SYS_CALL)  # 认知处理经 AIRY_SYS_CALL op 子命令承载
+#   - agent-linux: syscall(AIRY_SYS_CALL)  # 认知处理经 AIRY_SYS_CALL op 子命令承载
 #   - 主流 Linux: 用户态消息队列调用 cogn_d
 #   - 无 daemon: 本地推理（功能受限）
 ```
 
 ### 8.2 降级能力对照
 
-| 能力 | agentrt-linux | 主流 Linux | 无 daemon |
+| 能力 | agent-linux | 主流 Linux | 无 daemon |
 |------|---------------|------------|-----------|
 | stc_agent | 是 | 否（降级 EEVDF） | 否 |
 | MemoryRovol | CXL + MGLRU | 文件系统 | 内存 |
@@ -393,7 +393,7 @@ result = client.process("hello")
 | fork() vs airy_agent_fork() | 行为对比测试 | 语义符合设计 |
 | mmap() MemoryRovol | 扩展功能测试 | 映射成功 |
 | sched_setscheduler() | stc_agent 测试 | 调度类切换 |
-| 降级运行 | 非 agentrt-linux 测试 | 自动降级 |
+| 降级运行 | 非 agent-linux 测试 | 自动降级 |
 
 ### 9.2 fork() 对比测试
 
@@ -431,5 +431,5 @@ result = client.process("hello")
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）POSIX 兼容性设计 v1.0.1
-> 遵循 IRON-9 v3 [IND] 完全独立层（POSIX 兼容性为 agentrt-linux 专属设计）
+> **文档结束** | agent-linux（AirymaxOS）POSIX 兼容性设计 v1.0.1
+> 遵循 IRON-9 v3 [IND] 完全独立层（POSIX 兼容性为 agent-linux 专属设计）

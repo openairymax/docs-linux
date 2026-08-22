@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）编码规范详细设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）字符编码规范与 UTF-8 处理详细设计\
+# agent-linux（AirymaxOS）编码规范详细设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）字符编码规范与 UTF-8 处理详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）编码规范旨在为内核态与用户态代码统一字符编码处理标准。本设计聚焦三大目标：
+agent-linux（AirymaxOS）编码规范旨在为内核态与用户态代码统一字符编码处理标准。本设计聚焦三大目标：
 
 1. **内核态 UTF-8 一等公民支持**：内核态禁用 `wchar_t`，所有字符串以 UTF-8 字节序列表达，提供 UTF-8 校验、长度、子串、迭代原语
 2. **用户态 Unicode 规范一致性**：12 daemon 与 9 协议适配层统一使用 UTF-8 编码，禁止 GB2312/GBK/Shift-JIS 等非 Unicode 编码流入系统
@@ -30,7 +30,7 @@ agentrt-linux（AirymaxOS）编码规范旨在为内核态与用户态代码统�
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。编码契约在 agentrt 与 agentrt-linux 之间属于 IRON-9 v3 [SC] 共享契约层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。编码契约在 agentrt 与 agent-linux 之间属于 IRON-9 v3 [SC] 共享契约层。
 
 ### 1.4 编码规范矩阵
 
@@ -51,7 +51,7 @@ agentrt-linux（AirymaxOS）编码规范旨在为内核态与用户态代码统�
 
 ### 2.1 禁止 wchar_t 规则
 
-agentrt-linux 内核态严格禁止使用 `wchar_t` 类型，原因有三：
+agent-linux 内核态严格禁止使用 `wchar_t` 类型，原因有三：
 
 1. **Linux 6.6 内核不提供 wchar_t 运行时支持**：内核态没有 `wprintf`、`wcslen`、`wcscpy` 等 C 标准库宽字符函数
 2. **wchar_t 大小不可移植**：Linux 上 4 字节，Windows 上 2 字节，会导致跨平台数据不兼容
@@ -77,7 +77,7 @@ UTF-8 编码规则（RFC 3629）：
 
 ### 2.3 内核 UTF-8 原语库
 
-> **规划态声明**：`include/linux/airy_utf8.h` **不存在**（Linux 6.6 基线无此头文件，agentrt-linux 内核侧亦未提供）。以下为设计草案；实际实现时可复用 Linux 6.6 内核既有 UTF-8 设施（`fs/unicode/` 的 `utf8_*` 或 `lib/utf8.c`），或在 [IND] 层新建同名头文件后回填引用。
+> **规划态声明**：`include/linux/airy_utf8.h` **不存在**（Linux 6.6 基线无此头文件，agent-linux 内核侧亦未提供）。以下为设计草案；实际实现时可复用 Linux 6.6 内核既有 UTF-8 设施（`fs/unicode/` 的 `utf8_*` 或 `lib/utf8.c`），或在 [IND] 层新建同名头文件后回填引用。
 
 ```c
 /* include/linux/airy_utf8.h —— 规划态：内核态 UTF-8 原语（设计草案） */
@@ -268,7 +268,7 @@ static inline int airy_utf8_next(struct airy_utf8_iter *it,
 
 ### 2.4 安全字符串操作规范
 
-agentrt-linux 内核态严格禁止 `strcpy`、`strcat`、`sprintf`、`gets` 等不安全函数，统一使用 `strscpy`、`strscpy_pad`、`scnprintf`：
+agent-linux 内核态严格禁止 `strcpy`、`strcat`、`sprintf`、`gets` 等不安全函数，统一使用 `strscpy`、`strscpy_pad`、`scnprintf`：
 
 ```c
 /* 安全字符串操作示例（K&R 风格，Tab=8） */
@@ -277,14 +277,14 @@ agentrt-linux 内核态严格禁止 `strcpy`、`strcat`、`sprintf`、`gets` 等
 #include <airymax/airy_utf8.h>
 
 /* 错误示例：禁止使用 strcpy（缓冲区溢出风险） */
-/* int bad_example(char *dst) { strcpy(dst, "agentrt-linux"); } */
+/* int bad_example(char *dst) { strcpy(dst, "agent-linux"); } */
 
 /* 正确示例：使用 strscpy（自动截断并保证 NUL 终止） */
 int good_example(char *dst, size_t dst_size)
 {
 	int ret;
 
-	ret = strscpy(dst, "agentrt-linux", dst_size);
+	ret = strscpy(dst, "agent-linux", dst_size);
 	if (ret < 0)
 		return -E2BIG;
 	return 0;
@@ -494,7 +494,7 @@ result = client.complete(
 
 ### 4.2 Token 计数规范
 
-agentrt-linux 的 Token 计数遵循"按 Unicode 码点计数"原则：
+agent-linux 的 Token 计数遵循"按 Unicode 码点计数"原则：
 
 | 字符类型 | 字节数 | 码点数 | Token 计数 |
 |----------|--------|--------|------------|
@@ -615,7 +615,7 @@ int airy_printk_utf8_safe(const char *level, const char *msg, size_t msg_len)
 
 > **规划态声明**：`AIRY_E_ENCODING_*`（下表 -904~-910）**未在 [SC] error.h 注册**（[SC] 中不存在 `AIRY_E_ENCODING_*` 段，也未占用 -900 段），以下数值均为**规划值**；落地时须向 error.h 保留段 241-300 申请注册，并同步更新 `30-interfaces/08-sc-error-contract.md`。
 
-编码错误码规划纳入 agentrt-linux 统一错误码体系：
+编码错误码规划纳入 agent-linux 统一错误码体系：
 
 | 错误码 | 数值 | 含义 |
 |--------|------|------|
@@ -666,7 +666,7 @@ int airy_validate_input(const char *input, size_t len)
 
 ## 9. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[SC]） | agentrt（[SC]） | 共享 |
+| 组件 | agent-linux（[SC]） | agentrt（[SC]） | 共享 |
 |------|------------------------|------------------|------|
 | UTF-8 头文件 | `airy_utf8.h` | `airy_utf8.h` | 完全共享 |
 | 错误码（规划态） | AIRY_E_ENCODING_*（未在 [SC] 注册，待 error.h 保留段 241-300 申请） | 同左 | 规划中（error.h 保留段 241-300） |
@@ -696,4 +696,4 @@ int airy_validate_input(const char *input, size_t len)
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）编码规范详细设计 
+> **文档结束** | agent-linux（AirymaxOS）编码规范详细设计 

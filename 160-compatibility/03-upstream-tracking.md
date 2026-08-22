@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 上游追踪策略
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义追踪 Linux 6.6 上游 stable 补丁、merge window 策略与 CVE backport 流程\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义追踪 Linux 6.6 上游 stable 补丁、merge window 策略与 CVE backport 流程\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：Linux 6.6 LTS 内核维护流程（IRON-9 v3 [IND] 完全独立层，上游追踪为 agentrt-linux 专属策略）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：Linux 6.6 LTS 内核维护流程（IRON-9 v3 [IND] 完全独立层，上游追踪为 agent-linux 专属策略）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[IND] 完全独立层（上游追踪为 agentrt-linux 作为 OS 发行版的专属维护策略）
+> **IRON-9 v3 层次**：[IND] 完全独立层（上游追踪为 agent-linux 作为 OS 发行版的专属维护策略）
 
 ---
 
@@ -16,23 +16,23 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）基于 Linux 6.6 内核基线开发，必须持续追踪上游 stable 补丁，确保安全漏洞及时修复、缺陷及时修补、硬件兼容性持续扩展。上游追踪策略达成以下工程目标：
+agent-linux（AirymaxOS）基于 Linux 6.6 内核基线开发，必须持续追踪上游 stable 补丁，确保安全漏洞及时修复、缺陷及时修补、硬件兼容性持续扩展。上游追踪策略达成以下工程目标：
 
 1. **及时安全响应**：高危 CVE 在 7 天内 backport，中危 30 天，低危 90 天
 2. **稳定基线锁定**：仅追踪 Linux 6.6 stable 分支，不盲目跟随 mainline
 3. **merge window 纪律**：每 2 周一次 minor merge，每季度一次 major merge
 4. **补丁序列化管理**：所有 backport 补丁通过 git cherry-pick + 冲突解决
-5. **回归测试保障**：每次 merge 后运行完整测试套件，确保不破坏 agentrt-linux 专属扩展
+5. **回归测试保障**：每次 merge 后运行完整测试套件，确保不破坏 agent-linux 专属扩展
 
 ### 1.2 上游追踪原则
 
-agentrt-linux 遵循以下上游追踪原则：
+agent-linux 遵循以下上游追踪原则：
 
 | 原则 | 说明 |
 |------|------|
 | 基线锁定 | 锁定 Linux 6.6.x stable，不追随 mainline 主线 |
 | 选择性 backport | 仅 backport 安全补丁与关键缺陷修复 |
-| 冲突优先解决 | 与 agentrt-linux 专属补丁冲突时，优先保留上游修复 |
+| 冲突优先解决 | 与 agent-linux 专属补丁冲突时，优先保留上游修复 |
 | 测试前置 | 任何 backport 必须经测试套件验证方可合入 |
 | 文档同步 | 每次合入更新 CHANGELOG 与安全公告 |
 
@@ -45,9 +45,9 @@ Linux 上游仓库（kernel.org）
     |
     +-- linux-6.6.y（stable 分支，6.6.x）
          |
-         +-- agentrt-linux-6.6（agentrt-linux 维护分支）
+         +-- agent-linux-6.6（agent-linux 维护分支）
               |
-              +-- agentrt-linux-6.6-stable（发布分支）
+              +-- agent-linux-6.6-stable（发布分支）
 ```
 
 ---
@@ -56,7 +56,7 @@ Linux 上游仓库（kernel.org）
 
 ### 2.1 stable 补丁来源
 
-agentrt-linux 追踪以下上游补丁来源：
+agent-linux 追踪以下上游补丁来源：
 
 | 来源 | URL/路径 | 频率 | 内容 |
 |------|----------|------|------|
@@ -87,7 +87,7 @@ set -e
 
 UPSTREAM_REMOTE="https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
 UPSTREAM_BRANCH="linux-6.6.y"
-LOCAL_BRANCH="agentrt-linux-6.6"
+LOCAL_BRANCH="agent-linux-6.6"
 
 # 1. 同步上游 stable 分支
 git fetch $UPSTREAM_REMOTE $UPSTREAM_BRANCH
@@ -126,20 +126,20 @@ echo "其他补丁: $(wc -l < patches-other.txt)"
 
 ### 2.4 openEuler OLK-6.6 硬件适配层同步
 
-agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-018-openeuler-硬件驱动复用-layer-决策vanilla-66144--openeuler-硬件适配层正交叠加)）复用 openEuler OLK-6.6 的硬件适配层。同步策略如下：
+agent-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-018-openeuler-硬件驱动复用-layer-决策vanilla-66144--openeuler-硬件适配层正交叠加)）复用 openEuler OLK-6.6 的硬件适配层。同步策略如下：
 
 | 维度 | 策略 |
 |------|------|
 | 同步源 | https://atomgit.com/openeuler/kernel.git（分支 OLK-6.6） |
 | 同步频率 | 跟随 openEuler LTS 节奏（约每月一次） |
 | 同步范围 | 仅 `drivers/`、`arch/` 硬件适配层（排除 `kernel/sched/`、`security/` 核心子系统修改） |
-| 版本对齐 | agentrt-linux 基线为 vanilla 6.6.149；OLK-6.6 为 6.6.0 分叉 + openEuler 补丁维护（SUBLEVEL=0），硬件适配补丁经 LAYER 正交叠加，不依赖 `6.6.0-148` 段对齐 |
+| 版本对齐 | agent-linux 基线为 vanilla 6.6.149；OLK-6.6 为 6.6.0 分叉 + openEuler 补丁维护（SUBLEVEL=0），硬件适配补丁经 LAYER 正交叠加，不依赖 `6.6.0-148` 段对齐 |
 | IRON-7 保障 | openeuler_defconfig 中触及核心子系统的 CONFIG 由 `configs/defconfig-agent` 覆盖回 vanilla 默认值 |
 | KABI 标记剥离 | openeuler_defconfig 中引用 `__KABI_*` 宏的 CONFIG 剥离后保留功能、去除 KABI 占位 |
 
 **与 §2.1 Linux 6.6 stable 补丁追踪的关系**：Linux 6.6 stable 补丁追踪（§2.1-2.3）针对 vanilla 内核基线的安全/缺陷修复；本节（§2.4）针对 openEuler 硬件适配层的同步。两者正交，不冲突——stable 补丁修复内核核心，LAYER 同步扩展硬件兼容。
 
-> 详细 LAYER 可行性论证见闭源文档 [11-layer-feasibility-study.md](../../../docs-closed/agentrt-linux/01-openeuler-tech-reference/11-layer-feasibility-study.md)。
+> 详细 LAYER 可行性论证见闭源文档 [11-layer-feasibility-study.md](../../../docs-closed/agent-linux/01-openeuler-tech-reference/11-layer-feasibility-study.md)。
 
 ---
 
@@ -147,7 +147,7 @@ agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-
 
 ### 3.1 merge window 节奏
 
-agentrt-linux 采用两级 merge window 节奏：
+agent-linux 采用两级 merge window 节奏：
 
 | 类型 | 频率 | 范围 | 测试要求 |
 |------|------|------|----------|
@@ -164,7 +164,7 @@ agentrt-linux 采用两级 merge window 节奏：
         v
 [2] backport（周二-周三）
    ├── git cherry-pick 每个补丁
-   ├── 解决与 agentrt-linux 专属补丁的冲突
+   ├── 解决与 agent-linux 专属补丁的冲突
    └── 标注冲突解决说明
         |
         v
@@ -206,7 +206,7 @@ agentrt-linux 采用两级 merge window 节奏：
         v
 [3] 完整测试（第 4-6 周）
    ├── LTP 完整套件
-   ├── agentrt-linux 8 子仓测试
+   ├── agent-linux 8 子仓测试
    ├── POSIX 兼容性测试（PCTS）
    ├── ABI 兼容性检查
    ├── 性能基准测试
@@ -255,7 +255,7 @@ agentrt-linux 采用两级 merge window 节奏：
 
 原 commit: <原 commit hash>
 原分支: linux-6.6.y
-backport 至: agentrt-linux-6.6
+backport 至: agent-linux-6.6
 
 冲突说明:
 - <文件路径>: <冲突原因>
@@ -264,7 +264,7 @@ backport 至: agentrt-linux-6.6
 测试:
 - [x] 编译通过
 - [x] LTP 相关用例通过
-- [x] agentrt-linux 专属测试通过
+- [x] agent-linux 专属测试通过
 
 Signed-off-by: <backport 者>
 Reviewed-by: <审查者>
@@ -282,9 +282,9 @@ git cherry-pick <upstream_commit>
 # 查看冲突
 git diff
 
-# 解决冲突：保留上游修复 + 保留 agentrt-linux 专属扩展
+# 解决冲突：保留上游修复 + 保留 agent-linux 专属扩展
 # 例如：上游修复了 sched_core 中的内存泄漏
-#       agentrt-linux 在同一文件扩展了 sched_tac
+#       agent-linux 在同一文件扩展了 sched_tac
 # 解决方式：应用上游修复 + 保留 sched_tac 代码
 
 # 标记冲突已解决
@@ -306,7 +306,7 @@ git cherry-pick --continue
 set -e
 
 COMMIT=$1
-BRANCH="agentrt-linux-6.6"
+BRANCH="agent-linux-6.6"
 
 if [ -z "$COMMIT" ]; then
     echo "Usage: $0 <commit-hash>"
@@ -344,7 +344,7 @@ echo "After resolving, run: git cherry-pick --continue"
 
 ### 5.1 CVE 响应流程示例
 
-以 CVE-2024-XXXX（假设为内核 netfilter 提权漏洞）为例，展示从上游到 agentrt-linux 的完整 backport 流程：
+以 CVE-2024-XXXX（假设为内核 netfilter 提权漏洞）为例，展示从上游到 agent-linux 的完整 backport 流程：
 
 ```
 [第 0 天] CVE 公告
@@ -355,7 +355,7 @@ echo "After resolving, run: git cherry-pick --continue"
         |
         v
 [第 1 天] 影响评估
-   ├── 确认 agentrt-linux 受影响
+   ├── 确认 agent-linux 受影响
    ├── 检查上游修复补丁是否已发布
    ├── 上游修复 commit: a1b2c3d4
    └── 标记为 P0 优先级
@@ -365,7 +365,7 @@ echo "After resolving, run: git cherry-pick --continue"
    ├── git cherry-pick a1b2c3d4
    ├── 冲突检测（net/netfilter/ 目录）
    ├── 解决冲突（如有）
-   │   ├── agentrt-linux 在 netfilter 扩展了 Cupolas 钩子
+   │   ├── agent-linux 在 netfilter 扩展了 Cupolas 钩子
    │   └── 保留上游修复 + 保留 Cupolas 钩子
    ├── 编译验证
    └── 生成 backport commit
@@ -375,7 +375,7 @@ echo "After resolving, run: git cherry-pick --continue"
    ├── 编写 CVE 复现测试用例
    ├── 运行 PoC 验证漏洞已修复
    ├── 运行 LTP netfilter 测试
-   ├── 运行 agentrt-linux 网络测试
+   ├── 运行 agent-linux 网络测试
    ├── 运行 Cupolas 安全测试
    └── 确认无回归
         |
@@ -387,7 +387,7 @@ echo "After resolving, run: git cherry-pick --continue"
         |
         v
 [第 7 天] 发布
-   ├── 发布 agentrt-linux-6.6.149-airymax.1
+   ├── 发布 agent-linux-6.6.149-airymax.1
    ├── 发布安全公告（AIRYMAX-SA-2024-XX）
    ├── 更新 CVE 影响文档
    ├── 通知用户升级
@@ -445,8 +445,8 @@ int main(void)
 ## 漏洞信息
 - CVE ID: CVE-2024-XXXX
 - CVSS 评分: 8.5（高危）
-- 影响版本: agentrt-linux < 6.6.149-airymax.1
-- 修复版本: agentrt-linux 6.6.149-airymax.1
+- 影响版本: agent-linux < 6.6.149-airymax.1
+- 修复版本: agent-linux 6.6.149-airymax.1
 
 ## 漏洞描述
 Linux 内核 netfilter 子系统存在本地提权漏洞...
@@ -456,7 +456,7 @@ Linux 内核 netfilter 子系统存在本地提权漏洞...
 本地低权限用户可利用此漏洞提权至 root...
 
 ## 修复方案
-升级至 agentrt-linux 6.6.149-airymax.1 或更高版本
+升级至 agent-linux 6.6.149-airymax.1 或更高版本
 
 ## 补丁来源
 上游修复 commit: a1b2c3d4
@@ -468,11 +468,11 @@ backport commit: e5f6g7h8
 
 ---
 
-## 6. agentrt-linux 专属补丁保护
+## 6. agent-linux 专属补丁保护
 
 ### 6.1 专属补丁清单
 
-agentrt-linux 在 Linux 6.6 基线上有大量专属补丁，需在 merge 时保护：
+agent-linux 在 Linux 6.6 基线上有大量专属补丁，需在 merge 时保护：
 
 | 补丁类别 | 估计数量 | 冲突风险 |
 |----------|----------|----------|
@@ -486,30 +486,30 @@ agentrt-linux 在 Linux 6.6 基线上有大量专属补丁，需在 merge 时保
 
 ```bash
 # scripts/upstream/check-conflict-risk.sh
-# 预测上游补丁与 agentrt-linux 专属补丁的冲突风险
+# 预测上游补丁与 agent-linux 专属补丁的冲突风险
 
 UPSTREAM_COMMIT=$1
 
 # 获取上游补丁修改的文件列表
 CHANGED_FILES=$(git show --name-only --format= $UPSTREAM_COMMIT)
 
-# 检查每个文件是否被 agentrt-linux 专属补丁修改过
+# 检查每个文件是否被 agent-linux 专属补丁修改过
 for file in $CHANGED_FILES; do
-    # 检查该文件是否有 agentrt-linux 专属修改
-    if git log --oneline agentrt-linux-6.6 -- $file | \
+    # 检查该文件是否有 agent-linux 专属修改
+    if git log --oneline agent-linux-6.6 -- $file | \
        grep -qiE "agentrt|airymax|cupolas|memoryrov|user_sched"; then
-        echo "HIGH RISK: $file (has agentrt-linux changes)"
+        echo "HIGH RISK: $file (has agent-linux changes)"
     fi
 done
 ```
 
 ### 6.3 专属补丁回归测试
 
-每次 merge 后运行 agentrt-linux 专属测试套件：
+每次 merge 后运行 agent-linux 专属测试套件：
 
 ```bash
 # scripts/test/airymaxos-regression.sh
-# agentrt-linux 专属回归测试
+# agent-linux 专属回归测试
 
 set -e
 
@@ -558,7 +558,7 @@ if [ "$LATEST" != "$CURRENT" ]; then
     mail -s "Linux 6.6 stable release $LATEST" \
          airymax-kernel-maintainers@spharx.dev << EOF
 New Linux 6.6 stable release available: $LATEST
-Current agentrt-linux version: $CURRENT
+Current agent-linux version: $CURRENT
 Please review and plan backport.
 EOF
 fi
@@ -595,7 +595,7 @@ done
 
 ### 8.1 版本号格式
 
-agentrt-linux 采用以下版本号格式：
+agent-linux 采用以下版本号格式：
 
 ```
 <kernel_version>-airymax.<airy_release>[.<patch>]
@@ -611,7 +611,7 @@ agentrt-linux 采用以下版本号格式：
 | 版本段 | 含义 | 变更触发 |
 |--------|------|----------|
 | `6.6.149` | 上游 Linux stable 版本 | 上游 minor merge |
-| `airymax.1` | agentrt-linux 发布号 | 每次 stable 发布 |
+| `airymax.1` | agent-linux 发布号 | 每次 stable 发布 |
 | `.1` | 补丁号 | 安全补丁或紧急修复 |
 
 ---
@@ -661,5 +661,5 @@ agentrt-linux 采用以下版本号格式：
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）上游追踪策略 v1.0.1
-> 遵循 IRON-9 v3 [IND] 完全独立层（上游追踪为 agentrt-linux 专属维护策略）
+> **文档结束** | agent-linux（AirymaxOS）上游追踪策略 v1.0.1
+> 遵循 IRON-9 v3 [IND] 完全独立层（上游追踪为 agent-linux 专属维护策略）

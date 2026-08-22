@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 服务设计文档
+# agent-linux 服务设计文档
 
-> **文档定位**：agentrt-linux 服务设计文档（Airymax Services 极境服务）\
+> **文档定位**：agent-linux 服务设计文档（Airymax Services 极境服务）\
 > **文档版本**：v1.0.1\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 daemons 通过 \[SC] 共享契约层 + \[SS] 语义同源层协作，\[IND] 用户态 VFS/网络栈/驱动框架/systemd 集成实现独立\
 > **子仓编号**：02\
 > **子仓代号**：极境服务（Airymax Services）\
@@ -22,7 +22,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [4. 核心特性](#4-核心特性)
 - [5. 微内核思想体现](#5-微内核思想体现)
 - [6. IRON-9 v3 四层共享模型落地](#6-iron-9-v3-四层共享模型落地)
-- [7. agentrt-linux 工程基线](#7-agentrt-linux-工程基线)
+- [7. agent-linux 工程基线](#7-agent-linux-工程基线)
 - [8. 前沿理论参考](#8-前沿理论参考)
 - [9. 与其他子仓的协作](#9-与其他子仓的协作)
 - [10. 里程碑（M0-M8）](#10-里程碑m0-m8)
@@ -34,7 +34,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 子仓职责
 
-`services` 是 agentrt-linux（AirymaxOS）的用户态系统服务子仓，承担以下核心职责：
+`services` 是 agent-linux（AirymaxOS）的用户态系统服务子仓，承担以下核心职责：
 
 1. **用户态 VFS \[IND]**：文件系统实现下放至用户态服务，内核仅保留虚拟文件系统层。
 2. **用户态网络栈 \[IND]**：基于 DPDK/AF\_XDP 实现高性能用户态网络协议栈。
@@ -44,7 +44,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 横切关注点声明
 
-服务是横切关注点（cross-cutting concern），贯穿 agentrt-linux 全部 4 大数据流：
+服务是横切关注点（cross-cutting concern），贯穿 agent-linux 全部 4 大数据流：
 
 | 数据流      | 服务切入点                                   | 同源标注   |
 | -------- | --------------------------------------- | ------ |
@@ -57,7 +57,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 同源关系（IRON-9 v3 四层共享模型）
 
-依据 IRON-9 v3 决策，agentrt（用户态 daemons）与 agentrt-linux（用户态 services）通过四层共享模型协作（\[SC] 共享契约 + \[SS] 语义同源 + \[IND] 完全独立 + \[DSL] 降级生存）：
+依据 IRON-9 v3 决策，agentrt（用户态 daemons）与 agent-linux（用户态 services）通过四层共享模型协作（\[SC] 共享契约 + \[SS] 语义同源 + \[IND] 完全独立 + \[DSL] 降级生存）：
 
 | 层次               | 共享程度                               | 服务子系统内容                                                                                                                                                                                                                                    | 组织方式                                 |
 | ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
@@ -68,7 +68,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 维度对比
 
-| 维度        | agentrt（daemons）                | agentrt-linux（services）         | 同源标注   |
+| 维度        | agentrt（daemons）                | agent-linux（services）         | 同源标注   |
 | --------- | ------------------------------- | ------------------------------- | ------ |
 | 服务数量      | 12 daemons                      | 12 daemons + VFS/Net/Drivers    | \[SS]  |
 | daemon 语义 | macro\_d/logger\_d/...   | macro\_d/logger\_d/...   | \[SS]  |
@@ -76,13 +76,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | IPC magic | 0x41524531 'ARE1'               | 0x41524531 'ARE1'               | \[SC]  |
 | 通信方式      | 进程间消息队列                         | io\_uring 零拷贝 IPC               | \[SS]  |
 | 通信原语      | 用户态 channel/socket/fifo         | io\_uring channel/socket/fifo   | \[SS]  |
-| 服务管理      | 自研 supervisor                   | systemd 集成（agentrt-linux 标准）    | \[IND] |
+| 服务管理      | 自研 supervisor                   | systemd 集成（agent-linux 标准）    | \[IND] |
 | 部署形态      | 用户态进程                           | systemd unit + capability       | \[IND] |
 | 跨平台       | Linux/macOS/Windows             | Linux 6.6 专属                    | \[IND] |
 
 ### 2.2 同源传承要点
 
-- 保留 agentrt 的 12 daemons 语义（agentrt-linux 统一 `_d` 命名：sec_d/cogn_d/mem_d/gateway_d/logger_d/macro_d/audit_d/sched_d/dev_d/net_d/vfs_d/config_d；agentrt 旧称 macro_superv/logger_daemon/config_daemon 对应 macro_d/logger_d/config_d，见 90-terminology.md 旧称映射）\[SS]。
+- 保留 agentrt 的 12 daemons 语义（agent-linux 统一 `_d` 命名：sec_d/cogn_d/mem_d/gateway_d/logger_d/macro_d/audit_d/sched_d/dev_d/net_d/vfs_d/config_d；agentrt 旧称 macro_superv/logger_daemon/config_daemon 对应 macro_d/logger_d/config_d，见 90-terminology.md 旧称映射）\[SS]。
 - 保留 agentrt 的"消息传递"通信范式（升级为 io\_uring 零拷贝实现）\[SS]。
 - 保留 agentrt 的 capability 令牌传递语义（升级为内核态强制）\[SS]。
 - IPC 消息头与操作码 \[SC] 共享，确保两端通信协议一致。
@@ -110,7 +110,7 @@ services/
 │   ├── sec_d/               # 安全策略守护
 │   ├── audit_d/             # 审计守护
 │   └── dev_d/               # 设备驱动守护
-├── systemd/               # systemd 集成（agentrt-linux 标准）[IND]
+├── systemd/               # systemd 集成（agent-linux 标准）[IND]
 ├── ipc/                   # 消息传递通信（基于 io_uring）[SS]
 └── docs/
 ```
@@ -170,7 +170,7 @@ services/
 
 ### 3.5 systemd/（systemd 集成）\[IND]
 
-遵循 **agentrt-linux 基础系统治理组** 标准：
+遵循 **agent-linux 基础系统治理组** 标准：
 
 - `units/`：systemd unit 文件目录 \[IND]。
 - `targets/`：systemd target 定义（airymaxos.target 等）\[IND]。
@@ -247,7 +247,7 @@ services/
 
 ```ini
 [Unit]
-Description=agentrt-linux Gateway Daemon
+Description=agent-linux Gateway Daemon
 After=network.target airymaxos-ipc.target
 Requires=airymaxos-ipc.target
 
@@ -412,7 +412,7 @@ services 层 io\_uring IPC 实现严格遵循 OLK 6.6 工程规范：
 
 **6.2.1 12 daemons 语义同源（12 项）**
 
-| 序号 | daemon      | 职责         | agentrt 实现 | agentrt-linux 实现          |
+| 序号 | daemon      | 职责         | agentrt 实现 | agent-linux 实现          |
 | -- | ----------- | ---------- | ---------- | ------------------------- |
 | 1  | `macro_d`  | 主监管守护进程     | 用户态进程      | systemd unit + capability |
 | 2  | `logger_d` | 日志消费守护进程    | 用户态进程      | systemd unit + capability |
@@ -429,7 +429,7 @@ services 层 io\_uring IPC 实现严格遵循 OLK 6.6 工程规范：
 
 **6.2.2 io\_uring IPC 通信原语同源（8 项）**
 
-| 序号 | 原语                | 语义              | agentrt 实现     | agentrt-linux 实现              |
+| 序号 | 原语                | 语义              | agentrt 实现     | agent-linux 实现              |
 | -- | ----------------- | --------------- | -------------- | ----------------------------- |
 | 1  | Channel           | 双向面向消息          | 用户态消息队列        | io\_uring ring + MSG\_RING    |
 | 2  | Socket            | 双向面向流           | 用户态流传输         | io\_uring SEND/RECV           |
@@ -445,15 +445,15 @@ services 层 io\_uring IPC 实现严格遵循 OLK 6.6 工程规范：
 | 序号 | 内容                             | 不共享原因                               |
 | -- | ------------------------------ | ----------------------------------- |
 | 1  | 用户态 VFS 实现                     | seL4 服务用户态化参考（ADR-014），AirymaxOS 专属 |
-| 2  | 用户态网络栈（DPDK/AF\_XDP）           | 内核旁路网络仅 agentrt-linux               |
-| 3  | 用户态驱动框架（VFIO/libvfio）          | 设备驱动用户态化仅 agentrt-linux             |
-| 4  | systemd 集成                     | OS 级服务管理仅 agentrt-linux             |
-| 5  | cgroup v2 资源管理                 | 内核 cgroup 仅 agentrt-linux           |
-| 6  | journald 日志聚合                  | OS 级日志系统仅 agentrt-linux             |
-| 7  | 具体文件系统实现（ext4/xfs/tmpfs/btrfs） | 文件系统驱动仅 agentrt-linux               |
-| 8  | systemd unit 文件                | 服务配置仅 agentrt-linux                 |
-| 9  | systemd target/generator       | 系统启动管理仅 agentrt-linux               |
-| 10 | seccomp 过滤器                    | 内核系统调用过滤仅 agentrt-linux             |
+| 2  | 用户态网络栈（DPDK/AF\_XDP）           | 内核旁路网络仅 agent-linux               |
+| 3  | 用户态驱动框架（VFIO/libvfio）          | 设备驱动用户态化仅 agent-linux             |
+| 4  | systemd 集成                     | OS 级服务管理仅 agent-linux             |
+| 5  | cgroup v2 资源管理                 | 内核 cgroup 仅 agent-linux           |
+| 6  | journald 日志聚合                  | OS 级日志系统仅 agent-linux             |
+| 7  | 具体文件系统实现（ext4/xfs/tmpfs/btrfs） | 文件系统驱动仅 agent-linux               |
+| 8  | systemd unit 文件                | 服务配置仅 agent-linux                 |
+| 9  | systemd target/generator       | 系统启动管理仅 agent-linux               |
+| 10 | seccomp 过滤器                    | 内核系统调用过滤仅 agent-linux             |
 
 ### 6.4 跨态协作流
 
@@ -521,12 +521,12 @@ graph TD
 
 ***
 
-## 7. agentrt-linux 工程基线
+## 7. agent-linux 工程基线
 
-- **agentrt-linux 基础系统治理组**：systemd、基础系统服务最佳实践 \[IND]。
-- **agentrt-linux 网络子系统**：用户态网络栈基线 \[IND]。
-- **agentrt-linux 驱动框架**：用户态驱动框架基线 \[IND]。
-- **agentrt-linux 服务管理**：systemd unit 规范 \[IND]。
+- **agent-linux 基础系统治理组**：systemd、基础系统服务最佳实践 \[IND]。
+- **agent-linux 网络子系统**：用户态网络栈基线 \[IND]。
+- **agent-linux 驱动框架**：用户态驱动框架基线 \[IND]。
+- **agent-linux 服务管理**：systemd unit 规范 \[IND]。
 
 ### 7.1 五维正交 24 原则映射
 
@@ -598,7 +598,7 @@ graph TD
 
 ### 11.1 命名一致性
 
-| 维度            | agentrt                         | agentrt-linux services          | 一致性        |
+| 维度            | agentrt                         | agent-linux services          | 一致性        |
 | ------------- | ------------------------------- | ------------------------------- | ---------- |
 | daemon 名称     | macro\_d/logger\_d/config\_d/...    | macro\_d/logger\_d/config\_d/...    | \[SS] 同源语义 |
 | IPC magic     | 0x41524531 'ARE1'               | 0x41524531 'ARE1'               | \[SC] 共享契约 |
@@ -608,7 +608,7 @@ graph TD
 
 ### 11.2 语义一致性
 
-| 语义   | agentrt daemons | agentrt-linux services       | 一致                  |
+| 语义   | agentrt daemons | agent-linux services       | 一致                  |
 | ---- | --------------- | ---------------------------- | ------------------- |
 | 服务数量 | 12 daemons      | 12 daemons + VFS/Net/Drivers | \[SS] 同源 + 扩展       |
 | 通信方式 | 进程间消息队列         | io\_uring 零拷贝 IPC            | \[SS] AirymaxOS 增强  |
@@ -656,12 +656,12 @@ graph TD
 - DPDK 项目文档
 - AF\_XDP 教程
 - VFIO/libvfio 项目文档
-- agentrt-linux 基础系统治理组文档
+- agent-linux 基础系统治理组文档
 - systemd 官方文档
 - agentrt daemons 设计文档
 - io\_uring 设计文档（Documentation/io\_uring/）
 
 ***
 
-> **文档结束** | agentrt-linux（AirymaxOS）服务设计文档 v1.0.1 | 2026-07-07
+> **文档结束** | agent-linux（AirymaxOS）服务设计文档 v1.0.1 | 2026-07-07
 

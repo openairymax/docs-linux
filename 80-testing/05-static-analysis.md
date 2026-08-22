@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）静态分析
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 5 卷——编译时静态分析（Static Analysis）。本卷规定 Sparse（内核静态分析工具）、Smatch（语义匹配）、Coccinelle（语义补丁检测）、Clang Static Analyzer、Coverity 扫描集成、checkpatch.pl 扩展、[SC] 头文件编译器无关性检查（`check-uapi-compiler-agnostic.sh`）的启用模型、规则配置与 `ci-kernel` workflow 集成。\
+# agent-linux（AirymaxOS）静态分析
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 5 卷——编译时静态分析（Static Analysis）。本卷规定 Sparse（内核静态分析工具）、Smatch（语义匹配）、Coccinelle（语义补丁检测）、Clang Static Analyzer、Coverity 扫描集成、checkpatch.pl 扩展、[SC] 头文件编译器无关性检查（`check-uapi-compiler-agnostic.sh`）的启用模型、规则配置与 `ci-kernel` workflow 集成。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 5 卷，回答"编译时代码错误怎么发现"。它在 04-dynamic-analysis（运行时检测）与 06-coverage-metrics（覆盖率度量）之间形成编译时分析层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 5 卷，回答"编译时代码错误怎么发现"。它在 04-dynamic-analysis（运行时检测）与 06-coverage-metrics（覆盖率度量）之间形成编译时分析层：
 
 - **上游依赖**：README 定义"测试体系分层"——L5 静态分析由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 11 层（编译时分析层）。
 - **下游依赖**：06-coverage-metrics 定义"代码覆盖率怎么测"；10-formal-verification 定义"形式化验证怎么做"——本卷的静态分析结果与形式化验证互补。
@@ -30,7 +30,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | Clang Static Analyzer | Clang 编译器内置的静态分析器 |
 | Coverity | 商业静态分析服务，扫描内核代码 |
 | `checkpatch.pl` | 内核代码风格检查脚本 |
-| `check-uapi-compiler-agnostic.sh` | agentrt-linux 专属脚本，校验 [SC] 头文件编译器无关性 |
+| `check-uapi-compiler-agnostic.sh` | agent-linux 专属脚本，校验 [SC] 头文件编译器无关性 |
 | `ci-kernel` workflow | CI 流水线的静态分析阶段 |
 
 ---
@@ -41,7 +41,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 内核静态分析是 Linux 6.6 内核基线中"在编译时（或独立阶段）通过工具分析代码模式发现错误"的机制。其设计目标有三：**编译时反馈**（无需运行代码即可发现错误）、**零运行开销**（不影响生产部署）、**模式覆盖**（检测人眼易遗漏的代码模式）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的静态分析工具链（Sparse/Smatch/Coccinelle/checkpatch.pl），不修改任何上游源文件。agentrt-linux 专属静态分析以独立 `scripts/airy_*.sh` 脚本形式驻留于 `scripts/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
+agent-linux 完整继承 Linux 6.6 内核基线的静态分析工具链（Sparse/Smatch/Coccinelle/checkpatch.pl），不修改任何上游源文件。agent-linux 专属静态分析以独立 `scripts/airy_*.sh` 脚本形式驻留于 `scripts/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
 
 ```mermaid
 flowchart TB
@@ -64,7 +64,7 @@ flowchart TB
     B3 --> C
     B4 --> C
     B5 --> C
-    subgraph "agentrt-linux 扩展层（[IND]）"
+    subgraph "agent-linux 扩展层（[IND]）"
         D["airy_checkpatch_ext.pl<br/>checkpatch 扩展规则"]
         E["check-uapi-compiler-agnostic.sh<br/>[SC] 头文件编译器无关性校验"]
         F["airy_sparse_rules<br/>Agent 专属 Sparse 规则"]
@@ -92,7 +92,7 @@ flowchart TB
 
 **OS-TEST-060**：CI PR 阶段必须运行 checkpatch + Sparse + Coccinelle 三项静态分析；任一工具报告 `error` 级别问题即阻断 PR。
 
-**OS-KER-120**：agentrt-linux 专属模块（`kernel/airymaxos/`）必须通过 `airy_checkpatch_ext.pl` 扩展规则；扩展规则比上游 checkpatch 更严格（如禁止 `printk` 必须用 `pr_*`）。
+**OS-KER-120**：agent-linux 专属模块（`kernel/airymaxos/`）必须通过 `airy_checkpatch_ext.pl` 扩展规则；扩展规则比上游 checkpatch 更严格（如禁止 `printk` 必须用 `pr_*`）。
 
 ---
 
@@ -125,9 +125,9 @@ make CHECK=/usr/bin/sparse
 make C=1 CF="-Wbitwise -Wno-bitwise-pointer -Wcontext -Wdecl -Wno-transparent-union"
 ```
 
-### 2.3 Sparse 在 agentrt-linux 的应用
+### 2.3 Sparse 在 agent-linux 的应用
 
-agentrt-linux 在 `airy_defconfig` 中启用 Sparse 注解：
+agent-linux 在 `airy_defconfig` 中启用 Sparse 注解：
 
 ```c
 /* include/uapi/linux/airymax/airy_types.h */
@@ -162,13 +162,13 @@ void airy_agent_state_set(int agent_id, int state)
 #endif /* _AIRY_TYPES_H */
 ```
 
-**OS-TEST-061**：agentrt-linux 专属模块必须使用 `__user`/`__iomem`/`__rcu`/`__bitwise` 注解；CI PR 阶段的 Sparse 报告中，`warning: incorrect type in assignment` 类警告即阻断 PR。
+**OS-TEST-061**：agent-linux 专属模块必须使用 `__user`/`__iomem`/`__rcu`/`__bitwise` 注解；CI PR 阶段的 Sparse 报告中，`warning: incorrect type in assignment` 类警告即阻断 PR。
 
 **OS-KER-121**：`airy_agent_id_t` / `airy_cap_id_t` / `airy_token_t` 必须为 `__bitwise` 类型；CI 通过 Sparse 验证三者之间无赋值，违反即 PR 驳回。
 
 ### 2.4 `airy_sparse_rules`：Agent 专属 Sparse 规则
 
-agentrt-linux 扩展 Sparse 规则集，位于 `scripts/airy_sparse_rules/`：
+agent-linux 扩展 Sparse 规则集，位于 `scripts/airy_sparse_rules/`：
 
 | 规则 ID | 检测内容 | 严重性 |
 |--------|---------|--------|
@@ -254,9 +254,9 @@ Linux 6.6 在 `scripts/coccinelle/` 下提供 80+ 规则，覆盖以下类别：
 | `misc` | `scripts/coccinelle/misc/` | `boolinit.cocci`（bool 初始化） |
 | `free` | `scripts/coccinelle/free/` | `kfree.cocci`（kfree 后访问） |
 
-### 4.4 agentrt-linux 专属 Coccinelle 规则
+### 4.4 agent-linux 专属 Coccinelle 规则
 
-`scripts/coccinelle/airy/` 下定义 agentrt-linux 专属规则：
+`scripts/coccinelle/airy/` 下定义 agent-linux 专属规则：
 
 ```cocci
 // scripts/coccinelle/airy/airy_agent_state_access.cocci
@@ -298,7 +298,7 @@ position p != locked_context.p;
   airy_ipc_ring_*@p(E)
 ```
 
-**OS-TEST-063**：agentrt-linux 专属 Coccinelle 规则（`AIRY-COCCI-001` ~ `AIRY-COCCI-010`）必须在 CI PR 阶段运行；任一规则触发即阻断 PR。
+**OS-TEST-063**：agent-linux 专属 Coccinelle 规则（`AIRY-COCCI-001` ~ `AIRY-COCCI-010`）必须在 CI PR 阶段运行；任一规则触发即阻断 PR。
 
 ---
 
@@ -327,15 +327,15 @@ scan-build make ARCH=um -j$(nproc)
 scan-view /tmp/scan-build-*/
 ```
 
-### 5.3 在 agentrt-linux 的应用
+### 5.3 在 agent-linux 的应用
 
-agentrt-linux 在 CI nightly 阶段运行 Clang 静态分析器，重点扫描 `kernel/airymaxos/` 目录：
+agent-linux 在 CI nightly 阶段运行 Clang 静态分析器，重点扫描 `kernel/airymaxos/` 目录：
 
 ```bash
 # CI nightly 步骤
 scan-build -o /tmp/scan-build \
   --status-bugs \
-  --html-title="agentrt-linux Clang Static Analysis" \
+  --html-title="agent-linux Clang Static Analysis" \
   make ARCH=um CC=clang -j$(nproc) kernel/airymaxos/
 ```
 
@@ -349,9 +349,9 @@ scan-build -o /tmp/scan-build \
 
 Coverity 是 Synopsys 公司的商业静态分析服务，提供深度跨函数分析与漏洞检测。Linux 内核社区通过 `coverity.com` 免费扫描内核代码。
 
-### 6.2 agentrt-linux Coverity 集成
+### 6.2 agent-linux Coverity 集成
 
-agentrt-linux 每周自动同步代码至 Coverity Scan：
+agent-linux 每周自动同步代码至 Coverity Scan：
 
 ```yaml
 # .github/workflows/coverity-scan.yml
@@ -369,7 +369,7 @@ jobs:
       - name: Install Coverity Build Tool
         run: |
           wget -q https://scan.coverity.com/download/linux64 \
-            --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=agentrt-linux" \
+            --post-data "token=${{ secrets.COVERITY_TOKEN }}&project=agent-linux" \
             -O cov-analysis-linux64.tgz
           tar xzf cov-analysis-linux64.tgz
       - name: Build with cov-build
@@ -382,13 +382,13 @@ jobs:
           cov-build --dir cov-int make ARCH=um -j$(nproc)
       - name: Submit to Coverity Scan
         run: |
-          tar czf agentrt-linux.tgz cov-int
+          tar czf agent-linux.tgz cov-int
           curl --form token=${{ secrets.COVERITY_TOKEN }} \
                --form email=ci@spharx.com \
-               --form file=@agentrt-linux.tgz \
+               --form file=@agent-linux.tgz \
                --form version="$(git rev-parse --short HEAD)" \
-               --form description="agentrt-linux weekly scan" \
-               https://scan.coverity.com/builds?project=agentrt-linux
+               --form description="agent-linux weekly scan" \
+               https://scan.coverity.com/builds?project=agent-linux
 ```
 
 **OS-TEST-065**：Coverity 报告的高优先级缺陷（High impact）必须在 72 小时内修复；中优先级（Medium）在 1 周内修复；低优先级（Low）在 1 个月内修复。
@@ -407,9 +407,9 @@ Linux 6.6 的 `scripts/checkpatch.pl` 是内核代码风格检查脚本，检测
 - 错误处理模式
 - 内存管理（`kmalloc` 返回值检查）
 
-### 7.2 `airy_checkpatch_ext.pl`：agentrt-linux 扩展
+### 7.2 `airy_checkpatch_ext.pl`：agent-linux 扩展
 
-`scripts/airy_checkpatch_ext.pl` 在上游 checkpatch 基础上添加 agentrt-linux 专属规则：
+`scripts/airy_checkpatch_ext.pl` 在上游 checkpatch 基础上添加 agent-linux 专属规则：
 
 | 规则 ID | 检测内容 | 严重性 |
 |--------|---------|--------|
@@ -427,7 +427,7 @@ Linux 6.6 的 `scripts/checkpatch.pl` 是内核代码风格检查脚本，检测
 ```perl
 # scripts/airy_checkpatch_ext.pl
 #!/usr/bin/perl
-# agentrt-linux checkpatch 扩展规则
+# agent-linux checkpatch 扩展规则
 
 sub airy_check {
     my ($line, $file, $lineno) = @_;
@@ -474,7 +474,7 @@ sub airy_check {
 
 ### 8.1 检查目标
 
-IRON-9 v3 [SC] 共享契约层的 12 个头文件（`error.h` / `log_types.h` / `ipc.h` / `sched.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `syscalls.h` / `syscall.h` / `uapi_compat.h` / `lsm_types.h` / `bpf_struct_ops.h`）必须**编译器无关**——即用 GCC、Clang、TinyCC（TCC）等任意 C 编译器均能编译通过，且语义一致。这保证 [SC] 头文件可在 agentrt（用户态）与 agentrt-linux（内核态）之间无障碍共享。
+IRON-9 v3 [SC] 共享契约层的 12 个头文件（`error.h` / `log_types.h` / `ipc.h` / `sched.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `syscalls.h` / `syscall.h` / `uapi_compat.h` / `lsm_types.h` / `bpf_struct_ops.h`）必须**编译器无关**——即用 GCC、Clang、TinyCC（TCC）等任意 C 编译器均能编译通过，且语义一致。这保证 [SC] 头文件可在 agentrt（用户态）与 agent-linux（内核态）之间无障碍共享。
 
 ### 8.2 `check-uapi-compiler-agnostic.sh` 脚本
 
@@ -623,7 +623,7 @@ jobs:
       - name: Run Coccinelle
         run: |
           make coccicheck MODE=report M=kernel/airymaxos/ 2>&1 | tee coccinelle.log
-          # 检查 agentrt-linux 专属规则
+          # 检查 agent-linux 专属规则
           make coccicheck MODE=report \
             COCCI=scripts/coccinelle/airy/airy_agent_state_access.cocci
           make coccicheck MODE=report \
@@ -753,4 +753,4 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 5 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 5 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

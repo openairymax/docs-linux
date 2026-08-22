@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）调度性能工程设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）调度子系统性能工程详细设计\
+# agent-linux（AirymaxOS）调度性能工程设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）调度子系统性能工程详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提供确定性可预测的 CPU 调度能力。本设计聚焦于三大目标：
+agent-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提供确定性可预测的 CPU 调度能力。本设计聚焦于三大目标：
 
 1. **Agent 延迟 SLO 100% 保障**：L1 认知延迟 ≤ 100ms、L2 规划延迟 ≤ 1s、L3 执行延迟 ≤ 10s，在 99 分位（P99）下达成
 2. **Token 能效最大化**：每瓦功耗处理的 Token 数（Token/Watt）较默认 CFS 调度器提升 ≥ 30%
@@ -29,7 +29,7 @@ agentrt-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提�
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。禁止使用"微内核原语"描述 agentrt 的能力，正确表述为"微核心原语"。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。禁止使用"微内核原语"描述 agentrt 的能力，正确表述为"微核心原语"。
 
 ### 1.4 性能分层与 SLO 指标
 
@@ -47,7 +47,7 @@ agentrt-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提�
 
 ### 2.1 sched_tac 在 Linux 6.6 的部署
 
-标准 Linux 6.6 主线不包含 sched_ext（6.12 才合入主线）。agentrt-linux 不向前移植 sched_ext，而是采用sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）作为用户态调度器，复用 Linux 6.6 原生调度类。启用配置如下：
+标准 Linux 6.6 主线不包含 sched_ext（6.12 才合入主线）。agent-linux 不向前移植 sched_ext，而是采用sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）作为用户态调度器，复用 Linux 6.6 原生调度类。启用配置如下：
 
 ```kconfig
 # kernel/.config（节选）
@@ -100,7 +100,7 @@ sched_tac 用户态调度器通过 `struct airy_sched_ops` 暴露下列回调（
 
 ### 3.1 Q16.16 定点数表示
 
-Linux 6.6 内核态禁用浮点（kernel_fpu 禁用），因此 vtime 必须以定点数表达。agentrt-linux 采用 **Q16.16 定点数**（`airy_q16_t`，宿主类型 `__s32`），整数部分 16 位、小数部分 16 位，定义于 `include/uapi/linux/airymax/cognition_types.h`（IRON-9 v3 [SC] 共享契约层，A-UCS）：
+Linux 6.6 内核态禁用浮点（kernel_fpu 禁用），因此 vtime 必须以定点数表达。agent-linux 采用 **Q16.16 定点数**（`airy_q16_t`，宿主类型 `__s32`），整数部分 16 位、小数部分 16 位，定义于 `include/uapi/linux/airymax/cognition_types.h`（IRON-9 v3 [SC] 共享契约层，A-UCS）：
 
 ```c
 /* include/uapi/linux/airymax/cognition_types.h —— Q16.16 定点数（[SC] 实际宿主）
@@ -214,7 +214,7 @@ static airy_weight_t airy_sched_agent_compute_weight(
 
 ### 4.1 Agent kthread 与 daemon 的亲和性策略
 
-agentrt-linux 的 12 个 daemon 与认知层 kthread 共享 CPU 资源。亲和性策略遵循以下规则：
+agent-linux 的 12 个 daemon 与认知层 kthread 共享 CPU 资源。亲和性策略遵循以下规则：
 
 1. **认知 kthread 绑定 NUMA-local CPU**：CoreLoopThree 的 L1/L2/L3 kthread 与对应 MemoryRovol 内存域同 NUMA 节点
 2. **LLM 推理 daemon（cogn_d）独占物理核**：通过 cpuset.cpus 隔离，避免被抢占
@@ -224,7 +224,7 @@ agentrt-linux 的 12 个 daemon 与认知层 kthread 共享 CPU 资源。亲和�
 ### 4.2 CPU 拓扑感知的调度映射
 
 ```c
-/* agentrt-linux CPU 亲和性映射表 */
+/* agent-linux CPU 亲和性映射表 */
 struct airy_sched_agent_topo {
 	int node_id;            /* NUMA 节点 */
 	int die_id;            /* CPU die */
@@ -262,7 +262,7 @@ static int airy_sched_agent_set_affinity(struct task_struct *p,
 	return 0;
 
 out_err:
-	pr_warn("agentrt-linux: set_affinity failed for pid=%d ret=%d\n",
+	pr_warn("agent-linux: set_affinity failed for pid=%d ret=%d\n",
 		p->pid, ret);
 	return ret;
 }
@@ -273,7 +273,7 @@ out_err:
 通过 cgroup v2 的 cpuset 子系统为关键 daemon 设置独占核：
 
 ```bash
-# /etc/airymaxos/cpuset.conf —— agentrt-linux cpuset 隔离配置
+# /etc/airymaxos/cpuset.conf —— agent-linux cpuset 隔离配置
 # 拓扑假设：8 核 / 2 NUMA / SMT=2
 
 # cogn_d 独占 CPU2, CPU6（物理核对）
@@ -449,7 +449,7 @@ grep -E 'tokens/sec' "$RESULT_DIR/token_throughput.txt"
 
 ### 6.3 性能指标采集与上报
 
-通过 user_events 向 agentrt-linux 可观测性子系统（audit_d）上报指标：
+通过 user_events 向 agent-linux 可观测性子系统（audit_d）上报指标：
 
 ```c
 /* 用户态调度指标上报示例 */
@@ -479,7 +479,7 @@ static int emit_sched_metric(const struct sched_agent_metric *m)
 	return 0;
 
 out_err:
-	pr_warn("agentrt-linux: emit sched_metric failed ret=%d\n", ret);
+	pr_warn("agent-linux: emit sched_metric failed ret=%d\n", ret);
 	return ret;
 }
 ```
@@ -507,16 +507,16 @@ sched_tac 用户态调度器内置心跳看门狗机制，若用户态调度器 
 void agent_exit(struct airy_sched_exit_info *info)
 {
 	if (info->kind == AIRY_SCHED_EXIT_DAEMON_ERROR)
-		fprintf(stderr, "agentrt-linux: stc_agent daemon error %d\n",
+		fprintf(stderr, "agent-linux: stc_agent daemon error %d\n",
 			info->exit_code);
 	else if (info->kind == AIRY_SCHED_EXIT_WATCHDOG)
-		fprintf(stderr, "agentrt-linux: watchdog timeout, fallback to EEVDF\n");
+		fprintf(stderr, "agent-linux: watchdog timeout, fallback to EEVDF\n");
 }
 ```
 
 ### 7.2 错误码体系对接
 
-调度器错误码纳入 agentrt-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，IRON-9 v3 [SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**。A-ULS Sched/Lifecycle 段为 **121-140**（原文档虚构的 -200 段 `AIRY_E_SCHED_*` 符号在 [SC] error.h 中不存在，已废弃）：
+调度器错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，IRON-9 v3 [SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**。A-ULS Sched/Lifecycle 段为 **121-140**（原文档虚构的 -200 段 `AIRY_E_SCHED_*` 符号在 [SC] error.h 中不存在，已废弃）：
 
 | 错误码 | 数值 | 含义 | 原文档符号（已废弃） |
 |--------|------|------|---------------------|
@@ -583,7 +583,7 @@ out_free:
 
 ## 9. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
+| 组件 | agent-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
 |------|------------------------|------------------|--------------|
 | 调度语义 | stc_agent（sched_tac） | MicroCoreRT 用户态调度 | 调度语义（概念同源，签名独立演进） |
 | vtime 公式 | Q16.16 内核态 | Q16.16 用户态 | `airy_q16_t` 头文件 |
@@ -615,4 +615,4 @@ out_free:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）调度性能工程设计 
+> **文档结束** | agent-linux（AirymaxOS）调度性能工程设计 

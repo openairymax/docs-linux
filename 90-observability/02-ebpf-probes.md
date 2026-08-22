@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）eBPF 可编程探针
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L2 层——可编程内核探针 eBPF 的工程规范\
+# agent-linux（AirymaxOS）eBPF 可编程探针
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L2 层——可编程内核探针 eBPF 的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 eBPF/BTF/kfunc/struct_ops\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-2 可观测性\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态可观测性通过 [SC] 共享契约层 + [SS] 语义同源层协作，[IND] 内核态实现独立
@@ -23,7 +23,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [第 8 章 BPF map 类型](#第-8-章-bpf-map-类型)
 - [第 9 章 eBPF 程序加载流程](#第-9-章-ebpf-程序加载流程)
 - [第 10 章 用户态调度器策略注册机制（sched_tac）](#第-10-章-用户态调度器策略注册机制方案-c-prime)
-- [第 11 章 agentrt-linux Token 能效监控与 Agent 行为追踪](#第-11-章-agentrt-linux-token-能效监控与-agent-行为追踪)
+- [第 11 章 agent-linux Token 能效监控与 Agent 行为追踪](#第-11-章-agent-linux-token-能效监控与-agent-行为追踪)
 - [第 12 章 五维原则映射](#第-12-章-五维原则映射)
 - [第 13 章 IRON-9 v3 四层共享模型落地](#第-13-章-iron-9-v2-三层共享模型落地)
 - [第 14 章 相关文档与版本维护](#第-14-章-相关文档与版本维护)
@@ -34,13 +34,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-eBPF（extended Berkeley Packet Filter）是 Linux 6.6 内核基线提供的可编程探针框架。它允许在内核态运行经过验证器验证的字节码程序，无需修改内核源码或加载内核模块。agentrt-linux 选择 eBPF 作为可观测性 L2 层，原因有三：
+eBPF（extended Berkeley Packet Filter）是 Linux 6.6 内核基线提供的可编程探针框架。它允许在内核态运行经过验证器验证的字节码程序，无需修改内核源码或加载内核模块。agent-linux 选择 eBPF 作为可观测性 L2 层，原因有三：
 
 1. **可编程性**：相比 ftrace 的固定 tracer 类型，eBPF 允许自定义采集逻辑，是 Agent 行为追踪与 Token 能效监控的核心载体。
 2. **安全可加载**：验证器在加载时静态分析所有路径，保证程序不会破坏内核稳定性，与 MicroCoreRT 极简内核契约的"零信任扩展"理念一致。
 3. **与 ftrace 共生**：eBPF 程序可挂载到 kprobe、tracepoint、perf_event 等挂载点，与 ftrace 共享 tracepoint 基础设施。
 
-**OS-OBS-011: eBPF 是 agentrt-linux 可观测性 L2 层的强制基线，所有动态可编程观测必须经 eBPF 实现，不得自行编写内核模块。**
+**OS-OBS-011: eBPF 是 agent-linux 可观测性 L2 层的强制基线，所有动态可编程观测必须经 eBPF 实现，不得自行编写内核模块。**
 
 **OS-KER-106: kernel 的 defconfig 必须开启 CONFIG_BPF、CONFIG_BPF_SYSCALL、CONFIG_BPF_JIT、CONFIG_BPF_EVENTS、CONFIG_DEBUG_INFO_BTF。**
 
@@ -111,7 +111,7 @@ struct btf_type { __u32 name_off; __u32 info; __u32 size_or_type; };
 #define BTF_KIND_FUNC 12; #define BTF_KIND_FUNC_PROTO 13
 ```
 
-### 3.2 BTF 在 agentrt-linux 的作用
+### 3.2 BTF 在 agent-linux 的作用
 
 BTF 是 eBPF 类型安全的基石。验证器依据 BTF 检查 BPF 程序访问的内核结构体字段是否合法、偏移是否越界、大小是否匹配。这使 eBPF 程序能在不依赖脆弱的内核头文件的前提下，安全访问 `struct task_struct`、`struct sock` 等核心结构。
 
@@ -141,13 +141,13 @@ BTF_KFUNCS_END(bpf_general_kfuncs)
 
 kfunc 支持参数注解以辅助验证器：`__sz` 标注缓冲区大小参数；`__k` 标注常量标量参数；`__uninit` 标注未初始化输出参数；`__opt` 标注可选参数。验证器据此做精确的边界与生命周期检查。
 
-**OS-OBS-013: agentrt-linux 自定义 kfunc 必须用 `__bpf_kfunc` 宏标注，并通过 `BTF_KFUNCS_START`/`BTF_KFUNCS_END` 注册；未注册的内核函数不得被 BPF 程序调用。**
+**OS-OBS-013: agent-linux 自定义 kfunc 必须用 `__bpf_kfunc` 宏标注，并通过 `BTF_KFUNCS_START`/`BTF_KFUNCS_END` 注册；未注册的内核函数不得被 BPF 程序调用。**
 
 **OS-KER-109: 规划注册 `bpf_agent_decision_get`、`bpf_agent_token_usage_get` 两个 kfunc（**当前 kernel 源码未注册，属规划**）；落地时供 BPF 程序查询 Agent 决策与 Token 消耗。**
 
 ### 4.3 kfunc 与 helper 区别
 
-BPF helper 是早期内核函数调用接口，签名固定、有限集；kfunc 是新一代机制，签名通过 BTF 描述、可扩展。Linux 6.6 内核基线推荐新代码使用 kfunc。agentrt-linux 遵循此约定：新观测 kfunc 优先，仅当无对应 kfunc 时退回 helper。
+BPF helper 是早期内核函数调用接口，签名固定、有限集；kfunc 是新一代机制，签名通过 BTF 描述、可扩展。Linux 6.6 内核基线推荐新代码使用 kfunc。agent-linux 遵循此约定：新观测 kfunc 优先，仅当无对应 kfunc 时退回 helper。
 
 ---
 
@@ -179,7 +179,7 @@ graph TD
     style B fill:#bbf7d0,stroke:#15803d
 ```
 
-**OS-OBS-014: agentrt-linux BPF 程序访问变长 Agent payload 必须使用 dynptr（`bpf_dynptr_from_skb`、`bpf_dynptr_slice`），不得直接对裸指针做算术运算。**
+**OS-OBS-014: agent-linux BPF 程序访问变长 Agent payload 必须使用 dynptr（`bpf_dynptr_from_skb`、`bpf_dynptr_slice`），不得直接对裸指针做算术运算。**
 
 **OS-STD-OBS-011: BPF 程序中所有 dynptr 在退出前必须调用 `submit` 或 `discard`，验证器检测到未释放 dynptr 必须拒绝加载。**
 
@@ -195,13 +195,13 @@ eBPF 安全性由验证器在加载时保证，分两阶段：第一阶段做 DA
 
 验证器维护每条指令处每个寄存器的类型状态：`PTR_TO_CTX`（上下文指针）、`PTR_TO_MAP`（map 指针）、`PTR_TO_STACK`（栈指针）、`SCALAR_VALUE`（标量）。`R1=R1+R1`（两指针相加）会得到 `SCALAR_VALUE` 而非指针，因为指针加指针无意义。load/store 指令只能作用于 `PTR_TO_CTX`、`PTR_TO_MAP`、`PTR_TO_STACK`，并做边界与对齐检查。
 
-**OS-OBS-015: agentrt-linux BPF 程序必须通过 `-O2 -g -target bpf` 编译，确保验证器能正确追踪寄存器状态；禁用 `-O0`（验证器会因复杂控制流拒绝）。**
+**OS-OBS-015: agent-linux BPF 程序必须通过 `-O2 -g -target bpf` 编译，确保验证器能正确追踪寄存器状态；禁用 `-O0`（验证器会因复杂控制流拒绝）。**
 
 **OS-KER-110: kernel 必须开启 CONFIG_BPF_VERIFIER_STATE_MARK 验证器状态标记能力，确保复杂 BPF 程序（如 Agent 决策追踪）能通过验证。**
 
 ### 6.3 验证器日志
 
-加载失败时验证器返回详细日志，可通过 `bpf_attr.log_buf` 获取。验证器日志含程序名、失败指令、错误原因三要素。agentrt-linux 规定所有 BPF 加载失败必须将验证器日志落审计至 `/var/log/airymaxos/bpf-load.log`，便于事后排查。
+加载失败时验证器返回详细日志，可通过 `bpf_attr.log_buf` 获取。验证器日志含程序名、失败指令、错误原因三要素。agent-linux 规定所有 BPF 加载失败必须将验证器日志落审计至 `/var/log/airymaxos/bpf-load.log`，便于事后排查。
 
 **OS-STD-OBS-012: BPF 程序加载失败时必须记录验证器日志，含程序名、失败指令偏移、错误原因三要素。**
 
@@ -211,7 +211,7 @@ eBPF 安全性由验证器在加载时保证，分两阶段：第一阶段做 DA
 
 ### 7.1 可观测性相关程序类型
 
-Linux 6.6 内核基线在 `include/uapi/linux/bpf.h` 定义了 30+ 种 BPF 程序类型。agentrt-linux 主要使用以下七种：
+Linux 6.6 内核基线在 `include/uapi/linux/bpf.h` 定义了 30+ 种 BPF 程序类型。agent-linux 主要使用以下七种：
 
 | 程序类型 | 挂载点 | 用途 |
 |---------|--------|------|
@@ -219,9 +219,9 @@ Linux 6.6 内核基线在 `include/uapi/linux/bpf.h` 定义了 30+ 种 BPF 程�
 | `BPF_PROG_TYPE_TRACEPOINT` | 内核 tracepoint | 静态埋点追踪 |
 | `BPF_PROG_TYPE_PERF_EVENT` | perf 事件 | 周期采样、CPU 剖析 |
 | `BPF_PROG_TYPE_RAW_TRACEPOINT` | 裸 tracepoint | 高性能、无参数过滤 |
-| `BPF_PROG_TYPE_STRUCT_OPS` | struct_ops 成员 | 子系统操作表回调（调度策略改用 sched_tac 用户态函数表；agentrt-linux 安全体系不使用 BPF struct_ops——纯 C LSM） |
+| `BPF_PROG_TYPE_STRUCT_OPS` | struct_ops 成员 | 子系统操作表回调（调度策略改用 sched_tac 用户态函数表；agent-linux 安全体系不使用 BPF struct_ops——纯 C LSM） |
 | `BPF_PROG_TYPE_TRACING` | fentry/fexit | 函数追踪（BTF 重定位） |
-| `BPF_PROG_TYPE_LSM` | LSM 钩子 | 通用参考——**agentrt-linux 安全体系不使用 BPF LSM**（安全钩子采用纯 C LSM，见 [110-security/07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md)） |
+| `BPF_PROG_TYPE_LSM` | LSM 钩子 | 通用参考——**agent-linux 安全体系不使用 BPF LSM**（安全钩子采用纯 C LSM，见 [110-security/07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md)） |
 
 ```c
 /* 可观测性 BPF 程序示例（kprobe）*/
@@ -242,7 +242,7 @@ char _license[] SEC("license") = "GPL";
 
 ### 7.2 kprobe 与 kretprobe
 
-kprobe 挂载于函数入口，kretprobe 挂载于函数返回。kretprobe 通过 `bpf_get_func_ip()` 与 `bpf_get_func_arg()` 获取返回值。agentrt-linux Agent 行为追踪同时使用两者：kprobe 记录决策入口，kretprobe 记录决策耗时与结果。
+kprobe 挂载于函数入口，kretprobe 挂载于函数返回。kretprobe 通过 `bpf_get_func_ip()` 与 `bpf_get_func_arg()` 获取返回值。agent-linux Agent 行为追踪同时使用两者：kprobe 记录决策入口，kretprobe 记录决策耗时与结果。
 
 **OS-OBS-016: Agent 决策追踪必须同时挂载 kprobe（入口）与 kretprobe（返回），形成完整闭环；仅挂载单一探针视为不完整观测。**
 
@@ -250,11 +250,11 @@ kprobe 挂载于函数入口，kretprobe 挂载于函数返回。kretprobe 通�
 
 ### 7.3 tracepoint 与 raw_tracepoint
 
-tracepoint 程序读取 tracepoint 参数需经 BTF 重定位；raw_tracepoint 性能更高但需手动解析参数。agentrt-linux 在高频路径（Agent 决策）使用 raw_tracepoint，低频路径（配置变更）使用 tracepoint。
+tracepoint 程序读取 tracepoint 参数需经 BTF 重定位；raw_tracepoint 性能更高但需手动解析参数。agent-linux 在高频路径（Agent 决策）使用 raw_tracepoint，低频路径（配置变更）使用 tracepoint。
 
 ### 7.4 struct_ops 与 tracing 程序
 
-`BPF_PROG_TYPE_STRUCT_OPS` 程序作为子系统的操作表成员，通过 `BPF_MAP_TYPE_STRUCT_OPS` map 注册（通用参考；**agentrt-linux 安全体系不使用 BPF struct_ops——安全钩子采用纯 C LSM**）。agentrt-linux sched_tac 用户态调度器通过 `struct airy_sched_ops` 函数表注册（详见第 10 章），不走 BPF struct_ops 机制。`BPF_PROG_TYPE_TRACING` 程序通过 fentry/fexit 挂载到内核函数入口/出口，相比 kprobe 性能更高（无 int3 陷阱），但需 BTF 支持。
+`BPF_PROG_TYPE_STRUCT_OPS` 程序作为子系统的操作表成员，通过 `BPF_MAP_TYPE_STRUCT_OPS` map 注册（通用参考；**agent-linux 安全体系不使用 BPF struct_ops——安全钩子采用纯 C LSM**）。agent-linux sched_tac 用户态调度器通过 `struct airy_sched_ops` 函数表注册（详见第 10 章），不走 BPF struct_ops 机制。`BPF_PROG_TYPE_TRACING` 程序通过 fentry/fexit 挂载到内核函数入口/出口，相比 kprobe 性能更高（无 int3 陷阱），但需 BTF 支持。
 
 ---
 
@@ -262,7 +262,7 @@ tracepoint 程序读取 tracepoint 参数需经 BTF 重定位；raw_tracepoint �
 
 ### 8.1 核心类型
 
-Linux 6.6 内核基线提供 28+ 种 BPF map 类型。agentrt-linux 常用以下几种：
+Linux 6.6 内核基线提供 28+ 种 BPF map 类型。agent-linux 常用以下几种：
 
 | 类型 | 实现 | 用途 |
 |------|------|------|
@@ -317,7 +317,7 @@ int trace_cognition(void *ctx)
 
 ### 9.1 加载步骤
 
-eBPF 程序从源码到运行经历五步：编译（clang -target bpf）、加载（bpf(BPF_PROG_LOAD)）、attach（kprobe/tracepoint/perf_event/struct_ops 挂载）、运行、卸载。agentrt-linux 推荐使用 libbpf 框架管理生命周期：
+eBPF 程序从源码到运行经历五步：编译（clang -target bpf）、加载（bpf(BPF_PROG_LOAD)）、attach（kprobe/tracepoint/perf_event/struct_ops 挂载）、运行、卸载。agent-linux 推荐使用 libbpf 框架管理生命周期：
 
 ```c
 /* libbpf 加载示例 */
@@ -346,7 +346,7 @@ graph TD
     style D fill:#fde68a,stroke:#b45309
 ```
 
-**OS-OBS-018: agentrt-linux 必须为每个 BPF 程序实现显式卸载路径（`bpf_link__destroy`），不得依赖进程退出隐式卸载；Agent 重载策略时必须先卸载旧 BPF 程序再加载新版本。**
+**OS-OBS-018: agent-linux 必须为每个 BPF 程序实现显式卸载路径（`bpf_link__destroy`），不得依赖进程退出隐式卸载；Agent 重载策略时必须先卸载旧 BPF 程序再加载新版本。**
 
 **OS-KER-112: kernel 必须支持 `bpf(BPF_LINK_CREATE)` 显式 link 创建，确保 BPF 程序生命周期可独立于加载进程管理。**
 
@@ -358,7 +358,7 @@ graph TD
 
 ### 10.1 设计哲学
 
-sched_tac 不使用 BPF struct_ops 机制注册调度策略——标准 Linux 6.6 主线不包含 sched_ext（SCHED_EXT BPF 调度器框架于 Linux 6.12 才合入主线），agentrt-linux 锁定 Linux 6.6 内核基线（ADR-013），因此可插拔调度策略改用**用户态函数表**实现。agentrt-linux 通过 `struct airy_sched_ops` 函数表注册 sched_tac 用户态调度器；安全体系亦不使用 BPF struct_ops/BPF LSM——安全钩子采用纯 C LSM（见 [110-security/07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md)）。
+sched_tac 不使用 BPF struct_ops 机制注册调度策略——标准 Linux 6.6 主线不包含 sched_ext（SCHED_EXT BPF 调度器框架于 Linux 6.12 才合入主线），agent-linux 锁定 Linux 6.6 内核基线（ADR-013），因此可插拔调度策略改用**用户态函数表**实现。agent-linux 通过 `struct airy_sched_ops` 函数表注册 sched_tac 用户态调度器；安全体系亦不使用 BPF struct_ops/BPF LSM——安全钩子采用纯 C LSM（见 [110-security/07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md)）。
 
 **核心设计哲学**：
 
@@ -368,7 +368,7 @@ sched_tac 不使用 BPF struct_ops 机制注册调度策略——标准 Linux 6.
 4. **状态机管理**：INIT → INUSE → TOBEFREE 四状态生命周期
 5. **零内核模块**：不编写调度类内核模块，策略完全在用户态演进
 
-**OS-OBS-021: agentrt-linux 可插拔调度策略必须通过用户态函数表（`struct airy_sched_ops`）集成，不得编写调度类内核模块；stc_agent 注册名为 `"airy_sched_ops"`。**
+**OS-OBS-021: agent-linux 可插拔调度策略必须通过用户态函数表（`struct airy_sched_ops`）集成，不得编写调度类内核模块；stc_agent 注册名为 `"airy_sched_ops"`。**
 
 ### 10.2 airy_sched_register() 注册接口
 
@@ -407,7 +407,7 @@ stateDiagram-v2
 
 **OS-KER-116: kernel 必须提供 `struct airy_sched_ops` 函数表注册接口（`airy_sched_register()`），用户态调度器通过此接口注册；不依赖 `CONFIG_SCHED_CLASS_EXT`/`CONFIG_BPF_SCHED`（标准 6.6 主线不含 sched_ext）。**
 
-**OS-OBS-022: agentrt-linux 用户态调度器加载后，策略守护进程必须通过 [SC] `airy_struct_ops_state` 读取函数表的 state 字段，确认 state==INUSE 后方可标记调度器在线。**
+**OS-OBS-022: agent-linux 用户态调度器加载后，策略守护进程必须通过 [SC] `airy_struct_ops_state` 读取函数表的 state 字段，确认 state==INUSE 后方可标记调度器在线。**
 
 ### 10.4 stc_agent 集成架构
 
@@ -443,11 +443,11 @@ stc_agent 沿用sched_tac 的软可靠性设计——用户态调度器失败/�
 
 ---
 
-## 第 11 章 agentrt-linux Token 能效监控与 Agent 行为追踪
+## 第 11 章 agent-linux Token 能效监控与 Agent 行为追踪
 
 ### 11.1 Token 能效监控
 
-agentrt-linux 规划通过 eBPF 实现 Token 能效监控：kprobe 挂载 Agent 决策入口，kretprobe 挂载出口，两者时间差为决策耗时；同时通过 `bpf_agent_token_usage_get` kfunc（**规划注册，见 OS-KER-109**）读取 Token 消耗，计算能效比（token/秒）：
+agent-linux 规划通过 eBPF 实现 Token 能效监控：kprobe 挂载 Agent 决策入口，kretprobe 挂载出口，两者时间差为决策耗时；同时通过 `bpf_agent_token_usage_get` kfunc（**规划注册，见 OS-KER-109**）读取 Token 消耗，计算能效比（token/秒）：
 
 ```c
 /* Token 能效监控 BPF 程序 */
@@ -504,9 +504,9 @@ int trace_dispatch_enter(struct pt_regs *ctx)
 
 ### 11.3 与 MicroCoreRT 协同
 
-MicroCoreRT 极简内核契约要求所有 BPF 程序代码体积最小化。agentrt-linux BPF 程序单文件指令数不得超过 1 万，编译后 .o 体积不得超过 64 KB。该约束体现 IRON-9 v3 同源且部分代码共享原则——与 agentrt 用户态观测通过 [SC] 共享 trace_event 头契约 + [SS] 语义同源（BPF map/ringbuf 模型），但 [IND] 内核态实现独立（BPF 字节码 vs 用户态进程）。
+MicroCoreRT 极简内核契约要求所有 BPF 程序代码体积最小化。agent-linux BPF 程序单文件指令数不得超过 1 万，编译后 .o 体积不得超过 64 KB。该约束体现 IRON-9 v3 同源且部分代码共享原则——与 agentrt 用户态观测通过 [SC] 共享 trace_event 头契约 + [SS] 语义同源（BPF map/ringbuf 模型），但 [IND] 内核态实现独立（BPF 字节码 vs 用户态进程）。
 
-**OS-KER-115: agentrt-linux BPF 程序编译后 .o 体积必须 < 64 KB，单程序指令数必须 < 1 万；超限视为违反 MicroCoreRT 极简契约。**
+**OS-KER-115: agent-linux BPF 程序编译后 .o 体积必须 < 64 KB，单程序指令数必须 < 1 万；超限视为违反 MicroCoreRT 极简契约。**
 
 ---
 
@@ -522,7 +522,7 @@ MicroCoreRT 极简内核契约要求所有 BPF 程序代码体积最小化。age
 | **C-3 记忆卷载** | BPF map 追踪 L1→L4 记忆演化命中率与淘汰率 |
 | **M-1 极境内核** | eBPF 不增加内核代码体积，扩展逻辑在验证器边界外 |
 
-agentrt-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则——每条 OS-OBS 规则都可追溯至至少一条五维原则。IRON-9 v3 同源且部分代码共享原则要求 eBPF 的内核态实现与 agentrt 用户态可观测性保持 [SC] 共享契约 + [SS] 语义同源 + [IND] 内核态实现独立。两端通过 MicroCoreRT 极简内核契约与 AgentsIPC 消息协议实现无适配层互操作。
+agent-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则——每条 OS-OBS 规则都可追溯至至少一条五维原则。IRON-9 v3 同源且部分代码共享原则要求 eBPF 的内核态实现与 agentrt 用户态可观测性保持 [SC] 共享契约 + [SS] 语义同源 + [IND] 内核态实现独立。两端通过 MicroCoreRT 极简内核契约与 AgentsIPC 消息协议实现无适配层互操作。
 
 ---
 
@@ -530,7 +530,7 @@ agentrt-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则—
 
 ### 13.1 四层共享模型
 
-IRON-9 v3 将 agentrt 与 agentrt-linux 的 eBPF 协作划分为四层：
+IRON-9 v3 将 agentrt 与 agent-linux 的 eBPF 协作划分为四层：
 
 | 层次 | 共享程度 | eBPF 内容 |
 |------|---------|----------|
@@ -558,11 +558,11 @@ struct airy_struct_ops_common_value {
 };
 ```
 
-**OS-STD-OBS-015: agentrt-linux eBPF 与 agentrt 共享 `include/uapi/linux/airymax/bpf_struct_ops.h` 头文件，struct_ops state 枚举值（0/1/2/3）与字段语义两端必须一致；两端事件格式必须一致，便于跨态聚合分析。**
+**OS-STD-OBS-015: agent-linux eBPF 与 agentrt 共享 `include/uapi/linux/airymax/bpf_struct_ops.h` 头文件，struct_ops state 枚举值（0/1/2/3）与字段语义两端必须一致；两端事件格式必须一致，便于跨态聚合分析。**
 
 ### 13.3 [SS] 语义同源层
 
-| 维度 | agentrt 用户态 | agentrt-linux 内核态 | 同源点 |
+| 维度 | agentrt 用户态 | agent-linux 内核态 | 同源点 |
 |------|----------------|------------------|--------|
 | struct_ops 注册宏 | 策略引擎注册回调 | `register_bpf_struct_ops()` | 宏模式同源 |
 | struct_ops 状态机 | 4 状态（INIT/REGISTERED/ACTIVE/DRAINING） | 4 状态 | 枚举值同源（[SC]） |
@@ -576,7 +576,7 @@ agentrt 的 `commons/metrics` 模块定义了 `airy_metrics_record(name, value)`
 
 ### 13.4 [IND] 完全独立层
 
-| 维度 | agentrt 用户态 | agentrt-linux 内核态 |
+| 维度 | agentrt 用户态 | agent-linux 内核态 |
 |------|----------------|------------------|
 | JIT 后端 | 不适用（用户态解释器/LLVM） | kernel x86_64/arm64 JIT |
 | trampoline 机制 | 不适用 | `arch_prepare_bpf_trampoline()` 本机码生成 |
@@ -589,10 +589,10 @@ agentrt 的 `commons/metrics` 模块定义了 `airy_metrics_record(name, value)`
 ```mermaid
 graph LR
     A[agentrt 用户态 hook] --> B[AgentsIPC 上报]
-    B --> C[agentrt-linux eBPF ringbuf]
+    B --> C[agent-linux eBPF ringbuf]
     D[内核态 BPF kprobe] --> C
     C --> E[user_events / ringbuf 统一消费]
-    F[agentrt 策略引擎] -->|读取 [SC] state 字段| G[agentrt-linux 调度器函数表 state]
+    F[agentrt 策略引擎] -->|读取 [SC] state 字段| G[agent-linux 调度器函数表 state]
     style C fill:#fde68a,stroke:#b45309
     style G fill:#bbf7d0,stroke:#15803d
 ```
@@ -621,8 +621,8 @@ MicroCoreRT 极简内核契约要求：内核态 BPF 程序不解析用户态事
 
 **OS-IRON-015: OS-KER / OS-STD / OS-OBS / OS-DRV 等所有规则编号一经分配不得复用；废弃规则标记 `DEPRECATED` 但保留编号。本规则为全局元规则，2026-07-15 从原 OS-STD-017 提升为 OS-IRON-015（编号管理元规则应归入 IRON 系列，因 OS-IRON-013 已被"8 子仓 submodule"占用而改用 OS-IRON-015）。**
 
-**维护责任**：文档负责人为 agentrt-linux 可观测性工程组；代码负责人为 kernel BPF 维护者；每个 LTS 小版本发布前重新核对 BPF 接口与规则编号有效性。
+**维护责任**：文档负责人为 agent-linux 可观测性工程组；代码负责人为 kernel BPF 维护者；每个 LTS 小版本发布前重新核对 BPF 接口与规则编号有效性。
 
 ---
 
-> **文档结束** | agentrt-linux eBPF 可编程探针 v1.0.1
+> **文档结束** | agent-linux eBPF 可编程探针 v1.0.1

@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # ABI 稳定性设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义 4 层接口稳定性分级、ABI 审查流程与弃用声明机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性体系核心子文档，定义 4 层接口稳定性分级、ABI 审查流程与弃用声明机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt ABI 稳定性（IRON-9 v3 [SC] 共享契约层共享 syscall 编号 + [SS] 语义同源层 SDK 层签名同源）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-ABI（Application Binary Interface）稳定性是操作系统的生命线。agentrt-linux（AirymaxOS）承诺：在 0.1.1 上编译的 Agent 应用二进制，到 1.0.1、3.0 LTS、5.0 LTS 上无需重新编译即可运行。ABI 稳定性设计达成以下工程目标：
+ABI（Application Binary Interface）稳定性是操作系统的生命线。agent-linux（AirymaxOS）承诺：在 0.1.1 上编译的 Agent 应用二进制，到 1.0.1、3.0 LTS、5.0 LTS 上无需重新编译即可运行。ABI 稳定性设计达成以下工程目标：
 
 1. **永不破坏承诺**：L1 层用户空间 ABI 一旦导出，永久支持（OS-IRON-001）
 2. **分级稳定性**：4 层接口按稳定性分级，匹配不同变更频率
@@ -26,20 +26,20 @@ ABI（Application Binary Interface）稳定性是操作系统的生命线。agen
 
 ### 1.2 双层稳定性哲学
 
-agentrt-linux 继承 Linux 内核的双层稳定性哲学：
+agent-linux 继承 Linux 内核的双层稳定性哲学：
 
 | 层次 | 稳定性承诺 | 依据 |
 |------|------------|------|
 | 用户空间 ABI | 永不破坏 | Linux 内核 30 年实践 |
 | 内核内部 API | 可自由重构 | Linus "we don't break userspace" 但内部可重构 |
 
-agentrt-linux 在此基础上扩展为 4 层分级，覆盖 Agent 操作系统特有的接口类型。
+agent-linux 在此基础上扩展为 4 层分级，覆盖 Agent 操作系统特有的接口类型。
 
 ### 1.3 与 agentrt 同源关系
 
 agentrt 用户态运行时的 ABI 稳定性与本设计遵循 IRON-9 v3：
 
-| 层次 | 共享内容 | agentrt-linux | agentrt |
+| 层次 | 共享内容 | agent-linux | agentrt |
 |------|----------|---------------|---------|
 | [SC] | syscall 编号、错误码、IPC 消息头 | 完全共享 | 完全共享 |
 | [SS] | SDK API 签名 | SDK 层签名同源 | SDK 层签名同源 |
@@ -135,7 +135,7 @@ static inline void airy_update_timestamp(struct airy_agent *a)
 
 ### 3.1 工程规范委员会
 
-agentrt-linux 设立 工程规范委员会（ABI Review Board, ARB）：
+agent-linux 设立 工程规范委员会（ABI Review Board, ARB）：
 
 | 角色 | 职责 | 人数 |
 |------|------|------|
@@ -413,7 +413,7 @@ if (ret == 0) {
 make CHECK_ABI=1 abidump
 
 # 对比两个版本的 ABI 快照（IRON-7: 0.1.1 后直接过渡到 1.0.1）
-abi-compliance-checker -l agentrt-linux \
+abi-compliance-checker -l agent-linux \
 	-old abidump-1.0.1.xml \
 	-new abidump-<X.Y.Z>.xml
 
@@ -491,5 +491,5 @@ make CHECK_KABI=1 modules
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）ABI 稳定性设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）ABI 稳定性设计 v1.0.1
 > 遵循 IRON-9 v3 [SC] 共享契约层 + [SS] 语义同源层与 agentrt ABI 同源

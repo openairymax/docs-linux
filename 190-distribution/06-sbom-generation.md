@@ -1,15 +1,15 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）SBOM 生成与分发方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）软件物料清单（Software Bill of Materials，SBOM）生成、校验、分发与消费的工程设计规范，覆盖 SPDX 2.3 格式规范、组件清单、生成工具链、CI 集成、随产物分发、漏洞关联与可重复构建验证\
+# agent-linux（AirymaxOS）SBOM 生成与分发方案
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）软件物料清单（Software Bill of Materials，SBOM）生成、校验、分发与消费的工程设计规范，覆盖 SPDX 2.3 格式规范、组件清单、生成工具链、CI 集成、随产物分发、漏洞关联与可重复构建验证\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-22\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：agentrt 构建基线（IRON-9 v3 [IND] 完全独立层，SBOM 工具链为 agentrt-linux 专属）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：agentrt 构建基线（IRON-9 v3 [IND] 完全独立层，SBOM 工具链为 agent-linux 专属）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论 + NTIA Minimum Elements 标准\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **SSoT 依赖声明**：本文档所引用的全部规则编号（`OS-IRON-*`、`OS-BAN-*`、`OS-STD-*`、`OS-ACC-*` 等）权威定义见 `50-engineering-standards/09-ssot-registry.md`，本文档不私自定义新规则编号。\
-> **IRON-9 v3 层次**：[IND] 完全独立层（SBOM 为 agentrt-linux 发行版专属）\
+> **IRON-9 v3 层次**：[IND] 完全独立层（SBOM 为 agent-linux 发行版专属）\
 > **参照基线**：openEuler 24.03 LTS（SBOM 工程实践参照）+ NTIA Minimum Elements v1.0
 
 ---
@@ -20,7 +20,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 软件物料清单（SBOM）是现代软件供应链安全的核心机制，要求对软件构成要素进行机器可读、可验证、可追溯的完整记录。NTIA（美国国家标准与技术研究院下属技术管理局）于 2021 年发布 *Minimum Elements for a Software Bill of Materials (SBOM)* 标准，定义了 SBOM 的最小要素集合。openEuler 24.03 LTS 已建立 SBOM 工程实践，参照该标准为发行版提供组件溯源能力。
 
-agentrt-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构建的智能体操作系统，包含 8 个子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux），通过 git submodule 管理，采用双许可证（AGPL-3.0-or-later + Apache-2.0）策略，并集成国密算法（SM2/SM3/SM4）。其复杂性要求建立一套完整、可机器校验、随产物分发的 SBOM 工程体系，作为漏洞响应、许可证合规、供应链审计的工程基石。
+agent-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构建的智能体操作系统，包含 8 个子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux），通过 git submodule 管理，采用双许可证（AGPL-3.0-or-later + Apache-2.0）策略，并集成国密算法（SM2/SM3/SM4）。其复杂性要求建立一套完整、可机器校验、随产物分发的 SBOM 工程体系，作为漏洞响应、许可证合规、供应链审计的工程基石。
 
 ### 1.2 设计目标
 
@@ -34,10 +34,10 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构�
 
 ### 1.3 NTIA Minimum Elements 映射
 
-| NTIA 要素 | SPDX 2.3 字段 | agentrt-linux 实现 |
+| NTIA 要素 | SPDX 2.3 字段 | agent-linux 实现 |
 |-----------|---------------|---------------------|
 | 供应商名称（Supplier Name） | `Package.originator` / `Package.supplier` | "SPHARX Ltd."（自有组件）/ 上游供应商（第三方依赖） |
-| 组件名称（Component Name） | `Package.name` | 子仓/包名（如 `agentrt-linux-kernel`） |
+| 组件名称（Component Name） | `Package.name` | 子仓/包名（如 `agent-linux-kernel`） |
 | 版本字符串（Version String） | `Package.version` | 语义化版本 + git commit hash |
 | 唯一标识符（Unique Identifier） | `Package.SPDXID` + `Package.externalRefs` | `SPDXRef-Package-kernel` + purl/cpe23 |
 | 依赖关系（Dependency Relationship） | `Relationship.type=DEPENDS_ON` | 见 §2.3 组件关系 |
@@ -64,7 +64,7 @@ agentrt-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构�
 
 ### 2.1 SPDX 2.3 JSON 格式
 
-agentrt-linux SBOM 主格式为 SPDX 2.3 JSON。SPDX 2.3 由 SPDX 规范组织于 2023 年发布，是当前业界最广泛支持的版本，被 Linux Foundation OpenChain、CycloneDX 工具链、openEuler SBOM 工具链共同支持。
+agent-linux SBOM 主格式为 SPDX 2.3 JSON。SPDX 2.3 由 SPDX 规范组织于 2023 年发布，是当前业界最广泛支持的版本，被 Linux Foundation OpenChain、CycloneDX 工具链、openEuler SBOM 工具链共同支持。
 
 #### 2.1.1 必填字段
 
@@ -75,8 +75,8 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
 | `spdxVersion` | string | SPDX 版本，固定 `"SPDX-2.3"` |
 | `dataLicense` | string | SPDX 文档许可证，固定 `"CC0-1.0"`（SBOM 文档本身不限制使用） |
 | `SPDXID` | string | SPDX 文档唯一标识符，格式 `SPDXRef-DOCUMENT` |
-| `name` | string | SBOM 文档名称（对应 `DocumentName`），如 `"agentrt-linux-1.0.1"` |
-| `documentNamespace` | string | 文档命名空间，URI 格式，如 `https://airymaxos.com/spdx/agentrt-linux-1.0.1-{commit}` |
+| `name` | string | SBOM 文档名称（对应 `DocumentName`），如 `"agent-linux-1.0.1"` |
+| `documentNamespace` | string | 文档命名空间，URI 格式，如 `https://airymaxos.com/spdx/agent-linux-1.0.1-{commit}` |
 | `creationInfo` | object | 创建信息（对应 `CreatorInfo` + `Created`） |
 | `creationInfo.creators` | array | 创建者列表，格式 `"Organization: SPHARX Ltd."` / `"Tool: generate-sbom.py-v1.0.1"` |
 | `creationInfo.created` | string | 创建时间，ISO 8601 格式（基于 `SOURCE_DATE_EPOCH`） |
@@ -84,9 +84,9 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
 | `files` | array | 文件列表（对应 `FileInfo`，大型 SBOM 中可选） |
 | `relationships` | array | 关系列表（对应 `RelationshipInfo`） |
 
-#### 2.1.2 agentrt-linux 扩展字段
+#### 2.1.2 agent-linux 扩展字段
 
-为表达 agentrt-linux 特有的工程语义，本方案定义 3 个扩展字段，使用 `airymax:` 命名空间前缀，置于 `package.annotations` 中，遵循 SPDX 2.3 § 8.9 Annotation 机制：
+为表达 agent-linux 特有的工程语义，本方案定义 3 个扩展字段，使用 `airymax:` 命名空间前缀，置于 `package.annotations` 中，遵循 SPDX 2.3 § 8.9 Annotation 机制：
 
 | 扩展字段 | 类型 | 说明 | 示例值 |
 |---------|------|------|--------|
@@ -103,8 +103,8 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "agentrt-linux-1.0.1",
-  "documentNamespace": "https://airymaxos.com/spdx/agentrt-linux-1.0.1-7f3a2c9b8e",
+  "name": "agent-linux-1.0.1",
+  "documentNamespace": "https://airymaxos.com/spdx/agent-linux-1.0.1-7f3a2c9b8e",
   "creationInfo": {
     "creators": [
       "Organization: SPHARX Ltd.",
@@ -115,12 +115,12 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
   },
   "packages": [
     {
-      "SPDXID": "SPDXRef-Package-agentrt-linux",
-      "name": "agentrt-linux",
+      "SPDXID": "SPDXRef-Package-agent-linux",
+      "name": "agent-linux",
       "versionInfo": "1.0.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
-      "downloadLocation": "git+https://atomgit.com/openairymax/agentrt-linux.git@7f3a2c9b8e",
+      "downloadLocation": "git+https://atomgit.com/openairymax/agent-linux.git@7f3a2c9b8e",
       "filesAnalyzed": true,
       "packageVerificationCode": {
         "packageVerificationCodeValue": "8a4f2e1c0d6b7a3f5e9c1d2b4a8f0e6c3d7b5a9f"
@@ -131,11 +131,11 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
       "externalRefs": [
         {
           "referenceType": "purl",
-          "referenceLocator": "pkg:github/openairymax/agentrt-linux@1.0.1"
+          "referenceLocator": "pkg:github/openairymax/agent-linux@1.0.1"
         },
         {
           "referenceType": "cpe23Type",
-          "referenceLocator": "cpe:2.3:a:spharx:agentrt-linux:1.0.1:*:*:*:*:*:*:*"
+          "referenceLocator": "cpe:2.3:a:spharx:agent-linux:1.0.1:*:*:*:*:*:*:*"
         }
       ],
       "annotations": [
@@ -155,11 +155,11 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-kernel",
-      "name": "agentrt-linux-kernel",
+      "name": "agent-linux-kernel",
       "versionInfo": "1.0.1+linux6.6.0-airy.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
-      "downloadLocation": "git+https://atomgit.com/openairymax/agentrt-linux.git@7f3a2c9b8e#kernel",
+      "downloadLocation": "git+https://atomgit.com/openairymax/agent-linux.git@7f3a2c9b8e#kernel",
       "filesAnalyzed": true,
       "packageVerificationCode": {
         "packageVerificationCodeValue": "2c9b5e7a3f1d8b4c6e0a2d5f7b9c1e3a"
@@ -170,7 +170,7 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
       "externalRefs": [
         {
           "referenceType": "purl",
-          "referenceLocator": "pkg:github/openairymax/agentrt-linux@1.0.1#kernel"
+          "referenceLocator": "pkg:github/openairymax/agent-linux@1.0.1#kernel"
         }
       ],
       "annotations": [
@@ -190,11 +190,11 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-memory",
-      "name": "agentrt-linux-memory",
+      "name": "agent-linux-memory",
       "versionInfo": "1.0.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
-      "downloadLocation": "git+https://atomgit.com/openairymax/agentrt-linux.git@7f3a2c9b8e#memory",
+      "downloadLocation": "git+https://atomgit.com/openairymax/agent-linux.git@7f3a2c9b8e#memory",
       "filesAnalyzed": true,
       "licenseConcluded": "AGPL-3.0-or-later OR Apache-2.0",
       "licenseDeclared": "AGPL-3.0-or-later OR Apache-2.0",
@@ -202,11 +202,11 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-cognition",
-      "name": "agentrt-linux-cognition",
+      "name": "agent-linux-cognition",
       "versionInfo": "1.0.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
-      "downloadLocation": "git+https://atomgit.com/openairymax/agentrt-linux.git@7f3a2c9b8e#cognition",
+      "downloadLocation": "git+https://atomgit.com/openairymax/agent-linux.git@7f3a2c9b8e#cognition",
       "filesAnalyzed": true,
       "licenseConcluded": "AGPL-3.0-or-later OR Apache-2.0",
       "licenseDeclared": "AGPL-3.0-or-later OR Apache-2.0",
@@ -217,10 +217,10 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     {
       "spdxElementId": "SPDXRef-DOCUMENT",
       "relationshipType": "DESCRIBES",
-      "relatedSpdxElement": "SPDXRef-Package-agentrt-linux"
+      "relatedSpdxElement": "SPDXRef-Package-agent-linux"
     },
     {
-      "spdxElementId": "SPDXRef-Package-agentrt-linux",
+      "spdxElementId": "SPDXRef-Package-agent-linux",
       "relationshipType": "CONTAINS",
       "relatedSpdxElement": "SPDXRef-Package-kernel"
     },
@@ -237,12 +237,12 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
 
 #### 2.2.1 许可证 SPDX 标识符
 
-agentrt-linux 涉及的许可证 SPDX 标识符如下表：
+agent-linux 涉及的许可证 SPDX 标识符如下表：
 
 | 许可证 | SPDX 标识符 | 适用范围 |
 |--------|-----------|---------|
-| AGPL-3.0 及以上版本 | `AGPL-3.0-or-later` | agentrt-linux 自有源码（默认许可证） |
-| Apache-2.0 | `Apache-2.0` | agentrt-linux 自有源码（双许可证路径） |
+| AGPL-3.0 及以上版本 | `AGPL-3.0-or-later` | agent-linux 自有源码（默认许可证） |
+| Apache-2.0 | `Apache-2.0` | agent-linux 自有源码（双许可证路径） |
 | GPL-2.0 仅本版本 | `GPL-2.0-only` | Linux 6.6 上游内核源码 |
 | CC0-1.0 | `CC0-1.0` | SBOM 文档本身（dataLicense） |
 | MIT | `MIT` | liburing 等第三方库 |
@@ -252,7 +252,7 @@ agentrt-linux 涉及的许可证 SPDX 标识符如下表：
 
 #### 2.2.2 双许可证声明
 
-agentrt-linux 自有源码采用双许可证策略，允许接收方在两条许可证路径中任选其一：
+agent-linux 自有源码采用双许可证策略，允许接收方在两条许可证路径中任选其一：
 
 ```
 AGPL-3.0-or-later OR Apache-2.0
@@ -274,12 +274,12 @@ licenseConcluded = "GPL-2.0-only AND (AGPL-3.0-or-later OR Apache-2.0)"
 
 ### 2.3 组件关系
 
-agentrt-linux SBOM 的 `relationships` 字段定义以下 4 类关系：
+agent-linux SBOM 的 `relationships` 字段定义以下 4 类关系：
 
 | 关系类型 | 方向 | 说明 | 示例 |
 |---------|------|------|------|
-| `DESCRIBES` | SBOM 文档 → 主体 | SBOM 文档描述的目标 | `SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-agentrt-linux` |
-| `CONTAINS` | 父组件 → 子组件 | 父包包含子包 | `SPDXRef-Package-agentrt-linux CONTAINS SPDXRef-Package-kernel` |
+| `DESCRIBES` | SBOM 文档 → 主体 | SBOM 文档描述的目标 | `SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-agent-linux` |
+| `CONTAINS` | 父组件 → 子组件 | 父包包含子包 | `SPDXRef-Package-agent-linux CONTAINS SPDXRef-Package-kernel` |
 | `DEPENDS_ON` | 依赖方 → 被依赖方 | 子仓间依赖关系 | `SPDXRef-Package-cognition DEPENDS_ON SPDXRef-Package-memory` |
 | `GENERATED_FROM` | 生成代码 → 契约源 | 自动生成代码溯源至契约文件 | `SPDXRef-File-syscall-table.c GENERATED_FROM SPDXRef-File-syscall.xml` |
 
@@ -287,7 +287,7 @@ agentrt-linux SBOM 的 `relationships` 字段定义以下 4 类关系：
 
 ```mermaid
 graph TD
-    ROOT[agentrt-linux] --> KERNEL[kernel]
+    ROOT[agent-linux] --> KERNEL[kernel]
     ROOT --> SERVICES[services]
     ROOT --> SECURITY[security]
     ROOT --> MEMORY[memory]
@@ -314,7 +314,7 @@ graph TD
 
 #### 2.3.2 GENERATED_FROM 关系示例
 
-agentrt-linux 中存在大量自动生成代码（syscall 表、ioctl 编号、错误码、capability 位），此类代码必须通过 `GENERATED_FROM` 关系溯源至其契约源文件：
+agent-linux 中存在大量自动生成代码（syscall 表、ioctl 编号、错误码、capability 位），此类代码必须通过 `GENERATED_FROM` 关系溯源至其契约源文件：
 
 | 生成代码 | 契约源 | 生成工具 |
 |---------|--------|---------|
@@ -329,27 +329,27 @@ agentrt-linux 中存在大量自动生成代码（syscall 表、ioctl 编号、�
 
 ### 3.1 8 子仓组件
 
-agentrt-linux 通过 git submodule 管理 8 个子仓。每个子仓作为 SPDX 包记录在 SBOM 的 `packages` 字段中，包含其 git commit hash、分支、源文件许可证扫描结果。
+agent-linux 通过 git submodule 管理 8 个子仓。每个子仓作为 SPDX 包记录在 SBOM 的 `packages` 字段中，包含其 git commit hash、分支、源文件许可证扫描结果。
 
 | 子仓 | SPDX 包名 | 主要构成 | 默认许可证 | IRON-9 v3 层次 |
 |------|----------|---------|-----------|----------------|
-| kernel | `agentrt-linux-kernel` | Linux 6.6 fork + Airymax 修改 + corekern/ + [SC] 头文件 | `GPL-2.0-only`（上游）+ `AGPL-3.0-or-later OR Apache-2.0`（修改） | [SC] + [IND] |
-| services | `agentrt-linux-services` | 12 daemons + VFS 用户态化 + network 用户态化 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| security | `agentrt-linux-security` | Cupolas LSM + capability + Landlock + 国密（SM2/SM3/SM4） | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| memory | `agentrt-linux-memory` | MemoryRovol + CXL + PMEM + MGLRU | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| cognition | `agentrt-linux-cognition` | CoreLoopThree + Wasm 3.0 + LLM 调度 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| cloudnative | `agentrt-linux-cloudnative` | K8s CRD + containerd shim + OCI + CNI | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
-| system | `agentrt-linux-system` | RPM + dnf + configuration + DevStation | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
-| tests-linux | `agentrt-linux-tests` | KUnit + kselftest + 形式化验证 | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| kernel | `agent-linux-kernel` | Linux 6.6 fork + Airymax 修改 + corekern/ + [SC] 头文件 | `GPL-2.0-only`（上游）+ `AGPL-3.0-or-later OR Apache-2.0`（修改） | [SC] + [IND] |
+| services | `agent-linux-services` | 12 daemons + VFS 用户态化 + network 用户态化 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| security | `agent-linux-security` | Cupolas LSM + capability + Landlock + 国密（SM2/SM3/SM4） | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| memory | `agent-linux-memory` | MemoryRovol + CXL + PMEM + MGLRU | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| cognition | `agent-linux-cognition` | CoreLoopThree + Wasm 3.0 + LLM 调度 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| cloudnative | `agent-linux-cloudnative` | K8s CRD + containerd shim + OCI + CNI | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| system | `agent-linux-system` | RPM + dnf + configuration + DevStation | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| tests-linux | `agent-linux-tests` | KUnit + kselftest + 形式化验证 | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
 
 #### 3.1.1 kernel 子仓详细清单
 
-kernel 子仓是 agentrt-linux 的内核基线，包含以下 3 类组件：
+kernel 子仓是 agent-linux 的内核基线，包含以下 3 类组件：
 
 | 组件类别 | 路径 | 许可证 | 说明 |
 |---------|------|--------|------|
 | Linux 6.6 上游源码 | `kernel/`（Linux 6.6 基线根目录） | `GPL-2.0-only` | 完整 fork（Model A）保留上游许可证 |
-| Airymax 修改源码（corekern） | `kernel/kernel/corekern/` | `AGPL-3.0-or-later OR Apache-2.0` | agentrt-linux 专属修改 + 微核心架构组件（sched_tac / A-IPC / [SC] 实现等） |
+| Airymax 修改源码（corekern） | `kernel/kernel/corekern/` | `AGPL-3.0-or-later OR Apache-2.0` | agent-linux 专属修改 + 微核心架构组件（sched_tac / A-IPC / [SC] 实现等） |
 | [SC] 共享头文件 | `kernel/include/uapi/linux/airymax/` | `AGPL-3.0-or-later OR Apache-2.0` | IRON-9 v3 [SC] 共享契约层 |
 
 #### 3.1.2 services 子仓详细清单
@@ -358,20 +358,20 @@ services 子仓包含 12 个 daemon 与 2 个用户态化子系统：
 
 | 组件 | SPDX 子包名 | 功能 | 依赖 |
 |------|------------|------|------|
-| gateway_d | `agentrt-linux-services-gateway` | IPC 网关守护进程 | kernel |
-| cogn_d | `agentrt-linux-services-cogn` | LLM 调度守护进程 | kernel, cognition |
-| dev_d | `agentrt-linux-services-dev` | 工具调用守护进程 | kernel |
-| sched_d | `agentrt-linux-services-sched` | 调度守护进程 | kernel |
-| audit_d | `agentrt-linux-services-audit` | 监控守护进程 | kernel |
-| net_d | `agentrt-linux-services-net` | 网络用户态化 | kernel |
-| vfs_d | `agentrt-linux-services-vfs` | VFS 用户态化 | kernel |
-| 其余 5 个 daemon | `agentrt-linux-services-*` | 各类系统服务 | kernel |
-| VFS 用户态化 | `agentrt-linux-services-vfs` | 虚拟文件系统用户态化 | kernel |
-| network 用户态化 | `agentrt-linux-services-net` | 网络栈用户态化 | kernel |
+| gateway_d | `agent-linux-services-gateway` | IPC 网关守护进程 | kernel |
+| cogn_d | `agent-linux-services-cogn` | LLM 调度守护进程 | kernel, cognition |
+| dev_d | `agent-linux-services-dev` | 工具调用守护进程 | kernel |
+| sched_d | `agent-linux-services-sched` | 调度守护进程 | kernel |
+| audit_d | `agent-linux-services-audit` | 监控守护进程 | kernel |
+| net_d | `agent-linux-services-net` | 网络用户态化 | kernel |
+| vfs_d | `agent-linux-services-vfs` | VFS 用户态化 | kernel |
+| 其余 5 个 daemon | `agent-linux-services-*` | 各类系统服务 | kernel |
+| VFS 用户态化 | `agent-linux-services-vfs` | 虚拟文件系统用户态化 | kernel |
+| network 用户态化 | `agent-linux-services-net` | 网络栈用户态化 | kernel |
 
 ### 3.2 第三方依赖
 
-agentrt-linux 依赖以下第三方组件，每个组件作为独立 SPDX 包记录，并通过 `DEPENDS_ON` 关系关联至依赖它的子仓：
+agent-linux 依赖以下第三方组件，每个组件作为独立 SPDX 包记录，并通过 `DEPENDS_ON` 关系关联至依赖它的子仓：
 
 | 第三方依赖 | SPDX 标识符 | 来源 | 许可证 | 关联子仓 |
 |-----------|-------------|------|--------|---------|
@@ -405,7 +405,7 @@ agentrt-linux 依赖以下第三方组件，每个组件作为独立 SPDX 包记
 
 #### 3.2.2 国密算法库清单
 
-agentrt-linux 集成国密算法（SM2/SM3/SM4），其实现来源必须在 SBOM 中显式记录：
+agent-linux 集成国密算法（SM2/SM3/SM4），其实现来源必须在 SBOM 中显式记录：
 
 | 算法 | 实现来源 | 路径 | 许可证 | 说明 |
 |------|---------|------|--------|------|
@@ -420,14 +420,14 @@ agentrt-linux 集成国密算法（SM2/SM3/SM4），其实现来源必须在 SBO
 
 ### 4.1 SPDX Generator
 
-agentrt-linux SBOM 生成工具为 `tools/sbom/generate-sbom.py`，是一个 Python 脚本，负责扫描源码树、收集许可证信息、构建依赖关系图、输出 SPDX 2.3 JSON 与 RDF 双格式。
+agent-linux SBOM 生成工具为 `tools/sbom/generate-sbom.py`，是一个 Python 脚本，负责扫描源码树、收集许可证信息、构建依赖关系图、输出 SPDX 2.3 JSON 与 RDF 双格式。
 
 | 属性 | 值 |
 |------|----|
 | 工具路径 | `tools/sbom/generate-sbom.py` |
 | 工具版本 | 1.0.1 |
 | 输入 | git submodule 状态、LICENSE 文件、SPDX 标识符扫描 |
-| 输出 | `sbom/agentrt-linux-1.0.1.spdx.json` + `sbom/agentrt-linux-1.0.1.spdx.rdf` |
+| 输出 | `sbom/agent-linux-1.0.1.spdx.json` + `sbom/agent-linux-1.0.1.spdx.rdf` |
 | 依赖 | `spdx-tools-python`（>=0.8.0）、`jsonschema`（>=4.18）、`networkx`（>=3.1） |
 | 配置文件 | `tools/sbom/sbom-config.yaml` |
 | 锁定文件 | `tools/sbom/requirements.lock.txt` |
@@ -436,60 +436,60 @@ agentrt-linux SBOM 生成工具为 `tools/sbom/generate-sbom.py`，是一个 Pyt
 
 ```yaml
 # tools/sbom/sbom-config.yaml
-# agentrt-linux SBOM 生成配置文件
+# agent-linux SBOM 生成配置文件
 
 project:
-  name: agentrt-linux
+  name: agent-linux
   version: 1.0.1
   supplier: "SPHARX Ltd."
-  download_base: "https://atomgit.com/openairymax/agentrt-linux"
+  download_base: "https://atomgit.com/openairymax/agent-linux"
   namespace_base: "https://airymaxos.com/spdx"
 
 submodules:
   - name: kernel
-    path: agentrt-linux/kernel
+    path: agent-linux/kernel
     spdx_id: SPDXRef-Package-kernel
     declared_license: "GPL-2.0-only AND (AGPL-3.0-or-later OR Apache-2.0)"
     sc_layer: "[SC]"
     homologous: null
   - name: services
-    path: agentrt-linux/services
+    path: agent-linux/services
     spdx_id: SPDXRef-Package-services
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[SS]"
     homologous: "gateway_d"
   - name: security
-    path: agentrt-linux/security
+    path: agent-linux/security
     spdx_id: SPDXRef-Package-security
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[SS]"
     homologous: "cupolas_lsm"
   - name: memory
-    path: agentrt-linux/memory
+    path: agent-linux/memory
     spdx_id: SPDXRef-Package-memory
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[SS]"
     homologous: "memoryrovol"
   - name: cognition
-    path: agentrt-linux/cognition
+    path: agent-linux/cognition
     spdx_id: SPDXRef-Package-cognition
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[SS]"
     homologous: "coreloop"
   - name: cloudnative
-    path: agentrt-linux/cloudnative
+    path: agent-linux/cloudnative
     spdx_id: SPDXRef-Package-cloudnative
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[IND]"
     homologous: null
   - name: system
-    path: agentrt-linux/system
+    path: agent-linux/system
     spdx_id: SPDXRef-Package-system
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[IND]"
     homologous: null
   - name: tests-linux
-    path: agentrt-linux/tests-linux
+    path: agent-linux/tests-linux
     spdx_id: SPDXRef-Package-tests
     declared_license: "AGPL-3.0-or-later OR Apache-2.0"
     sc_layer: "[IND]"
@@ -637,7 +637,7 @@ def scan_all_submodules(config: dict) -> list:
         git_info = scan_submodule_git_info(sub["path"])
         packages.append({
             "spdx_id": sub["spdx_id"],
-            "name": f"agentrt-linux-{sub['name']}",
+            "name": f"agent-linux-{sub['name']}",
             "version_info": f"{config['project']['version']}+{git_info['commit'][:8]}",
             "supplier": f"Organization: {config['project']['supplier']}",
             "downloadLocation": (
@@ -780,17 +780,17 @@ def build_relationships(config: dict, packages: list) -> list:
     """
     relationships = []
     spdx_id_map = {p["name"].split("-")[-1]: p["spdx_id"] for p in packages}
-    # 顶层 agentrt-linux 包的 SPDXID
-    root_spdx_id = "SPDXRef-Package-agentrt-linux"
+    # 顶层 agent-linux 包的 SPDXID
+    root_spdx_id = "SPDXRef-Package-agent-linux"
 
-    # DESCRIBES 关系：SBOM 文档描述 agentrt-linux
+    # DESCRIBES 关系：SBOM 文档描述 agent-linux
     relationships.append({
         "spdxElementId": "SPDXRef-DOCUMENT",
         "relationshipType": "DESCRIBES",
         "relatedSpdxElement": root_spdx_id,
     })
 
-    # CONTAINS 关系：agentrt-linux 包含 8 个子仓
+    # CONTAINS 关系：agent-linux 包含 8 个子仓
     for sub in config["submodules"]:
         relationships.append({
             "spdxElementId": root_spdx_id,
@@ -868,10 +868,10 @@ def generate_sbom(
     creation_info = CreationInfo(
         spdx_version="SPDX-2.3",
         spdx_id="SPDXRef-DOCUMENT",
-        name=f"agentrt-linux-{config['project']['version']}",
+        name=f"agent-linux-{config['project']['version']}",
         document_namespace=(
             f"{config['project']['namespace_base']}/"
-            f"agentrt-linux-{config['project']['version']}-"
+            f"agent-linux-{config['project']['version']}-"
             f"{packages[0]['git_info']['commit'][:10]}"
         ),
         creators=[
@@ -922,14 +922,14 @@ def generate_sbom(
 
     # 写出 JSON 格式
     json_path = (
-        f"{output_dir}/agentrt-linux-"
+        f"{output_dir}/agent-linux-"
         f"{config['project']['version']}.spdx.json"
     )
     write_json(document, json_path)
 
     # 写出 RDF 格式
     rdf_path = (
-        f"{output_dir}/agentrt-linux-"
+        f"{output_dir}/agent-linux-"
         f"{config['project']['version']}.spdx.rdf"
     )
     write_rdf(document, rdf_path)
@@ -941,7 +941,7 @@ def generate_sbom(
 
 #### 4.3.1 禁止许可证
 
-agentrt-linux 双许可证策略中，Apache-2.0 路径要求所有链接进发行版的组件必须与 Apache-2.0 兼容。以下许可证因与 Apache-2.0 不兼容或与双许可证策略冲突而被禁止：
+agent-linux 双许可证策略中，Apache-2.0 路径要求所有链接进发行版的组件必须与 Apache-2.0 兼容。以下许可证因与 Apache-2.0 不兼容或与双许可证策略冲突而被禁止：
 
 | 禁止许可证 | 原因 | SPDX 表达 |
 |-----------|------|----------|
@@ -950,7 +950,7 @@ agentrt-linux 双许可证策略中，Apache-2.0 路径要求所有链接进发�
 | `GPL-3.0+`（旧式） | 同上 | `GPL-3.0+` |
 | `AGPL-3.0-only` | 与 AGPL-3.0-or-later 路径冲突（缺少 -or-later 传播性） | `AGPL-3.0-only` |
 
-> **说明**：GPL-2.0 与 AGPL-3.0 路径兼容，因此 Linux 6.6 上游 `GPL-2.0-only` 文件允许纳入 agentrt-linux 发行版。
+> **说明**：GPL-2.0 与 AGPL-3.0 路径兼容，因此 Linux 6.6 上游 `GPL-2.0-only` 文件允许纳入 agent-linux 发行版。
 
 #### 4.3.2 兼容性矩阵
 
@@ -1088,7 +1088,7 @@ jobs:
         TZ: UTC
         LC_ALL: C
     steps:
-      - name: Checkout agentrt-linux（含全部 submodule）
+      - name: Checkout agent-linux（含全部 submodule）
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -1113,37 +1113,37 @@ jobs:
       - name: Validate SPDX
         run: |
           python -m spdx_tools.spdx.validator \
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json
           python -m spdx_tools.spdx.validator \
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.rdf
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.rdf
 
       - name: License compliance check
         run: |
           python tools/sbom/check-license.py \
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json
 
       - name: Compute SHA-256
         run: |
-          sha256sum sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json \
-            > sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json.sha256
-          sha256sum sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.rdf \
-            > sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.rdf.sha256
+          sha256sum sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json \
+            > sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json.sha256
+          sha256sum sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.rdf \
+            > sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.rdf.sha256
 
       - name: Sign SBOM with cosign
         uses: sigstore/cosign-installer@v3
       - run: |
           cosign sign-blob \
             --yes \
-            --output-signature sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json.sig \
-            --output-certificate sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json.crt \
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json
+            --output-signature sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json.sig \
+            --output-certificate sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json.crt \
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json
-            sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.rdf
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json
+            sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.rdf
             sbom/*.sha256
             sbom/*.sig
             sbom/*.crt
@@ -1151,7 +1151,7 @@ jobs:
       - name: Publish to dnf repo metadata
         run: |
           tools/sbom/publish-to-repo.sh \
-            --sbom sbom/agentrt-linux-${{ env.PROJECT_VERSION }}.spdx.json \
+            --sbom sbom/agent-linux-${{ env.PROJECT_VERSION }}.spdx.json \
             --repo airymaxos-stable
 ```
 
@@ -1161,8 +1161,8 @@ jobs:
 
 | 文件 | 大小预估 | 说明 |
 |------|---------|------|
-| `agentrt-linux-1.0.1.spdx.json` | ~2-5 MB | SPDX 2.3 JSON 主格式 |
-| `agentrt-linux-1.0.1.spdx.rdf` | ~3-8 MB | SPDX 3.0 RDF 兼容格式 |
+| `agent-linux-1.0.1.spdx.json` | ~2-5 MB | SPDX 2.3 JSON 主格式 |
+| `agent-linux-1.0.1.spdx.rdf` | ~3-8 MB | SPDX 3.0 RDF 兼容格式 |
 | `*.spdx.json.sha256` | 64 字节 + 文件名 | JSON SHA-256 |
 | `*.spdx.rdf.sha256` | 64 字节 + 文件名 | RDF SHA-256 |
 | `*.spdx.json.sig` | ~96 字节 | cosign 签名（keyless） |
@@ -1179,33 +1179,33 @@ SBOM 文件随以下 3 类发布产物分发，确保消费者可在任意位置
 
 #### 6.1.1 RPM 包内嵌 SBOM
 
-每个 RPM 包在构建时通过 `%install` 阶段将 SBOM 复制至 `/usr/share/doc/agentrt-linux/sbom/`，并通过 `%files` 声明：
+每个 RPM 包在构建时通过 `%install` 阶段将 SBOM 复制至 `/usr/share/doc/agent-linux/sbom/`，并通过 `%files` 声明：
 
 ```spec
-# agentrt-linux.spec 片段
+# agent-linux.spec 片段
 %install
 # 复制 SBOM 至包文档目录
-install -d %{buildroot}%{_defaultdocdir}/agentrt-linux/sbom
-install -m 0644 %{_sourcedir}/sbom/agentrt-linux-%{version}.spdx.json \
-    %{buildroot}%{_defaultdocdir}/agentrt-linux/sbom/
-install -m 0644 %{_sourcedir}/sbom/agentrt-linux-%{version}.spdx.rdf \
-    %{buildroot}%{_defaultdocdir}/agentrt-linux/sbom/
+install -d %{buildroot}%{_defaultdocdir}/agent-linux/sbom
+install -m 0644 %{_sourcedir}/sbom/agent-linux-%{version}.spdx.json \
+    %{buildroot}%{_defaultdocdir}/agent-linux/sbom/
+install -m 0644 %{_sourcedir}/sbom/agent-linux-%{version}.spdx.rdf \
+    %{buildroot}%{_defaultdocdir}/agent-linux/sbom/
 
 %files
-%{_defaultdocdir}/agentrt-linux/sbom/agentrt-linux-%{version}.spdx.json
-%{_defaultdocdir}/agentrt-linux/sbom/agentrt-linux-%{version}.spdx.rdf
+%{_defaultdocdir}/agent-linux/sbom/agent-linux-%{version}.spdx.json
+%{_defaultdocdir}/agent-linux/sbom/agent-linux-%{version}.spdx.rdf
 ```
 
 消费者查询方式：
 
 ```bash
 # 查看 RPM 内嵌 SBOM
-dnf install agentrt-linux-kernel-1.0.1
-cat /usr/share/doc/agentrt-linux/sbom/agentrt-linux-1.0.1.spdx.json | jq '.packages[] | .name'
+dnf install agent-linux-kernel-1.0.1
+cat /usr/share/doc/agent-linux/sbom/agent-linux-1.0.1.spdx.json | jq '.packages[] | .name'
 
 # 通过 rpm 命令查询
-rpm -ql agentrt-linux-kernel | grep sbom
-rpm -q --requires agentrt-linux-cognition | grep memory
+rpm -ql agent-linux-kernel | grep sbom
+rpm -q --requires agent-linux-cognition | grep memory
 ```
 
 #### 6.1.2 OCI 镜像 SBOM 注解
@@ -1230,7 +1230,7 @@ OCI 镜像通过注解（annotation）声明 SBOM 位置，遵循 `org.openconta
 
 ```bash
 # 通过 cosign attestation 下载并验证 SBOM
-cosign attest --predicate sbom/agentrt-linux-1.0.1.spdx.json \
+cosign attest --predicate sbom/agent-linux-1.0.1.spdx.json \
     airymaxos/kernel:1.0.1
 
 # 查询镜像 SBOM
@@ -1244,7 +1244,7 @@ SDK tarball（`airymaxos-sdk-1.0.1.tar.zst`）在打包时将 SBOM 复制至 `sb
 ```bash
 # 解压 SDK tarball
 tar --zstd -xf airymaxos-sdk-1.0.1.tar.zst
-cat airymaxos-sdk-1.0.1/sbom/agentrt-linux-1.0.1.spdx.json | jq '.packages | length'
+cat airymaxos-sdk-1.0.1/sbom/agent-linux-1.0.1.spdx.json | jq '.packages | length'
 ```
 
 ### 6.2 在线查询
@@ -1298,7 +1298,7 @@ dnf sbom export --version 1.0.1 --format json --output ./my-sbom.json
 
 提供 SBOM 查看器 Web UI（`https://airymaxos.com/sbom`），支持以下功能：
 
-- 组件树状浏览（agentrt-linux → 8 子仓 → 文件）
+- 组件树状浏览（agent-linux → 8 子仓 → 文件）
 - 许可证统计饼图（GPL-2.0 / AGPL-3.0+Apache-2.0 / MIT / BSD 等）
 - CVE 影响可视化（红色高亮受影响组件）
 - SBOM 签名验证（上传 SBOM 文件 → 显示验证结果）
@@ -1310,7 +1310,7 @@ dnf sbom export --version 1.0.1 --format json --output ./my-sbom.json
 
 ### 7.1 CVE 扫描流程
 
-agentrt-linux SBOM 与 NVD（National Vulnerability Database）/ CVE 数据库进行每日匹配扫描，建立"组件 → CVE → 修复"全链路追踪：
+agent-linux SBOM 与 NVD（National Vulnerability Database）/ CVE 数据库进行每日匹配扫描，建立"组件 → CVE → 修复"全链路追踪：
 
 ```mermaid
 graph LR
@@ -1390,7 +1390,7 @@ jobs:
 
 ### 8.1 可重复性要求
 
-SBOM 生成必须可重复（reproducible），即：相同输入 → 相同输出（byte-for-byte）。这是 agentrt-linux 可重现构建体系（详见 `190-distribution/05-reproducible-build.md`）在 SBOM 工具链上的延伸。
+SBOM 生成必须可重复（reproducible），即：相同输入 → 相同输出（byte-for-byte）。这是 agent-linux 可重现构建体系（详见 `190-distribution/05-reproducible-build.md`）在 SBOM 工具链上的延伸。
 
 ### 8.2 可重复性实现
 
@@ -1439,13 +1439,13 @@ SBOM 生成环境通过容器镜像锁定，容器镜像的 digest 写入 `sbom-
 
 ```bash
 # sbom-manifest.txt 示例
-# agentrt-linux SBOM manifest
+# agent-linux SBOM manifest
 # Generated at: 2026-07-15T08:00:00Z (SOURCE_DATE_EPOCH=1721000000)
 # Build environment: ghcr.io/spharx/airymaxos-build-env:1.0.1
 # Container digest: sha256:5c5e8e4ed4a3b7c1f9d2e8a0b6c4d2e9f1a3b5c7d8e0f2a4b6c8d0e2f4a6b8c
 
-agentrt-linux-1.0.1.spdx.json    sha256:7a3f5e9c1d2b4a8f0e6c3d7b5a9f1e3c2d4b6a8f0e2c4d6b8a0f2e4c6d8b0a2
-agentrt-linux-1.0.1.spdx.rdf     sha256:9b1c3d5e7f9a1c3d5e7f9b1c3d5e7f9a1c3d5e7f9b1c3d5e7f9a1c3d5e7f9b1
+agent-linux-1.0.1.spdx.json    sha256:7a3f5e9c1d2b4a8f0e6c3d7b5a9f1e3c2d4b6a8f0e2c4d6b8a0f2e4c6d8b0a2
+agent-linux-1.0.1.spdx.rdf     sha256:9b1c3d5e7f9a1c3d5e7f9b1c3d5e7f9a1c3d5e7f9b1c3d5e7f9a1c3d5e7f9b1
 ```
 
 ### 8.5 可重复性验证
@@ -1471,14 +1471,14 @@ python tools/sbom/generate-sbom.py \
     --output "$WORK_DIR/run2/"
 
 # 对比两次输出
-diff "$WORK_DIR/run1/agentrt-linux-1.0.1.spdx.json" \
-     "$WORK_DIR/run2/agentrt-linux-1.0.1.spdx.json" || {
+diff "$WORK_DIR/run1/agent-linux-1.0.1.spdx.json" \
+     "$WORK_DIR/run2/agent-linux-1.0.1.spdx.json" || {
     echo "[FAIL] SBOM 不可重现：两次生成的 JSON 不一致"
     exit 1
 }
 
-diff "$WORK_DIR/run1/agentrt-linux-1.0.1.spdx.rdf" \
-     "$WORK_DIR/run2/agentrt-linux-1.0.1.spdx.rdf" || {
+diff "$WORK_DIR/run1/agent-linux-1.0.1.spdx.rdf" \
+     "$WORK_DIR/run2/agent-linux-1.0.1.spdx.rdf" || {
     echo "[FAIL] SBOM 不可重现：两次生成的 RDF 不一致"
     exit 1
 }
@@ -1496,7 +1496,7 @@ echo "[PASS] SBOM 可重现性验证通过"
 | **C-2 增量演化** | 每次发布生成新版本 SBOM，支持版本间 diff |
 | **E-6 错误可追溯** | CVE → SBOM 组件 → Issue → PR 全链路可追溯 |
 | **E-7 文档即代码** | SBOM 生成配置 YAML 化，纳入版本控制 |
-| **IRON-9 v3 同源且部分代码共享** | SBOM 工具链为 agentrt-linux [IND] 完全独立层；8 子仓跨 [SC]/[SS]/[IND] 三层均纳入 SBOM |
+| **IRON-9 v3 同源且部分代码共享** | SBOM 工具链为 agent-linux [IND] 完全独立层；8 子仓跨 [SC]/[SS]/[IND] 三层均纳入 SBOM |
 
 ---
 
@@ -1528,4 +1528,4 @@ echo "[PASS] SBOM 可重现性验证通过"
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）SBOM 生成与分发方案 v1.0.1 | 父文档：`190-distribution/README.md`
+> **文档结束** | agent-linux（AirymaxOS）SBOM 生成与分发方案 v1.0.1 | 父文档：`190-distribution/README.md`

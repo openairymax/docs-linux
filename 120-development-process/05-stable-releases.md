@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）稳定版本发布
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 5 卷——稳定版本发布。本文档详述稳定版本的发布周期、版本号体系、稳定分支维护、发布流程、发布清单、发布质量门与版本支持周期，是补丁生命周期（01 卷）阶段 5（Stable Release）的完整展开。\
+# agent-linux（AirymaxOS）稳定版本发布
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 5 卷——稳定版本发布。本文档详述稳定版本的发布周期、版本号体系、稳定分支维护、发布流程、发布清单、发布质量门与版本支持周期，是补丁生命周期（01 卷）阶段 5（Stable Release）的完整展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 5 卷，回答"稳定版本如何规划、如何发布、如何维护、何时终止"。它继承 Linux 6.6 内核 `stable-kernel-rules.rst` 的稳定版规则，并将其适配到 agentrt-linux 的 GitHub PR 工作流与 RPM 发行模型。
+本文档是 120-development-process 模块的第 5 卷，回答"稳定版本如何规划、如何发布、如何维护、何时终止"。它继承 Linux 6.6 内核 `stable-kernel-rules.rst` 的稳定版规则，并将其适配到 agent-linux 的 GitHub PR 工作流与 RPM 发行模型。
 
 ### 1.1 与补丁生命周期的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 全部 8 子仓的稳定版发布以及 12 daemon 的 RPM 打包发布。涉及 LTS 版本选择与维护的详细规则见第 6 卷（06-long-term-support.md）。
+本文档适用于 agent-linux 全部 8 子仓的稳定版发布以及 12 daemon 的 RPM 打包发布。涉及 LTS 版本选择与维护的详细规则见第 6 卷（06-long-term-support.md）。
 
 ### 1.3 关键术语
 
@@ -35,7 +35,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | `release/*` | 稳定分支命名，例如 `release/1.0` |
 | RC | Release Candidate，发布候选 |
 | code freeze | 代码冻结，发布前禁止新功能合入 |
-| airy_defconfig | agentrt-linux 内核默认配置文件，锁定五大选型 |
+| airy_defconfig | agent-linux 内核默认配置文件，锁定五大选型 |
 
 ---
 
@@ -43,11 +43,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 周期总览
 
-agentrt-linux 采用每 3 个月一个 minor 版本的发布节奏，每年发布 4 个 minor 版本。
+agent-linux 采用每 3 个月一个 minor 版本的发布节奏，每年发布 4 个 minor 版本。
 
 ```mermaid
 gantt
-    title agentrt-linux 发布节奏（首个正式版 v1.0.1，2026-11-08 基于 130-roadmap 关键路径）
+    title agent-linux 发布节奏（首个正式版 v1.0.1，2026-11-08 基于 130-roadmap 关键路径）
     dateFormat YYYY-MM-DD
     axisFormat %m-%d
     section v1.0.1（首个正式版）
@@ -96,7 +96,7 @@ gantt
 
 ### 3.1 语义化版本
 
-agentrt-linux 遵循 Semantic Versioning 2.0.0：
+agent-linux 遵循 Semantic Versioning 2.0.0：
 
 ```
 MAJOR.MINOR.PATCH
@@ -132,7 +132,7 @@ MAJOR.MINOR.PATCH
 
 - **内核版本**：`Makefile` 头部 `VERSION = 1` / `PATCHLEVEL = 0` / `SUBLEVEL = 0`。
 - **daemon 版本**：每个 daemon 的 `--version` 输出与 meson.build 中的 `version` 字段。
-- **RPM 版本**：`Name: agentrt-linux-<daemon>` / `Version: 1.0.1` / `Release: 1`。
+- **RPM 版本**：`Name: agent-linux-<daemon>` / `Version: 1.0.1` / `Release: 1`。
 - **文档版本**：每份设计文档头部的 `文档版本` 字段。
 
 ---
@@ -242,14 +242,14 @@ RC 测试由 QA 团队执行，包括：
   - 发布清单完整（见第 6 节）。
   - 发布质量门达标（见第 7 节）。
   - 发布说明（release notes）已编写并评审。
-- **签核记录**：在 `agentrt-linux-mgmt` 仓库创建签核 issue，记录每位签核人的签字。
+- **签核记录**：在 `agent-linux-mgmt` 仓库创建签核 issue，记录每位签核人的签字。
 
 ### 5.6 步骤 5：正式发布
 
 - **tag**：在 `release/<MAJOR.MINOR>` 稳定分支标记 `vMAJOR.MINOR.PATCH` tag（首个发布为 `vMAJOR.MINOR.0`）。
 - **稳定分支**：`release/<MAJOR.MINOR>` 即稳定分支本身（等价 Linux -stable 树），无需再派生 `stable-vX.Y` 分支。
 - **构建物料**：
-  - 源码 tarball：`agentrt-linux-MAJOR.MINOR.PATCH.tar.xz`。
+  - 源码 tarball：`agent-linux-MAJOR.MINOR.PATCH.tar.xz`。
   - RPM 包：12 daemon + kernel + devstation（共 14 个 RPM）。
   - SBOM：CycloneDX 格式。
   - airy_defconfig：本版本锁定的内核配置。
@@ -269,7 +269,7 @@ RC 测试由 QA 团队执行，包括：
 - **文档快照**：在 `docs-AirymaxOS-vMAJOR.MINOR` 分支保存本版本的文档快照。
 - **release notes**：归档到 `docs/AirymaxOS/190-distribution/release-notes/`。
 - **SBOM 归档**：归档到 `sbom/MAJOR.MINOR.PATCH/`。
-- **签核记录归档**：归档到 `agentrt-linux-mgmt/releases/MAJOR.MINOR.PATCH/`。
+- **签核记录归档**：归档到 `agent-linux-mgmt/releases/MAJOR.MINOR.PATCH/`。
 
 ---
 
@@ -294,26 +294,26 @@ RC 测试由 QA 团队执行，包括：
 
 | # | RPM 包名 | 内容 | 依赖 |
 |---|---------|------|------|
-| 1 | `agentrt-linux-kernel` | 内核镜像 + 模块 + airy_defconfig | — |
-| 2 | `agentrt-linux-macro-superv` | macro_d daemon | kernel |
-| 3 | `agentrt-linux-logger` | logger_d | kernel |
-| 4 | `agentrt-linux-config` | config_d | kernel |
-| 5 | `agentrt-linux-gateway` | gateway_d | kernel + net |
-| 6 | `agentrt-linux-sched` | sched_d | kernel |
-| 7 | `agentrt-linux-vfs` | vfs_d | kernel |
-| 8 | `agentrt-linux-net` | net_d | kernel |
-| 9 | `agentrt-linux-mem` | mem_d | kernel |
-| 10 | `agentrt-linux-cogn` | cogn_d | kernel |
-| 11 | `agentrt-linux-sec` | sec_d + 纯 C LSM 模块 | kernel |
-| 12 | `agentrt-linux-audit` | audit_d | kernel |
-| 13 | `agentrt-linux-dev` | dev_d | kernel |
-| 14 | `agentrt-linux-devstation` | 开发工具 + SDK + 文档 | 全部 daemon |
+| 1 | `agent-linux-kernel` | 内核镜像 + 模块 + airy_defconfig | — |
+| 2 | `agent-linux-macro-superv` | macro_d daemon | kernel |
+| 3 | `agent-linux-logger` | logger_d | kernel |
+| 4 | `agent-linux-config` | config_d | kernel |
+| 5 | `agent-linux-gateway` | gateway_d | kernel + net |
+| 6 | `agent-linux-sched` | sched_d | kernel |
+| 7 | `agent-linux-vfs` | vfs_d | kernel |
+| 8 | `agent-linux-net` | net_d | kernel |
+| 9 | `agent-linux-mem` | mem_d | kernel |
+| 10 | `agent-linux-cogn` | cogn_d | kernel |
+| 11 | `agent-linux-sec` | sec_d + 纯 C LSM 模块 | kernel |
+| 12 | `agent-linux-audit` | audit_d | kernel |
+| 13 | `agent-linux-dev` | dev_d | kernel |
+| 14 | `agent-linux-devstation` | 开发工具 + SDK + 文档 | 全部 daemon |
 
 ### 6.3 SBOM 内容
 
 SBOM（Software Bill of Materials）采用 CycloneDX 1.5 格式，内容包括：
 
-- **顶层组件**：agentrt-linux vMAJOR.MINOR.PATCH。
+- **顶层组件**：agent-linux vMAJOR.MINOR.PATCH。
 - **子组件**：12 daemon + kernel + devstation。
 - **依赖关系**：组件间的依赖图。
 - **第三方组件**：所有第三方库（如 musl libc、busybox、liburcu 等）。
@@ -370,7 +370,7 @@ SBOM（Software Bill of Materials）采用 CycloneDX 1.5 格式，内容包括�
 
 ```mermaid
 gantt
-    title agentrt-linux minor 版本支持周期
+    title agent-linux minor 版本支持周期
     dateFormat YYYY-MM-DD
     axisFormat %m
     section v1.0.1（示例，首个正式版 2026-11-08）
@@ -449,7 +449,7 @@ gantt
 ### 9.3 release notes 摘要
 
 ```markdown
-# agentrt-linux v1.0.1
+# agent-linux v1.0.1
 
 发布日期：2026-11-08
 类型：正式版（首个可投产版本，M0-M8 全部里程碑完成）
@@ -507,4 +507,4 @@ gantt
 
 ---
 
-> **文档结束** | agentrt-linux 稳定版本发布 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 稳定版本发布 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

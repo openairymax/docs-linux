@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）kselftest 系统级测试
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 2 卷——kselftest 用户态系统级测试。本卷规定 kselftest 框架结构、`tools/testing/selftests/` 目录组织、`make kselftest` 入口、各子系统测试集（sched/mm/fs/net/...）、kselftest 与 KUnit 区别、运行环境要求，以及 agentrt-linux Agent 契约测试的系统级扩展。\
+# agent-linux（AirymaxOS）kselftest 系统级测试
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 2 卷——kselftest 用户态系统级测试。本卷规定 kselftest 框架结构、`tools/testing/selftests/` 目录组织、`make kselftest` 入口、各子系统测试集（sched/mm/fs/net/...）、kselftest 与 KUnit 区别、运行环境要求，以及 agent-linux Agent 契约测试的系统级扩展。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 7 层验证 L2（系统级测试）+ Linux 6.6 内核基线 `tools/testing/selftests/`\
 > **理论根基**：Linux 6.6 内核基线测试思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环 / IRON-9 v3 同源且部分代码共享）\
-> **核心约束**：IRON-9 v3 同源且部分代码共享——kselftest 框架与 Linux 6.6 上游保持源码同源，agentrt-linux 扩展必须以独立子目录形式注入，禁止改写上游 kselftest 框架代码。
+> **核心约束**：IRON-9 v3 同源且部分代码共享——kselftest 框架与 Linux 6.6 上游保持源码同源，agent-linux 扩展必须以独立子目录形式注入，禁止改写上游 kselftest 框架代码。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 2 卷，回答"内核系统级测试怎么跑"。它在 01-kunit-framework（白盒单元测试）与 03-kernel-selftests（内核自检）之间形成系统级测试执行层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 2 卷，回答"内核系统级测试怎么跑"。它在 01-kunit-framework（白盒单元测试）与 03-kernel-selftests（内核自检）之间形成系统级测试执行层：
 
 - **上游依赖**：README 定义"测试体系分层"——L2 系统级测试由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 8 层。
 - **下游依赖**：03-kernel-selftests 定义"启动时内核自检怎么启用"；08-agent-contract-testing 定义"Agent 行为契约"——本卷提供 Agent 契约的系统级载体。
@@ -40,7 +40,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 kselftest 是 Linux 6.6 内核基线中的官方用户态系统级测试框架，由 Shuah Khan（Samsung）于 2014 年首次合入主线。其设计目标有三：系统级覆盖（系统调用、`/proc`、`/sys`、ioctl 等用户态接口测试内核特性，覆盖 KUnit 难以触及的端到端路径）、真实环境（QEMU 或真实硬件反映用户实际工作负载）、零依赖（仅依赖 glibc 或 NOLIBC，无需额外测试运行时）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的 kselftest 框架（`tools/testing/selftests/`），不修改任何上游源文件。agentrt-linux 专属测试以独立 `airy_*` 子目录形式驻留于 `tools/testing/selftests/`，遵循 IRON-9 v3 同源且部分代码共享原则。
+agent-linux 完整继承 Linux 6.6 内核基线的 kselftest 框架（`tools/testing/selftests/`），不修改任何上游源文件。agent-linux 专属测试以独立 `airy_*` 子目录形式驻留于 `tools/testing/selftests/`，遵循 IRON-9 v3 同源且部分代码共享原则。
 
 ### 1.2 kselftest 架构层次
 
@@ -59,7 +59,7 @@ flowchart TB
     D --> E
     D --> F
     G -.->|串行/并行调度| D
-    subgraph "agentrt-linux 扩展层（独立子目录）"
+    subgraph "agent-linux 扩展层（独立子目录）"
         H["airy_ipc/<br/>AgentsIPC 协议系统测试"]
         I["airy_microcorert/<br/>MicroCoreRT 调度系统测试"]
         J["airy_agent_contract/<br/>Agent 契约系统测试"]
@@ -78,7 +78,7 @@ flowchart TB
 | 真实硬件 | `tar -xf kselftest.tar.gz && ./run_kselftest.sh` | 部署后回测 |
 | CI 容器 | `make -C tools/testing/selftests TARGETS=sched` | 选择性运行 |
 
-**OS-TEST-013**：所有 agentrt-linux 内核特性必须有对应的 kselftest 子系统测试；特性无 kselftest 覆盖时，PR 评审必须显式标注"kselftest 豁免理由"。
+**OS-TEST-013**：所有 agent-linux 内核特性必须有对应的 kselftest 子系统测试；特性无 kselftest 覆盖时，PR 评审必须显式标注"kselftest 豁免理由"。
 
 **OS-TEST-014**：kselftest 默认在 QEMU 上运行（CI 容器无法访问真实硬件）；测试若依赖真实硬件特性，必须用 `ksft_test_result_skip()` 在虚拟环境显式跳过并标注原因。
 
@@ -92,7 +92,7 @@ flowchart TB
 
 每个子目录典型结构：`Makefile`（编译规则）+ `config`（所需 CONFIG_* 选项）+ `*.c`/`*.sh`（测试程序）+ `README`/`settings`（文档与运行配置）。`config` 文件列出测试所需的内核配置（如 `tools/testing/selftests/cgroup/config` 包含 `CONFIG_CGROUPS=y`/`CONFIG_CGROUP_SCHED=y`/`CONFIG_SCHED_AUTOGROUP=y`/`CONFIG_MEMCG=y`）。
 
-**OS-STD-006**：所有 agentrt-linux 扩展子目录必须有 `config` 文件列出依赖 CONFIG_*；缺失 `config` 导致测试在 CI 上无法启用的，禁止合入。
+**OS-STD-006**：所有 agent-linux 扩展子目录必须有 `config` 文件列出依赖 CONFIG_*；缺失 `config` 导致测试在 CI 上无法启用的，禁止合入。
 
 **OS-STD-007**：子目录命名必须与被测子系统对齐（如 `airy_ipc` 测 `kernel/airymaxos/airy_ipc/`）；禁止用模糊命名如 `airy_misc`。
 
@@ -117,7 +117,7 @@ make -C tools/testing/selftests gen_kselftest_tar.sh                     # 生�
 
 **OS-TEST-015**：测试退出码必须严格使用 `ksft_exit_pass()`/`ksft_exit_fail()`/`ksft_exit_skip()`；禁止用裸 `exit(0)`/`exit(1)`，破坏 CI 解析。
 
-**OS-STD-048**：agentrt-linux 子目录禁止修改上游 `Makefile`（顶层）；新增子目录通过 `TARGETS += airy_xxx` 单行追加，并经 CI 静态检查（第 7 层）验证追加合规。
+**OS-STD-048**：agent-linux 子目录禁止修改上游 `Makefile`（顶层）；新增子目录通过 `TARGETS += airy_xxx` 单行追加，并经 CI 静态检查（第 7 层）验证追加合规。
 
 ### 3.3 kselftest 测试执行生命周期状态机
 
@@ -146,7 +146,7 @@ stateDiagram-v2
     note right of RUNNING
         settings 文件 timeout=N 触发 SIGKILL
         超时被 CI 标记为 KSFT_FAIL（OS-STD-009）
-        默认超时 60 秒，agentrt-linux 扩展必须声明
+        默认超时 60 秒，agent-linux 扩展必须声明
     end note
 ```
 
@@ -171,7 +171,7 @@ stateDiagram-v2
 
 ## 4. 子系统测试集
 
-Linux 6.6 内核基线在 `tools/testing/selftests/` 下提供 100+ 子系统测试集，覆盖 sched、mm、filesystems、net、bpf、cgroup、livepatch、resctrl、rseq、seccomp、tpm2 等。本节仅以 MicroCoreRT（agentrt-linux 用户态调度器，sched_tac）调度系统测试为例说明 agentrt-linux 系统级测试范式。
+Linux 6.6 内核基线在 `tools/testing/selftests/` 下提供 100+ 子系统测试集，覆盖 sched、mm、filesystems、net、bpf、cgroup、livepatch、resctrl、rseq、seccomp、tpm2 等。本节仅以 MicroCoreRT（agent-linux 用户态调度器，sched_tac）调度系统测试为例说明 agent-linux 系统级测试范式。
 
 ### 4.1 MicroCoreRT 调度系统测试
 
@@ -213,7 +213,7 @@ TEST_HARNESS_MAIN
 
 ### 4.2 完整 TARGETS 列表
 
-agentrt-linux 维护 `tools/testing/selftests/airy_enabled_targets.list`，列出 CI 默认启用的 TARGETS；该列表与 README 第 1.1 节的 L2 系统级测试集对齐。
+agent-linux 维护 `tools/testing/selftests/airy_enabled_targets.list`，列出 CI 默认启用的 TARGETS；该列表与 README 第 1.1 节的 L2 系统级测试集对齐。
 
 **OS-STD-008**：CI 默认启用 TARGETS 列表与 README 第 1.1 节的 L2 系统级测试集必须对齐；列表变更需同步更新两者。
 
@@ -235,7 +235,7 @@ agentrt-linux 维护 `tools/testing/selftests/airy_enabled_targets.list`，列�
 
 ```mermaid
 flowchart LR
-    subgraph "agentrt-linux 测试分层（agentrt L1-L7）"
+    subgraph "agent-linux 测试分层（agentrt L1-L7）"
         L1["L1 KUnit<br/>白盒单元<br/>单函数"]
         L2["L2 kselftest<br/>系统级<br/>子系统端到端"]
         L3["L3 lib/test_*<br/>内核自检<br/>特性级"]
@@ -247,7 +247,7 @@ flowchart LR
     L1 -->|补充| L2
     L2 -->|补充| L3
     L1 -.->|契约| L2
-    subgraph "agentrt-linux 专属扩展"
+    subgraph "agent-linux 专属扩展"
         L8["L8 Agent 契约测试<br/>SDK 调用契约"]
         L9["L9 模糊测试<br/>syzkaller"]
         L10["L10 形式化验证<br/>seL4/TLA+"]
@@ -255,7 +255,7 @@ flowchart LR
     L2 -.->|载体| L8
 ```
 
-**OS-TEST-017**：KUnit 测试与 kselftest 测试不可相互替代；每个 agentrt-linux 子系统必须同时有 KUnit 白盒测试（覆盖函数）与 kselftest 系统级测试（覆盖系统调用接口）。
+**OS-TEST-017**：KUnit 测试与 kselftest 测试不可相互替代；每个 agent-linux 子系统必须同时有 KUnit 白盒测试（覆盖函数）与 kselftest 系统级测试（覆盖系统调用接口）。
 
 **OS-KER-085**：禁止将 KUnit 与 kselftest 混编于同一文件；KUnit 是 `.c` 内核内文件（`*_test.c`），kselftest 是用户态文件（`tools/testing/selftests/`），二者编译目标不同。
 
@@ -276,7 +276,7 @@ sudo -u nobody ./run_kselftest.sh --filter=non_root     # 非特权测试
 
 ### 6.2 QEMU 镜像构建
 
-agentrt-linux CI 推荐 virtme 跑 kselftest：
+agent-linux CI 推荐 virtme 跑 kselftest：
 
 ```bash
 virtme-run --kdir=$PWD --script='cd /tmp && \
@@ -295,9 +295,9 @@ timeout=30
 
 可识别字段：`timeout`（单测试超时秒数，CI 默认 60）、`fragment`（测试子集分组）。
 
-**OS-TEST-018**：agentrt-linux CI 必须提供 root 与非 root 两套 kselftest 运行矩阵；非 root 测试集标记在 `airy_enabled_targets.list` 第 2 列。
+**OS-TEST-018**：agent-linux CI 必须提供 root 与非 root 两套 kselftest 运行矩阵；非 root 测试集标记在 `airy_enabled_targets.list` 第 2 列。
 
-**OS-STD-009**：所有 agentrt-linux 扩展测试在 `settings` 文件中必须声明 `timeout` 字段；CI 默认超时 60 秒，超时测试由 CI 标记为 `KSFT_FAIL`。
+**OS-STD-009**：所有 agent-linux 扩展测试在 `settings` 文件中必须声明 `timeout` 字段；CI 默认超时 60 秒，超时测试由 CI 标记为 `KSFT_FAIL`。
 
 ---
 
@@ -352,13 +352,13 @@ TEST_HARNESS_MAIN
 
 宏清单：`TEST(name)`/`FIXTURE(name)`/`FIXTURE_SETUP(name)`/`FIXTURE_TEARDOWN(name)`/`TEST_F(fixture, name)`/`EXPECT_EQ/NE/GT/LT/...`（非致命）/`ASSERT_EQ/NE/GT/LT/...`（致命）/`TH_LOG(fmt, ...)`/`TEST_HARNESS_MAIN`。
 
-**OS-TEST-019**：agentrt-linux 扩展测试优先使用 `kselftest_harness.h`（高层 API）；仅在需要精细控制 TAP 输出格式时使用 `kselftest.h`（低层 API）。
+**OS-TEST-019**：agent-linux 扩展测试优先使用 `kselftest_harness.h`（高层 API）；仅在需要精细控制 TAP 输出格式时使用 `kselftest.h`（低层 API）。
 
 **OS-STD-TEST-010**：每个 `TEST_F` 必须有对应 `FIXTURE_SETUP` 与 `FIXTURE_TEARDOWN`；资源在 setup 中获取，在 teardown 中释放，禁止在 `TEST_F` 体中分配而不释放。
 
 ---
 
-## 8. agentrt-linux Agent 契约测试的系统级扩展
+## 8. agent-linux Agent 契约测试的系统级扩展
 
 本卷与 KUnit 卷（01）形成对照：KUnit 测 Agent SDK 的白盒契约，kselftest 测 Agent 经系统调用、`/proc`、`/dev` 的端到端契约。
 
@@ -415,9 +415,9 @@ TEST_HARNESS_MAIN
 
 配套文件：`settings` 声明 `timeout=45`；`Makefile` 用 `CFLAGS += -I../../../../include/uapi/linux/airymax` + `TEST_GEN_PROGS := agent_sdk_contract` + `include ../lib.mk`；`config` 列出 `CONFIG_AIRY_IPC=y`/`CONFIG_AIRY_COREKERN=y`/`CONFIG_AIRY_SYSCALL=y`。
 
-**OS-TEST-020**：agentrt-linux Agent SDK 的每个公共 ioctl 必须有 kselftest 系统级测试；契约覆盖正常路径 + `EINVAL`/`ENOMEM`/`EBUSY` 各一例异常路径。
+**OS-TEST-020**：agent-linux Agent SDK 的每个公共 ioctl 必须有 kselftest 系统级测试；契约覆盖正常路径 + `EINVAL`/`ENOMEM`/`EBUSY` 各一例异常路径。
 
-**OS-KER-071**：agentrt-linux Agent 契约的系统级测试与 KUnit 契约测试必须共享同一份契约规范文档（`docs/agents/contract.md`），二者实现由 CI 第 7 层检查契约一致性。
+**OS-KER-071**：agent-linux Agent 契约的系统级测试与 KUnit 契约测试必须共享同一份契约规范文档（`docs/agents/contract.md`），二者实现由 CI 第 7 层检查契约一致性。
 
 ---
 
@@ -432,21 +432,21 @@ TEST_HARNESS_MAIN
 | **A-4 完美主义** | root/非 root 双矩阵 + 退出码严格（OS-TEST-015/018） |
 | **K-3 协议优先** | AgentsIPC 128B 协议系统级契约（OS-KER-071） |
 | **K-6 调度优先** | MicroCoreRT 调度策略系统级时间片测量（OS-TEST-016） |
-| **IRON-9 v3 同源且部分代码共享** | agentrt-linux 扩展子目录独立注入，不改上游（OS-STD-048/OS-KER-085） |
+| **IRON-9 v3 同源且部分代码共享** | agent-linux 扩展子目录独立注入，不改上游（OS-STD-048/OS-KER-085） |
 
 > Airymax 五维正交 24 原则要求各维度强制规则两两正交无重叠，kselftest 卷规则（OS-TEST-013 至 OS-TEST-022）按原则维度分组，避免一条规则同时承担多个原则检查。
 
 ### 9.1 IRON-9 v3 同源且部分代码共享在本卷的具体落地
 
-- **同源**：agentrt-linux 不修改上游 `tools/testing/selftests/Makefile` 顶层结构；上游测试集与 Linux 6.6 内核基线一一对应。
-- **独立**：agentrt-linux 扩展子目录以 `airy_*` 前缀命名，独立 `config`/`settings`/`Makefile`，独立 Kconfig 依赖。
-- **互操作**：agentrt-linux 套件与上游套件共享同一 `run_kselftest.sh` 调度器，CI 通过 `--filter` 选择性运行。
+- **同源**：agent-linux 不修改上游 `tools/testing/selftests/Makefile` 顶层结构；上游测试集与 Linux 6.6 内核基线一一对应。
+- **独立**：agent-linux 扩展子目录以 `airy_*` 前缀命名，独立 `config`/`settings`/`Makefile`，独立 Kconfig 依赖。
+- **互操作**：agent-linux 套件与上游套件共享同一 `run_kselftest.sh` 调度器，CI 通过 `--filter` 选择性运行。
 
-**OS-KER-098**：agentrt-linux 子目录禁止引入对上游测试集源码的依赖（`#include "../cgroup/..."` 等）；扩展测试自包含，避免上游重构时被破坏。
+**OS-KER-098**：agent-linux 子目录禁止引入对上游测试集源码的依赖（`#include "../cgroup/..."` 等）；扩展测试自包含，避免上游重构时被破坏。
 
 ### 9.2 IRON-9 v3 四层共享模型
 
-本节将 §9.1 的"同源 / 独立 / 互操作"三要素进一步细化为 **IRON-9 v3 四层共享模型**，明确测试集层在用户态（agentrt）与内核态（agentrt-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
+本节将 §9.1 的"同源 / 独立 / 互操作"三要素进一步细化为 **IRON-9 v3 四层共享模型**，明确测试集层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
 
 #### 9.2.1 三层模型概览表
 
@@ -460,11 +460,11 @@ TEST_HARNESS_MAIN
 
 **无直接 [SC] 共享头文件**。
 
-测试集层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。测试集是验证基础设施，两端运行目标截然不同（agentrt 用户态集成测试 vs agentrt-linux 内核态系统级测试），其 Makefile 模式与运行器各自定义，源码层无共享头文件依赖。这一约束确保 agentrt 用户态集成测试演进时不会被动牵连 agentrt-linux kselftest，反之亦然——测试集层的演进由各自的 **OS-TEST 评审** 独立裁决。两端仅通过 **TAP 13 格式** 与 **AgentsIPC** 实现跨态协作而非代码共享。
+测试集层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。测试集是验证基础设施，两端运行目标截然不同（agentrt 用户态集成测试 vs agent-linux 内核态系统级测试），其 Makefile 模式与运行器各自定义，源码层无共享头文件依赖。这一约束确保 agentrt 用户态集成测试演进时不会被动牵连 agent-linux kselftest，反之亦然——测试集层的演进由各自的 **OS-TEST 评审** 独立裁决。两端仅通过 **TAP 13 格式** 与 **AgentsIPC** 实现跨态协作而非代码共享。
 
 #### 9.2.3 [SS] 语义同源层
 
-| 语义维度 | agentrt 用户态（集成测试） | agentrt-linux 内核态（kselftest） | 同源语义 |
+| 语义维度 | agentrt 用户态（集成测试） | agent-linux 内核态（kselftest） | 同源语义 |
 |---------|---------------------------|-----------------------------------|----------|
 | 测试发现 | `TEST_PROGS` / `TEST_GEN_PROGS` 变量 | `TEST_PROGS` / `TEST_GEN_PROGS` 变量 | 声明式测试用例发现 |
 | Makefile 模式 | `add_test()` / CTest 注册 | `Makefile` + `TEST_PROGS` 声明 | 声明式测试构建 |
@@ -473,11 +473,11 @@ TEST_HARNESS_MAIN
 | 测试过滤 | `ctest -R <regex>` | `--filter` / `-t <test>` | 测试选择过滤 |
 | 超时管理 | `TIMEOUT` 属性 | `settings` 文件 timeout | 测试超时控制 |
 
-**语义说明**：agentrt 用户态集成测试与 agentrt-linux 内核态的 kselftest 在"测试发现 + TAP 报告"这一核心语义上同源——二者均通过**声明式变量**（`TEST_PROGS` / `TEST_GEN_PROGS`）发现测试用例，通过**统一调度器**（`ctest` / `run_kselftest.sh`）运行测试，输出 **TAP 13 格式** 报告结果。这种同源使测试集的组织心智模型在两端可复用：理解了 kselftest 的 `TEST_PROGS` 声明式发现，即理解了 agentrt 集成测试的测试注册语义。两端还共享 **TAP 13 输出格式**，使 CI 可用统一的解析器处理两端的测试结果。但**机制完全独立**——kselftest 运行于内核态系统级环境，agentrt 集成测试运行于用户态进程，二者无代码共享。
+**语义说明**：agentrt 用户态集成测试与 agent-linux 内核态的 kselftest 在"测试发现 + TAP 报告"这一核心语义上同源——二者均通过**声明式变量**（`TEST_PROGS` / `TEST_GEN_PROGS`）发现测试用例，通过**统一调度器**（`ctest` / `run_kselftest.sh`）运行测试，输出 **TAP 13 格式** 报告结果。这种同源使测试集的组织心智模型在两端可复用：理解了 kselftest 的 `TEST_PROGS` 声明式发现，即理解了 agentrt 集成测试的测试注册语义。两端还共享 **TAP 13 输出格式**，使 CI 可用统一的解析器处理两端的测试结果。但**机制完全独立**——kselftest 运行于内核态系统级环境，agentrt 集成测试运行于用户态进程，二者无代码共享。
 
 #### 9.2.4 [IND] 完全独立层
 
-| 独立实现项 | agentrt-linux 内核态（kselftest） | agentrt 用户态 | 独立原因 |
+| 独立实现项 | agent-linux 内核态（kselftest） | agentrt 用户态 | 独立原因 |
 |-----------|----------------------------------|---------------|---------|
 | 内核安装机制 | `make kselftest` 安装到 rootfs | 无对应 | 内核态安装特有 |
 | rootfs 集成 | 测试二进制注入 rootfs | 无对应 | 内核态 rootfs 特有 |
@@ -495,7 +495,7 @@ graph LR
         A2["ctest 调度器<br/>用户态运行"]
         A3["TAP 13 结果"]
     end
-    subgraph "agentrt-linux 内核态（OS 层）"
+    subgraph "agent-linux 内核态（OS 层）"
         K1["TEST_PROGS 声明<br/>测试发现"]
         K2["run_kselftest.sh<br/>系统级运行"]
         K3["TAP 13 结果"]
@@ -526,7 +526,7 @@ graph LR
     style K3 fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
-**协作说明**：agentrt 用户态集成测试通过 `TEST_PROGS` 声明发现并用 `ctest` 调度运行于用户态进程，agentrt-linux 内核态 kselftest 通过 `TEST_PROGS` 声明发现并用 `run_kselftest.sh` 调度运行于系统级环境。两端在 **[SS] 语义同源层** 共享"测试发现 + TAP 报告"的设计模式（Makefile 模式 / 调度器 / TAP 13 格式 / 过滤），使测试集的组织心智模型在两端可复用；但在 **[IND] 完全独立层** 各自维护内核安装机制、rootfs 集成、超时管理。两端测试结果均输出 **TAP 13 格式**，通过 **AgentsIPC** 通道汇总至 CI 统一解析。这与 §9.1 的"同源 / 独立 / 互操作"三要素一致：同源（测试发现 + TAP）、独立（安装机制 / rootfs）、互操作（`run_kselftest.sh` 调度器与上游共享）。这正是 **IRON-9 v3 同源且部分代码共享** 在测试集层的落地——同源模式，独立实现，无共享契约，靠 IPC 协作。
+**协作说明**：agentrt 用户态集成测试通过 `TEST_PROGS` 声明发现并用 `ctest` 调度运行于用户态进程，agent-linux 内核态 kselftest 通过 `TEST_PROGS` 声明发现并用 `run_kselftest.sh` 调度运行于系统级环境。两端在 **[SS] 语义同源层** 共享"测试发现 + TAP 报告"的设计模式（Makefile 模式 / 调度器 / TAP 13 格式 / 过滤），使测试集的组织心智模型在两端可复用；但在 **[IND] 完全独立层** 各自维护内核安装机制、rootfs 集成、超时管理。两端测试结果均输出 **TAP 13 格式**，通过 **AgentsIPC** 通道汇总至 CI 统一解析。这与 §9.1 的"同源 / 独立 / 互操作"三要素一致：同源（测试发现 + TAP）、独立（安装机制 / rootfs）、互操作（`run_kselftest.sh` 调度器与上游共享）。这正是 **IRON-9 v3 同源且部分代码共享** 在测试集层的落地——同源模式，独立实现，无共享契约，靠 IPC 协作。
 
 ---
 
@@ -544,9 +544,9 @@ agentrt 7 层验证与本卷的对应关系：
 | L6 形式化 | 关键路径证明 | 10-formal-verification（非本卷） |
 | L7 模糊 | 输入边界 | 09-fuzz-testing（非本卷） |
 
-**OS-KER-099**：agentrt L2（系统级）的所有用例必须用 kselftest 实现；与上游 kselftest 共享同一 `tools/testing/selftests/` 目录与 `run_kselftest.sh` 调度器，禁止 agentrt-linux 自建独立调度器。
+**OS-KER-099**：agentrt L2（系统级）的所有用例必须用 kselftest 实现；与上游 kselftest 共享同一 `tools/testing/selftests/` 目录与 `run_kselftest.sh` 调度器，禁止 agent-linux 自建独立调度器。
 
-**OS-KER-100**：agentrt 与 agentrt-linux 之间的 kselftest 子目录命名空间必须正交（`airy_*` vs `airy_*` 前缀）；命名冲突由 CI 第 7 层（静态检查）在 PR 阶段检测。
+**OS-KER-100**：agentrt 与 agent-linux 之间的 kselftest 子目录命名空间必须正交（`airy_*` vs `airy_*` 前缀）；命名冲突由 CI 第 7 层（静态检查）在 PR 阶段检测。
 
 ---
 
@@ -591,7 +591,7 @@ kselftest 输出 TAP（version 13），形如 `ok <num> <suite>:<case>` / `not o
 - `80-testing/README.md`（测试体系主索引，定义 L1-L10 分层）
 - `80-testing/01-kunit-framework.md`（KUnit 白盒单元测试，与本卷互补）
 - `80-testing/03-kernel-selftests.md`（`lib/test_*` 内核自检，待创建）
-- `80-testing/08-agent-contract-testing.md`（agentrt-linux 专属：Agent 行为契约测试，待创建）
+- `80-testing/08-agent-contract-testing.md`（agent-linux 专属：Agent 行为契约测试，待创建）
 - `50-engineering-standards/06-toolchain-and-automation.md`（7 层验证体系，本卷属第 8 层）
 - `50-engineering-standards/01-coding-standards.md`（错误处理强制，与 kselftest 退出码对齐）
 - `20-modules/08-tests-linux.md`（tests-linux 子仓设计）
@@ -611,19 +611,19 @@ kselftest 输出 TAP（version 13），形如 `ok <num> <suite>:<case>` / `not o
 
 | 版本 | 日期 | 维护者 | 变更 |
 |------|------|--------|------|
-| 0.1.1 | 2026-07-06 | agentrt-linux 工程组 | 初始占位版（仅 README + 01 + 02） |
-| 1.0.1 | 2026-07-06 | agentrt-linux 工程组 | 开发版：补全 agentrt-linux 扩展章节、CI 集成、五维原则映射 |
+| 0.1.1 | 2026-07-06 | agent-linux 工程组 | 初始占位版（仅 README + 01 + 02） |
+| 1.0.1 | 2026-07-06 | agent-linux 工程组 | 开发版：补全 agent-linux 扩展章节、CI 集成、五维原则映射 |
 
 ### 13.1 维护规则
 
 - 本卷与 Linux 6.6 内核基线 kselftest 框架保持源码同源（IRON-9 v3 同源且部分代码共享）。
 - 上游 kselftest API 变更时，本卷必须在 1 个上游 LTS 周期内同步更新。
-- agentrt-linux 扩展子目录的新增/删除必须同步更新本卷第 8 节与 `80-testing/README.md` 的 L2 章节。
+- agent-linux 扩展子目录的新增/删除必须同步更新本卷第 8 节与 `80-testing/README.md` 的 L2 章节。
 - 本卷所有规则编号（OS-KER-XXX/OS-STD-XXX/OS-TEST-XXX）注册于 07 维护者制度的"规则编号注册表"。
 
 ### 13.2 待办（1.0.1 版本）
 
-- [ ] 补充 NOLIBC 模式下 agentrt-linux 测试的编译模板
+- [ ] 补充 NOLIBC 模式下 agent-linux 测试的编译模板
 - [ ] 补充 kselftest 与 KCOV 覆盖度联用（与 06-coverage-metrics 联动）
 - [ ] 补充 kselftest 与动态分析（KASAN/UBSAN）联用的运行模板
 - [ ] 补充 MicroCoreRT 调度策略在 RT 抢占模式下的系统级时间片测量
@@ -632,7 +632,7 @@ kselftest 输出 TAP（version 13），形如 `ok <num> <suite>:<case>` / `not o
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集 kselftest 系统级测试框架所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `tools/testing/selftests/kselftest.h`、`tools/testing/selftests/kselftest_harness.h`、`tools/testing/selftests/lib.mk`、`run_kselftest.sh` 及 `include/uapi/linux/airymax/selftest_types.h`（[SC] 共享契约层）。kselftest 框架与 Linux 6.6 上游保持源码同源（IRON-9 v3），agentrt-linux 扩展以独立 `airy_*` 子目录形式注入，禁止改写上游框架代码。
+> **附录定位**： 本附录汇集 kselftest 系统级测试框架所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `tools/testing/selftests/kselftest.h`、`tools/testing/selftests/kselftest_harness.h`、`tools/testing/selftests/lib.mk`、`run_kselftest.sh` 及 `include/uapi/linux/airymax/selftest_types.h`（[SC] 共享契约层）。kselftest 框架与 Linux 6.6 上游保持源码同源（IRON-9 v3），agent-linux 扩展以独立 `airy_*` 子目录形式注入，禁止改写上游框架代码。
 
 ### A.1 核心数据结构
 
@@ -651,7 +651,7 @@ kselftest 输出 TAP（version 13），形如 `ok <num> <suite>:<case>` / `not o
  * @needs_root:   是否需要 root 权限运行（CI 非 root 矩阵标记跳过）
  *
  * 对齐 Linux 6.6 tools/testing/selftests/lib.mk 的 Makefile 变量模型
- * （agentrt-linux 专属建模，描述测试集在 C 侧的等价表示）
+ * （agent-linux 专属建模，描述测试集在 C 侧的等价表示）
  */
 struct kselftest_module {
     const char        *name;
@@ -727,7 +727,7 @@ enum test_status {
  * @log_buf:        TH_LOG 日志缓冲
  *
  * 对齐 Linux 6.6 tools/testing/selftests/kselftest_harness.h 的
- * __test_metadata / __fixture_metadata 内部结构（agentrt-linux 专属建模）
+ * __test_metadata / __fixture_metadata 内部结构（agent-linux 专属建模）
  */
 struct kselftest_harness {
     const char            *fixture_name;
@@ -777,7 +777,7 @@ int kselftest_run(struct kselftest_module *module,
 #  * TEST_GEN_FILES:   需编译生成的辅助文件（非测试目标，被测试程序依赖）
 #  * TEST_GEN_PROGS_EXTENDED: 额外编译目标（helper 库等）
 #  *
-#  * 注册模式示例（agentrt-linux Agent 契约测试）：
+#  * 注册模式示例（agent-linux Agent 契约测试）：
 #  */
 # tools/testing/selftests/airy_agent_contract/Makefile
 TEST_GEN_PROGS := agent_sdk_contract
@@ -976,7 +976,7 @@ void ksft_exit_skip(const char *fmt, ...) __attribute__((noreturn));
 #  */
 
 # timeout: 单测试超时秒数（CI 默认 60，超时标记 KSFT_FAIL）
-#   OS-STD-009: agentrt-linux 扩展测试必须声明 timeout
+#   OS-STD-009: agent-linux 扩展测试必须声明 timeout
 timeout=45
 
 # fragment: 测试子集分组（CI 按分组调度）
@@ -988,7 +988,7 @@ timeout=45
 
 ```c
 /**
- * kselftest 错误码（agentrt-linux 专属，对齐 KSFT_* 退出码语义）
+ * kselftest 错误码（agent-linux 专属，对齐 KSFT_* 退出码语义）
  */
 #define KSFT_OK            KSFT_PASS   /* 测试成功 */
 #define KSFT_E_FAIL        KSFT_FAIL   /* 测试失败 */
@@ -1002,4 +1002,4 @@ timeout=45
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程第 2 卷（kselftest 系统级测试）|  | 同源 Linux 6.6 内核基线 kselftest
+> **文档结束** | agent-linux 测试工程第 2 卷（kselftest 系统级测试）|  | 同源 Linux 6.6 内核基线 kselftest

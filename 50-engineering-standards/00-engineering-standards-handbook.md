@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）工程标准规范手册
-> **文档定位**：交付成果 #3——工程标准规范手册。本文档是 agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准的执行依据，汇总 7 主题文档的核心规范条目、SSoT 规则编号注册表、IRON-9 v3 四层共享模型、合规性禁词清单与乔布斯美学审查标准，作为开发的强制执行依据。\
+# agent-linux（AirymaxOS）工程标准规范手册
+> **文档定位**：交付成果 #3——工程标准规范手册。本文档是 agent-linux（AirymaxOS，极境智能体操作系统）工程标准的执行依据，汇总 7 主题文档的核心规范条目、SSoT 规则编号注册表、IRON-9 v3 四层共享模型、合规性禁词清单与乔布斯美学审查标准，作为开发的强制执行依据。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）+ seL4 微内核设计思想 + 主流 Linux 工程标准规范参考\
 > **配套文档**：comprehensive-review-report.md（交付成果 #1）、revision-changelog.md（交付成果 #2）\
 > **权威性**：本手册为工程标准的**单一事实源（SSoT）**索引。当各主题文档与本手册冲突时，以本手册为准；当本手册与 SSoT 注册表（[09-ssot-registry.md](./09-ssot-registry.md)）冲突时，以 SSoT 注册表为准。新规则须按 [09-ssot-registry.md §1.4](./09-ssot-registry.md) 流程申请注册。
@@ -30,7 +30,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 4 主题文档架构
 
-agentrt-linux 工程标准由 4 主题文档构成，本手册为其总索引与执行依据：
+agent-linux 工程标准由 4 主题文档构成，本手册为其总索引与执行依据：
 
 | 主题 | 文档 | 职责 |
 |------|------|------|
@@ -52,7 +52,7 @@ agentrt-linux 工程标准由 4 主题文档构成，本手册为其总索引与
 
 ### 1.3 工程标准适用范围
 
-- **适用对象**：agentrt-linux 全部 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）
+- **适用对象**：agent-linux 全部 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）
 - **适用语言**：内核态 C（主力）、内核模块 Rust（安全敏感子系统）、用户态服务 C/Rust/Python/TypeScript
 - **适用阶段**：0.1.1→ 1.0.1→ 后续所有版本
 - **不适用**：agentrt 用户态运行时（遵循 agentrt 自身的 IRON-1~10 规则，与本手册 IRON-9 v3 同源但独立）
@@ -167,13 +167,13 @@ agentrt-linux 工程标准由 4 主题文档构成，本手册为其总索引与
 
 ### 4.1 四层共享模型
 
-agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四层模型：
+agent-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四层模型：
 
 | 层次 | 标注 | 共享程度 | 共享内容 | 共享方式 |
 |------|------|---------|---------|---------|
 | **共享契约层** | [SC] | 完全共享头文件 | 10 个头文件（见 §4.2） | `include/uapi/linux/airymax/` 目录，两端 `#include` 同一头文件 |
 | **语义同源层** | [SS] | 语义一致，实现独立 | MicroCoreRT 调度语义 / AgentsIPC 128B 消息头 / Cupolas 安全模型 / CoreLoopThree 三层循环 | 两端独立实现，通过行为契约测试验证语义一致 |
-| **完全独立层** | [IND] | 完全独立 | agentrt-linux 专属：内核驱动框架、Kbuild、内核内部 API；agentrt 专属：跨平台用户态运行时、SDK 四语言 | 各自独立仓库，无依赖关系 |
+| **完全独立层** | [IND] | 完全独立 | agent-linux 专属：内核驱动框架、Kbuild、内核内部 API；agentrt 专属：跨平台用户态运行时、SDK 四语言 | 各自独立仓库，无依赖关系 |
 | **降级生存层** | [DSL] | 自包含降级块 | 38 POSIX 码降级映射 + 最简 IPC + EEVDF 默认调度 | `#ifdef AIRY_SC_FALLBACK` 降级块内嵌 [SC] 头文件，损坏时最小可运行子集 |
 
 ### 4.2 [SC] 共享契约层头文件清单
@@ -198,8 +198,8 @@ agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 �
 
 | 边界 | 共享策略 | 说明 |
 |------|---------|------|
-| agentrt ↔ agentrt-linux | [SC] 共享契约层 10 个头文件 | 唯一的代码共享通道 |
-| agentrt-linux ↔ Linux 6.6 基线 | 仅技术参考，不共享代码 | 参考主流 Linux 工程思想与实现方式，不共享代码 |
+| agentrt ↔ agent-linux | [SC] 共享契约层 10 个头文件 | 唯一的代码共享通道 |
+| agent-linux ↔ Linux 6.6 基线 | 仅技术参考，不共享代码 | 参考主流 Linux 工程思想与实现方式，不共享代码 |
 | agentrt ↔ 第三方项目 | 按许可证条款使用 | agentrt 采用 AGPL-3.0 + Apache-2.0 双开源许可证，第三方项目按相应许可证条款使用 |
 
 ### 4.4 IPC magic 值与任务描述符 magic
@@ -270,7 +270,7 @@ agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 �
 
 ### 6.1 BAN-361 禁止引用的 Linux 7.0 专属特性
 
-以下特性属于 Linux 7.0 专属，禁止在 agentrt-linux 文档、代码、注释中引用为 Linux 6.6 原生能力：
+以下特性属于 Linux 7.0 专属，禁止在 agent-linux 文档、代码、注释中引用为 Linux 6.6 原生能力：
 
 | 禁止引用 | 正确表述 | 说明 |
 |---------|---------|------|
@@ -279,7 +279,7 @@ agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 �
 | `MGLRU 2.0` | `MGLRU 多代 LRU` | Linux 6.6 原生 MGLRU |
 | `XFS 自修复` | `XFS 在线修复` | Linux 6.6 原生 XFS 能力 |
 | `eBPF 签名验证` | `eBPF kfunc + dynamic pointer` | Linux 6.6 原生 eBPF 能力 |
-| `sched_ext（误标为 Linux 6.6 原生能力）` | `sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）` | 标准 Linux 6.6 主线不包含 sched_ext（6.12 才合入主线）；agentrt-linux 采用sched_tac 替代 sched_ext |
+| `sched_ext（误标为 Linux 6.6 原生能力）` | `sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）` | 标准 Linux 6.6 主线不包含 sched_ext（6.12 才合入主线）；agent-linux 采用sched_tac 替代 sched_ext |
 
 ### 6.2 命名体系规范
 
@@ -288,14 +288,14 @@ agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 �
 | 产品 | 标准全称 | 简称 | 定位 |
 |------|---------|------|------|
 | agentrt | AirymaxAgentRT 极境智能体运行底座平台工程 | agentrt / AirymaxRT | 用户态组件、AI Agent 运行时平台工程 |
-| agentrt-linux | AirymaxOS 极境智能体操作系统 | agentrt-linux / AirymaxOS | 操作系统发行版、智能体操作系统 |
+| agent-linux | AirymaxOS 极境智能体操作系统 | agent-linux / AirymaxOS | 操作系统发行版、智能体操作系统 |
 
 #### 6.2.2 命名规则
 
 - **正式英文名**：全称使用 "AirymaxOS"（无空格），简称使用 "AirymaxOS"
 - **正式中文名**：全称使用 "极境智能体操作系统"
-- **代码仓库**：仓库名为 "agentrt-linux"（注意：目录名与文档中使用 "agentrt-linux" 作为产品代号）
-- **文档表述**：首次出现使用全称 "agentrt-linux（AirymaxOS，极境智能体操作系统）"，后续使用简称 "agentrt-linux" 或 "AirymaxOS"
+- **代码仓库**：仓库名为 "agent-linux"（注意：目录名与文档中使用 "agent-linux" 作为产品代号）
+- **文档表述**：首次出现使用全称 "agent-linux（AirymaxOS，极境智能体操作系统）"，后续使用简称 "agent-linux" 或 "AirymaxOS"
 
 ### 6.3 开源品牌表述清零规范
 
@@ -315,7 +315,7 @@ agentrt-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 �
 | 术语 | 适用对象 | 英文 | 含义 |
 |------|---------|------|------|
 | **微核心**（micro-core） | agentrt（用户态） | MicroCore | agentrt 的 atoms/corekern（MicroCoreRT）是用户态微核心运行时，不是真正的内核 |
-| **微内核**（micro-kernel） | agentrt-linux（OS 发行版） | Microkernel | agentrt-linux 基于 Linux 6.6 进行微内核化改造，将 VFS/网络栈/部分驱动移到用户态 |
+| **微内核**（micro-kernel） | agent-linux（OS 发行版） | Microkernel | agent-linux 基于 Linux 6.6 进行微内核化改造，将 VFS/网络栈/部分驱动移到用户态 |
 
 ### 7.2 MicroCoreRT 术语使用规范
 
@@ -324,7 +324,7 @@ MicroCoreRT 是 IRON-9 v3 [SS] 语义同源层组件，在两端有不同实现�
 | 上下文 | 正确术语 | 错误术语 | 说明 |
 |--------|---------|---------|------|
 | 描述 agentrt 中的 MicroCoreRT | 微核心运行时 | ~~微内核运行时~~ | agentrt 是用户态，不是内核 |
-| 描述 agentrt-linux 中的 MicroCoreRT | 微核心运行时 | ~~微内核运行时~~ | agentrt-linux 虽是 OS，但 MicroCoreRT 源自 agentrt，跨两端统一称"微核心运行时" |
+| 描述 agent-linux 中的 MicroCoreRT | 微核心运行时 | ~~微内核运行时~~ | agent-linux 虽是 OS，但 MicroCoreRT 源自 agentrt，跨两端统一称"微核心运行时" |
 | MicroCoreRT 标准名称（跨两端） | 微核心运行时（MicroCoreRT） | ~~微内核运行时~~ | 以 agentrt 上下文为准，因为 MicroCoreRT 源自 agentrt |
 
 > **注**：[90-terminology.md](./90-terminology.md) 已将 MicroCoreRT 标准名称修正为"微核心运行时"。
@@ -333,7 +333,7 @@ MicroCoreRT 是 IRON-9 v3 [SS] 语义同源层组件，在两端有不同实现�
 
 | 正确表述 | 错误表述 | 说明 |
 |---------|---------|------|
-| agentrt-linux 基于 Linux 6.6 进行微内核化改造 | ~~agentrt-linux 是从零开发的微内核~~ | 不是从零开发，是基于 Linux 改造 |
+| agent-linux 基于 Linux 6.6 进行微内核化改造 | ~~agent-linux 是从零开发的微内核~~ | 不是从零开发，是基于 Linux 改造 |
 | 微内核化改造策略（sched_tac + seL4 MCS 映射 + eBPF + io_uring） | ~~真正的微内核~~ | 是改造，不是原生微内核 |
 | agentrt 的微核心设计思想 | ~~agentrt 的微内核化哲学~~ | agentrt 是用户态，没有"微内核化" |
 
@@ -345,7 +345,7 @@ MicroCoreRT 是 IRON-9 v3 [SS] 语义同源层组件，在两端有不同实现�
 
 > "For you to sleep well at night, the aesthetic, the quality, has to be carried all the way through." — Steve Jobs
 
-agentrt-linux 工程标准贯彻乔布斯美学——不仅用户可见的表面要完美，用户不可见的内部构造（代码结构、编码风格、实现模式、设计思想）也必须达到最高质量标准。**没有"用户看不到所以可以妥协"的隐藏瑕疵。**
+agent-linux 工程标准贯彻乔布斯美学——不仅用户可见的表面要完美，用户不可见的内部构造（代码结构、编码风格、实现模式、设计思想）也必须达到最高质量标准。**没有"用户看不到所以可以妥协"的隐藏瑕疵。**
 
 ### 8.2 6 维度审查清单
 
@@ -387,7 +387,7 @@ agentrt-linux 工程标准贯彻乔布斯美学——不仅用户可见的表面
 
 ### 9.2 不移植的 上游 Linux 6.6 不含的特性
 
-以下 上游 Linux 6.6 不含的特性不移植到 agentrt-linux：
+以下 上游 Linux 6.6 不含的特性不移植到 agent-linux：
 
 | 特性 | 不移植原因 | 替代方案 |
 |------|---------|---------|

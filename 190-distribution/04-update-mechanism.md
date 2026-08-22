@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）更新机制设计详细规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）内核热更新、原子更新与回滚机制详细设计\
+# agent-linux（AirymaxOS）更新机制设计详细规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）内核热更新、原子更新与回滚机制详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安全、原子、可回滚的更新能力。本设计聚焦三大目标：
+agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安全、原子、可回滚的更新能力。本设计聚焦三大目标：
 
 1. **内核热更新（livepatch）支持**：通过 kpatch + livepatch 框架对运行中内核打补丁，无需重启
 2. **rpm-ostree 原子更新**：整个系统（内核 + 用户态）作为单一原子事务更新，全有或全无
@@ -30,7 +30,7 @@ agentrt-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供�
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。更新机制与 agentrt 之间属于 IRON-9 v3 [IND] 完全独立层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。更新机制与 agentrt 之间属于 IRON-9 v3 [IND] 完全独立层。
 
 ### 1.4 更新场景矩阵
 
@@ -133,7 +133,7 @@ module_init(lp_vtime_fix_init);
 module_exit(lp_vtime_fix_exit);
 MODULE_LICENSE("GPL");
 MODULE_INFO(livepatch, "Y");
-MODULE_DESCRIPTION("agentrt-linux stc_agent vtime fix");
+MODULE_DESCRIPTION("agent-linux stc_agent vtime fix");
 ```
 
 ### 2.3 livepatch 应用流程
@@ -257,7 +257,7 @@ ostree admin status
 # * airymaxos 1.0.1
 #     Version: 1.0.1
 #     Commit: 7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b
-#     Subject: agentrt-linux 1.0.1 release
+#     Subject: agent-linux 1.0.1 release
 
 echo "[完成] rpm-ostree 系统已初始化"
 ```
@@ -294,7 +294,7 @@ echo "[完成] rpm-ostree 系统已初始化"
 ```bash
 #!/bin/bash
 # /usr/lib/airymaxos/scripts/atomic_upgrade.sh
-# 原子更新 agentrt-linux 系统
+# 原子更新 agent-linux 系统
 
 set -euo pipefail
 LOG=/var/log/agentrt-upgrade.log
@@ -331,11 +331,11 @@ rpm-ostree status
 # * airymaxos 1.0.2
 #     Version: 1.0.2
 #     Commit: 1a2b3c4d5e6f...
-#     Subject: agentrt-linux 1.0.2 release
+#     Subject: agent-linux 1.0.2 release
 #   airymaxos 1.0.1
 #     Version: 1.0.1
 #     Commit: 7a8b9c0d1e2f...
-#     Subject: agentrt-linux 1.0.1 release
+#     Subject: agent-linux 1.0.1 release
 
 # 当前活跃版本（* 标记）为 1.0.2，可回滚到 1.0.1
 ```
@@ -393,7 +393,7 @@ echo "[6/6] 重启后健康检查（在启动脚本中执行）"
 # 启动后健康检查（systemd 服务）
 
 [Unit]
-Description=agentrt-linux Health Check after Boot
+Description=agent-linux Health Check after Boot
 After=multi-user.target
 ConditionPathExists=/var/lib/agentrt/.pending-upgrade
 
@@ -615,7 +615,7 @@ echo "[完成] 12 daemon 滚动重启完成"
 
 ## 7. 错误码体系对接
 
-更新机制错误码纳入 agentrt-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃，见 [160-compatibility/05-cross-distro.md §15.1](../160-compatibility/05-cross-distro.md)），更新机制场景复用既有段码，未来发行版专属错误码向 error.h 保留段 241-300 申请：
+更新机制错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃，见 [160-compatibility/05-cross-distro.md §15.1](../160-compatibility/05-cross-distro.md)），更新机制场景复用既有段码，未来发行版专属错误码向 error.h 保留段 241-300 申请：
 
 | 错误码 | 数值 | 含义 |
 |--------|------|------|
@@ -675,14 +675,14 @@ out_err:
 
 ## 9. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[IND]） | agentrt（[IND]） |
+| 组件 | agent-linux（[IND]） | agentrt（[IND]） |
 |------|--------------------------|------------------|
 | livepatch | 内核热更新 | 无 |
 | rpm-ostree | 原子更新 | 无 |
 | 回滚机制 | GRUB 多版本 | 无 |
 | 数据迁移 | MemoryRovol schema 迁移 | 用户态数据迁移 |
 
-agentrt-linux 的更新机制与 agentrt 完全独立（[IND] 完全独立层），各自演进。
+agent-linux 的更新机制与 agentrt 完全独立（[IND] 完全独立层），各自演进。
 
 ---
 
@@ -707,4 +707,4 @@ agentrt-linux 的更新机制与 agentrt 完全独立（[IND] 完全独立层）
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）更新机制设计详细规范 
+> **文档结束** | agent-linux（AirymaxOS）更新机制设计详细规范 

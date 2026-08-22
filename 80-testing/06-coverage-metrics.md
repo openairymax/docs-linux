@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）覆盖率度量
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 6 卷——代码覆盖率度量（Coverage Metrics）。本卷规定覆盖率度量体系（行/分支/函数覆盖率）、CI 覆盖率门槛（kernel ≥90%、security ≥95%、ipc ≥90%）、覆盖率工具链（gcov + lcov + genhtml）、nightly workflow 生成覆盖率报告、Codecov 趋势追踪，以及 agentrt-linux 专属 Agent 行为路径覆盖率。\
+# agent-linux（AirymaxOS）覆盖率度量
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 6 卷——代码覆盖率度量（Coverage Metrics）。本卷规定覆盖率度量体系（行/分支/函数覆盖率）、CI 覆盖率门槛（kernel ≥90%、security ≥95%、ipc ≥90%）、覆盖率工具链（gcov + lcov + genhtml）、nightly workflow 生成覆盖率报告、Codecov 趋势追踪，以及 agent-linux 专属 Agent 行为路径覆盖率。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 6 卷，回答"代码覆盖率怎么测、门槛怎么守"。它在 05-static-analysis（编译时分析）与 07-ftrace-selftest（启动自检）之间形成覆盖度量层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 6 卷，回答"代码覆盖率怎么测、门槛怎么守"。它在 05-static-analysis（编译时分析）与 07-ftrace-selftest（启动自检）之间形成覆盖度量层：
 
 - **上游依赖**：README 定义"测试体系分层"——L6 覆盖度量由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 12 层（覆盖度量层）。
 - **下游依赖**：07-ftrace-selftest 定义"ftrace 启动自检"；08-agent-contract-testing 定义"Agent 行为契约测试"——本卷的覆盖率门槛为契约测试提供量化基线。
@@ -32,7 +32,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | `lcov` | `gcov` 数据的图形化前端 |
 | `genhtml` | 由 `lcov` 数据生成 HTML 报告 |
 | `Codecov` | 第三方覆盖率趋势追踪服务 |
-| `airy_coverage_thresholds` | agentrt-linux 专属覆盖率门槛配置文件 |
+| `airy_coverage_thresholds` | agent-linux 专属覆盖率门槛配置文件 |
 
 ---
 
@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 代码覆盖率度量是 Linux 6.6 内核基线中"量化测试用例覆盖代码比例"的机制。其设计目标有三：**量化反馈**（用数字回答"测试够不够"）、**回归守护**（覆盖率下降即警示）、**测试改进**（识别未覆盖代码，引导补充测试）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的覆盖率工具链（`gcov` / `KCOV` / `lcov` / `genhtml`），不修改任何上游源文件。agentrt-linux 专属覆盖率度量（Agent 行为路径覆盖率）以独立 `airy_coverage_*` 模块形式注入，遵循 IRON-9 v3 [IND] 独立实现层原则。
+agent-linux 完整继承 Linux 6.6 内核基线的覆盖率工具链（`gcov` / `KCOV` / `lcov` / `genhtml`），不修改任何上游源文件。agent-linux 专属覆盖率度量（Agent 行为路径覆盖率）以独立 `airy_coverage_*` 模块形式注入，遵循 IRON-9 v3 [IND] 独立实现层原则。
 
 ```mermaid
 flowchart TB
@@ -60,7 +60,7 @@ flowchart TB
     B2 --> C
     C --> D
     C -.->|上传| E
-    subgraph "agentrt-linux 扩展层（[IND]）"
+    subgraph "agent-linux 扩展层（[IND]）"
         F["airy_coverage_thresholds<br/>模块门槛配置"]
         G["airy_coverage_agent_path<br/>Agent 行为路径覆盖率"]
         H["airy_coverage_gate<br/>CI 门槛校验脚本"]
@@ -78,7 +78,7 @@ flowchart TB
 | 行覆盖率 | 已执行代码行数 / 总代码行数 | `lines_hit / lines_total` | 全模块 |
 | 分支覆盖率 | 已执行分支数 / 总分支数 | `branches_hit / branches_total` | 全模块 |
 | 函数覆盖率 | 已调用函数数 / 总函数数 | `functions_hit / functions_total` | 全模块 |
-| Agent 行为路径覆盖率 | 已执行 Agent 状态转换路径 / 总路径 | `paths_hit / paths_total` | agentrt-linux 专属 |
+| Agent 行为路径覆盖率 | 已执行 Agent 状态转换路径 / 总路径 | `paths_hit / paths_total` | agent-linux 专属 |
 
 ---
 
@@ -120,7 +120,7 @@ lcov --capture --directory /sys/kernel/debug/gcov/ \
      --output-file airy_coverage.info \
      --rc lcov_branch_coverage=1
 
-# 过滤掉上游代码，仅保留 agentrt-linux 专属模块
+# 过滤掉上游代码，仅保留 agent-linux 专属模块
 lcov --extract airy_coverage.info \
      'kernel/airymaxos/*' 'lib/airymax/*' \
      --output-file airy_coverage_filtered.info
@@ -128,13 +128,13 @@ lcov --extract airy_coverage.info \
 # 生成 HTML 报告
 genhtml --branch-coverage --function-coverage \
         --output-directory airy_coverage_html \
-        --title "agentrt-linux Coverage" \
+        --title "agent-linux Coverage" \
         airy_coverage_filtered.info
 ```
 
 ### 2.4 `Codecov`：趋势追踪
 
-agentrt-linux 集成 Codecov 服务，每次 PR 自动上传覆盖率数据，趋势追踪：
+agent-linux 集成 Codecov 服务，每次 PR 自动上传覆盖率数据，趋势追踪：
 
 ```yaml
 # .github/workflows/coverage.yml
@@ -142,8 +142,8 @@ agentrt-linux 集成 Codecov 服务，每次 PR 自动上传覆盖率数据，�
   uses: codecov/codecov-action@v4
   with:
     files: airy_coverage_filtered.info
-    flags: agentrt-linux
-    name: agentrt-linux-coverage
+    flags: agent-linux
+    name: agent-linux-coverage
     fail_ci_if_error: false
 ```
 
@@ -153,7 +153,7 @@ agentrt-linux 集成 Codecov 服务，每次 PR 自动上传覆盖率数据，�
 
 ### 3.1 `airy_coverage_thresholds` 模块门槛配置
 
-agentrt-linux 按模块定义覆盖率门槛，配置文件位于 `scripts/airy_coverage_thresholds.json`：
+agent-linux 按模块定义覆盖率门槛，配置文件位于 `scripts/airy_coverage_thresholds.json`：
 
 ```json
 {
@@ -421,7 +421,7 @@ jobs:
                --output-file airy_coverage_full.info \
                --rc lcov_branch_coverage=1
       
-      - name: Filter agentrt-linux modules
+      - name: Filter agent-linux modules
         run: |
           lcov --extract airy_coverage_full.info \
                'kernel/airymaxos/*' 'lib/airymax/*' 'mm/airymax/*' \
@@ -435,7 +435,7 @@ jobs:
         run: |
           genhtml --branch-coverage --function-coverage \
                   --output-directory airy_coverage_html \
-                  --title "agentrt-linux Nightly Coverage" \
+                  --title "agent-linux Nightly Coverage" \
                   airy_coverage_filtered.info
       
       - name: Upload coverage to Codecov
@@ -443,7 +443,7 @@ jobs:
         with:
           files: airy_coverage_filtered.info
           flags: nightly
-          name: agentrt-linux-nightly
+          name: agent-linux-nightly
       
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
@@ -580,11 +580,11 @@ Codecov 在每个 PR 评论中显示：
 
 ---
 
-## 6. agentrt-linux 专属：Agent 行为路径覆盖率
+## 6. agent-linux 专属：Agent 行为路径覆盖率
 
 ### 6.1 路径覆盖率定义
 
-agentrt-linux 的 Agent 8 态生命周期状态机（INACTIVE → SPAWNING → READY → RUNNING → BLOCKED → STOPPING → STOPPED → DEAD）定义了合法的状态转换路径。Agent 行为路径覆盖率度量测试用例覆盖这些路径的比例。
+agent-linux 的 Agent 8 态生命周期状态机（INACTIVE → SPAWNING → READY → RUNNING → BLOCKED → STOPPING → STOPPED → DEAD）定义了合法的状态转换路径。Agent 行为路径覆盖率度量测试用例覆盖这些路径的比例。
 
 ### 6.2 合法状态转换矩阵
 
@@ -679,7 +679,7 @@ int airy_coverage_agent_path_illegal_count(void)
 
 **OS-TEST-073**：CI nightly 必须计算 Agent 行为路径覆盖率，合法路径 ≥ 90% 且非法路径 = 0% 即通过；任一不满足即标记 nightly 失败。
 
-**OS-KER-131**：任一非法路径触发（如 `DEAD → RUNNING`）即视为 agentrt-linux 状态机缺陷，CI 立即驳回 PR 并创建 critical issue。
+**OS-KER-131**：任一非法路径触发（如 `DEAD → RUNNING`）即视为 agent-linux 状态机缺陷，CI 立即驳回 PR 并创建 critical issue。
 
 ---
 
@@ -754,7 +754,7 @@ int airy_coverage_agent_path_illegal_count(void)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义覆盖率度量体系（行/分支/函数覆盖率）；定义 4 级 CI 门槛（kernel ≥90%、security ≥95%、ipc ≥90%、关键路径 100%）；定义 gcov + lcov + genhtml 工具链与 Codecov 集成；新增 agentrt-linux 专属 Agent 行为路径覆盖率（合法路径 ≥90%、非法路径 = 0%） |
+| v1.0.1 | 2026-07-18 | 初始版本：定义覆盖率度量体系（行/分支/函数覆盖率）；定义 4 级 CI 门槛（kernel ≥90%、security ≥95%、ipc ≥90%、关键路径 100%）；定义 gcov + lcov + genhtml 工具链与 Codecov 集成；新增 agent-linux 专属 Agent 行为路径覆盖率（合法路径 ≥90%、非法路径 = 0%） |
 
 ---
 
@@ -918,4 +918,4 @@ performance:
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 6 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 6 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

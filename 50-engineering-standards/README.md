@@ -1,29 +1,29 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）工程标准规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准规范的主索引与总纲，含 SSoT v2 注册表、编码风格、运行时接口、契约、集成、ERP、术语、跨项目共享与 [SC] 类型桥接\
+# agent-linux（AirymaxOS）工程标准规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范的主索引与总纲，含 SSoT v2 注册表、编码风格、运行时接口、契约、集成、ERP、术语、跨项目共享与 [SC] 类型桥接\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **同源映射**：agentrt `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ IRON-9 v3 工程铁律（四层模型，17 类规则编号体系）\
 > **理论根基**：Linux 6.6 内核工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
-> **上级文档**：[agentrt-linux 总览](../README.md)
+> **上级文档**：[agent-linux 总览](../README.md)
 
 ---
 
 ## 1. 模块概述
 
-本文档是 `50-engineering-standards/` 目录的主索引与总纲，定义 agentrt-linux 的工程标准体系：
+本文档是 `50-engineering-standards/` 目录的主索引与总纲，定义 agent-linux 的工程标准体系：
 
 1. **SSoT v2 注册表**：`09-ssot-registry.md` 作为全局唯一规则编号注册表（唯一权威），登记全部规则编号、废弃文档、术语。SSoT v2 取消三层镜像，只保留一个 SSoT 文档。
 2. **[SC] 类型桥接**：`11-sc-header-type-bridging.md` 定义 IRON-9 v3 [SC] 层内部类型桥接规则（通过 uapi_compat.h 实现，非独立层），解决 [SC] 头文件在 C/Rust/用户态/内核态之间的类型映射问题。
-3. **跨项目代码共享**：`120-cross-project-code-sharing.md` 定义 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]），作为 agentrt ↔ agentrt-linux 同源代码共享的工程基线。
+3. **跨项目代码共享**：`120-cross-project-code-sharing.md` 定义 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]），作为 agentrt ↔ agent-linux 同源代码共享的工程基线。
 4. **4 主题 + 5 子目录**：代码规范（01）、工程思想（04）、开发流程（05）、维护者治理（07）四大主题 + 10-coding-style / 20-contracts / 30-runtime-interfaces / 40-integration / 50-project-erp 五个子目录。
 
 ---
 
 ## 2. 技术选型声明
 
-本目录的工程标准以 agentrt-linux v1.0.1 五大技术选型为基线：
+本目录的工程标准以 agent-linux v1.0.1 五大技术选型为基线：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 工程标准影响 |
 |---|---------|---------|----------------|---------|
@@ -137,13 +137,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 5. IRON-9 v3 四层模型（跨项目代码共享）
 
-`120-cross-project-code-sharing.md` 定义 IRON-9 v3 四层模型，作为 agentrt ↔ agentrt-linux 同源代码共享的工程基线：
+`120-cross-project-code-sharing.md` 定义 IRON-9 v3 四层模型，作为 agentrt ↔ agent-linux 同源代码共享的工程基线：
 
 | 层次 | 缩写 | 名称 | 共享程度 | 内容 |
 |------|------|------|---------|------|
 | 第 1 层 | [SC] | 共享契约层（Shared-Contract） | 完全共享代码 | 12 个头文件（10 核心 + 2 补充 `syscall.h`/`bpf_struct_ops.h`，`include/uapi/linux/airymax/`）：`error.h` / `log_types.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `syscalls.h` / `syscall.h` / `uapi_compat.h` / `lsm_types.h` / `bpf_struct_ops.h` |
 | 第 2 层 | [SS] | 语义同源层（Shared-Semantics） | API 签名相同，实现独立 | 调度语义（sched_tac）、安全模型（纯 C LSM）、IPC 传输（IORING_OP_URING_CMD）、记忆模型（alloc_pages + mmap）、认知循环（CoreLoopThree） |
-| 第 3 层 | [IND] | 独立实现层（Independent） | 完全独立 | agentrt-linux 专属内核驱动/Kbuild/systemd/纯 C LSM；agentrt 专属跨平台用户态运行时/SDK |
+| 第 3 层 | [IND] | 独立实现层（Independent） | 完全独立 | agent-linux 专属内核驱动/Kbuild/systemd/纯 C LSM；agentrt 专属跨平台用户态运行时/SDK |
 | 第 4 层 | [DSL] | 降级生存层（Degraded Survival Layer） | [SC] 损坏时自包含降级 | `#ifdef AIRY_SC_FALLBACK` 降级生存块，提供 [SC] 损坏时最小可运行子集（详见 `11-degraded-survival-layer.md`） |
 
 ### 5.1 与旧版 IRON-9 v3 的差异
@@ -159,21 +159,21 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 6. OS 工程规则编号体系
 
-agentrt-linux 在 agentrt 17 类规则编号体系基础上，新增 OS 专属编号前缀：
+agent-linux 在 agentrt 17 类规则编号体系基础上，新增 OS 专属编号前缀：
 
 | 编号前缀 | 含义 | 与 agentrt 的关系 |
 | -------- | -------- | --------------------------------------- |
-| **OS-IRON** | agentrt-linux 工程铁律（不可妥协） | 继承 agentrt IRON-1~10 + 新增 OS-IRON-1~N |
-| **OS-BAN** | agentrt-linux 禁止规则 | 继承 agentrt BAN-1~356 + 新增 OS-BAN-1~N |
-| **OS-STD** | agentrt-linux 标准规则 | 继承 agentrt STD + OS 专属扩展 |
-| **OS-ACC** | agentrt-linux 验收标准 | 继承 agentrt ACC-1~149 + OS 专属验收 |
-| **OS-KER** | agentrt-linux 内核工程规则 | 全新（agentrt 不涉及内核态） |
-| **OS-DRV** | agentrt-linux 驱动工程规则 | 全新 |
-| **OS-BUILD** | agentrt-linux 构建工程规则 | 全新 |
-| **OS-TEST** | agentrt-linux 测试工程规则 | 全新 |
-| **OS-OBS** | agentrt-linux 可观测性规则 | 全新 |
-| **OS-SEC** | agentrt-linux 安全工程规则 | 全新 |
-| **OS-ABI** | agentrt-linux ABI 稳定性规则 | 全新 |
+| **OS-IRON** | agent-linux 工程铁律（不可妥协） | 继承 agentrt IRON-1~10 + 新增 OS-IRON-1~N |
+| **OS-BAN** | agent-linux 禁止规则 | 继承 agentrt BAN-1~356 + 新增 OS-BAN-1~N |
+| **OS-STD** | agent-linux 标准规则 | 继承 agentrt STD + OS 专属扩展 |
+| **OS-ACC** | agent-linux 验收标准 | 继承 agentrt ACC-1~149 + OS 专属验收 |
+| **OS-KER** | agent-linux 内核工程规则 | 全新（agentrt 不涉及内核态） |
+| **OS-DRV** | agent-linux 驱动工程规则 | 全新 |
+| **OS-BUILD** | agent-linux 构建工程规则 | 全新 |
+| **OS-TEST** | agent-linux 测试工程规则 | 全新 |
+| **OS-OBS** | agent-linux 可观测性规则 | 全新 |
+| **OS-SEC** | agent-linux 安全工程规则 | 全新 |
+| **OS-ABI** | agent-linux ABI 稳定性规则 | 全新 |
 
 具体规则编号在各个子文档中定义，汇总于 `09-ssot-registry.md`（SSoT v2 唯一权威注册表）。
 
@@ -191,13 +191,13 @@ agentrt-linux 在 agentrt 17 类规则编号体系基础上，新增 OS 专属�
 | 09 SSoT v2 注册表 | "编号归谁管"——全局唯一规则编号注册表（唯一权威） | Airymax SSoT v2 体系 |
 | 11 [SC] 类型桥接 | "[SC] 头文件怎么跨语言映射"——IRON-9 v3 [SC] 层内部类型桥接规则 | Airymax IRON-9 v3 [SC] 层内部类型桥接（通过 uapi_compat.h） |
 | 90 术语表 | "术语怎么用"——微核心/微内核/MicroCoreRT/sched_tac 等术语规范 | Airymax 术语体系 |
-| 120 跨项目代码共享 | "agentrt ↔ agentrt-linux 怎么共享代码"——IRON-9 v3 [SC] 10 头文件 + [DSL] 降级生存层 + 四层模型 | Airymax IRON-9 v3 四层模型 |
+| 120 跨项目代码共享 | "agentrt ↔ agent-linux 怎么共享代码"——IRON-9 v3 [SC] 10 头文件 + [DSL] 降级生存层 + 四层模型 | Airymax IRON-9 v3 四层模型 |
 
 ---
 
 ## 8. 与 Airymax 五维正交 24 原则的映射
 
-| 五维原则 | 在 agentrt-linux 工程标准中的体现 | 落地章节 |
+| 五维原则 | 在 agent-linux 工程标准中的体现 | 落地章节 |
 | -------- | ----------------------------------------------------------- | ---------------------- |
 | **S-1 反馈闭环** | 7 层自动化验证的每一层都是反馈闭环；CI 失败即反馈 | 05 开发流程 Part II |
 | **S-2 层次分解** | 4 层接口稳定性分级（Agent API / Runtime API / 内核子系统 API / 内部实现） | 04 工程思想 |
@@ -235,9 +235,9 @@ agentrt-linux 在 agentrt 17 类规则编号体系基础上，新增 OS 专属�
 - `docs/AirymaxOS/50-engineering-standards/90-terminology.md`（术语规范 SSoT）
 - IRON-9 v3 工程铁律（17 类规则编号体系 + [DSL] 降级生存层）
 
-### 9.2 agentrt-linux 设计文档
+### 9.2 agent-linux 设计文档
 
-- [agentrt-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
+- [agent-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
 - [架构设计](../10-architecture/README.md)：系统架构 + Unify Design 总纲 + IRON-9 v3 + [DSL] 降级层
 - [模块设计](../20-modules/README.md)：8 子仓 + A-ULS/A-ULP/A-UCS + [SC] 10 头文件
 - [数据流程设计](../40-dataflows/README.md)：A-UEF/A-IPC/A-ULS/A-ULP 数据流路径

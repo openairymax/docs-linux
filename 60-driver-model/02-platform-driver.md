@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — platform 总线与 SoC 设备
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第二篇——platform 总线实例与 SoC 设备资源管理\
+# agent-linux（AirymaxOS）驱动模型 — platform 总线与 SoC 设备
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第二篇——platform 总线实例与 SoC 设备资源管理\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `daemons`（用户态 SoC 适配器）+ Linux 6.6 `drivers/base/platform.c`（platform_bus_type 实现）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——platform 总线语义与上游一致，SoC 设备适配扩展在用户态
@@ -13,18 +13,18 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 概述
 
-Linux 设备模型中 platform 总线是"伪总线"——它不是物理总线（如 PCI、USB），而是为 SoC 上无法被总线枚举的设备（内存映射寄存器、固定中断线）提供的"接入点"。agentrt-linux 选择 Linux 6.6 内核基线作为同源起点，platform 总线是 SoC 设备驱动的核心载体。
+Linux 设备模型中 platform 总线是"伪总线"——它不是物理总线（如 PCI、USB），而是为 SoC 上无法被总线枚举的设备（内存映射寄存器、固定中断线）提供的"接入点"。agent-linux 选择 Linux 6.6 内核基线作为同源起点，platform 总线是 SoC 设备驱动的核心载体。
 
 MicroCoreRT 不在内核态处理 SoC 设备语义——这是 K-1 内核极简原则的体现。SoC 设备的"业务语义"（如哪个寄存器对应哪个 Agent 的 Token 预算计数器）由用户态 agentrt daemon 解释；内核态只提供 platform_bus 的标准匹配与资源管理。AgentsIPC 在用户态承载进程间通信，daemon 通过 sysfs 与内核 platform driver 交互。
 
-| 总线 | 设备发现方式 | 典型设备 | agentrt-linux 角色 |
+| 总线 | 设备发现方式 | 典型设备 | agent-linux 角色 |
 |------|-------------|---------|----------------|
-| **platform** | DT/ACPI 静态声明 | SoC 上的 UART、I2C、GPIO | agentrt-linux SoC 适配 driver 主要载体 |
+| **platform** | DT/ACPI 静态声明 | SoC 上的 UART、I2C、GPIO | agent-linux SoC 适配 driver 主要载体 |
 | PCI/USB | 总线枚举 | 网卡、显卡、NVMe | 留给通用 Linux 生态 |
 | I2C/SPI | platform driver 注册 adapter | I2C/SPI 子设备 | 传感器 driver 接入点 |
-| agent_bus | daemon 注册 | Agent 虚拟设备 | agentrt-linux 自研（用户态） |
+| agent_bus | daemon 注册 | Agent 虚拟设备 | agent-linux 自研（用户态） |
 
-> **OS-DRV-020**： SoC 上 agentrt-linux 专属硬件必须通过 platform 总线接入内核，禁止新增独立总线类型。这是 K-1 内核极简原则的硬性约束——平台总线已足够承载。
+> **OS-DRV-020**： SoC 上 agent-linux 专属硬件必须通过 platform 总线接入内核，禁止新增独立总线类型。这是 K-1 内核极简原则的硬性约束——平台总线已足够承载。
 
 > **OS-DRV-021**： PCI/USB 总线上发现的设备若需被 agentrt daemon 使用，必须通过 platform driver 提供"适配层"——daemon 通过 sysfs 访问，不直接调用 PCI/USB driver 内部 API。
 
@@ -73,7 +73,7 @@ graph TD
     style R3 fill:#e8f5e9
 ```
 
-| 级别 | 匹配源 | 适用场景 | agentrt-linux 推荐度 |
+| 级别 | 匹配源 | 适用场景 | agent-linux 推荐度 |
 |------|--------|---------|------------------|
 | 1 | driver_override | 调试时强制绑定 | 仅调试 |
 | 2 | OF（Device Tree） | ARM/ARM64/RISC-V SoC | **首选** |
@@ -175,7 +175,7 @@ struct platform_driver {
 
 `platform_driver_register` 内部调用 `driver_register`，并设置 `driver.bus = &platform_bus_type`，处理 `device*` 到 `platform_device*` 的适配。
 
-> **OS-DRV-024**： agentrt-linux 内核态 driver 必须使用 `platform_driver_register`（或 `module_platform_driver` 宏）注册，禁止直接调用 `driver_register` 并手动设置 `bus` 字段。
+> **OS-DRV-024**： agent-linux 内核态 driver 必须使用 `platform_driver_register`（或 `module_platform_driver` 宏）注册，禁止直接调用 `driver_register` 并手动设置 `bus` 字段。
 
 ---
 
@@ -221,14 +221,14 @@ static struct platform_driver my_driver = {
     .driver = { .name = "my-soc-driver", .of_match_table = my_match, .pm = &my_pm_ops },
 };
 module_platform_driver(my_driver);
-MODULE_AUTHOR("agentrt-linux Driver Team");
+MODULE_AUTHOR("agent-linux Driver Team");
 MODULE_DESCRIPTION("SoC device driver for my-soc");
 MODULE_LICENSE("GPL v2");
 ```
 
 > **OS-DRV-025**： OF 匹配表的 `.data` 字段必须指向静态 const 数据（`static const`），禁止指向栈变量或动态分配内存——`of_device_id` 表在模块加载后长期存在。
 
-> **OS-STD-020**： `compatible` 字符串的 vendor 前缀必须与设备树中一致。agentrt-linux 自研设备使用 `spharx,` 前缀；通用设备沿用上游 vendor 前缀（如 `ti,`、`nxp,`）。
+> **OS-STD-020**： `compatible` 字符串的 vendor 前缀必须与设备树中一致。agent-linux 自研设备使用 `spharx,` 前缀；通用设备沿用上游 vendor 前缀（如 `ti,`、`nxp,`）。
 
 ### 4.2 ACPI 匹配
 
@@ -274,7 +274,7 @@ module_exit(__driver##_exit);
 
 ### 5.2 三种变体对比
 
-| 宏 | 用途 | 限制 | agentrt-linux 推荐 |
+| 宏 | 用途 | 限制 | agent-linux 推荐 |
 |----|------|------|----------------|
 | `module_platform_driver` | 标准模块驱动，可加载/卸载 | 模块可加载时使用 | **首选** |
 | `builtin_platform_driver` | 内置驱动，不可卸载 | 仅 `device_initcall`，无 exit | 内核内置时使用 |
@@ -294,7 +294,7 @@ module_exit(__driver##_exit);
 
 ### 6.1 双源场景
 
-agentrt-linux 的 SoC 设备可能部署在两类硬件上：ARM/ARM64/RISC-V SoC 使用 Device Tree 描述设备拓扑；x86 SoC（如 Intel/AMD 嵌入式）使用 ACPI 描述设备。同一 driver 若声明了 OF 与 ACPI 两个匹配表，`platform_match` 会先尝试 OF，再尝试 ACPI：
+agent-linux 的 SoC 设备可能部署在两类硬件上：ARM/ARM64/RISC-V SoC 使用 Device Tree 描述设备拓扑；x86 SoC（如 Intel/AMD 嵌入式）使用 ACPI 描述设备。同一 driver 若声明了 OF 与 ACPI 两个匹配表，`platform_match` 会先尝试 OF，再尝试 ACPI：
 
 ```mermaid
 graph LR
@@ -425,7 +425,7 @@ static struct platform_driver my_driver = {
 
 ## 8. 五维原则映射
 
-platform 总线在 agentrt-linux 五维正交 24 原则上的映射：
+platform 总线在 agent-linux 五维正交 24 原则上的映射：
 
 | 原则 | 在本模块的体现 |
 |------|---------------|
@@ -462,7 +462,7 @@ platform 总线在 agentrt-linux 五维正交 24 原则上的映射：
 
 ## 9. 同源 agentrt 映射
 
-platform 总线在 agentrt-linux 用户态（agentrt）中的同源映射：
+platform 总线在 agent-linux 用户态（agentrt）中的同源映射：
 
 | 内核态 platform 抽象 | 用户态 agentrt 同源 | 映射说明 |
 |---------------------|---------------------|---------|
@@ -484,7 +484,7 @@ platform 总线在 agentrt-linux 用户态（agentrt）中的同源映射：
 
 ### 9.2 IRON-9 v3 四层共享模型
 
-IRON-9 v3 将 agentrt daemons 平台设备访问与 agentrt-linux 内核 platform driver 的协作划分为三层。与通用 device model 一致，platform driver 以 [IND] 完全独立层为主——`drivers/base/platform.c` 是内核基石，agentrt 不进入内核共享其实现；[SC] 共享契约层仅间接依赖任务描述符的 agent_id 字段用于 Agent 平台设备匹配：
+IRON-9 v3 将 agentrt daemons 平台设备访问与 agent-linux 内核 platform driver 的协作划分为三层。与通用 device model 一致，platform driver 以 [IND] 完全独立层为主——`drivers/base/platform.c` 是内核基石，agentrt 不进入内核共享其实现；[SC] 共享契约层仅间接依赖任务描述符的 agent_id 字段用于 Agent 平台设备匹配：
 
 | 层次 | 共享程度 | platform driver 内容 |
 |------|---------|---------------------|
@@ -513,11 +513,11 @@ struct airy_task_desc {       /* [SC] SSoT，物理宿主 include/uapi/linux/air
 };
 ```
 
-**OS-DRV-IRON-PLAT 约束**: agentrt daemons 与 agentrt-linux platform driver 不直接共享 platform.c 头文件；`agent_id` 字段语义两端一致（Agent 实例 ↔ 内核平台设备匹配键），由 `include/uapi/linux/airymax/sched.h` 间接锁定。Agent 平台设备匹配发生在语义层，不跨态共享 platform_device 内存布局。
+**OS-DRV-IRON-PLAT 约束**: agentrt daemons 与 agent-linux platform driver 不直接共享 platform.c 头文件；`agent_id` 字段语义两端一致（Agent 实例 ↔ 内核平台设备匹配键），由 `include/uapi/linux/airymax/sched.h` 间接锁定。Agent 平台设备匹配发生在语义层，不跨态共享 platform_device 内存布局。
 
 #### [SS] 语义同源层
 
-| 维度 | agentrt 用户态（daemons） | agentrt-linux 内核态（platform driver） | 同源点 |
+| 维度 | agentrt 用户态（daemons） | agent-linux 内核态（platform driver） | 同源点 |
 |------|--------------------------|------------------------------------------|--------|
 | 驱动注册 | `airy_agent_module_register()` | `platform_driver_register()` | 注册模式同源 |
 | bus 匹配 | `airy_bus_type.match()` | `platform_match()`（OF/ID/name 回退） | 匹配逻辑同源 |
@@ -531,7 +531,7 @@ agentrt daemons 的 `airy_agent_module_register()` 与内核 `platform_driver_re
 
 #### [IND] 完全独立层
 
-| 维度 | agentrt 用户态（daemons） | agentrt-linux 内核态（platform driver） |
+| 维度 | agentrt 用户态（daemons） | agent-linux 内核态（platform driver） |
 |------|--------------------------|------------------------------------------|
 | platform bus 实现 | 不适用 | `drivers/base/platform.c` 完整实现（platform_bus_type） |
 | ACPI/DT 匹配 | 不适用 | ACPI（`acpi_device_modalias`）/ DT（`of_match_device`）匹配逻辑 |
@@ -546,7 +546,7 @@ agentrt daemons 的 `airy_agent_module_register()` 与内核 `platform_driver_re
 ```mermaid
 graph LR
     A[agentrt daemons 平台设备访问] -->|读取 [SC] agent_id| B[sched.h 任务描述符]
-    A -->|agent_id 匹配| C[agentrt-linux platform_driver]
+    A -->|agent_id 匹配| C[agent-linux platform_driver]
     C -->|platform_match OF/DT| D[platform_driver probe 探测]
     D -->|平台设备事件 uevent| E[AgentsIPC 上报平台设备事件]
     A -->|策略下发| E
@@ -554,7 +554,7 @@ graph LR
     style E fill:#fde68a,stroke:#b45309
 ```
 
-agentrt daemons 通过 [SC] 间接共享契约层读取 `include/uapi/linux/airymax/sched.h` 任务描述符的 `agent_id` 字段，将 Agent 实例与 agentrt-linux 内核平台设备匹配，触发 `platform_match`（OF/DT 精确匹配 → 名称回退）→ `platform_driver.probe` 探测链。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步平台设备事件（uevent），无适配层。MicroCoreRT 极简内核契约要求（OS-KER-150）：内核态 platform driver 的 `remove` 回调必须通知用户态 daemon（通过 uevent 或 AgentsIPC 消息），让 daemon 先释放对硬件资源的引用，再让内核释放硬件本身——这是跨边界资源托管链的关键时序保证。
+agentrt daemons 通过 [SC] 间接共享契约层读取 `include/uapi/linux/airymax/sched.h` 任务描述符的 `agent_id` 字段，将 Agent 实例与 agent-linux 内核平台设备匹配，触发 `platform_match`（OF/DT 精确匹配 → 名称回退）→ `platform_driver.probe` 探测链。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步平台设备事件（uevent），无适配层。MicroCoreRT 极简内核契约要求（OS-KER-150）：内核态 platform driver 的 `remove` 回调必须通知用户态 daemon（通过 uevent 或 AgentsIPC 消息），让 daemon 先释放对硬件资源的引用，再让内核释放硬件本身——这是跨边界资源托管链的关键时序保证。
 
 ### 9.3 跨边界资源托管链
 
@@ -609,8 +609,8 @@ SoC 设备的完整资源托管链跨越内核/用户态：内核 `devm_` 资源
 
 | 版本 | 日期 | 维护者 | 变更摘要 |
 |------|------|--------|---------|
-| 0.1.1 | 2026-07-06 | agentrt-linux 驱动子系统组 | 占位版本，建立文档骨架与规则编号体系 |
-| 1.0.1 | 2026-07-06 | agentrt-linux 驱动子系统组 | 开发版本，完成 platform 总线、device/driver 结构、OF/ACPI 匹配、宏、双源回退、资源管理六章正文 |
+| 0.1.1 | 2026-07-06 | agent-linux 驱动子系统组 | 占位版本，建立文档骨架与规则编号体系 |
+| 1.0.1 | 2026-07-06 | agent-linux 驱动子系统组 | 开发版本，完成 platform 总线、device/driver 结构、OF/ACPI 匹配、宏、双源回退、资源管理六章正文 |
 
 ### 12.1 维护规则
 
@@ -816,7 +816,7 @@ struct resource {
  *
  * 内部设置 driver.bus = &platform_bus_type，调用 driver_register。
  * 注册后扫描 platform_bus 上所有 device，对匹配成功者触发 probe。
- * agentrt-linux driver 必须用此函数注册（OS-DRV-024），禁止直接
+ * agent-linux driver 必须用此函数注册（OS-DRV-024），禁止直接
  * driver_register 手动设 bus。
  *
  * 返回: 0 成功，<0 失败（-EINVAL/-EBUSY/-ENOMEM）
@@ -1239,7 +1239,7 @@ int device_property_read_string(const struct device *dev, const char *propname,
 /**
  * CONFIG_* - platform 驱动相关编译开关（对齐 Linux 6.6 drivers/base/Kconfig）
  *
- * agentrt-linux 默认开启 platform 总线
+ * agent-linux 默认开启 platform 总线
  */
 #define CONFIG_PLATFORM_DRIVER  1   /* platform_bus_type 支持 */
 #define CONFIG_OF              1    /* Device Tree 支持（OF 匹配路径） */
@@ -1248,4 +1248,4 @@ int device_property_read_string(const struct device *dev, const char *propname,
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 60 模块第二篇 | IRON-9 v3 同源且部分代码共享 | Linux 6.6 内核基线
+> **文档结束** | agent-linux 驱动模型 60 模块第二篇 | IRON-9 v3 同源且部分代码共享 | Linux 6.6 内核基线

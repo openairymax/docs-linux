@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 跨发行版兼容性实现方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系核心子文档，定义 agentrt-linux 与主流 Linux 发行版的二进制兼容性机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系核心子文档，定义 agent-linux 与主流 Linux 发行版的二进制兼容性机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：Linux 6.6 发行版兼容性（IRON-9 v3 [IND] 完全独立层，发行版兼容为 agentrt-linux 专属）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：Linux 6.6 发行版兼容性（IRON-9 v3 [IND] 完全独立层，发行版兼容为 agent-linux 专属）\
 > **理论根基**：Linux 6.6 LSB/FHS 兼容性 + 主流 Linux 发行版 发行版兼容性思想 + Airymax K-2 接口契约化 + C-2 增量演化\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[IND] 完全独立层（跨发行版兼容为 agentrt-linux 发行版专属）
+> **IRON-9 v3 层次**：[IND] 完全独立层（跨发行版兼容为 agent-linux 发行版专属）
 
 ---
 
@@ -44,25 +44,25 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux 作为智能体操作系统发行版，其 Agent 应用与生态工具需要在不同 Linux 发行版之间实现平滑移植。跨发行版兼容性机制的设计达成以下工程目标：
+agent-linux 作为智能体操作系统发行版，其 Agent 应用与生态工具需要在不同 Linux 发行版之间实现平滑移植。跨发行版兼容性机制的设计达成以下工程目标：
 
 1. **Agent 应用一次编写，多发行版运行**：Agent 应用编译一次，可在 Ubuntu/Debian/Fedora/RHEL/主流 Linux 发行版 等主流发行版上运行
-2. **内核模块按需加载**：agentrt-linux 专属内核模块在支持的发行版上按需加载，不支持的发行版降级至用户态
+2. **内核模块按需加载**：agent-linux 专属内核模块在支持的发行版上按需加载，不支持的发行版降级至用户态
 3. **包管理适配**：提供 RPM 与 DEB 双格式包，适配不同发行版的包管理器
 4. **容器镜像统一**：Agent 容器镜像基于 OCI 标准，跨发行版可运行
-5. **主流 Linux 发行版标准兼容**：agentrt-linux 的工程思想与实现方式与 主流 Linux 发行版标准保持一致性
+5. **主流 Linux 发行版标准兼容**：agent-linux 的工程思想与实现方式与 主流 Linux 发行版标准保持一致性
 
 ### 1.2 背景与挑战
 
 Linux 发行版生态碎片化严重，不同发行版在以下维度存在差异：
 
 - **glibc 版本**：Ubuntu 22.04 使用 glibc 2.35，Debian 12 使用 2.36，RHEL 9 使用 2.34
-- **内核版本**：各发行版内核版本不一（Ubuntu 22.04 5.15/6.8、Fedora 40 6.8、RHEL 9 5.14 等），agentrt-linux 以 **6.6 为唯一原生基线**，其余版本仅作 DKMS 兼容目标
+- **内核版本**：各发行版内核版本不一（Ubuntu 22.04 5.15/6.8、Fedora 40 6.8、RHEL 9 5.14 等），agent-linux 以 **6.6 为唯一原生基线**，其余版本仅作 DKMS 兼容目标
 - **包管理器**：Ubuntu/Debian 使用 apt/dpkg，Fedora/RHEL/主流 Linux 发行版 使用 dnf/rpm
 - **init 系统**：多数使用 systemd，但配置路径与版本不同
 - **文件系统层次**：多数遵循 FHS，但部分路径存在差异
 
-agentrt-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链在不同发行版上兼容运行。
+agent-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链在不同发行版上兼容运行。
 
 ### 1.3 设计哲学
 
@@ -83,7 +83,7 @@ agentrt-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链
 |------|------|------|-----------|
 | L1 | 二进制兼容 | 用户态二进制（glibc 链接） | 向后兼容（低版本 glibc 编译可在高版本运行） |
 | L2 | 内核 ABI | 系统调用接口 | 永不破坏（OS-IRON-001） |
-| L3 | 内核模块 | agentrt-linux 专属模块 | 按发行版内核版本适配 |
+| L3 | 内核模块 | agent-linux 专属模块 | 按发行版内核版本适配 |
 | L4 | 包格式 | RPM/DEB 包 | 双格式发布 |
 | L5 | 容器镜像 | OCI 镜像 | 跨发行版可运行 |
 | L6 | 配置路径 | FHS 路径 | 兼容主流发行版路径 |
@@ -107,7 +107,7 @@ agentrt-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链
 
 | 发行版 | 版本 | 内核版本 | glibc 版本 | 包管理 | 兼容等级 | 说明 |
 |--------|------|---------|-----------|--------|---------|------|
-| **agentrt-linux** | 1.0.1 | 6.6 | 2.38 | dnf/rpm | 原生 | 完整支持（唯一原生基线） |
+| **agent-linux** | 1.0.1 | 6.6 | 2.38 | dnf/rpm | 原生 | 完整支持（唯一原生基线） |
 | Ubuntu | 24.04 LTS | 6.8 | 2.39 | apt/dpkg | L1+L4+L5 | Agent 应用二进制兼容 |
 | Ubuntu | 22.04 LTS | 5.15/6.8 | 2.35 | apt/dpkg | L1+L4+L5 | Agent 应用二进制兼容 |
 | Debian | 12 | 6.1 | 2.36 | apt/dpkg | L1+L4+L5 | Agent 应用二进制兼容 |
@@ -119,7 +119,7 @@ agentrt-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链
 
 ### 3.2 兼容等级说明
 
-- **原生**：agentrt-linux 自身，完整支持所有特性
+- **原生**：agent-linux 自身，完整支持所有特性
 - **L1+L3+L4+L5**：Agent 应用二进制兼容 + 内核模块可加载 + 包格式兼容 + 容器镜像兼容
 - **L1+L4+L5**：Agent 应用二进制兼容 + 包格式兼容 + 容器镜像兼容（内核模块不可加载）
 
@@ -140,7 +140,7 @@ agentrt-linux 基于 Linux 6.6 内核，需要确保其 Agent 应用与工具链
 
 ### 4.1 glibc 版本下限
 
-agentrt-linux Agent 应用编译时链接的 glibc 版本下限为 **2.34**（RHEL 9 基线），确保向后兼容：
+agent-linux Agent 应用编译时链接的 glibc 版本下限为 **2.34**（RHEL 9 基线），确保向后兼容：
 
 ```bash
 # 编译时指定 glibc 版本
@@ -179,11 +179,11 @@ gcc -o agent_app agent_app.c \
 
 ### 5.1 内核版本适配
 
-agentrt-linux 以 **Linux 6.6 为唯一原生基线**（IRON-9 v3 工程基线），其余内核版本仅作 DKMS 兼容目标（非原生支持）。内核模块针对不同发行版内核版本进行适配：
+agent-linux 以 **Linux 6.6 为唯一原生基线**（IRON-9 v3 工程基线），其余内核版本仅作 DKMS 兼容目标（非原生支持）。内核模块针对不同发行版内核版本进行适配：
 
 | 内核版本 | 发行版 | sched_tac 支持 | 模块适配策略 |
 |---------|--------|---------------|-------------|
-| 6.6 | agentrt-linux / 主流 Linux 发行版 24.03 | 原生（唯一原生基线） | 完整功能（唯一原生基线） |
+| 6.6 | agent-linux / 主流 Linux 发行版 24.03 | 原生（唯一原生基线） | 完整功能（唯一原生基线） |
 | 6.8 | Ubuntu 24.04 / Fedora 40 | DKMS 适配（非原生支持，不保证全部功能可用） | DKMS 动态编译（功能可能受限） |
 | 6.1 | Debian 12 | DKMS 适配（非原生支持，不保证全部功能可用） | DKMS 动态编译，SCHED_DEADLINE 可用 |
 | 5.15 | Ubuntu 22.04 (HWE) | DKMS 适配（非原生支持，不保证全部功能可用） | DKMS 动态编译，SCHED_DEADLINE 可用 |
@@ -195,10 +195,10 @@ agentrt-linux 以 **Linux 6.6 为唯一原生基线**（IRON-9 v3 工程基线�
 
 ```bash
 # 安装 DKMS 包
-dnf install agentrt-linux-dkms
+dnf install agent-linux-dkms
 
 # 或
-apt install agentrt-linux-dkms
+apt install agent-linux-dkms
 
 # DKMS 自动编译
 dkms autoinstall
@@ -253,7 +253,7 @@ int airy_detect_io_uring(void)
 |------|------|--------|
 | Platinum | 纯用户态 Agent，仅依赖 glibc | 所有 L1 兼容发行版 |
 | Gold | 依赖 agentrt SDK 用户态库 | 所有安装 agentrt-sdk 的发行版 |
-| Silver | 依赖 agentrt-linux 内核模块 | 仅 L3 兼容发行版 |
+| Silver | 依赖 agent-linux 内核模块 | 仅 L3 兼容发行版 |
 | Bronze | 依赖特定硬件（GPU/NPU/DPU） | 仅特定硬件发行版 |
 
 ### 6.2 可移植性检查工具
@@ -271,7 +271,7 @@ agentctl app check-portability my-agent
 #   - sched_tac (optional) ✓
 #   - io_uring (optional) ✓
 # Compatible distributions:
-#   - agentrt-linux 1.0.1
+#   - agent-linux 1.0.1
 #   - Ubuntu 24.04 LTS
 #   - Ubuntu 22.04 LTS
 #   - Debian 12
@@ -286,10 +286,10 @@ agentctl app check-portability my-agent
 
 ### 7.1 双格式包发布
 
-agentrt-linux 同时发布 RPM 与 DEB 格式包：
+agent-linux 同时发布 RPM 与 DEB 格式包：
 
 ```bash
-# RPM 格式（Fedora/RHEL/主流 Linux 发行版/agentrt-linux）
+# RPM 格式（Fedora/RHEL/主流 Linux 发行版/agent-linux）
 airymaxos-kernel-1.0.1-1.x86_64.rpm
 airymaxos-services-1.0.1-1.x86_64.rpm
 airymaxos-sdk-python-1.0.1-1.x86_64.rpm
@@ -323,7 +323,7 @@ Suggests: bpftrace
 
 ### 8.1 FHS 兼容路径
 
-agentrt-linux 遵循 FHS（Filesystem Hierarchy Standard）3.0：
+agent-linux 遵循 FHS（Filesystem Hierarchy Standard）3.0：
 
 | 路径 | 用途 | FHS 兼容 |
 |------|------|---------|
@@ -338,7 +338,7 @@ agentrt-linux 遵循 FHS（Filesystem Hierarchy Standard）3.0：
 
 ### 8.2 发行版特定路径适配
 
-部分发行版有特定路径约定，agentrt-linux 适配如下：
+部分发行版有特定路径约定，agent-linux 适配如下：
 
 | 发行版 | 特定路径 | 适配策略 |
 |--------|---------|---------|
@@ -404,7 +404,7 @@ WantedBy=multi-user.target
 
 | 发行版 | systemd 版本 | 兼容性 |
 |--------|-------------|--------|
-| agentrt-linux | 255+ | 完整功能 |
+| agent-linux | 255+ | 完整功能 |
 | Ubuntu 24.04 | 255 | 完整功能 |
 | Ubuntu 22.04 | 249 | 完整功能 |
 | Debian 12 | 252 | 完整功能 |
@@ -418,7 +418,7 @@ WantedBy=multi-user.target
 
 ### 11.1 工程思想一致性
 
-agentrt-linux 的工程思想与实现方式与 主流 Linux 发行版 保持一致性（参考 主流 Linux 发行版 LTS）：
+agent-linux 的工程思想与实现方式与 主流 Linux 发行版 保持一致性（参考 主流 Linux 发行版 LTS）：
 
 | 兼容层次 | 内容 | 状态 |
 |---------|------|------|
@@ -466,7 +466,7 @@ matrix:
     - arm64
 
 steps:
-  - name: Install agentrt-linux packages
+  - name: Install agent-linux packages
     run: |
       if command -v dnf; then
         dnf install -y airymaxos-services
@@ -521,7 +521,7 @@ graph TD
     A[Agent 应用编译] --> B{链接 glibc >= 2.34}
     B --> C[生成二进制]
     C --> D{目标发行版?}
-    D -->|agentrt-linux| E[原生运行]
+    D -->|agent-linux| E[原生运行]
     D -->|Ubuntu/Debian| F[安装 DEB 包]
     D -->|Fedora/RHEL/主流 Linux 发行版| G[安装 RPM 包]
     F --> H[运行时特性检测]
@@ -539,7 +539,7 @@ graph TD
 
 ### 15.1 兼容性错误码
 
-跨发行版兼容性错误码纳入 agentrt-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃），兼容性场景复用既有段映射：
+跨发行版兼容性错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃），兼容性场景复用既有段映射：
 
 | 错误码 | 数值 | 含义 | 原文档符号（已废弃） |
 |--------|------|------|---------------------|
@@ -614,7 +614,7 @@ rpm --checksig airymaxos-kernel-1.0.1-1.x86_64.rpm
 |------|---------|-----------|
 | [SC] 共享契约层 | 无（发行版兼容为 [IND]） | 不涉及 |
 | [SS] 语义同源层 | Agent 应用可移植性语义 | 与 agentrt 应用可移植性语义同源 |
-| [IND] 完全独立层 | 跨发行版兼容性 + 包格式 + FHS 适配 | agentrt-linux 发行版专属 |
+| [IND] 完全独立层 | 跨发行版兼容性 + 包格式 + FHS 适配 | agent-linux 发行版专属 |
 
 ---
 
@@ -648,10 +648,10 @@ println!("Compatibility level: {:?}", compat.level);
 
 ## 20. 使用示例
 
-### 20.1 在 Ubuntu 上安装 agentrt-linux 组件
+### 20.1 在 Ubuntu 上安装 agent-linux 组件
 
 ```bash
-# 添加 agentrt-linux 仓库
+# 添加 agent-linux 仓库
 wget -qO - https://repo.airymaxos.dev/DEB-GPG-KEY-airymaxos | sudo apt-key add -
 echo "deb https://repo.airymaxos.dev/ubuntu jammy main" | \
     sudo tee /etc/apt/sources.list.d/airymaxos.list
@@ -669,7 +669,7 @@ agentctl compat diagnose
 
 ```bash
 # 安装 DKMS 包
-sudo dnf install agentrt-linux-dkms kernel-devel
+sudo dnf install agent-linux-dkms kernel-devel
 
 # 编译并加载内核模块
 sudo dkms autoinstall

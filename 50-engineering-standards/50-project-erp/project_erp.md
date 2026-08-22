@@ -1,22 +1,22 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 项目管理规范合集
-> **文档定位**：合并软件物料清单（SBOM）规范、统一错误码参考、模块需求手册、资源管理表四部分内容，作为 agentrt-linux（AirymaxOS）项目管理规范的完整参考。理论根基：IRON-9 v3 工程铁律、五维正交24原则、E-6 错误可追溯原则、E-7 文档即代码原则。\
+# agent-linux 项目管理规范合集
+> **文档定位**：合并软件物料清单（SBOM）规范、统一错误码参考、模块需求手册、资源管理表四部分内容，作为 agent-linux（AirymaxOS）项目管理规范的完整参考。理论根基：IRON-9 v3 工程铁律、五维正交24原则、E-6 错误可追溯原则、E-7 文档即代码原则。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)\
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **SSoT 依赖声明**：本文件规则编号权威为 09-ssot-registry.md §3
 
 ---
 
-## Part I: agentrt-linux 软件物料清单（SBOM）规范
+## Part I: agent-linux 软件物料清单（SBOM）规范
 
 ### 1. 概述
 
 #### 1.1 SBOM 定义与价值
 
-软件物料清单（Software Bill of Materials，SBOM）是 agentrt-linux（AirymaxOS）供应链安全管理的核心工具。SBOM 以机器可读的格式记录软件产品的所有组件、依赖关系和元数据。
+软件物料清单（Software Bill of Materials，SBOM）是 agent-linux（AirymaxOS）供应链安全管理的核心工具。SBOM 以机器可读的格式记录软件产品的所有组件、依赖关系和元数据。
 
 | 价值维度 | 说明 |
 |----------|------|
@@ -51,12 +51,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 #### 2.2 选择理由
 
-agentrt-linux（AirymaxOS）选择 **SPDX 2.3** 作为 SBOM 标准，理由如下：
+agent-linux（AirymaxOS）选择 **SPDX 2.3** 作为 SBOM 标准，理由如下：
 
 1. **行业标准**：SPDX 是 Linux 基金会维护的 ISO/IEC 5962:2021 标准，企业级 Linux 生态广泛采用
-2. **许可证覆盖**：SPDX License List 包含 500+ 许可证标识符，覆盖 agentrt-linux 全部组件
+2. **许可证覆盖**：SPDX License List 包含 500+ 许可证标识符，覆盖 agent-linux 全部组件
 3. **工具链成熟**：支持 SPDX 的生成、验证、比较工具丰富（spdx-sbom-generator、SPDX Tools、NTIA Conformance Checker）
-4. **关系建模**：SPDX 2.3 支持 DESCRIBES、DEPENDS_ON、CONTAINS 等关系类型，适合描述 agentrt-linux 复杂的组件依赖图
+4. **关系建模**：SPDX 2.3 支持 DESCRIBES、DEPENDS_ON、CONTAINS 等关系类型，适合描述 agent-linux 复杂的组件依赖图
 5. **与 agentrt 对齐**：agentrt 同样采用 SPDX 2.3，[SC] 层组件可共享 SBOM 片段
 6. **安全字段**：SPDX 2.3 支持 ExternalRef 字段引用 CVE、GHSA 等安全公告
 
@@ -68,12 +68,12 @@ SPDX Document
 │   ├── SPDX Version: SPDX-2.3
 │   ├── Data License: CC0-1.0
 │   ├── SPDX Identifier: SPDXRef-DOCUMENT
-│   ├── Document Name: agentrt-linux-1.0.1-sbom
+│   ├── Document Name: agent-linux-1.0.1-sbom
 │   ├── Creator: Organization: SPHARX Ltd.
 │   └── Created: 2026-07-07T00:00:00Z
 │
 ├── Package（软件包）
-│   ├── Package Name: agentrt-linux
+│   ├── Package Name: agent-linux
 │   ├── Package Version: 1.0.1
 │   ├── Package Supplier: SPHARX Ltd.
 │   ├── Package Download Location: https://repo.airymaxos.org
@@ -84,9 +84,9 @@ SPDX Document
 │       └── PACKAGE_MANAGER: rpm
 │
 ├── Relationships（关系）
-│   ├── SPDXRef-DOCUMENT DESCRIBES SPDXRef-agentrt-linux
-│   ├── SPDXRef-agentrt-linux CONTAINS SPDXRef-linux-kernel
-│   ├── SPDXRef-agentrt-linux CONTAINS SPDXRef-ebpf-subsystem
+│   ├── SPDXRef-DOCUMENT DESCRIBES SPDXRef-agent-linux
+│   ├── SPDXRef-agent-linux CONTAINS SPDXRef-linux-kernel
+│   ├── SPDXRef-agent-linux CONTAINS SPDXRef-ebpf-subsystem
 │   └── ...
 │
 └── Files（文件，可选）
@@ -101,7 +101,7 @@ SPDX Document
 
 #### 3.1 组件分类总览
 
-agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
+agent-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 
 | 类别 | 优先级 | SBOM 深度 | 说明 |
 |------|--------|-----------|------|
@@ -125,7 +125,7 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | MGLRU（多代 LRU） | 6.6 原生 | 主线 | GPL-2.0-only | SPDXRef-mglru |
 | io_uring | 6.6 原生 | 主线 | GPL-2.0-only | SPDXRef-iouring |
 | eBPF kfunc | 6.6 原生 | 主线 | GPL-2.0-only | SPDXRef-ebpf-kfunc |
-| sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF） | agentrt-linux（AirymaxOS）增强 | 基于主线 6.6 调度策略 | GPL-2.0-only | SPDXRef-sched-tac |
+| sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF） | agent-linux（AirymaxOS）增强 | 基于主线 6.6 调度策略 | GPL-2.0-only | SPDXRef-sched-tac |
 | Rust 内核支持 | 6.6 实验性 | 主线 | GPL-2.0-only | SPDXRef-rust-kernel |
 | XFS 在线 fsck | 6.6 原生 | 主线 | GPL-2.0-only | SPDXRef-xfs-fsck |
 
@@ -138,8 +138,8 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | BPF Type Format (BTF) | 6.6 原生 | 主线 | GPL-2.0-only | SPDXRef-btf |
 | libbpf | 1.x | kernel.org | LGPL-2.1-only | SPDXRef-libbpf |
 | bpftool | 6.6 | kernel.org | GPL-2.0-only | SPDXRef-bpftool |
-| sched_tac 用户态调度器 | 1.0.1 | agentrt-linux | GPL-2.0-only | SPDXRef-sched-agent-tac |
-| eBPF 安全探针 | 1.0.1 | agentrt-linux | GPL-2.0-only | SPDXRef-ebpf-security |
+| sched_tac 用户态调度器 | 1.0.1 | agent-linux | GPL-2.0-only | SPDXRef-sched-agent-tac |
+| eBPF 安全探针 | 1.0.1 | agent-linux | GPL-2.0-only | SPDXRef-ebpf-security |
 
 #### 3.4 Rust 工具链组件
 
@@ -183,10 +183,10 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 |------|------|------|--------|---------|
 | SELinux | 3.5+ | selinuxproject.org | GPL-2.0-only | SPDXRef-selinux |
 | libseccomp | 2.5+ | github.com/seccomp | LGPL-2.1-only | SPDXRef-libseccomp |
-| capability 库 | 1.0.1 | agentrt-linux | Apache-2.0 | SPDXRef-capability-lib |
-| SM2/SM3/SM4 国密库 | 1.0.1 | agentrt-linux | Apache-2.0 | SPDXRef-gm-crypto |
+| capability 库 | 1.0.1 | agent-linux | Apache-2.0 | SPDXRef-capability-lib |
+| SM2/SM3/SM4 国密库 | 1.0.1 | agent-linux | Apache-2.0 | SPDXRef-gm-crypto |
 | auditd | 3.1+ | linux-audit | GPL-2.0-or-later | SPDXRef-auditd |
-| TEE/SGX 支持库 | 1.0.1 | agentrt-linux | Apache-2.0 | SPDXRef-tee-lib |
+| TEE/SGX 支持库 | 1.0.1 | agent-linux | Apache-2.0 | SPDXRef-tee-lib |
 
 #### 3.8 云原生组件
 
@@ -196,8 +196,8 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | Kubernetes 组件 | 1.28+ | kubernetes.io | Apache-2.0 | SPDXRef-k8s |
 | OCI runtime-spec | 1.1+ | opencontainers.org | Apache-2.0 | SPDXRef-oci-spec |
 | CNI 插件 | 1.3+ | github.com/containernetworking | Apache-2.0 | SPDXRef-cni |
-| agentctl | 1.0.1 | agentrt-linux | Apache-2.0 | SPDXRef-agentctl |
-| 超节点 UMDK | 1.0.1 | agentrt-linux | Apache-2.0 | SPDXRef-umdk |
+| agentctl | 1.0.1 | agent-linux | Apache-2.0 | SPDXRef-agentctl |
+| 超节点 UMDK | 1.0.1 | agent-linux | Apache-2.0 | SPDXRef-umdk |
 | runc | 1.1+ | opencontainers.org | Apache-2.0 | SPDXRef-runc |
 
 #### 3.9 第三方核心库
@@ -219,7 +219,7 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 
 #### 4.1 许可证分类
 
-| 许可证类别 | 许可证 | 限制级别 | agentrt-linux 使用 |
+| 许可证类别 | 许可证 | 限制级别 | agent-linux 使用 |
 |------------|--------|----------|---------------------|
 | **强 Copyleft** | GPL-2.0-only, GPL-3.0-or-later | 高 | 内核、GCC、binutils |
 | **弱 Copyleft** | LGPL-2.1-only, LGPL-2.1-or-later, LGPL-2.0-or-later | 中 | glibc、systemd、libseccomp |
@@ -244,8 +244,8 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | 要求 | 说明 | 验证方式 |
 |------|------|----------|
 | **内核模块许可证** | 所有内核模块必须使用 GPL-2.0 兼容许可证 | 内核构建时自动检查 MODULE_LICENSE |
-| **发行版整体许可证** | agentrt-linux 发行版整体许可证为 GPL-2.0-only（与内核一致） | SPDX 文档声明 |
-| **自研组件许可证** | agentrt-linux（AirymaxOS）自研组件使用 Apache-2.0 | 代码仓库 LICENSE 文件 |
+| **发行版整体许可证** | agent-linux 发行版整体许可证为 GPL-2.0-only（与内核一致） | SPDX 文档声明 |
+| **自研组件许可证** | agent-linux（AirymaxOS）自研组件使用 Apache-2.0 | 代码仓库 LICENSE 文件 |
 | **第三方组件审核** | 新增第三方组件必须在引入前完成许可证审核 | 许可证合规审查流程 |
 | **许可证冲突检测** | 自动化工具检测许可证冲突 | CI 流水线集成 |
 | **禁止 GPL-3.0 仅内核代码** | 内核代码不能使用 GPL-3.0-only（与 GPL-2.0 不兼容） | 代码审查 |
@@ -263,7 +263,7 @@ agentrt-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | **扫描工具** | Trivy + Grype + OSS-Fuzz（内核） |
 | **严重级别** | CRITICAL / HIGH / MEDIUM / LOW / NONE |
 | **响应时间** | CRITICAL: 24h / HIGH: 7d / MEDIUM: 30d / LOW: 90d |
-| **通知机制** | agentrt-linux-SA 安全公告 + Issue 自动创建 |
+| **通知机制** | agent-linux-SA 安全公告 + Issue 自动创建 |
 
 #### 5.2 漏洞扫描流程
 
@@ -324,7 +324,7 @@ SBOM 的生成完全自动化，集成在 CI/CD 流水线中：
 ```mermaid
 graph TD
     A[代码提交] --> B[CI 构建触发]
-    B --> C[构建 agentrt-linux 发行版]
+    B --> C[构建 agent-linux 发行版]
     C --> D[收集组件信息]
     D --> E[生成 SPDX 2.3 SBOM]
     E --> F[验证 SBOM 格式]
@@ -364,7 +364,7 @@ graph TD
 # .github/workflows/sbom-generation.yml
 sbom:
   standard: SPDX-2.3
-  document_name: "agentrt-linux-{version}-sbom"
+  document_name: "agent-linux-{version}-sbom"
   namespace: "https://repo.airymaxos.org/sbom/"
   creator: "Organization: SPHARX Ltd."
   
@@ -403,22 +403,22 @@ sbom:
 
 #### 7.1 IRON-9 v3 四层 SBOM 关系
 
-根据 IRON-9 v3 工程铁律，agentrt-linux 与 agentrt 的 SBOM 关系遵循三层架构：
+根据 IRON-9 v3 工程铁律，agent-linux 与 agentrt 的 SBOM 关系遵循三层架构：
 
 | 层级 | SBOM 关系 | 说明 |
 |------|-----------|------|
-| **[SC] 共享契约层** | 共享 SBOM 片段 | `include/uapi/linux/airymax/` 头文件库的 SBOM 片段由 agentrt 维护，agentrt-linux 引用 |
+| **[SC] 共享契约层** | 共享 SBOM 片段 | `include/uapi/linux/airymax/` 头文件库的 SBOM 片段由 agentrt 维护，agent-linux 引用 |
 | **[SS] 语义同源层** | 各自独立 SBOM | 各自的实现使用独立组件，SBOM 各自维护 |
 | **[IND] 完全独立层** | 完全独立 SBOM | 无交叉引用，SBOM 完全独立 |
 
 #### 7.2 [SC] 层共享 SBOM 片段
 
-共享契约层的组件（`include/uapi/linux/airymax/` 头文件库）在 agentrt 和 agentrt-linux 的 SBOM 中共同标注：
+共享契约层的组件（`include/uapi/linux/airymax/` 头文件库）在 agentrt 和 agent-linux 的 SBOM 中共同标注：
 
 ```yaml
-# agentrt-linux SBOM 中引用 agentrt 共享 SBOM 片段
+# agent-linux SBOM 中引用 agentrt 共享 SBOM 片段
 relationships:
-  - spdxElementId: SPDXRef-agentrt-linux
+  - spdxElementId: SPDXRef-agent-linux
     relationshipType: DEPENDS_ON
     relatedSpdxElement: SPDXRef-airymax-contracts
     comment: "IRON-9 v3 [SC] 层 — 共享契约层代码，SBOM 片段由 agentrt 维护"
@@ -445,7 +445,7 @@ relationships:
 | **SBOM 完整性** | SBOM 必须覆盖所有组件（包括传递依赖），不允许遗漏 | E-6 错误可追溯原则 |
 | **SBOM 签名** | SBOM 必须经过 SM2 数字签名，确保完整性和不可否认性 | E-1 安全内生原则 |
 | **SBOM 可验证** | SBOM 必须通过 SPDX 验证工具验证，格式不合规的 SBOM 不得发布 | E-8 可测试性原则 |
-| **SBOM 版本同步** | SBOM 的版本号必须与 agentrt-linux 发行版版本号一致 | E-7 文档即代码原则 |
+| **SBOM 版本同步** | SBOM 的版本号必须与 agent-linux 发行版版本号一致 | E-7 文档即代码原则 |
 | **许可证合规** | 新增组件必须在引入前通过许可证合规审查 | E-1 安全内生原则 |
 
 #### 8.2 SBOM 合规性检查清单
@@ -485,7 +485,7 @@ relationships:
 
 ---
 
-## Part II: agentrt-linux 统一错误码参考
+## Part II: agent-linux 统一错误码参考
 
 > **SSoT 声明**： 本文档的错误码规范以 [SC] `include/uapi/linux/airymax/error.h` 为唯一权威方案（`AIRY_E*` 常量正数幅值，POSIX errno 风格；调用方返回 `-AIRY_E*`）。[SC] 共享契约层权威源文件：`include/uapi/linux/airymax/error.h`（定义 `AIRY_E*` POSIX 码 + [DSL] 降级映射）。C 内核首要体系使用 `AIRY_E*` 前缀（唯一主名称），SDK 次要体系使用 `AIRY_ERROR_*` 前缀。旧版 `AIRY_ERR_*` 前缀已废弃，新代码禁止使用。详见 [跨项目代码共享](../120-cross-project-code-sharing.md) §2.5。
 
@@ -495,7 +495,7 @@ relationships:
 
 #### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）统一错误码体系的设计目标：
+agent-linux（AirymaxOS）统一错误码体系的设计目标：
 
 | 目标 | 说明 | 对应原则 |
 |------|------|----------|
@@ -507,7 +507,7 @@ agentrt-linux（AirymaxOS）统一错误码体系的设计目标：
 
 #### 1.2 适用范围
 
-本错误码体系适用于 agentrt-linux（AirymaxOS）的以下全部子仓和组件：
+本错误码体系适用于 agent-linux（AirymaxOS）的以下全部子仓和组件：
 
 | 子仓 / 组件 | 错误码空间 | 说明 |
 |-------------|------------|------|
@@ -526,7 +526,7 @@ agentrt-linux（AirymaxOS）统一错误码体系的设计目标：
 
 #### 2.1 设计原理
 
-agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核态与用户态的错误表示本质不同：
+agent-linux（AirymaxOS）采用双错误码体系的核心原因在于内核态与用户态的错误表示本质不同：
 
 | 特性 | 内核态 | 用户态 |
 |------|--------|--------|
@@ -631,11 +631,11 @@ agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核�
 
 #### 3.1 IRON-9 v3 四层映射
 
-根据 IRON-9 v3 工程铁律，agentrt-linux 与 agentrt 的错误码映射遵循三层架构：
+根据 IRON-9 v3 工程铁律，agent-linux 与 agentrt 的错误码映射遵循三层架构：
 
 ##### 3.1.1 [SC] 共享契约层 — 错误码 SSoT 定义
 
-错误码定义统一收纳在 [SC] `include/uapi/linux/airymax/error.h` 中（10 子空间，[-1,-300]），agentrt 和 agentrt-linux 使用相同的错误码数值和语义。`error.h` 是错误码的唯一 SSoT 物理宿主，其余 9 个 [SC] 头文件（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`）通过 `#include <uapi/linux/airymax/error.h>` 引用错误码，不重复定义：
+错误码定义统一收纳在 [SC] `include/uapi/linux/airymax/error.h` 中（10 子空间，[-1,-300]），agentrt 和 agent-linux 使用相同的错误码数值和语义。`error.h` 是错误码的唯一 SSoT 物理宿主，其余 9 个 [SC] 头文件（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`）通过 `#include <uapi/linux/airymax/error.h>` 引用错误码，不重复定义：
 
 | [SC] 头文件 | 错误码分类 | 说明 |
 |------------|-----------|------|
@@ -648,9 +648,9 @@ agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核�
 
 ##### 3.1.2 [SS] 语义同源层 — 语义一致，数值独立
 
-以下错误码语义与 agentrt 一致，但具体数值可能不同（agentrt-linux 侧数值对齐 `error.h` SSoT）：
+以下错误码语义与 agentrt 一致，但具体数值可能不同（agent-linux 侧数值对齐 `error.h` SSoT）：
 
-| 语义域 | agentrt 实现 | agentrt-linux 实现 | 说明 |
+| 语义域 | agentrt 实现 | agent-linux 实现 | 说明 |
 |--------|--------------|---------------------|------|
 | 调度错误 | atoms/corekern 调度错误码 | kernel 调度错误码（A-ULS 码 `[-121,-140]`，对齐 `error.h`） | 调度语义一致，数值独立 |
 | 安全错误 | cupolas 安全错误码 | security 安全错误码（Capability 码 `[-71,-100]`，对齐 `error.h`） | 安全模型一致，数值独立 |
@@ -660,7 +660,7 @@ agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核�
 
 以下错误码完全独立，无映射关系：
 
-| agentrt 独立域 | agentrt-linux 独立域 | 说明 |
+| agentrt 独立域 | agent-linux 独立域 | 说明 |
 |----------------|----------------------|------|
 | 平台适配层错误码 | 驱动框架错误码 (-700~-799) | agentrt 无设备驱动概念 |
 | 跨平台兼容层错误码 | 网络云原生错误码 (-800~-899) | agentrt 无 K8s/containerd 概念 |
@@ -668,11 +668,11 @@ agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核�
 
 #### 3.2 错误码转换规则
 
-当 agentrt 在 agentrt-linux 上运行时，错误码转换遵循以下规则：
+当 agentrt 在 agent-linux 上运行时，错误码转换遵循以下规则：
 
 ```
 [SC] 层错误码：直接透传，无需转换
-[SS] 层错误码：通过映射表转换（agentrt 错误码 → agentrt-linux 错误码）
+[SS] 层错误码：通过映射表转换（agentrt 错误码 → agent-linux 错误码）
 [IND] 层错误码：不转换，各自独立处理
 ```
 
@@ -680,7 +680,7 @@ agentrt-linux（AirymaxOS）采用双错误码体系的核心原因在于内核�
 
 > **⚠️ 废弃说明**：下表 [SS] 映射中的 `E_SCHED_*`（-200 段）、`E_SEC_*`（-500 段）、`E_COG_*`（-600 段）、`E_MEM_*`（-400 段）均为**废弃前缀**（旧命名，负值自定义序列），已统一迁移至 [SC] `error.h` 的 `AIRY_E*` 正数幅值体系（如调度错误 → `AIRY_ESCHED_POLICY`=121、能力拒绝 → `AIRY_ECAP_LSM_DENIED`=75、认知超时 → `AIRY_ECOG_TIMEOUT`=164、记忆写入 → `AIRY_EMEM_ALLOC`=147 等）。下表仅作历史映射参考，新代码禁止使用。
 
-| agentrt 错误码 | 语义 | agentrt-linux 错误码 | 转换方向 |
+| agentrt 错误码 | 语义 | agent-linux 错误码 | 转换方向 |
 |----------------|------|----------------------|----------|
 | CORESCHED_ERR_INVALID | 调度参数无效 | ~~-E_SCHED_CLASS_INVALID (-200)~~ → `AIRY_ESCHED_POLICY`(121) | 双向 |
 | CORESCHED_ERR_TIMEOUT | 调度超时 | ~~-E_SCHED_DEADLINE_MISSED (-212)~~ → `AIRY_ESCHED_DEADLINE`(123) | 双向 |
@@ -869,7 +869,7 @@ graph TD
 | **修改错误码语义** | 标记 @deprecated 旧定义，新增新定义 | 工程规范委员会审查 + ADR 记录 |
 | **删除错误码** | 标记 @deprecated，保留至少 2 个版本周期 | 工程规范委员会审查 + 公告 |
 | **调整分段区间** | 必须通过 ADR 评审 | 工程规范委员会投票 |
-| **修改 [SC] 层错误码** | 必须 agentrt + agentrt-linux 双向同步 | 工程规范委员会联合审查 |
+| **修改 [SC] 层错误码** | 必须 agentrt + agent-linux 双向同步 | 工程规范委员会联合审查 |
 
 #### 5.3 错误码弃用流程
 
@@ -947,19 +947,19 @@ graph TD
 
 ---
 
-## Part III: agentrt-linux（AirymaxOS）模块需求手册
+## Part III: agent-linux（AirymaxOS）模块需求手册
 
 ### 1. 引言
 
-本文档定义了 **agentrt-linux（AirymaxOS）** 项目中各个子模块的功能边界、接口约定、性能要求和安全规范。本设计遵循 **五维正交** 架构原则，确保模块间低耦合、高内聚，并满足 IRON-9 v2 硬件平台的适配要求。
+本文档定义了 **agent-linux（AirymaxOS）** 项目中各个子模块的功能边界、接口约定、性能要求和安全规范。本设计遵循 **五维正交** 架构原则，确保模块间低耦合、高内聚，并满足 IRON-9 v2 硬件平台的适配要求。
 
-agentrt-linux（AirymaxOS）作为面向Agent计算的下一代操作系统，采用了 **五维正交** 分解方法，将系统划分为8个独立开发的子仓库，每个子仓库对应一个核心模块，通过清晰的接口契约保证整体系统的一致性。
+agent-linux（AirymaxOS）作为面向Agent计算的下一代操作系统，采用了 **五维正交** 分解方法，将系统划分为8个独立开发的子仓库，每个子仓库对应一个核心模块，通过清晰的接口契约保证整体系统的一致性。
 
 ---
 
 ### 2. 模块总体架构
 
-agentrt-linux（AirymaxOS）采用分层模块化设计，基于 **五维正交** 架构方法论实现功能解耦。以下为高层架构示意图：
+agent-linux（AirymaxOS）采用分层模块化设计，基于 **五维正交** 架构方法论实现功能解耦。以下为高层架构示意图：
 
 ```mermaid
 graph TB
@@ -980,7 +980,7 @@ graph TB
     class B,C,D,E,F,G,H module;
 ```
 
-IRON-9 v2 硬件平台提供了丰富的扩展接口，agentrt-linux（AirymaxOS）各个模块需要针对该平台进行深度优化，充分发挥其异构计算能力。
+IRON-9 v2 硬件平台提供了丰富的扩展接口，agent-linux（AirymaxOS）各个模块需要针对该平台进行深度优化，充分发挥其异构计算能力。
 
 ---
 
@@ -1281,7 +1281,7 @@ matrix
 
 #### 5.1 Syscall 接口规范
 
-- agentrt-linux（AirymaxOS）保持对 Linux ABI 的向后兼容
+- agent-linux（AirymaxOS）保持对 Linux ABI 的向后兼容
 - 新增系统调用必须遵守 `airy_*` 命名前缀
 - 每个 syscall 必须包含权限检查，集成 security 模块钩子
 - 系统调用编号必须在 upstream 预留范围分配
@@ -1307,7 +1307,7 @@ matrix
 - 新功能的添加必须增加次版本号
 - 向后兼容的修复必须增加修订版本号
 - 接口废弃必须有至少两个版本的过渡期
-- agentrt-linux（AirymaxOS）各模块接口版本号在 `VERSION` 文件中维护
+- agent-linux（AirymaxOS）各模块接口版本号在 `VERSION` 文件中维护
 
 #### 5.5 接口文档要求
 
@@ -1464,13 +1464,13 @@ matrix
 
 ### 10. 总结
 
-本文档定义了 agentrt-linux（AirymaxOS）8个子模块的详细需求。各模块开发必须严格遵守本文档定义的功能边界、接口约定和质量要求。遵循 **五维正交** 设计原则，保证模块化开发能够并行进行，同时保证最终系统集成的一致性。针对 IRON-9 v2 平台的优化需求必须在各个模块中充分考虑，发挥硬件最大性能。
+本文档定义了 agent-linux（AirymaxOS）8个子模块的详细需求。各模块开发必须严格遵守本文档定义的功能边界、接口约定和质量要求。遵循 **五维正交** 设计原则，保证模块化开发能够并行进行，同时保证最终系统集成的一致性。针对 IRON-9 v2 平台的优化需求必须在各个模块中充分考虑，发挥硬件最大性能。
 
-所有模块必须满足 主流 Linux 发行版标准 兼容性和 Linux ABI 稳定性要求，确保生态兼容性。通过严格的质量门禁和生命周期管理，保证 agentrt-linux（AirymaxOS）整体质量可控。
+所有模块必须满足 主流 Linux 发行版标准 兼容性和 Linux ABI 稳定性要求，确保生态兼容性。通过严格的质量门禁和生命周期管理，保证 agent-linux（AirymaxOS）整体质量可控。
 
 ---
 
-## Part IV: agentrt-linux（AirymaxOS）资源管理表
+## Part IV: agent-linux（AirymaxOS）资源管理表
 
 ### 目录
 
@@ -1490,7 +1490,7 @@ matrix
 
 ### 1. 概述
 
-agentrt-linux（AirymaxOS）是一个面向实时智能体的轻量级操作系统发行版，其项目管理遵循 **五维正交** 原则进行资源切分与治理。所谓五维正交，是指从以下五个独立维度对项目资源进行结构化建模：
+agent-linux（AirymaxOS）是一个面向实时智能体的轻量级操作系统发行版，其项目管理遵循 **五维正交** 原则进行资源切分与治理。所谓五维正交，是指从以下五个独立维度对项目资源进行结构化建模：
 
 | 维度 | 名称 | 说明 |
 |------|------|------|
@@ -1500,19 +1500,19 @@ agentrt-linux（AirymaxOS）是一个面向实时智能体的轻量级操作系�
 | D4 | 合规维度 | 许可证、出口管制、安全审计的合规检查 |
 | D5 | 版本维度 | 跨仓库的版本兼容性与升级路径 |
 
-通过五维正交的资源管理模型，agentrt-linux（AirymaxOS）能够在每个维度上独立演进，互不耦合，从而降低多仓库协同的复杂度。所有资源的分配、审计与回收均通过 agentrt-linux 管理仓库统一编排，基于 CI 引擎（IRON-9 v3 四层共享模型下的自动化流水线）执行自动化调度。
+通过五维正交的资源管理模型，agent-linux（AirymaxOS）能够在每个维度上独立演进，互不耦合，从而降低多仓库协同的复杂度。所有资源的分配、审计与回收均通过 agent-linux 管理仓库统一编排，基于 CI 引擎（IRON-9 v3 四层共享模型下的自动化流水线）执行自动化调度。
 
 ---
 
 ### 2. 八子仓库资源清单
 
-agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八个子仓库：
+agent-linux（AirymaxOS）由 agent-linux 管理仓库统一纳管以下八个子仓库：
 
 #### 2.1 kernel
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/kernel` |
+| 仓库路径 | `agent-linux/kernel` |
 | 功能定位 | 实时内核子系统，基于 Linux 6.6 LTS 裁剪 |
 | 核心语言 | C (99%), Rust (1%) |
 | 代码规模 | ~1.2M LOC |
@@ -1528,7 +1528,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/services` |
+| 仓库路径 | `agent-linux/services` |
 | 功能定位 | 系统服务管理层，包含 systemd 单元与服务编排 |
 | 核心语言 | Rust (85%), C (15%) |
 | 代码规模 | ~380K LOC |
@@ -1542,7 +1542,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/security` |
+| 仓库路径 | `agent-linux/security` |
 | 功能定位 | 安全子系统：LSM、MAC、可信启动、密钥管理 |
 | 核心语言 | Rust (70%), C (30%) |
 | 代码规模 | ~210K LOC |
@@ -1556,7 +1556,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/memory` |
+| 仓库路径 | `agent-linux/memory` |
 | 功能定位 | 内存管理子系统：NUMA 感知、HugeTLB、内存压缩 |
 | 核心语言 | C (90%), Rust (10%) |
 | 代码规模 | ~180K LOC |
@@ -1569,7 +1569,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/cognition` |
+| 仓库路径 | `agent-linux/cognition` |
 | 功能定位 | 认知子系统：本地模型推理、向量存储、上下文管理 |
 | 核心语言 | Rust (80%), Python (20%) |
 | 代码规模 | ~450K LOC |
@@ -1583,7 +1583,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/cloudnative` |
+| 仓库路径 | `agent-linux/cloudnative` |
 | 功能定位 | 云原生子系统：容器运行时、镜像管理、服务网格 |
 | 核心语言 | Rust (75%), Go (25%) |
 | 代码规模 | ~320K LOC |
@@ -1597,7 +1597,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/system` |
+| 仓库路径 | `agent-linux/system` |
 | 功能定位 | 系统工具集：诊断、日志、性能分析、配置管理 |
 | 核心语言 | Rust (90%), C (10%) |
 | 代码规模 | ~250K LOC |
@@ -1610,7 +1610,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 | 属性 | 值 |
 |------|-----|
-| 仓库路径 | `agentrt-linux/tests-linux` |
+| 仓库路径 | `agent-linux/tests-linux` |
 | 功能定位 | 测试与质量保障：单元测试、集成测试、性能基准、CI/CD |
 | 核心语言 | Rust (60%), Python (30%), Shell (10%) |
 | 代码规模 | ~500K LOC (含测试数据) |
@@ -1624,7 +1624,7 @@ agentrt-linux（AirymaxOS）由 agentrt-linux 管理仓库统一纳管以下八�
 
 ### 3. 上游依赖表
 
-agentrt-linux（AirymaxOS）的上游依赖涵盖内核、运行时、工具链和基础设施层：
+agent-linux（AirymaxOS）的上游依赖涵盖内核、运行时、工具链和基础设施层：
 
 #### 3.1 内核与运行时
 
@@ -1686,25 +1686,25 @@ agentrt-linux（AirymaxOS）的上游依赖涵盖内核、运行时、工具链�
 
 ### 4. 下游依赖表
 
-以下项目依赖 agentrt-linux（AirymaxOS）或其组件：
+以下项目依赖 agent-linux（AirymaxOS）或其组件：
 
 #### 4.1 核心下游
 
 | 下游项目 | 依赖组件 | 依赖类型 | 兼容版本 | 状态 |
 |----------|----------|----------|----------|------|
-| agentrt | kernel, services, cognition | 运行时平台 | agentrt-linux >= 1.0.1 | 稳定 |
-| agentrt SDK | services (API), system (CLI) | API 绑定 | agentrt-linux >= 1.0.1 | 稳定 |
-| agentctl | system (agentctl socket) | IPC 协议 | agentrt-linux >= 1.0.1 | 稳定 |
-| Airymax Desktop | cloudnative, cognition | 完整 OS 镜像 | agentrt-linux >= 1.0.1 | Beta |
-| Airymax Edge | kernel (minimal), memory | 裁剪镜像 | agentrt-linux >= 1.0.1 | 稳定 |
+| agentrt | kernel, services, cognition | 运行时平台 | agent-linux >= 1.0.1 | 稳定 |
+| agentrt SDK | services (API), system (CLI) | API 绑定 | agent-linux >= 1.0.1 | 稳定 |
+| agentctl | system (agentctl socket) | IPC 协议 | agent-linux >= 1.0.1 | 稳定 |
+| Airymax Desktop | cloudnative, cognition | 完整 OS 镜像 | agent-linux >= 1.0.1 | Beta |
+| Airymax Edge | kernel (minimal), memory | 裁剪镜像 | agent-linux >= 1.0.1 | 稳定 |
 
 #### 4.2 生态下游
 
 | 下游项目 | 依赖组件 | 依赖类型 | 兼容版本 | 状态 |
 |----------|----------|----------|----------|------|
-| 主流 Linux 发行版标准兼容层 | kernel (ABI) | ABI 兼容 | agentrt-linux >= 1.0.1 | 已规划 |
-| K8s Airymax Node | cloudnative (CRI) | CRI 插件 | agentrt-linux >= 1.0.1 | Alpha |
-| SPHARX AI Platform | cognition | 推理运行时 | agentrt-linux >= 1.0.1 | 稳定 |
+| 主流 Linux 发行版标准兼容层 | kernel (ABI) | ABI 兼容 | agent-linux >= 1.0.1 | 已规划 |
+| K8s Airymax Node | cloudnative (CRI) | CRI 插件 | agent-linux >= 1.0.1 | Alpha |
+| SPHARX AI Platform | cognition | 推理运行时 | agent-linux >= 1.0.1 | 稳定 |
 
 ---
 
@@ -1743,9 +1743,9 @@ agentrt-linux（AirymaxOS）的上游依赖涵盖内核、运行时、工具链�
 | **LGPL-2.1** | OK (动态) | OK | OK | OK | OK | OK | OK |
 | **Apache-2.0** | GPL-3.0 兼容 | OK | OK | OK | OK | OK | OK |
 | **MIT** | GPL-2.0 兼容 | OK | OK | OK | OK | OK | OK |
-| agentrt-linux（AirymaxOS） 代码 | 允许 | 允许 | 首选 | 允许 | 允许 | 允许 | 禁止 |
+| agent-linux（AirymaxOS） 代码 | 允许 | 允许 | 首选 | 允许 | 允许 | 允许 | 禁止 |
 
-**许可证策略**：agentrt-linux（AirymaxOS）的原创代码统一采用 Apache-2.0 许可证，fork 自上游的代码保留其原始许可证。所有依赖的许可证兼容性已通过 IRON-9 v2 合规扫描流水线自动化检查。
+**许可证策略**：agent-linux（AirymaxOS）的原创代码统一采用 Apache-2.0 许可证，fork 自上游的代码保留其原始许可证。所有依赖的许可证兼容性已通过 IRON-9 v2 合规扫描流水线自动化检查。
 
 ---
 
@@ -1813,8 +1813,8 @@ agentrt-linux（AirymaxOS）的上游依赖涵盖内核、运行时、工具链�
 
 ```mermaid
 graph TD
-    subgraph agentrt-linux["agentrt-linux 管理仓库"]
-        MGMT["agentrt-linux<br/>管理编排"]
+    subgraph agent-linux["agent-linux 管理仓库"]
+        MGMT["agent-linux<br/>管理编排"]
     end
 
     subgraph Foundation["基础层"]
@@ -1913,7 +1913,7 @@ stateDiagram-v2
 
 #### 8.2 资源监控（Monitoring）
 
-agentrt-linux（AirymaxOS）的资源监控基于以下三层架构：
+agent-linux（AirymaxOS）的资源监控基于以下三层架构：
 
 | 层级 | 监控对象 | 采集工具 | 存储后端 | 告警通道 |
 |------|----------|----------|----------|----------|
@@ -1937,14 +1937,14 @@ agentrt-linux（AirymaxOS）的资源监控基于以下三层架构：
 
 #### 9.1 八子仓库版本兼容性
 
-**说明**：本矩阵以 `agentrt-linux/x.y` 为整体版本号，子仓库版本独立递增（语义化版本）。
+**说明**：本矩阵以 `agent-linux/x.y` 为整体版本号，子仓库版本独立递增（语义化版本）。
 
-| agentrt-linux 版本 | Kernel (Linux 基线) | Services | Security | Memory | Cognition | CloudNative | System | Tests-linux |
+| agent-linux 版本 | Kernel (Linux 基线) | Services | Security | Memory | Cognition | CloudNative | System | Tests-linux |
 |-------------------|---------------------|----------|----------|--------|-----------|-------------|--------|------------|
 | 0.1.1 (当前文档) | 6.6.58-rt1 | 0.1.1 | 0.1.1 | 0.1.1 | 0.1.1 | 0.1.1 | 0.1.1 | 0.1.1 |
 | 1.0.1 (当前开发) | 6.6.58-rt1 | 1.0.1 | 1.0.1 | 1.0.1 | 1.0.1 | 1.0.1 | 1.0.1 | 1.0.1 |
 
-> **IRON-7 合规说明**：agentrt-linux 唯一基线版本为 v1.0.1，禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 等中间过渡版本。后续版本规划遵循 IRON-7 铁律另行确定。
+> **IRON-7 合规说明**：agent-linux 唯一基线版本为 v1.0.1，禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 等中间过渡版本。后续版本规划遵循 IRON-7 铁律另行确定。
 
 #### 9.2 上游依赖版本兼容性
 
@@ -1970,7 +1970,7 @@ agentrt-linux（AirymaxOS）的资源监控基于以下三层架构：
 
 ### 10. 第三方依赖审计清单
 
-以下为 agentrt-linux（AirymaxOS）所有第三方依赖的审计检查清单，由 IRON-9 v2 合规扫描流水线在每次 CI 构建时自动执行：
+以下为 agent-linux（AirymaxOS）所有第三方依赖的审计检查清单，由 IRON-9 v2 合规扫描流水线在每次 CI 构建时自动执行：
 
 #### 10.1 审计检查项
 
@@ -2025,17 +2025,17 @@ agentrt-linux（AirymaxOS）的资源监控基于以下三层架构：
 
 | 术语 | 定义 |
 |------|------|
-| agentrt-linux（AirymaxOS） | 面向实时智能体的轻量级操作系统发行版，项目核心术语 |
-| agentrt-linux | agentrt-linux（AirymaxOS）的顶层管理仓库，负责八子仓库的编排与集成 |
+| agent-linux（AirymaxOS） | 面向实时智能体的轻量级操作系统发行版，项目核心术语 |
+| agent-linux | agent-linux（AirymaxOS）的顶层管理仓库，负责八子仓库的编排与集成 |
 | 五维正交 | 子系统、依赖、生命周期、合规、版本五个独立维度的资源治理模型 |
 | IRON-9 v3 | 同源且部分代码共享的四层共享模型（[SC]/[SS]/[IND]/[DSL]）——CI/CD 自动化由 CI 引擎（IRON-9 流水线，专名）承载，勿与四层共享模型混淆 |
-| 八子仓库 | agentrt-linux 管理的八个独立 Git 仓库，按功能领域正交划分 |
+| 八子仓库 | agent-linux 管理的八个独立 Git 仓库，按功能领域正交划分 |
 | 主流 Linux 发行版标准 | 兼容性标准接口规范，用于跨发行版互操作 |
 
 #### 11.2 参考文档
 
 - [项目管理规范总览](README.md)
-- [agentrt-linux 管理仓库 CI/CD 配置](https://github.com/SpharxWorks/agentrt-linux)
+- [agent-linux 管理仓库 CI/CD 配置](https://github.com/SpharxWorks/agent-linux)
 - [IRON-9 v2 流水线使用手册](https://docs.spharx.com/iron9-v2)
 - [SPHARX 开源合规政策 v2.0](https://docs.spharx.com/compliance)
 - [Linux Kernel 6.6 LTS 发布说明](https://kernel.org)

@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Logger Daemon 模块设计
 
-> **文档定位**：AirymaxOS（agentrt-linux）`logger_d` 模块级设计——systemd unit 编排、配置文件 schema、日志轮转策略、zstd 压缩归档、审计哈希链完整性保护，作为 A-ULP（统一日志与打印系统）用户态消费侧的模块工程契约\
+> **文档定位**：AirymaxOS（agent-linux）`logger_d` 模块级设计——systemd unit 编排、配置文件 schema、日志轮转策略、zstd 压缩归档、审计哈希链完整性保护，作为 A-ULP（统一日志与打印系统）用户态消费侧的模块工程契约\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[Airymax Unify Design 总纲](../10-architecture/10-unify-design.md) §5（A-ULP 模块）\
@@ -23,7 +23,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 0.1 极境内核定位
 
-`logger_d` 是 agentrt-linux（AirymaxOS）极境内核的用户态日志消费守护进程。极境内核定位为"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"：
+`logger_d` 是 agent-linux（AirymaxOS）极境内核的用户态日志消费守护进程。极境内核定位为"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"：
 
 - **基座**：Linux 6.6 内核（ADR-012）
 - **思想来源**：seL4 微内核工程思想（ADR-014）——Liedtke 极简原则、capability 单一安全模型、消息传递 IPC、服务用户态化
@@ -526,7 +526,7 @@ IRON-9 v3 四层模型（[SC] + [SS] + [IND] + [DSL]）中，`logger_d` 涉及 [
 
 ## §9 12 daemon 协作关系
 
-`logger_d` 是 agentrt-linux 12 daemon 之一，与其他 11 daemon 的协作关系如下：
+`logger_d` 是 agent-linux 12 daemon 之一，与其他 11 daemon 的协作关系如下：
 
 | 协作方 | 协作方向 | 接口 | 协作内容 |
 |--------|---------|------|---------|

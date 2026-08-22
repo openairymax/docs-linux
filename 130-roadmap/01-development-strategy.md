@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）开发策略
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）开发策略与三大支柱详解\
+# agent-linux（AirymaxOS）开发策略
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）开发策略与三大支柱详解\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `0.1.1技术全面改进方案v3.0.md`（v4.2，三大支柱）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则
 
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 总策略
 
-agentrt-linux 采用**"工程标准先行 + 模块化并行 + 渐进式发布"**的开发策略，与 agentrt 0.1.1 奠基版本并行（agentrt 在前，agentrt-linux 在后）：
+agent-linux 采用**"工程标准先行 + 模块化并行 + 渐进式发布"**的开发策略，与 agentrt 0.1.1 奠基版本并行（agentrt 在前，agent-linux 在后）：
 
 | 策略要素 | 含义 | 体现 |
 |---------|------|------|
@@ -35,7 +35,7 @@ graph LR
         RT1c[生产就绪<br/>SP32-SP37]
         RT1 --> RT1a --> RT1b --> RT1c
     end
-    subgraph OS[agentrt-linux]
+    subgraph OS[agent-linux]
         OS1[0.1.1 文档体系<br/>README + 工程标准]
         OS2[1.0.1 开发<br/>M0-M8]
         OS1 --> OS2
@@ -45,7 +45,7 @@ graph LR
     style OS2 fill:#e3f2fd
 ```
 
-agentrt 0.1.1 先完成奠基（atoms 解耦、CoreKern 精简、taskflow 修复、SDK 4 语言、许可证合规、29 仓拆分、生产就绪），随后 agentrt-linux 1.0.1 基于 agentrt 同源语义开始内核与 OS 开发，两端在 1.0.1 阶段协同验证。
+agentrt 0.1.1 先完成奠基（atoms 解耦、CoreKern 精简、taskflow 修复、SDK 4 语言、许可证合规、29 仓拆分、生产就绪），随后 agent-linux 1.0.1 基于 agentrt 同源语义开始内核与 OS 开发，两端在 1.0.1 阶段协同验证。
 
 ### 1.3 策略原则
 
@@ -59,7 +59,7 @@ agentrt 0.1.1 先完成奠基（atoms 解耦、CoreKern 精简、taskflow 修复
 
 ## 2. 三大开发支柱详解
 
-agentrt-linux 开发方案由三大支柱构成。三大支柱对应"标准 → 设计 → 治理"的递进关系。
+agent-linux 开发方案由三大支柱构成。三大支柱对应"标准 → 设计 → 治理"的递进关系。
 
 ### 2.1 工程标准与规范体系（Part 1）
 
@@ -79,7 +79,7 @@ agentrt-linux 开发方案由三大支柱构成。三大支柱对应"标准 → 
 **与 agentrt 工程标准的关系（IRON-9 v3 同源且部分代码共享）**:
 
 - **同源**: 与 agentrt `agentrt工程标准规范手册.md` v29.0 共享 17 类规则编号体系骨架（IRON/BAN/STD/ACC 等 751 条）；共享五维正交 24 原则作为顶层设计哲学；共享 E-7 文档即代码、E-6 错误可追溯等核心工程观。
-- **独立**: agentrt-linux 是 OS 发行版，工程标准必须独立处理内核 ABI 稳定性、内核内部 API 不稳定性、补丁生命周期、维护者层级制度等 agentrt 不涉及的领域；同时为内核态特有场景（驱动模型、构建系统、可观测性、安全 LSM）制定专门规范。
+- **独立**: agent-linux 是 OS 发行版，工程标准必须独立处理内核 ABI 稳定性、内核内部 API 不稳定性、补丁生命周期、维护者层级制度等 agentrt 不涉及的领域；同时为内核态特有场景（驱动模型、构建系统、可观测性、安全 LSM）制定专门规范。
 - **新增编号前缀**: OS-IRON / OS-BAN / OS-STD / OS-ACC（继承 agentrt）+ OS-KER / OS-DRV / OS-BUILD / OS-TEST / OS-OBS / OS-SEC / OS-ABI（全新，agentrt 不涉及）。
 
 **关键设计**:
@@ -107,7 +107,7 @@ agentrt-linux 开发方案由三大支柱构成。三大支柱对应"标准 → 
 
 **微内核化改造策略**（K-1 内核极简）:
 
-| 改造方向 | 当前（Linux 6.6） | 目标（agentrt-linux 1.0.1） |
+| 改造方向 | 当前（Linux 6.6） | 目标（agent-linux 1.0.1） |
 |---------|-------------------|------------------------|
 | 调度类 | CFS + EEVDF | + sched_tac 用户态调度器（与 MicroCoreRT 同源） |
 | 驱动 | 内核态驱动 | 驱动用户态化（DPDK/SPDK 模式 + capability 隔离） |
@@ -148,7 +148,7 @@ agentrt-linux 开发方案由三大支柱构成。三大支柱对应"标准 → 
 
 ## 3. 9 部分开发方案
 
-agentrt-linux 开发方案拆分为 9 个 Part。以下详述每个 Part 的范围、优先级、依赖与工时。
+agent-linux 开发方案拆分为 9 个 Part。以下详述每个 Part 的范围、优先级、依赖与工时。
 
 ### Part 1: 工程标准与规范体系建立
 
@@ -311,7 +311,7 @@ agentrt-linux 开发方案拆分为 9 个 Part。以下详述每个 Part 的范�
 
 ### 4.1 协同模型
 
-agentrt-linux 与 agentrt 是**同源**关系，两端通过同源 API 实现无适配层互操作：
+agent-linux 与 agentrt 是**同源**关系，两端通过同源 API 实现无适配层互操作：
 
 ```mermaid
 graph TB
@@ -322,7 +322,7 @@ graph TB
         A4[MemoryRovol<br/>记忆模型]
         A5[CoreLoopThree<br/>循环模型]
     end
-    subgraph agentrt-linux[agentrt-linux OS 发行版]
+    subgraph agent-linux[agent-linux OS 发行版]
         O1[sched_tac 调度策略]
         O2[IPC 子系统]
         O3[capability + LSM]
@@ -335,14 +335,14 @@ graph TB
     A4 -.同源.-> O4
     A5 -.同源.-> O5
     style agentrt fill:#fff3e0
-    style agentrt-linux fill:#e3f2fd
+    style agent-linux fill:#e3f2fd
 ```
 
 ### 4.2 同源红利
 
-agentrt 的设计假设和 agentrt-linux 的实现假设一致，agentrt 在 agentrt-linux 上运行**无适配层**，天然契合：
+agentrt 的设计假设和 agent-linux 的实现假设一致，agentrt 在 agent-linux 上运行**无适配层**，天然契合：
 
-| 同源点 | agentrt 侧 | agentrt-linux 侧 | 互操作效果 |
+| 同源点 | agentrt 侧 | agent-linux 侧 | 互操作效果 |
 |--------|-----------|--------------|-----------|
 | 调度 | MicroCoreRT 调度 | sched_tac 调度策略 | 调度语义一致，无调度适配 |
 | IPC | AgentsIPC 128B 消息头 | IPC 子系统 | 消息格式一致，无序列化转换 |
@@ -352,11 +352,11 @@ agentrt 的设计假设和 agentrt-linux 的实现假设一致，agentrt 在 age
 
 ### 4.3 版本协同时序
 
-| 阶段 | agentrt | agentrt-linux | 协同内容 |
+| 阶段 | agentrt | agent-linux | 协同内容 |
 |------|---------|-----------|---------|
-| 0.1.1 | 完成奠基 + 29 仓拆分 + 生产就绪 | 文档体系完成（~79 文档，不含内核/OS 实施） | agentrt-linux 同步工程标准语义 |
-| 1.0.1 | 与 agentrt-linux 协同验证 | 完成 M0-M8 全部里程碑 | 同源 API 端到端验证 |
-| 1.1.x | 在 agentrt-linux 上天然适配运行 | 稳定运行 | 无适配层互操作 |
+| 0.1.1 | 完成奠基 + 29 仓拆分 + 生产就绪 | 文档体系完成（~79 文档，不含内核/OS 实施） | agent-linux 同步工程标准语义 |
+| 1.0.1 | 与 agent-linux 协同验证 | 完成 M0-M8 全部里程碑 | 同源 API 端到端验证 |
+| 1.1.x | 在 agent-linux 上天然适配运行 | 稳定运行 | 无适配层互操作 |
 
 ---
 
@@ -364,10 +364,10 @@ agentrt 的设计假设和 agentrt-linux 的实现假设一致，agentrt 在 age
 
 ### 5.1 IRON-9 v3 同源且部分代码共享
 
-agentrt-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部分代码共享原则：
+agent-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部分代码共享原则：
 
 - **同源**: 共享五维正交 24 原则、17 类规则编号体系骨架、核心工程观（E-7 文档即代码、E-6 错误可追溯、E-1 安全内生）。
-- **独立**: agentrt-linux 独立处理内核 ABI 稳定性、补丁生命周期、维护者层级制度；新增 OS 专属编号前缀（OS-KER / OS-DRV / OS-BUILD / OS-TEST / OS-OBS / OS-SEC / OS-ABI）。
+- **独立**: agent-linux 独立处理内核 ABI 稳定性、补丁生命周期、维护者层级制度；新增 OS 专属编号前缀（OS-KER / OS-DRV / OS-BUILD / OS-TEST / OS-OBS / OS-SEC / OS-ABI）。
 - **互操作**: 两端通过同源 API（MicroCoreRT / AgentsIPC / Cupolas / MemoryRovol / CoreLoopThree）实现无适配层互操作。
 
 ### 5.2 渐进式开发（S-4 涌现性管理）
@@ -399,7 +399,7 @@ agentrt-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部�
 
 ## 6. 五维原则映射
 
-agentrt-linux 开发策略是五维正交 24 原则在"开发方法"维度的具体落地：
+agent-linux 开发策略是五维正交 24 原则在"开发方法"维度的具体落地：
 
 | 五维原则 | 在开发策略中的体现 | 落地 Part |
 |---------|------------------|-----------|
@@ -427,7 +427,7 @@ agentrt-linux 开发策略是五维正交 24 原则在"开发方法"维度的具
 
 ## 7. 开发策略总结
 
-agentrt-linux 开发策略以三大支柱（工程标准 + 架构设计 + 开发治理）为骨架，以 9 个 Part（P0 七部分 + P1 两部分）为执行单元，以 9 个里程碑（M0-M8）为节奏节点，以五维正交 24 原则为设计哲学，以 IRON-9 v3 同源且部分代码共享原则处理与 agentrt 的协同关系。
+agent-linux 开发策略以三大支柱（工程标准 + 架构设计 + 开发治理）为骨架，以 9 个 Part（P0 七部分 + P1 两部分）为执行单元，以 9 个里程碑（M0-M8）为节奏节点，以五维正交 24 原则为设计哲学，以 IRON-9 v3 同源且部分代码共享原则处理与 agentrt 的协同关系。
 
 **策略要点**:
 
@@ -457,7 +457,7 @@ agentrt-linux 开发策略以三大支柱（工程标准 + 架构设计 + 开发
 - IRON-9 v3 工程铁律 — 17 类规则编号体系（v28.0，含 IRON-9 v3 同源且部分代码共享）
 - agentrt 工程改进方案 — agentrt 三大支柱方案（v4.2）
 
-### 8.3 agentrt-linux 设计文档
+### 8.3 agent-linux 设计文档
 
 - `50-engineering-standards/README.md` — 工程标准主框架（Part 1 范围）
 - `10-architecture/` + `20-modules/` — 架构与模块设计（Part 2 范围）

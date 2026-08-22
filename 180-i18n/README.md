@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 国际化与本地化设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）国际化与本地化工程体系主索引——locale、错误消息、日志格式与多语言支持\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）国际化与本地化工程体系主索引——locale、错误消息、日志格式与多语言支持\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)
@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有国际化设计必须以本声明为基线——多语言错误消息与日志格式化不得引入 sched_ext / page flipping / BPF LSM / DMA 一致性内存相关依赖。
+agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有国际化设计必须以本声明为基线——多语言错误消息与日志格式化不得引入 sched_ext / page flipping / BPF LSM / DMA 一致性内存相关依赖。
 
 | # | 技术维度 | 选定方案 | 明确不采用 | 选定理由 |
 |---|---------|---------|-----------|---------|
@@ -89,7 +89,7 @@ bindtextdomain("airymaxos", "/usr/share/locale");
 textdomain("airymaxos");
 
 /* 错误码值与语言无关，消息文本动态映射 */
-printf(gettext("agentrt-linux started: %s\n"), airy_strerror(err));
+printf(gettext("agent-linux started: %s\n"), airy_strerror(err));
 ```
 
 ---

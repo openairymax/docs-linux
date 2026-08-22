@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）perf 性能分析
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L3 层——性能剖析前端 perf 的工程规范与sched_tac 调度性能对照\
+# agent-linux（AirymaxOS）perf 性能分析
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L3 层——性能剖析前端 perf 的工程规范与sched_tac 调度性能对照\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
@@ -30,13 +30,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-perf 是 Linux 6.6 内核基线提供的官方性能剖析工具集，由 `tools/perf/` 用户态工具与 `kernel/events/core.c` 内核态 `perf_event` 子系统组成。它通过 PMU（Performance Monitoring Unit）硬件计数器、软件事件、tracepoint 三类数据源，为系统级与进程级性能分析提供统一前端。agentrt-linux 选择 perf 作为可观测性 L3 层，原因有三：
+perf 是 Linux 6.6 内核基线提供的官方性能剖析工具集，由 `tools/perf/` 用户态工具与 `kernel/events/core.c` 内核态 `perf_event` 子系统组成。它通过 PMU（Performance Monitoring Unit）硬件计数器、软件事件、tracepoint 三类数据源，为系统级与进程级性能分析提供统一前端。agent-linux 选择 perf 作为可观测性 L3 层，原因有三：
 
 1. **硬件级精度**：perf 直接驱动 PMU 硬件计数器，提供 cycles/instructions/cache-misses/branch-misses 等微架构级指标，是sched_tac 调度延迟微秒级归因的唯一可靠手段。
 2. **与 ftrace/eBPF 共生**：perf 可消费 tracepoint 事件、采样 BPF 程序输出，与可观测性 L1/L2 层共享数据通路，不引入新的基础设施。
 3. **零运行时开销（采样模式）**：在 `perf record -F 99` 采样模式下，perf 开销 < 1% CPU，可在生产环境长期开启，符合 A-ULS 模块 macro_d 的"可观测性不破坏系统稳态"原则。
 
-**OS-OBS-031: perf 是 agentrt-linux 可观测性 L3 层的强制基线，性能剖析必须以 perf 为统一前端，不得引入 vtune、perfctr 等第三方工具。**
+**OS-OBS-031: perf 是 agent-linux 可观测性 L3 层的强制基线，性能剖析必须以 perf 为统一前端，不得引入 vtune、perfctr 等第三方工具。**
 
 **OS-KER-121: kernel 的 defconfig 必须开启 CONFIG_PERF_EVENTS、CONFIG_HW_PERF_EVENTS、CONFIG_PERF_COUNTERS；架构层必须实现 arm64_pmu / x86_pmu 驱动。**
 
@@ -51,11 +51,11 @@ perf 是 Linux 6.6 内核基线提供的官方性能剖析工具集，由 `tools
 | BPF 桥接 | `kernel/trace/bpf_trace.c` | BPF 程序 perf 输出 |
 | ring buffer | `kernel/events/ring_buffer.c` | perf 采样缓冲（独立于 ftrace ring buffer）|
 
-**OS-STD-021: 任何对 `tools/perf/` 子目录的修改必须经过 perf 维护者审查；agentrt-linux 不得 fork perf 工具，必须紧跟上游 LTS。**
+**OS-STD-021: 任何对 `tools/perf/` 子目录的修改必须经过 perf 维护者审查；agent-linux 不得 fork perf 工具，必须紧跟上游 LTS。**
 
 ### 1.3 perf 子命令矩阵
 
-| 子命令 | 用途 | 在 agentrt-linux 的应用 |
+| 子命令 | 用途 | 在 agent-linux 的应用 |
 |--------|------|------------------------|
 | `perf stat` | 计数器统计 | sched_tac 调度类整体开销测量 |
 | `perf record` | 采样记录 | Agent 决策路径热点函数定位 |
@@ -73,7 +73,7 @@ perf 是 Linux 6.6 内核基线提供的官方性能剖析工具集，由 `tools
 
 ### 2.1 基础用法
 
-`perf stat` 对指定命令或 PID 进行计数器统计，输出周期内事件总数。agentrt-linux 在sched_tac 调度性能基准测试中，使用如下标准命令：
+`perf stat` 对指定命令或 PID 进行计数器统计，输出周期内事件总数。agent-linux 在sched_tac 调度性能基准测试中，使用如下标准命令：
 
 ```bash
 # 标准 6 大硬件计数器
@@ -104,7 +104,7 @@ perf stat -e sched:sched_switch,sched:sched_stat_runtime,airy:airy_sched_class_s
 
 ### 2.3 perf stat 输出格式
 
-agentrt-linux 定义了标准 CSV 输出格式，供 A-ULS 模块 macro_d 自动归集：
+agent-linux 定义了标准 CSV 输出格式，供 A-ULS 模块 macro_d 自动归集：
 
 ```bash
 perf stat -x, -e cycles,instructions,cache-misses -- \
@@ -123,7 +123,7 @@ CSV 字段顺序：`value,unit,event,runtime,percent,counted`
 
 ### 3.1 perf record 采样
 
-`perf record` 以指定频率采样调用栈，生成 perf.data 文件。agentrt-linux 默认采样频率 99Hz（避开 100Hz 周期性干扰）：
+`perf record` 以指定频率采样调用栈，生成 perf.data 文件。agent-linux 默认采样频率 99Hz（避开 100Hz 周期性干扰）：
 
 ```bash
 # 标准 99Hz 采样，call-graph 用 DWARF
@@ -151,7 +151,7 @@ perf report --sort overhead,symbol,dso,symbol_precedence \
 
 ### 3.3 perf report 热点归因
 
-agentrt-linux 的 perf report 输出典型热点分布如下（基线测试数据）：
+agent-linux 的 perf report 输出典型热点分布如下（基线测试数据）：
 
 | 排名 | 函数 | 模块 | 开销占比 | 说明 |
 |------|------|------|---------|------|
@@ -164,7 +164,7 @@ agentrt-linux 的 perf report 输出典型热点分布如下（基线测试数�
 | 7 | `alloc_pages_current` | kernel | 3.8% | 物理页分配 |
 | 8 | `airy_uring_cmd_check`（5-phase slowpath：phase1_ring_frozen → phase2_cap_request → phase3_dsl_degradation → phase4_fastpath_recheck → phase5_slowpath_enforce） | kernel（内建 LSM，无 airy_lsm.ko） | 3.2% | slowpath Capability 校验（fastpath C-S9 `airy_cap_badge_ok` 内联，不在此表） |
 
-**OS-OBS-033: perf report 热点列表前 20 项中，agentrt-linux 内核态 Airy 模块（内建 LSM + corekern，无 agentrt.ko / airy_lsm.ko 可加载模块）合计不得超过 35%；超限视为可观测性开销过大，需审查 tracepoint 密度。**
+**OS-OBS-033: perf report 热点列表前 20 项中，agent-linux 内核态 Airy 模块（内建 LSM + corekern，无 agentrt.ko / airy_lsm.ko 可加载模块）合计不得超过 35%；超限视为可观测性开销过大，需审查 tracepoint 密度。**
 
 ---
 
@@ -172,7 +172,7 @@ agentrt-linux 的 perf report 输出典型热点分布如下（基线测试数�
 
 ### 4.1 核心 PMU 事件
 
-agentrt-linux 在性能分析中标准启用的 PMU 硬件计数器：
+agent-linux 在性能分析中标准启用的 PMU 硬件计数器：
 
 | 事件 | 含义 | 在sched_tac 分析中的用途 |
 |------|------|----------------------------|
@@ -200,7 +200,7 @@ perf stat -e cycles,instructions -a -- sleep 10
 #  # 0.555 IPC  →  IPC < 1.0 表示受内存延迟约束
 ```
 
-agentrt-linux 基线 IPC 标准：
+agent-linux 基线 IPC 标准：
 
 | 场景 | IPC 基线 | 说明 |
 |------|---------|------|
@@ -213,7 +213,7 @@ agentrt-linux 基线 IPC 标准：
 
 ### 4.3 自定义 PMU 事件组
 
-agentrt-linux 使用 `perf stat -e` 组合 PMU 事件，测量sched_tac 调度类切换开销：
+agent-linux 使用 `perf stat -e` 组合 PMU 事件，测量sched_tac 调度类切换开销：
 
 ```bash
 # SCHED_DEADLINE → SCHED_FIFO 切换开销测量
@@ -259,7 +259,7 @@ perf sched latency -p
 
 ### 5.3 调度延迟分布
 
-agentrt-linux sched_tac 调度延迟基线（10000 次采样）：
+agent-linux sched_tac 调度延迟基线（10000 次采样）：
 
 | Agent 类型 | 平均延迟 | P50 | P95 | P99 | 最大延迟 |
 |-----------|---------|-----|-----|-----|---------|
@@ -297,7 +297,7 @@ perf stat -e cycles,instructions,cache-misses \
 
 ### 6.1 IORING_OP_URING_CMD 路径
 
-agentrt-linux IPC fastpath 基于 `IORING_OP_URING_CMD`，不使用 page flipping。性能分析聚焦于 io_uring 命令入口到 ring buffer 写入的端到端延迟：
+agent-linux IPC fastpath 基于 `IORING_OP_URING_CMD`，不使用 page flipping。性能分析聚焦于 io_uring 命令入口到 ring buffer 写入的端到端延迟：
 
 ```bash
 # IPC fastpath 端到端延迟采样
@@ -328,7 +328,7 @@ perf report 在 IPC fastpath 中的典型热点：
 | `io_uring_cq_advance` | io_uring.ko | 12% | 完成队列推进 |
 | `airy_uring_cmd_check`（phase4_fastpath_recheck） | kernel（内建 LSM，无 airy_lsm.ko） | 8% | slowpath IPC capability 校验（phase* 系列） |
 
-注意：因不使用 page flipping，`copy_from_user` 仍是必要开销；agentrt-linux 通过 SQE 批处理摊薄此开销。
+注意：因不使用 page flipping，`copy_from_user` 仍是必要开销；agent-linux 通过 SQE 批处理摊薄此开销。
 
 ---
 
@@ -336,7 +336,7 @@ perf report 在 IPC fastpath 中的典型热点：
 
 ### 7.1 alloc_pages + mmap 映射开销
 
-agentrt-linux 内存分配策略：`alloc_pages` 分配物理页 + `vm_map_pages` / `remap_pfn_range` 映射。不使用 DMA 一致性内存。性能分析聚焦映射建立与访问开销：
+agent-linux 内存分配策略：`alloc_pages` 分配物理页 + `vm_map_pages` / `remap_pfn_range` 映射。不使用 DMA 一致性内存。性能分析聚焦映射建立与访问开销：
 
 ```bash
 # 内存映射开销分析
@@ -365,7 +365,7 @@ perf mem record -e ld,ld,latency -p $(pgrep cogn_d) -- sleep 30
 perf mem report --sort symbol,dso,mem
 ```
 
-agentrt-linux 基线记忆访问延迟：
+agent-linux 基线记忆访问延迟：
 
 | 层级 | 平均延迟 | P99 | 说明 |
 |------|---------|-----|------|
@@ -383,7 +383,7 @@ agentrt-linux 基线记忆访问延迟：
 
 ### 8.1 sched_tac vs 标准 EEVDF
 
-agentrt-linux 在 12 daemon 混合负载下的性能基准对照（同硬件、同内核版本）：
+agent-linux 在 12 daemon 混合负载下的性能基准对照（同硬件、同内核版本）：
 
 | 指标 | sched_tac | 标准 EEVDF（CFS） | 差异 |
 |------|-------------|------------------|------|
@@ -398,7 +398,7 @@ agentrt-linux 在 12 daemon 混合负载下的性能基准对照（同硬件、�
 
 ### 8.2 sched_ext 对照（仅理论）
 
-agentrt-linux 不采用 sched_ext，但保留对照数据用于技术选型论证：
+agent-linux 不采用 sched_ext，但保留对照数据用于技术选型论证：
 
 | 指标 | sched_tac | sched_ext（理论） | 说明 |
 |------|-------------|------------------|------|
@@ -409,7 +409,7 @@ agentrt-linux 不采用 sched_ext，但保留对照数据用于技术选型论�
 
 ### 8.3 基准测试自动化
 
-agentrt-linux 提供标准基准测试脚本 `airy-perf-bench`，封装 perf stat/record/report 全流程：
+agent-linux 提供标准基准测试脚本 `airy-perf-bench`，封装 perf stat/record/report 全流程：
 
 ```bash
 # 标准基准测试套件
@@ -492,4 +492,4 @@ airy-perf-bench --suite c-prime-vs-eevdf --duration 300 \
 
 ---
 
-> **文档结束** | agentrt-linux perf 性能分析 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Measure what is measurable, and make measurable what is not so."
+> **文档结束** | agent-linux perf 性能分析 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Measure what is measurable, and make measurable what is not so."

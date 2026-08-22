@@ -4,11 +4,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档定位**：C 与 C++ 语言编码风格及安全编码规范合集（含 C 内核态风格、C 强化补充、C++ 风格、C/C++ 安全编码）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)
 
 ---
 
-## Part I: agentrt-linux（AirymaxOS）C 语言编码风格规范
+## Part I: agent-linux（AirymaxOS）C 语言编码风格规范
 
 ### 0. SSoT 对齐声明与编号映射
 
@@ -43,7 +43,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 #### 0.3 本文件保留的权威内容（无 SSoT 对应）
 
-以下章节为 agentrt-linux 内核态 C 代码专属规范，01/02/03 不涉及，**本文件为唯一权威来源**：
+以下章节为 agent-linux 内核态 C 代码专属规范，01/02/03 不涉及，**本文件为唯一权威来源**：
 
 | 章节 | 规则编号 | 内容 | 唯一性理由 |
 |------|----------|------|-----------|
@@ -58,9 +58,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 #### 1.1 基于 Linux 内核编码风格
 
-agentrt-linux（AirymaxOS）的 C 语言编码风格以 Linux 6.6 内核 `Documentation/process/coding-style.rst` 为基线。这不是简单的照搬，而是在 Linux 30 余年内核工程思想的基础上，针对 agentrt-linux（AirymaxOS）的智能体操作系统场景进行的定制化落地。
+agent-linux（AirymaxOS）的 C 语言编码风格以 Linux 6.6 内核 `Documentation/process/coding-style.rst` 为基线。这不是简单的照搬，而是在 Linux 30 余年内核工程思想的基础上，针对 agent-linux（AirymaxOS）的智能体操作系统场景进行的定制化落地。
 
-与 Linux 内核编码风格的关系：**基线对齐，扩展独立**。agentrt-linux（AirymaxOS）在基线基础上增加了以下专属规则：
+与 Linux 内核编码风格的关系：**基线对齐，扩展独立**。agent-linux（AirymaxOS）在基线基础上增加了以下专属规则：
 - `airy_` / `airy_` 前缀隔离（OS-STD-CODE-005）
 - IRON-9 v3 四层模型代码归属标注
 - 五维正交 24 原则映射注释
@@ -68,7 +68,7 @@ agentrt-linux（AirymaxOS）的 C 语言编码风格以 Linux 6.6 内核 `Docume
 
 #### 1.2 文档范围
 
-本规范定义 agentrt-linux（AirymaxOS）**内核态 C 代码**的编码风格，涵盖：
+本规范定义 agent-linux（AirymaxOS）**内核态 C 代码**的编码风格，涵盖：
 - 缩进、空格、行宽（§2）
 - 命名约定（§3）
 - 函数定义规范（§4）
@@ -161,14 +161,14 @@ for (i = 0; i < count; i++)
 
 #### 3.1 airy_ 前缀（OS-STD-CODE-005）
 
-> **OS-STD-CODE-005**（复用）：`airy_*` 前缀保留给 agentrt 同源 API（[SS] 语义同源层）；`airy_*` 前缀用于 agentrt-linux（AirymaxOS）内核/发行版专属 API（[IND] 完全独立层）。两者共享 Airymax 同源语义，但前缀隔离确保无适配层互操作时不冲突。
+> **OS-STD-CODE-005**（复用）：`airy_*` 前缀保留给 agentrt 同源 API（[SS] 语义同源层）；`airy_*` 前缀用于 agent-linux（AirymaxOS）内核/发行版专属 API（[IND] 完全独立层）。两者共享 Airymax 同源语义，但前缀隔离确保无适配层互操作时不冲突。
 
 ```c
 /* [SS] 语义同源层：与 agentrt 同源 API */
 int airy_ipc_send(u32 chan, const void *msg, size_t len);
 int airy_task_submit(struct airy_task *task);
 
-/* [IND] 完全独立层：agentrt-linux（AirymaxOS）专属 API */
+/* [IND] 完全独立层：agent-linux（AirymaxOS）专属 API */
 int airy_lsm_hook_register(const struct security_hook_list *hooks);
 int airy_sched_class_register(struct sched_class *sc);
 ```
@@ -206,7 +206,7 @@ enum airy_task_state {
 
 #### 3.2.1 typedef 5 种例外条件（对齐 Linux 6.6 内核基线）
 
-> **OS-STD-CODE-031a（补充）**：OS-STD-CODE-031 禁止结构体指针 typedef，但 Linux 6.6 内核基线允许下列 5 种例外。agentrt-linux 直接对齐此例外清单，其他情况一律禁止 typedef。
+> **OS-STD-CODE-031a（补充）**：OS-STD-CODE-031 禁止结构体指针 typedef，但 Linux 6.6 内核基线允许下列 5 种例外。agent-linux 直接对齐此例外清单，其他情况一律禁止 typedef。
 
 | 例外 | 示例 | 理由 |
 |------|------|------|
@@ -371,7 +371,7 @@ include 顺序固定：系统头 → 架构头 → 本地头 → `#define CREATE
 #endif /* _AIRY_IPC_H */
 ```
 
-**守卫策略对齐 Linux 内核**（OS-IRON-010）：agentrt-linux 头文件守卫使用 `#ifndef _AIRY_*_H` 形式，与 Linux 6.6 内核基线保持一致，**不使用** seL4 的 `#pragma once` 方案。这不是技术选型讨论，而是工程取向对齐——`#ifndef` 具有更好的可移植性（GCC/Clang/ICC 全支持），且能避免 `#pragma once` 在 NFS/符号链接场景下的潜在歧义。
+**守卫策略对齐 Linux 内核**（OS-IRON-010）：agent-linux 头文件守卫使用 `#ifndef _AIRY_*_H` 形式，与 Linux 6.6 内核基线保持一致，**不使用** seL4 的 `#pragma once` 方案。这不是技术选型讨论，而是工程取向对齐——`#ifndef` 具有更好的可移植性（GCC/Clang/ICC 全支持），且能避免 `#pragma once` 在 NFS/符号链接场景下的潜在歧义。
 
 #### 6.4 IRON-9 v3 层级归属标注
 
@@ -385,7 +385,7 @@ include 顺序固定：系统头 → 架构头 → 本地头 → `#define CREATE
 
 #### 6.5 编译期断言与函数属性（OS-KER-229）
 
-> **OS-KER-229**：agentrt-linux 内核态代码必须充分利用编译期断言（`BUILD_BUG_ON()` / `static_assert` / `_Static_assert`）将不变式检测前移到编译阶段；对不会返回的函数（`halt`、`panic` 等致命路径）必须标注 `__noreturn` 属性，使编译器能进行更激进的优化与控制流分析。此规则源于 agentrt-linux 内核工程对"编译期可检测的缺陷不应延迟到运行期"原则的落实。
+> **OS-KER-229**：agent-linux 内核态代码必须充分利用编译期断言（`BUILD_BUG_ON()` / `static_assert` / `_Static_assert`）将不变式检测前移到编译阶段；对不会返回的函数（`halt`、`panic` 等致命路径）必须标注 `__noreturn` 属性，使编译器能进行更激进的优化与控制流分析。此规则源于 agent-linux 内核工程对"编译期可检测的缺陷不应延迟到运行期"原则的落实。
 >
 > **落地状态（诚实声明）**：本条为**文档承诺**，当前源码零落地（[SC] 头文件 `_Static_assert` 属 OS-IRON-016 既有实践，非本规则实施成果）；列为 E1 改进项，计划 M2 阶段实施（内核态代码编译期断言全面铺开 + `__noreturn` 审计）。
 
@@ -432,14 +432,14 @@ if (unlikely(fatal_error)) {
 
 **反向声明**（不引入的 seL4 模式）：
 
-- **不引入 `unverified_compile_assert` 宏**：seL4 的 `unverified_compile_assert(name, expr)` 是为 C parser 形式化验证工具兼容性而存在的工程妥协——C parser 不支持 `_Static_assert()`，因此在验证构建时将此宏定义为空操作。agentrt-linux 的形式化验证路径（Isabelle/HOL + Rust Kani）不经过 C parser，因此**不引入此宏**，避免无谓复杂度（违反 IRON-1 禁止新特性）。所有编译期断言统一使用 `BUILD_BUG_ON()` / `static_assert` / `_Static_assert`。
-- **不引入 seL4 `UL_CONST()` / `ULL_CONST()` 宏**：seL4 的 `UL_CONST(x)` / `ULL_CONST(x)` 是为微内核汇编启动路径设计的汇编/C 共享常量宏。agentrt-linux 作为 Linux 6.6 内核衍生工程，**直接复用** Linux 内核既有的 `_AC()` 宏（`include/uapi/linux/const.h`），不重新设计 seL4 模式。示例：`#define AIRY_PAGE_SIZE _AC(4096, UL)`。
-- **不引入 seL4 `config_set()` / `config_ternary()` / `wrap_config_set()` 编译期配置检测宏**：seL4 的 `config_set(macro)` / `config_ternary(macro, true, false)` 是为微内核编译期配置检测设计的宏技巧，`wrap_config_set()` 是为 C parser 形式化验证兼容性而存在的防常量折叠包装。agentrt-linux **直接复用** Linux 内核既有的 `IS_ENABLED()` / `IS_BUILTIN()` / `IS_MODULE()` 宏（定义于 `include/linux/kconfig.h`），不引入 seL4 模式。理由：(1) Linux 宏已覆盖全部使用场景；(2) `wrap_config_set()` 是 C parser 妥协，agentrt-linux 不使用 C parser（违反 IRON-1 禁止新特性）。
-- **不引入 seL4 属性宏命名空间**（`PACKED`/`NORETURN`/`CONST`/`PURE`/`ALIGN`/`FASTCALL`/`NO_INLINE`/`FORCE_INLINE`/`SECTION`/`UNUSED`/`USED`/`MAY_ALIAS`/`UNREACHABLE`/`OFFSETOF`）：seL4 在 `include/util.h` 定义了完整的属性宏体系，但 agentrt-linux **直接复用** Linux 内核 `include/linux/compiler_attributes.h` 的属性宏（`__packed` / `__noreturn` / `__pure` / `__aligned` / `__noinline` / `__always_inline` / `__section` 等），不引入 seL4 风格的属性宏命名空间。理由：避免双轨制命名空间冲突（违反 IRON-1 禁止新特性）。详见下方 §6.5.1 GCC 属性使用规范。
+- **不引入 `unverified_compile_assert` 宏**：seL4 的 `unverified_compile_assert(name, expr)` 是为 C parser 形式化验证工具兼容性而存在的工程妥协——C parser 不支持 `_Static_assert()`，因此在验证构建时将此宏定义为空操作。agent-linux 的形式化验证路径（Isabelle/HOL + Rust Kani）不经过 C parser，因此**不引入此宏**，避免无谓复杂度（违反 IRON-1 禁止新特性）。所有编译期断言统一使用 `BUILD_BUG_ON()` / `static_assert` / `_Static_assert`。
+- **不引入 seL4 `UL_CONST()` / `ULL_CONST()` 宏**：seL4 的 `UL_CONST(x)` / `ULL_CONST(x)` 是为微内核汇编启动路径设计的汇编/C 共享常量宏。agent-linux 作为 Linux 6.6 内核衍生工程，**直接复用** Linux 内核既有的 `_AC()` 宏（`include/uapi/linux/const.h`），不重新设计 seL4 模式。示例：`#define AIRY_PAGE_SIZE _AC(4096, UL)`。
+- **不引入 seL4 `config_set()` / `config_ternary()` / `wrap_config_set()` 编译期配置检测宏**：seL4 的 `config_set(macro)` / `config_ternary(macro, true, false)` 是为微内核编译期配置检测设计的宏技巧，`wrap_config_set()` 是为 C parser 形式化验证兼容性而存在的防常量折叠包装。agent-linux **直接复用** Linux 内核既有的 `IS_ENABLED()` / `IS_BUILTIN()` / `IS_MODULE()` 宏（定义于 `include/linux/kconfig.h`），不引入 seL4 模式。理由：(1) Linux 宏已覆盖全部使用场景；(2) `wrap_config_set()` 是 C parser 妥协，agent-linux 不使用 C parser（违反 IRON-1 禁止新特性）。
+- **不引入 seL4 属性宏命名空间**（`PACKED`/`NORETURN`/`CONST`/`PURE`/`ALIGN`/`FASTCALL`/`NO_INLINE`/`FORCE_INLINE`/`SECTION`/`UNUSED`/`USED`/`MAY_ALIAS`/`UNREACHABLE`/`OFFSETOF`）：seL4 在 `include/util.h` 定义了完整的属性宏体系，但 agent-linux **直接复用** Linux 内核 `include/linux/compiler_attributes.h` 的属性宏（`__packed` / `__noreturn` / `__pure` / `__aligned` / `__noinline` / `__always_inline` / `__section` 等），不引入 seL4 风格的属性宏命名空间。理由：避免双轨制命名空间冲突（违反 IRON-1 禁止新特性）。详见下方 §6.5.1 GCC 属性使用规范。
 
 #### 6.5.1 GCC 属性使用规范（对齐 Linux 6.6 内核基线）
 
-agentrt-linux 内核态代码直接复用 Linux 6.6 内核基线的 GCC 属性宏体系，定义于 `include/linux/compiler_attributes.h`（共 60+ 个属性宏）。本节列出常用属性的使用规范。
+agent-linux 内核态代码直接复用 Linux 6.6 内核基线的 GCC 属性宏体系，定义于 `include/linux/compiler_attributes.h`（共 60+ 个属性宏）。本节列出常用属性的使用规范。
 
 | 属性 | Linux 宏 | 用途 | 使用场景 |
 |------|---------|------|---------|
@@ -468,11 +468,11 @@ agentrt-linux 内核态代码直接复用 Linux 6.6 内核基线的 GCC 属性�
 
 > **P1-5 修复要求**：`airy_ipc_capability.c` 中 `__airymax_cap_table` 当前使用 `__aligned(64)`，须改为 `AIRY_ALIGNED(64)`（详见 [09-known-caveats.md §8.4](../../10-architecture/09-known-caveats.md)）。
 
-#### 6.5.2 形式化验证注释规范（agentrt-linux 专属）
+#### 6.5.2 形式化验证注释规范（agent-linux 专属）
 
-**不引入 seL4 形式化验证注释**：seL4 在源码中使用 `/** MODIFIES: */`、`/** DONT_TRANSLATE */`、`/** FNSPEC ... */` 等形式化验证辅助注释，服务于 Isabelle/HOL 的 l4v 工具链（C parser → Simpl → Isar）。agentrt-linux 的形式化验证路径与 seL4 不同——内核态使用 Isabelle/HOL 的 AutoCorres（不经过 C parser），Rust 子模块使用 Kani，因此**不引入 seL4 风格的形式化验证注释**。
+**不引入 seL4 形式化验证注释**：seL4 在源码中使用 `/** MODIFIES: */`、`/** DONT_TRANSLATE */`、`/** FNSPEC ... */` 等形式化验证辅助注释，服务于 Isabelle/HOL 的 l4v 工具链（C parser → Simpl → Isar）。agent-linux 的形式化验证路径与 seL4 不同——内核态使用 Isabelle/HOL 的 AutoCorres（不经过 C parser），Rust 子模块使用 Kani，因此**不引入 seL4 风格的形式化验证注释**。
 
-**agentrt-linux 形式化验证注释规范**（1.0.1+ 阶段启用）：
+**agent-linux 形式化验证注释规范**（1.0.1+ 阶段启用）：
 
 | 验证工具 | 注释风格 | 适用范围 | 启用时机 |
 |---------|---------|---------|---------|
@@ -484,8 +484,8 @@ agentrt-linux 内核态代码直接复用 Linux 6.6 内核基线的 GCC 属性�
 
 **反向声明**（不引入的 seL4 模式）：
 
-- **不引入 seL4 `MODIFIES` / `FNSPEC` / `DONT_TRANSLATE` 注释**：seL4 的形式化验证注释是 C parser 兼容性妥协——C parser 不支持完整 C 语法，需要手动标注"哪些函数可解析、哪些函数公理化"。agentrt-linux 使用 AutoCorres（支持完整 C 语法），不需要此类注释。
-- **不引入 seL4 `compile_assert` 双层设计**：seL4 的 `compile_assert(name, expr)` 在 `CONFIG_VERIFICATION_BUILD` 时使用 typedef 技巧（因 C parser 不支持 `_Static_assert()`），否则使用 `_Static_assert`。agentrt-linux 统一使用 `BUILD_BUG_ON()` / `static_assert` / `_Static_assert`，不引入双层设计。
+- **不引入 seL4 `MODIFIES` / `FNSPEC` / `DONT_TRANSLATE` 注释**：seL4 的形式化验证注释是 C parser 兼容性妥协——C parser 不支持完整 C 语法，需要手动标注"哪些函数可解析、哪些函数公理化"。agent-linux 使用 AutoCorres（支持完整 C 语法），不需要此类注释。
+- **不引入 seL4 `compile_assert` 双层设计**：seL4 的 `compile_assert(name, expr)` 在 `CONFIG_VERIFICATION_BUILD` 时使用 typedef 技巧（因 C parser 不支持 `_Static_assert()`），否则使用 `_Static_assert`。agent-linux 统一使用 `BUILD_BUG_ON()` / `static_assert` / `_Static_assert`，不引入双层设计。
 
 ---
 
@@ -521,7 +521,7 @@ static exception_t decodeUntypedInvocation(word_t invLabel, ...)
 }
 ```
 
-**agentrt-linux 落地规范**：
+**agent-linux 落地规范**：
 
 1. **两个阶段结构**：每个函数应明确分为"校验阶段"（无副作用）和"执行阶段"（有副作用）：
 
@@ -596,7 +596,7 @@ if (!s)
 
 **完整代码示例：seL4 风格内核对象分配与释放**
 
-以下示例将 OS-KER-225（校验优先于修改）与 OS-KER-001（goto 集中出口）联合应用到 agentrt-linux 内核 Capability Retype 场景，展示"十一项校验在前、零副作用，一次分配在末、goto 逆序清理"的完整模式：
+以下示例将 OS-KER-225（校验优先于修改）与 OS-KER-001（goto 集中出口）联合应用到 agent-linux 内核 Capability Retype 场景，展示"十一项校验在前、零副作用，一次分配在末、goto 逆序清理"的完整模式：
 
 ```c
 /*
@@ -849,7 +849,7 @@ ssize_t airy_agent_work_log_read(struct airy_agent_ctx *ctx,
 
 #### 7.5 错误码规范
 
-agentrt-linux（AirymaxOS）内核态错误码对齐 agentrt 错误码体系（[SS] 语义同源层），使用 `AIRY_E*` 前缀。
+agent-linux（AirymaxOS）内核态错误码对齐 agentrt 错误码体系（[SS] 语义同源层），使用 `AIRY_E*` 前缀。
 
 > **SSoT 声明**：错误码单一数据源（SSoT）为 [SC] `kernel/include/uapi/linux/airymax/error.h`（A-UEF）。`AIRY_E*` 常量采用**正数幅值**（POSIX errno 风格，如 `AIRY_EINVAL=5`、`AIRY_ENOMEM=9`），调用方通过 `return -AIRY_E*` 产生负值错误值。内核态可继续使用 Linux 原生 `-EINVAL` 等负值宏，但若返回 `AIRY_E*` 体系，必须以 error.h 登记值为准（数值与 Linux errno 不同，如 `AIRY_EINVAL=5` vs Linux `EINVAL=22`）。
 
@@ -889,7 +889,7 @@ graph TD
     style FREE_S fill:#16213e,stroke:#e94560,color:#eee
 ```
 
-> **要点**：goto 集中出口 + 分级标签按分配逆序释放。每个标签只释放一个资源，标签按分配顺序逆序排列。这是 agentrt-linux（AirymaxOS）内核态错误处理的核心范式。
+> **要点**：goto 集中出口 + 分级标签按分配逆序释放。每个标签只释放一个资源，标签按分配顺序逆序排列。这是 agent-linux（AirymaxOS）内核态错误处理的核心范式。
 
 ---
 
@@ -1000,7 +1000,7 @@ agent = kmem_cache_zalloc(agent_cache, GFP_KERNEL_ACCOUNT);
 
 #### 8.5 内存毒化保护（OS-KER-222）
 
-> **OS-KER-222**：对所有动态分配的内核内存启用毒化保护——分配时写入 `POISON_INUSE`（0x5a）检测 use-before-init，释放时写入 `POISON_FREE`（0x6b）检测 use-after-free，RedZone 写入 0xbb/0xcc 检测越界写。这是 agentrt-linux 内核内存安全的三层防御体系，源于 Linux 6.6 内核基线工程品味。
+> **OS-KER-222**：对所有动态分配的内核内存启用毒化保护——分配时写入 `POISON_INUSE`（0x5a）检测 use-before-init，释放时写入 `POISON_FREE`（0x6b）检测 use-after-free，RedZone 写入 0xbb/0xcc 检测越界写。这是 agent-linux 内核内存安全的三层防御体系，源于 Linux 6.6 内核基线工程品味。
 
 **毒化值定义**（`include/linux/poison.h`，Linux 6.6 内核基线）：
 
@@ -1015,7 +1015,7 @@ agent = kmem_cache_zalloc(agent_cache, GFP_KERNEL_ACCOUNT);
 
 **强制规则**：
 
-1. **SLUB debug 必须开启**：所有 agentrt-linux 内核调试构建（`CONFIG_DEBUG_KMEM=y`）必须启用以下 SLUB debug flags——`SLAB_POISON`（毒化）、`SLAB_RED_ZONE`（RedZone）、`SLAB_STORE_USER`（调用栈追踪）
+1. **SLUB debug 必须开启**：所有 agent-linux 内核调试构建（`CONFIG_DEBUG_KMEM=y`）必须启用以下 SLUB debug flags——`SLAB_POISON`（毒化）、`SLAB_RED_ZONE`（RedZone）、`SLAB_STORE_USER`（调用栈追踪）
 
 2. **敏感内存结构体必须使用专用 kmem_cache**：包含密钥、token、capability 等敏感数据的结构体，必须在 `kmem_cache_create` 中开启 `SLAB_POISON | SLAB_RED_ZONE`，不使用通用 `kmalloc`：
 
@@ -1191,7 +1191,7 @@ static struct kmem_cache *boot_params_cache; /* ❌ 启动时仅分配 1 次 */
  * @block_size: Untyped 总大小（字节）
  * @chunk: 每次清除的粒度（CONFIG_AIRY_RESET_CHUNK_BITS 决定）
  *
- * 本函数展示 OS-KER-228 长循环抢占点规则在 agentrt-linux 的落地模式。
+ * 本函数展示 OS-KER-228 长循环抢占点规则在 agent-linux 的落地模式。
  * 继承 seL4 resetUntypedCap() 的 preemptionPoint() 工程思想——
  * 在长时间操作中周期性让出 CPU，保持系统调度响应性。
  *
@@ -1275,7 +1275,7 @@ static int airy_untyped_reset_children(cte_t *ut_slot,
 
 #### 8.9 内存安全综合示例
 
-以下示例展示 agentrt-linux 内核态遵循 Linux 6.6 内核基线工程品味的内存分配与释放最佳实践，集成了毒化保护、泄漏检测、自动释放、goto 集中出口与错误处理规范：
+以下示例展示 agent-linux 内核态遵循 Linux 6.6 内核基线工程品味的内存分配与释放最佳实践，集成了毒化保护、泄漏检测、自动释放、goto 集中出口与错误处理规范：
 
 ```c
 /*
@@ -1283,7 +1283,7 @@ static int airy_untyped_reset_children(cte_t *ut_slot,
  * @agent_id: Agent 标识符
  * @session_out: 输出会话对象指针
  *
- * 本示例集中展示 agentrt-linux 遵循 Linux 6.6 内核基线工程品味的内存管理工程规范：
+ * 本示例集中展示 agent-linux 遵循 Linux 6.6 内核基线工程品味的内存管理工程规范：
  *   - OS-KER-016: GFP 标志按上下文正确选型
  *   - OS-KER-222: 敏感对象使用专用 kmem_cache + SLAB_POISON | SLAB_RED_ZONE
  *   - OS-KER-223: kmemleak 显式标注非泄漏对象
@@ -1483,7 +1483,7 @@ kfree(old);
 
 #### 10.1 [SC] 层定义
 
-[SC] 共享契约层是 IRON-9 v3 四层模型中**代码完全共享**的层级。agentrt-linux（AirymaxOS）与 agentrt 共享 `include/uapi/linux/airymax/` 下的 12 个头文件（10 核心 + 2 补充 `syscall.h`/`bpf_struct_ops.h`）：
+[SC] 共享契约层是 IRON-9 v3 四层模型中**代码完全共享**的层级。agent-linux（AirymaxOS）与 agentrt 共享 `include/uapi/linux/airymax/` 下的 12 个头文件（10 核心 + 2 补充 `syscall.h`/`bpf_struct_ops.h`）：
 - `syscalls.h`：v1.0.1 4 核心 syscall 编号（AIRY_SYS_CALL/ROVOL_CTL/SCHED_CTL/CLT_NOTIFY）+ 20 预留槽位
 - `memory_types.h`：MemoryRovol L1-L4 数据结构 + GFP 掩码语义 + PMEM 持久化接口
 - `security_types.h`：Cupolas capability 令牌结构、capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）、LSM 钩子 250 ID 枚举、capability 派生模型、Vault backend 抽象、策略裁决 4 值枚举
@@ -1503,7 +1503,7 @@ kfree(old);
 > 1. **零内核依赖**：不能 `#include` 任何 Linux 内核头文件（`<linux/*>`、`<asm/*>`）
 > 2. **纯 C99 标准**：仅使用 C99 标准类型和语法，确保跨平台可编译
 > 3. **零副作用**：仅含类型定义、常量、宏、static inline 函数，不含任何有副作用的代码
-> 4. **双向兼容**：变更必须同步通过 agentrt 和 agentrt-linux 两端的 CI 检查
+> 4. **双向兼容**：变更必须同步通过 agentrt 和 agent-linux 两端的 CI 检查
 > 5. **版本锁定**：头文件变更必须伴随语义版本号变更（MAJOR.MINOR.PATCH）
 
 ```c
@@ -1536,7 +1536,7 @@ struct airy_ipc_msg_hdr {
         __u64   timestamp_ns;     /* offset 16, CLOCK_REALTIME nanoseconds */
         __u64   src_task;         /* offset 24, source Agent/daemon task_id */
         __u64   dst_task;         /* offset 32, destination task_id */
-        __u64   capability_badge; /* offset 40, [SS] agentrt-linux uses */
+        __u64   capability_badge; /* offset 40, [SS] agent-linux uses */
         __u32   payload_len;      /* offset 48, payload length */
         __u32   crc32;            /* offset 52, CRC32 over header[0:52)+payload */
         __u8    reserved[72];     /* offset 56, must be zero */
@@ -1547,7 +1547,7 @@ struct airy_ipc_msg_hdr {
 
 #### 10.3 [SS] 语义同源层代码编写规则（OS-KER-070）
 
-> **OS-KER-070**：[SS] 语义同源层：SDK 层 API 签名应与 agentrt 同源 API 一致（同一份源码两端编译）；系统调用层签名因抽象层级不同而独立演进（agentrt JSON-RPC ↔ agentrt-linux 编号 syscall），仅要求概念操作语义同源。agentrt-linux（AirymaxOS）可使用内核原语（`kmalloc`、`spinlock`、`kthread`）实现，agentrt 使用用户态原语（`malloc`、`pthread_mutex`、`pthread_create`）实现。
+> **OS-KER-070**：[SS] 语义同源层：SDK 层 API 签名应与 agentrt 同源 API 一致（同一份源码两端编译）；系统调用层签名因抽象层级不同而独立演进（agentrt JSON-RPC ↔ agent-linux 编号 syscall），仅要求概念操作语义同源。agent-linux（AirymaxOS）可使用内核原语（`kmalloc`、`spinlock`、`kthread`）实现，agentrt 使用用户态原语（`malloc`、`pthread_mutex`、`pthread_create`）实现。
 
 ```c
 /* [SS] 语义同源层：SDK 层签名与 agentrt 一致（同一份源码两端编译），实现使用内核原语 */
@@ -1573,14 +1573,14 @@ int airy_ipc_send(u32 channel, const void *msg, size_t len)
 
 ### 11. 代码示例：完整的 agentrt 内核模块
 
-以下是一个完整的 agentrt-linux（AirymaxOS）内核模块示例，展示上述所有规范的集成应用：
+以下是一个完整的 agent-linux（AirymaxOS）内核模块示例，展示上述所有规范的集成应用：
 
 ```c
 // SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note
 /*
- * agentrt-linux（AirymaxOS）简单 IPC 通道模块
+ * agent-linux（AirymaxOS）简单 IPC 通道模块
  *
- * 此模块演示 agentrt-linux C 编码风格规范的综合应用。
+ * 此模块演示 agent-linux C 编码风格规范的综合应用。
  * [SS] 语义同源层：API 签名与 agentrt 用户态 airy_ipc_channel 一致（SDK 层，同一份源码两端编译）。
  *
  * Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
@@ -1680,7 +1680,7 @@ EXPORT_SYMBOL_GPL(airy_ipc_channel_put);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("SPHARX Ltd.");
-MODULE_DESCRIPTION("agentrt-linux（AirymaxOS）IPC Channel Module");
+MODULE_DESCRIPTION("agent-linux（AirymaxOS）IPC Channel Module");
 ```
 
 ---
@@ -1718,13 +1718,13 @@ MODULE_DESCRIPTION("agentrt-linux（AirymaxOS）IPC Channel Module");
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 0.1.1 | 2026-07-07 | 初始版本：基于 Linux 6.6 coding-style.rst 基线，融合 agentrt-linux 专属规范 |
+| 0.1.1 | 2026-07-07 | 初始版本：基于 Linux 6.6 coding-style.rst 基线，融合 agent-linux 专属规范 |
 | 1.0.1 | TBD | 首个开发版本：与代码实现同步验证 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 
 ---
 
-## Part II: agentrt-linux（AirymaxOS）C 语言编码规范强化补充
+## Part II: agent-linux（AirymaxOS）C 语言编码规范强化补充
 
 ### 0. 文档定位与适用范围
 
@@ -1745,7 +1745,7 @@ MODULE_DESCRIPTION("agentrt-linux（AirymaxOS）IPC Channel Module");
 11. 禁止 `BUG()`/`BUG_ON()`，改用 `WARN()`（OS-BAN-002，01 §7.3 承载；原 OS-KER-015，2026-07-12 对齐 SSoT）
 12. `sizeof(*p)` 替代 `sizeof(struct xxx)`（OS-BAN-003，01 §7.4 承载；2026-07-12 对齐 SSoT）
 
-> **术语约束**：agentrt（用户态）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）。本规范描述 agentrt-linux 时使用"微内核"上下文，描述 agentrt 共享原语时使用"微核心原语"。
+> **术语约束**：agentrt（用户态）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）。本规范描述 agent-linux 时使用"微内核"上下文，描述 agentrt 共享原语时使用"微核心原语"。
 
 #### 0.2 Linux 6.6 内核基线 源码路径标注规范
 
@@ -1757,7 +1757,7 @@ MODULE_DESCRIPTION("agentrt-linux（AirymaxOS）IPC Channel Module");
 
 #### 1.1 规则文本
 
-agentrt-linux 内核态 C 代码**必须**使用 Tab 字符缩进，Tab 宽度固定为 8 个字符。禁止使用空格缩进（Kconfig 例外）。8 字符缩进是"代码复杂度的自然惩罚"：嵌套超过 3 层即提示应重构。
+agent-linux 内核态 C 代码**必须**使用 Tab 字符缩进，Tab 宽度固定为 8 个字符。禁止使用空格缩进（Kconfig 例外）。8 字符缩进是"代码复杂度的自然惩罚"：嵌套超过 3 层即提示应重构。
 
 #### 1.2 Linux 6.6 内核基线 源码路径
 
@@ -1911,7 +1911,7 @@ static int airy_ipc_send(struct airy_ipc_chan *chan,
 
 #### 4.1 规则文本
 
-agentrt-linux 内核态代码**禁止**使用 `float`/`double` 浮点类型。x86 编译强制 `-mno-80387` 禁止 x87 指令生成。所有需要小数运算的场景**必须**使用 `airy_q16_t`（`int32_t`）Q16.16 定点数：高 16 位为整数部分，低 16 位为小数部分。定点运算辅助宏定义于 `include/uapi/linux/airymax/cognition_types.h`。
+agent-linux 内核态代码**禁止**使用 `float`/`double` 浮点类型。x86 编译强制 `-mno-80387` 禁止 x87 指令生成。所有需要小数运算的场景**必须**使用 `airy_q16_t`（`int32_t`）Q16.16 定点数：高 16 位为整数部分，低 16 位为小数部分。定点运算辅助宏定义于 `include/uapi/linux/airymax/cognition_types.h`。
 
 #### 4.2 Linux 6.6 内核基线 源码路径
 
@@ -2122,7 +2122,7 @@ static int airy_task_enqueue(airy_task_t *task);	/* WRONG: 用 typedef 名 */
 
 #### 9.1 规则文本
 
-agentrt-linux 内核构建**必须**零警告通过。`Makefile` 必须启用 `-Wall -Werror`，`scripts/checkpatch.pl` 必须以 0 ERROR / 0 WARNING 通过。CI 门禁中任何警告即视为构建失败，禁止以注释抑制（`// NOLINT` 等）掩盖警告。`__deprecated` 属性不再产生构建警告，因此废弃接口必须从代码中彻底移除或登记到 `09-ssot-registry.md §8.2`。
+agent-linux 内核构建**必须**零警告通过。`Makefile` 必须启用 `-Wall -Werror`，`scripts/checkpatch.pl` 必须以 0 ERROR / 0 WARNING 通过。CI 门禁中任何警告即视为构建失败，禁止以注释抑制（`// NOLINT` 等）掩盖警告。`__deprecated` 属性不再产生构建警告，因此废弃接口必须从代码中彻底移除或登记到 `09-ssot-registry.md §8.2`。
 
 #### 9.2 Linux 6.6 内核基线 源码路径
 
@@ -2165,7 +2165,7 @@ static int airy_sched_idle(struct airy_sched *sched)
 
 #### 10.1 规则文本
 
-agentrt-linux 内核态**禁止**新增 `strcpy`、`strncpy`、`strlcpy` 调用。所有以 NUL 结尾的字符串复制**必须**使用 `strscpy`；需要 NUL 填充的使用 `strscpy_pad`；非 NUL 结尾的使用 `strtomem`/`strtomem_pad`。`strscpy` 返回已复制的非 NUL 字节数（截断时返回负 errno），调用方必须据此处理截断。
+agent-linux 内核态**禁止**新增 `strcpy`、`strncpy`、`strlcpy` 调用。所有以 NUL 结尾的字符串复制**必须**使用 `strscpy`；需要 NUL 填充的使用 `strscpy_pad`；非 NUL 结尾的使用 `strtomem`/`strtomem_pad`。`strscpy` 返回已复制的非 NUL 字节数（截断时返回负 errno），调用方必须据此处理截断。
 
 #### 10.2 Linux 6.6 内核基线 源码路径
 
@@ -2219,7 +2219,7 @@ static int airy_chan_set_name2(struct airy_ipc_chan *chan,
 
 #### 11.1 规则文本
 
-agentrt-linux 内核态**禁止**新增 `BUG()`、`BUG_ON()`、`VM_BUG_ON()`。必须改用 `WARN_ON_ONCE()`（首选）或 `WARN()`，并尽可能提供恢复代码。"我懒得做错误处理"不是使用 `BUG()` 的借口。`WARN*()` 仅用于"预期不可达"场景；"可达但 undesirable"场景使用 `pr_warn()`。`BUILD_BUG_ON()` 是编译期断言，无运行时影响，允许且鼓励使用。
+agent-linux 内核态**禁止**新增 `BUG()`、`BUG_ON()`、`VM_BUG_ON()`。必须改用 `WARN_ON_ONCE()`（首选）或 `WARN()`，并尽可能提供恢复代码。"我懒得做错误处理"不是使用 `BUG()` 的借口。`WARN*()` 仅用于"预期不可达"场景；"可达但 undesirable"场景使用 `pr_warn()`。`BUILD_BUG_ON()` 是编译期断言，无运行时影响，允许且鼓励使用。
 
 #### 11.2 Linux 6.6 内核基线 源码路径
 
@@ -3832,7 +3832,7 @@ private:
 
 ---
 
-## Part IV: agentrt-linux（AirymaxOS）C 安全编码规范
+## Part IV: agent-linux（AirymaxOS）C 安全编码规范
 
 ### 1. 缓冲区溢出防护
 
@@ -4228,7 +4228,7 @@ memzero_explicit(key, sizeof(key));  /* 清零，编译器不会优化掉 */
 
 **根因**：`af_key.c` 中 `pfkey_broadcast()` 函数在释放 `sk` 后仍通过 `sock_net(sk)` 访问 `sk`，导致 UAF。
 
-**agentrt-linux 教训**：
+**agent-linux 教训**：
 - 释放结构体后立即将指针置 NULL（OS-SEC-118）
 - 使用引用计数管理生命周期（OS-KER-127）
 - KASAN 在 CI 中检测 UAF（每次 PR）
@@ -4239,7 +4239,7 @@ memzero_explicit(key, sizeof(key));  /* 清零，编译器不会优化掉 */
 
 **根因**：ASN.1 解码器在计算 `len = 1 << len` 时未检查溢出，攻击者可通过构造极端 `len` 值触发堆溢出。
 
-**agentrt-linux 教训**：
+**agent-linux 教训**：
 - 所有移位操作必须检查溢出（OS-SEC-112）
 - 使用 `check_shl_overflow()` 替代裸移位
 - 乘法/移位前使用 `struct_size()` / `array_size()`
@@ -4250,12 +4250,12 @@ memzero_explicit(key, sizeof(key));  /* 清零，编译器不会优化掉 */
 
 **根因**：UDP `ufo_append_data()` 函数在计算片段大小时未检查 `length` 是否溢出，导致 `skb` 数据区被越界覆盖。
 
-**agentrt-linux 教训**：
+**agent-linux 教训**：
 - 网络数据包处理是缓冲区溢出高发区（OS-SEC-110）
 - 所有来自网络的数据长度必须经过多重验证
 - 使用 `check_add_overflow()` 进行累积长度计算
 
-#### 9.4 CVE 教训总结：agentrt-linux 安全编码五大铁律
+#### 9.4 CVE 教训总结：agent-linux 安全编码五大铁律
 
 ```mermaid
 graph TD
@@ -4265,7 +4265,7 @@ graph TD
     CVE --> T4["铁律 4：共享数据必须加锁<br/>OS-SEC-119"]
     CVE --> T5["铁律 5：清零所有敏感数据<br/>OS-SEC-127"]
 
-    T1 --> GOAL["agentrt-linux 内核安全"]
+    T1 --> GOAL["agent-linux 内核安全"]
     T2 --> GOAL
     T3 --> GOAL
     T4 --> GOAL
@@ -4286,7 +4286,7 @@ graph TD
 
 #### 10.1 Coverity Scan
 
-Coverity 是 agentrt-linux（AirymaxOS）内核代码的深度静态分析工具，检测以下缺陷类别：
+Coverity 是 agent-linux（AirymaxOS）内核代码的深度静态分析工具，检测以下缺陷类别：
 - 缓冲区溢出（BUFFER_SIZE）
 - 资源泄漏（RESOURCE_LEAK）
 - 空指针解引用（FORWARD_NULL）
@@ -4353,7 +4353,7 @@ Coccinelle 是语义模式匹配引擎，可以检测：
 - [C 编码风格规范](C_Cpp_coding_style.md)：内核态 C 编程风格
 - [Rust 安全编码规范](Rust_coding_style.md)：内核模块安全编码
 - [工程标准规范 01-代码规范](../../50-engineering-standards/01-coding-standards.md)：语义层代码规则
-- [安全模块（110-security）](../../110-security/README.md)：agentrt-linux（AirymaxOS）安全体系
+- [安全模块（110-security）](../../110-security/README.md)：agent-linux（AirymaxOS）安全体系
 - [五维正交 24 原则](../../10-architecture/02-five-dimensional-principles.md)
 - CERT C Coding Standard
 - Linux 内核 CVE 数据库

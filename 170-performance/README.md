@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 性能工程设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）性能工程体系主索引——调度性能、IPC 性能、内存性能、Token 效率与 SLO 设定\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）性能工程体系主索引——调度性能、IPC 性能、内存性能、Token 效率与 SLO 设定\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)
@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有性能 SLO 与基准测试必须以本声明为基线——性能指标均基于sched_tac 原生调度类，不针对 sched_ext / page flipping / BPF LSM / DMA 一致性内存设定任何性能基线。
+agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有性能 SLO 与基准测试必须以本声明为基线——性能指标均基于sched_tac 原生调度类，不针对 sched_ext / page flipping / BPF LSM / DMA 一致性内存设定任何性能基线。
 
 | # | 技术维度 | 选定方案 | 明确不采用 | 选定理由 |
 |---|---------|---------|-----------|---------|

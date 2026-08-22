@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # containerd shim 设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）云原生体系核心子文档，定义 agentrt-linux 专属 OCI runtime shim 的设计，将 Agent 作为容器 workload 运行\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）云原生体系核心子文档，定义 agent-linux 专属 OCI runtime shim 的设计，将 Agent 作为容器 workload 运行\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：Linux 6.6 容器运行时（IRON-9 v3 [IND] 完全独立层，shim 为 agentrt-linux 专属实现）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：Linux 6.6 容器运行时（IRON-9 v3 [IND] 完全独立层，shim 为 agent-linux 专属实现）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[IND] 完全独立层（containerd shim 为 agentrt-linux 云原生专属）
+> **IRON-9 v3 层次**：[IND] 完全独立层（containerd shim 为 agent-linux 云原生专属）
 
 ---
 
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）提供专属 containerd shim v2 实现，作为 Agent 容器与 OS 内核之间的桥梁。shim 设计达成以下工程目标：
+agent-linux（AirymaxOS）提供专属 containerd shim v2 实现，作为 Agent 容器与 OS 内核之间的桥梁。shim 设计达成以下工程目标：
 
 1. **Agent workload 感知**：shim 在容器创建时向内核注册 Agent，签订 Token 预算契约
 2. **sched_tac 用户态调度器集成**：shim 将容器内主进程的调度类切换为 stc_agent（SCHED_FIFO + 用户态策略）
@@ -38,7 +38,7 @@ agentrt-linux（AirymaxOS）提供专属 containerd shim v2 实现，作为 Agen
 │     |                                            │
 │     v (通过 RuntimeClass 选择 handler)            │
 │ ┌──────────────────────────────────────────────┐ │
-│ │ airymaxos-shim v2（agentrt-linux 专属）      │ │
+│ │ airymaxos-shim v2（agent-linux 专属）      │ │
 │ │   - 注册 Agent 至内核                        │ │
 │ │   - 挂载 MemoryRovol 卷                      │ │
 │ │   - 注入 Cupolas 安全策略                     │ │
@@ -49,7 +49,7 @@ agentrt-linux（AirymaxOS）提供专属 containerd shim v2 实现，作为 Agen
 │ runc (OCI runtime)                              │
 │     |                                            │
 │     v                                            │
-│ Linux 6.6 内核（agentrt-linux）                  │
+│ Linux 6.6 内核（agent-linux）                  │
 │   - sched_tac 用户态调度器                      │
 │   - MemoryRovol CSI                             │
 │   - Cupolas 安全穹顶                            │
@@ -348,7 +348,7 @@ func runShim(ctx context.Context) error {
 
 ### 3.2 containerd 配置
 
-agentrt-linux 节点的 containerd 配置注册 airymaxos runtime：
+agent-linux 节点的 containerd 配置注册 airymaxos runtime：
 
 ```toml
 # /etc/containerd/config.toml
@@ -360,7 +360,7 @@ version = 2
     [plugins."io.containerd.grpc.v1.cri.containerd.runtimes.runc"]
       runtime_type = "io.containerd.runc.v2"
 
-    # agentrt-linux 专属 Agent 运行时
+    # agent-linux 专属 Agent 运行时
     [plugins."io.containerd.grpc.v1.cri.containerd.runtimes.airymaxos"]
       runtime_type = "io.containerd.airymaxos.v2"
       runtime_path = "/usr/local/bin/containerd-shim-airymaxos-v2"
@@ -531,7 +531,7 @@ var capabilityMap = map[string]uint8{
 
 ### 6.1 Agent 镜像标签
 
-Agent 容器镜像通过 OCI 标签声明 agentrt-linux 专属属性：
+Agent 容器镜像通过 OCI 标签声明 agent-linux 专属属性：
 
 | 标签 | 用途 | 示例 |
 |------|------|------|
@@ -705,5 +705,5 @@ cat /proc/agentrt/agent/<id>/status
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）containerd shim 设计 v1.0.1
-> 遵循 IRON-9 v3 [IND] 完全独立层（agentrt-linux 云原生专属）
+> **文档结束** | agent-linux（AirymaxOS）containerd shim 设计 v1.0.1
+> 遵循 IRON-9 v3 [IND] 完全独立层（agent-linux 云原生专属）

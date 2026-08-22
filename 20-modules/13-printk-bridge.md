@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # printk 桥接设计
 
-> **文档定位**：AirymaxOS（agentrt-linux）printk 桥接设计——将 Linux 6.6 原生 printk 桥接到 Airymax Ring Buffer 的写入路径、Panic 回退机制、性能对比与 A-ULP 兼容层定位\
+> **文档定位**：AirymaxOS（agent-linux）printk 桥接设计——将 Linux 6.6 原生 printk 桥接到 Airymax Ring Buffer 的写入路径、Panic 回退机制、性能对比与 A-ULP 兼容层定位\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[Airymax Unify Design 总纲](../10-architecture/10-unify-design.md) §5（A-ULP 模块）\

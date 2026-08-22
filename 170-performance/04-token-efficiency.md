@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Token 能效工程实现方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义 Token 能效的测量、优化与保障机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义 Token 能效的测量、优化与保障机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 性能基线（IRON-9 v3 [SS] 语义同源层，Token 能效指标语义同源）\
 > **理论根基**：Linux 6.6 perf 功耗剖析 + seL4 时间隔离（MCS）思想 + Airymax S-1 反馈闭环 + A-4 完美主义\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[SS] 语义同源层（Token 能效指标语义与 agentrt 同源）+ [IND] 完全独立层（内核态测量与优化为 agentrt-linux 专属）
+> **IRON-9 v3 层次**：[SS] 语义同源层（Token 能效指标语义与 agentrt 同源）+ [IND] 完全独立层（内核态测量与优化为 agent-linux 专属）
 
 ---
 
@@ -43,7 +43,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-Token 能效工程是 agentrt-linux 区别于传统操作系统性能工程的核心特性。传统操作系统关注 CPU/内存/IO 能效，而智能体操作系统必须额外关注 Token 能效——每单位资源处理的 Token 数量。Token 能效工程的设计达成以下工程目标：
+Token 能效工程是 agent-linux 区别于传统操作系统性能工程的核心特性。传统操作系统关注 CPU/内存/IO 能效，而智能体操作系统必须额外关注 Token 能效——每单位资源处理的 Token 数量。Token 能效工程的设计达成以下工程目标：
 
 1. **可测量**：三大能效指标（Token/Watt、Token/Latency、Token/Dollar）均可精确测量
 2. **可优化**：通过调度策略、缓存策略、批处理策略持续优化 Token 能效
@@ -58,7 +58,7 @@ LLM 推理是 Agent 应用最耗资源的环节，Token 生成涉及 prefill（�
 - **Prefill 阶段**：计算密集型，GPU 利用率高，Token 吞吐量大
 - **Decode 阶段**：内存带宽密集型，GPU 利用率低，Token 吞吐量小
 
-agentrt-linux 需要在内核层面感知 Token 消耗与资源消耗的关联，通过 sched_tac 用户态调度器策略优化能效。本方案参考 Linux 6.6 perf 功耗剖析（`tools/perf/`）与 seL4 MCS（Mixed-Criticality System）时间隔离思想，建立 Token 能效工程体系。
+agent-linux 需要在内核层面感知 Token 消耗与资源消耗的关联，通过 sched_tac 用户态调度器策略优化能效。本方案参考 Linux 6.6 perf 功耗剖析（`tools/perf/`）与 seL4 MCS（Mixed-Criticality System）时间隔离思想，建立 Token 能效工程体系。
 
 ### 1.3 设计哲学
 
@@ -766,7 +766,7 @@ graph TD
 |------|---------|-----------|
 | [SC] 共享契约层 | `cognition_types.h` CoreLoopThree 阶段枚举 | 阶段感知调度引用 |
 | [SS] 语义同源层 | Token 能效指标语义 | 与 agentrt 用户态能效指标语义同源 |
-| [IND] 完全独立层 | RAPL 功耗测量 + ftrace 延迟追踪 + 内核调度优化 | agentrt-linux 专属 |
+| [IND] 完全独立层 | RAPL 功耗测量 + ftrace 延迟追踪 + 内核调度优化 | agent-linux 专属 |
 
 ---
 

@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）数据流程设计
-> **文档定位**：agentrt-linux（AirymaxOS）数据流程设计层的总览与索引，覆盖认知循环、记忆卷载、IPC 消息、调度、日志 Ring Buffer、Logger Daemon、Panic 生存路径共 7 大数据流\
+# agent-linux（AirymaxOS）数据流程设计
+> **文档定位**：agent-linux（AirymaxOS）数据流程设计层的总览与索引，覆盖认知循环、记忆卷载、IPC 消息、调度、日志 Ring Buffer、Logger Daemon、Panic 生存路径共 7 大数据流\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 总览](../README.md)\
+> **上级文档**：[agent-linux 总览](../README.md)\
 > **核心约束**：IRON-9 v3 同源代码共享——[SC] 共享契约层 12 个头文件落地于 `include/uapi/linux/airymax/`，[SS] 4 大数据流语义同源（认知循环/记忆卷载/IPC/调度），[IND] 各子仓驱动与运行时独立实现，[DSL] 降级生存层提供 [SC] 损坏时最小可运行子集（#ifdef AIRY_SC_FALLBACK）；安全为横切关注点，贯穿全部数据流
 
 ---
@@ -27,7 +27,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 技术选型声明
 
-本目录的数据流设计以 agentrt-linux v1.0.1 五大技术选型为基线：
+本目录的数据流设计以 agent-linux v1.0.1 五大技术选型为基线：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 数据流影响 |
 |---|---------|---------|----------------|---------|
@@ -39,7 +39,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 AIRY_SCHED_AGENT 术语废弃声明
 
-agentrt-linux v1.0 **彻底废弃** `AIRY_SCHED_AGENT` 术语（2026-07-18 用户最终裁决，遵循 Airymax 工程思想五维分析）：
+agent-linux v1.0 **彻底废弃** `AIRY_SCHED_AGENT` 术语（2026-07-18 用户最终裁决，遵循 Airymax 工程思想五维分析）：
 
 - ~~`任务提交 → AIRY_SCHED_AGENT → EEVDF → 执行`~~ → **任务提交 → sched_tac 调度策略（SCHED_DEADLINE/SCHED_FIFO/EEVDF）→ 执行**
 - ~~`EEVDF + sched_tac + AIRY_SCHED_AGENT + 策略可插拔`~~ → **EEVDF + sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF 原生调度类组合）+ 策略可插拔**
@@ -152,9 +152,9 @@ agentrt-linux v1.0 **彻底废弃** `AIRY_SCHED_AGENT` 术语（2026-07-18 用�
 
 ## 7. 与 agentrt 数据流的关系
 
-agentrt-linux 数据流设计与 agentrt 数据流保持「同源且部分代码共享（IRON-9 v3）」（参考 ADR-010 + IRON-9 v3）：
+agent-linux 数据流设计与 agentrt 数据流保持「同源且部分代码共享（IRON-9 v3）」（参考 ADR-010 + IRON-9 v3）：
 
-| agentrt-linux 数据流 | 同源 agentrt 模块 | 同源语义 | agentrt-linux 增强 | IRON-9 v3 层次 |
+| agent-linux 数据流 | 同源 agentrt 模块 | 同源语义 | agent-linux 增强 | IRON-9 v3 层次 |
 |---|---|---|---|---|
 | 认知循环 | coreloopthree | 三层认知循环：认知→执行→记忆 | 内核态 kthread + System 1/2 双系统切换 | [SC] cognition_types.h + [SS] 循环语义 + [IND] kthread |
 | 记忆卷载 | memoryrovol + heapstore | 四层递进 + 堆存储 | CXL 池化 + MGLRU 多代 LRU（Linux 6.6）+ alloc_pages + mmap | [SC] memory_types.h + [SS] 四层卷载 + [IND] 内核态 |
@@ -169,13 +169,13 @@ agentrt-linux 数据流设计与 agentrt 数据流保持「同源且部分代码
 1. **协议同源**：128B IPC 消息头结构与 agentrt AgentsIPC 完全一致，跨系统互通无适配层。
 2. **模型同源**：记忆卷载四层递进模型与 agentrt memoryrovol 一致，迁移无语义损失。
 3. **循环同源**：CoreLoopThree 三层认知循环结构与 agentrt 一致，行为可对比。
-4. **独立演进**：agentrt-linux 在内核态实现（kthread + 纯 C LSM + io_uring IORING_OP_URING_CMD），agentrt 在用户态实现，二者独立演进但保持语义对齐。
+4. **独立演进**：agent-linux 在内核态实现（kthread + 纯 C LSM + io_uring IORING_OP_URING_CMD），agentrt 在用户态实现，二者独立演进但保持语义对齐。
 
 ---
 
 ## 8. 数据流版本与演进
 
-数据流设计随 agentrt-linux 版本迭代演进，遵循「契约稳定 + 实现可变」原则：
+数据流设计随 agent-linux 版本迭代演进，遵循「契约稳定 + 实现可变」原则：
 
 | 版本 | 数据流特征 | 关键能力 |
 |---|---|---|
@@ -193,7 +193,7 @@ agentrt-linux 数据流设计与 agentrt 数据流保持「同源且部分代码
 
 ## 9. 相关文档
 
-- [agentrt-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
+- [agent-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
 - [接口设计层](../30-interfaces/README.md)：syscall / A-IPC IPC / SDK / 编码规范
 - [模块设计层](../20-modules/README.md)：8 子仓 + A-ULS/A-ULP/A-UCS 详细设计
 - [架构设计层](../10-architecture/README.md)：系统架构 + Unify Design 总纲 + IRON-9 v3 + [DSL] 降级层

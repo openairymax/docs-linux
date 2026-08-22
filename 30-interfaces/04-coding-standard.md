@@ -1,18 +1,18 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 编码规范遵循
-> **文档定位**：agentrt-linux（AirymaxOS） 编码规范的遵循声明、命名规范、C/Rust 风格、日志标准、Doxygen 与安全编码\
+> **文档定位**：agent-linux（AirymaxOS） 编码规范的遵循声明、命名规范、C/Rust 风格、日志标准、Doxygen 与安全编码\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. 编码规范遵循声明
 
-agentrt-linux 8 子仓的全部源代码严格遵循 `50-engineering-standards/10-coding-style/` 下的编码规范文件。本文件给出 agentrt-linux 专属的命名空间与补充约定，作为编码规范的前置索引。
+agent-linux 8 子仓的全部源代码严格遵循 `50-engineering-standards/10-coding-style/` 下的编码规范文件。本文件给出 agent-linux 专属的命名空间与补充约定，作为编码规范的前置索引。
 
-| # | 规范文件 | 适用范围 | agentrt-linux 遵循要点 |
+| # | 规范文件 | 适用范围 | agent-linux 遵循要点 |
 |---|---------|---------|-------------------|
 | 1 | `coding_conventions.md Part IV` | 全部子仓 | `airy_` 前缀 + `<service>_d` daemon + `module_action_object()` |
 | 2 | `C_Cpp_coding_style.md Part I` | kernel / security / memory | 4 空格 + snake_case + 1TBS |
@@ -33,7 +33,7 @@ agentrt-linux 8 子仓的全部源代码严格遵循 `50-engineering-standards/1
 **遵循原则**:
 
 - **强制优先**: 本文件未覆盖的事项，以 5 个合并规范文件为准。
-- **agentrt-linux 专属约定**: 本文件第 2-5 章给出 agentrt-linux 专属的命名空间与风格补充，与 5 个合并规范文件叠加生效。
+- **agent-linux 专属约定**: 本文件第 2-5 章给出 agent-linux 专属的命名空间与风格补充，与 5 个合并规范文件叠加生效。
 - **评审门槛**: 代码评审必须检查编码规范遵循情况，违反规范必须打回（对齐 ACC-OS03 验收标准）。
 
 ---
@@ -42,7 +42,7 @@ agentrt-linux 8 子仓的全部源代码严格遵循 `50-engineering-standards/1
 
 ### 2.1 命名空间前缀
 
-agentrt-linux 全部公共符号使用统一命名空间前缀，与 agentrt 同源保持兼容：
+agent-linux 全部公共符号使用统一命名空间前缀，与 agentrt 同源保持兼容：
 
 | 语言 | 命名空间前缀 | 示例 |
 |------|-------------|------|
@@ -113,11 +113,11 @@ agentrt-linux 全部公共符号使用统一命名空间前缀，与 agentrt 同
 
 ## 3. C 代码风格
 
-C 代码风格遵循 `C_Cpp_coding_style.md Part I`，agentrt-linux 补充约定如下。
+C 代码风格遵循 `C_Cpp_coding_style.md Part I`，agent-linux 补充约定如下。
 
 ### 3.1 缩进与括号
 
-> **风格统一说明（v1.0.1）**：本规范面向 agentrt-linux 内核态（Kbuild + Kconfig 构建），统一采用 Linux 6.6 内核基线风格（Tab 8 + K&R + 80 列 + errno+goto）。agentrt 用户态（CMake）沿用 4 空格 + 1TBS + 100 列，见 §10.4 独立层矩阵。
+> **风格统一说明（v1.0.1）**：本规范面向 agent-linux 内核态（Kbuild + Kconfig 构建），统一采用 Linux 6.6 内核基线风格（Tab 8 + K&R + 80 列 + errno+goto）。agentrt 用户态（CMake）沿用 4 空格 + 1TBS + 100 列，见 §10.4 独立层矩阵。
 
 - **缩进**: Tab 8（Linux 6.6 内核基线），禁止空格缩进。
 - **括号风格**: K&R（Linux 6.6 内核基线 标准），开括号与控制语句同行。
@@ -154,7 +154,7 @@ if (ret < 0) {
 
 ## 4. Rust 代码风格
 
-Rust 代码风格遵循 `Rust_coding_style.md Part I`，agentrt-linux 补充约定如下。
+Rust 代码风格遵循 `Rust_coding_style.md Part I`，agent-linux 补充约定如下。
 
 ### 4.1 工具链
 
@@ -189,7 +189,7 @@ pub async fn submit_task(&self, desc: TaskDesc) -> Result<i32, Error> {
 
 ## 5. 日志标准
 
-日志标准遵循 `coding_conventions.md Part III`，agentrt-linux 补充约定如下。
+日志标准遵循 `coding_conventions.md Part III`，agent-linux 补充约定如下。
 
 ### 5.1 ANSI 颜色
 
@@ -290,7 +290,7 @@ struct airy_ipc_msg_hdr {
 ```c
 /**
  * @file airy_ipc_msg.h
- * @brief agentrt-linux IPC 128 字节定长消息头定义
+ * @brief agent-linux IPC 128 字节定长消息头定义
  *
  * 同源 agentrt AgentsIPC，基于 io_uring 零拷贝实现。
  *
@@ -303,7 +303,7 @@ struct airy_ipc_msg_hdr {
 
 ## 7. 安全编码规范
 
-安全编码遵循 `coding_conventions.md Part V` + `C_Cpp_coding_style.md Part IV` + `Rust_coding_style.md Part II`，agentrt-linux 补充约定如下。
+安全编码遵循 `coding_conventions.md Part V` + `C_Cpp_coding_style.md Part IV` + `Rust_coding_style.md Part II`，agent-linux 补充约定如下。
 
 ### 7.1 输入验证
 
@@ -484,15 +484,15 @@ AIRY_API int airy_sys_call(cap_t cap, const struct airy_ipc_msg_hdr *msg)
 
 ## 10. IRON-9 v3 四层共享模型
 
-> **OS-IFACE-007**： 编码规范遵循 IRON-9 v3 四层共享模型——命名前缀（`airy_`）、类型命名（`snake_case_t`）、Doxygen 注释、错误码（`AIRY_E*`）通过 [SC] 共享契约层头文件同源；构建系统与缩进风格各自独立。禁止在 agentrt 与 agentrt-linux 之间引入风格转换工具或 lint 规则映射层。
+> **OS-IFACE-007**： 编码规范遵循 IRON-9 v3 四层共享模型——命名前缀（`airy_`）、类型命名（`snake_case_t`）、Doxygen 注释、错误码（`AIRY_E*`）通过 [SC] 共享契约层头文件同源；构建系统与缩进风格各自独立。禁止在 agentrt 与 agent-linux 之间引入风格转换工具或 lint 规则映射层。
 
 ### 10.1 三层模型概览
 
 | 层次 | 共享程度 | 本接口涉及内容 |
 |------|---------|---------------|
 | **[SC] 共享契约层** | 完全共享代码 | 12 个头文件的命名风格、类型定义、Doxygen 注释、`AIRY_E*` 错误码前缀在两侧完全一致 |
-| **[SS] 语义同源层** | 规范同源，实现独立 | agentrt（CMake 管理）↔ agentrt-linux（Kbuild + Kconfig 管理）的命名规范、daemon 命名（`_d` 后缀）、函数命名（`module_action_object()`）同源 |
-| **[IND] 完全独立层** | 完全独立 | agentrt 用户态编码风格（4 空格 + 1TBS + 100 列）↔ agentrt-linux 内核态编码风格（Linux 6.6 内核基线：Tab 8 + K&R + 80 列 + errno+goto） |
+| **[SS] 语义同源层** | 规范同源，实现独立 | agentrt（CMake 管理）↔ agent-linux（Kbuild + Kconfig 管理）的命名规范、daemon 命名（`_d` 后缀）、函数命名（`module_action_object()`）同源 |
+| **[IND] 完全独立层** | 完全独立 | agentrt 用户态编码风格（4 空格 + 1TBS + 100 列）↔ agent-linux 内核态编码风格（Linux 6.6 内核基线：Tab 8 + K&R + 80 列 + errno+goto） |
 
 ### 10.2 [SC] 共享契约层——头文件编码风格在两侧的角色
 
@@ -505,9 +505,9 @@ AIRY_API int airy_sys_call(cap_t cap, const struct airy_ipc_msg_hdr *msg)
 | `memory_types.h` | L1-L4 结构命名 + GFP 掩码宏 + Doxygen | kernel / memory |
 | `cognition_types.h` | 三阶段枚举 + Thinkdual 模式 + kernel-doc | kernel / cognition |
 
-### 10.3 [SS] 语义同源层——agentrt ↔ agentrt-linux 编码规范映射
+### 10.3 [SS] 语义同源层——agentrt ↔ agent-linux 编码规范映射
 
-| 规范项 | agentrt（用户态，CMake） | agentrt-linux（内核态，Kbuild） | 同源程度 |
+| 规范项 | agentrt（用户态，CMake） | agent-linux（内核态，Kbuild） | 同源程度 |
 |--------|------------------------|-------------------------------|---------|
 | 命名前缀 | `airy_` / `agentrt::` / `agentrt.` | `airy_` / `agentrt::` / `agentrt.` | 完全同源 |
 | daemon 命名 | `<service>_d` 后缀 | `<service>_d` 后缀 | 完全同源 |
@@ -518,7 +518,7 @@ AIRY_API int airy_sys_call(cap_t cap, const struct airy_ipc_msg_hdr *msg)
 
 ### 10.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | 缩进风格 | 4 空格（禁止 Tab） | Linux 6.6 内核基线 Tab 8（内核态强制） | 内核编码传统 |
 | 括号风格 | 1TBS（K&R 变体） | K&R（Linux 6.6 内核基线 标准） | 内核风格统一 |
@@ -535,7 +535,7 @@ graph TB
         RT_CODE[源码 4 空格 + 1TBS<br/>100 列 + 异常/Result]
     end
 
-    subgraph "agentrt-linux 内核态（Kbuild）"
+    subgraph "agent-linux 内核态（Kbuild）"
         OS_CODE[源码 Tab 8 + K&R<br/>80 列 + errno+goto]
     end
 
@@ -552,7 +552,7 @@ graph TB
     style OS_CODE fill:#fff3e0,stroke:#e65100
 ```
 
-> **OS-IFACE-008**： 编码规范在 agentrt（用户态，4 空格 + 1TBS + 100 列）与 agentrt-linux 内核态（Linux 6.6 内核基线 Tab 8 + K&R + 80 列 + errno+goto）间保持命名同源而风格独立——12 个 [SC] 共享头文件统一采用 `airy_` 前缀 + `snake_case_t` + Doxygen + `AIRY_E*`，在两侧编译期通过 `-I` 引用同一份源码，禁止生成风格转换中间文件。
+> **OS-IFACE-008**： 编码规范在 agentrt（用户态，4 空格 + 1TBS + 100 列）与 agent-linux 内核态（Linux 6.6 内核基线 Tab 8 + K&R + 80 列 + errno+goto）间保持命名同源而风格独立——12 个 [SC] 共享头文件统一采用 `airy_` 前缀 + `snake_case_t` + Doxygen + `AIRY_E*`，在两侧编译期通过 `-I` 引用同一份源码，禁止生成风格转换中间文件。
 
 ---
 

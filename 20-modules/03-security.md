@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 安全设计文档
+# agent-linux 安全设计文档
 
-> **文档定位**：agentrt-linux（AirymaxOS）安全设计文档（security，极境安全）\
+> **文档定位**：agent-linux（AirymaxOS）安全设计文档（security，极境安全）\
 > **文档版本**：v1.0.1\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 cupolas 通过 \[SC] 共享契约层 + \[SS] 语义同源层协作，\[IND] 内核态 LSM/Landlock/capability 实现独立\
 > **子仓编号**：03\
 > **子仓代号**：极境安全（Airymax Security）\
@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
   - [4.13 ADR 引用（v1.0.1 Capability Folding 决策溯源）](#413-adr-引用v101-capability-folding-决策溯源)
 - [5. 微内核思想体现](#5-微内核思想体现)
 - [6. IRON-9 v3 四层共享模型落地](#6-iron-9-v3-四层共享模型落地)
-- [7. agentrt-linux 工程基线](#7-agentrt-linux-工程基线)
+- [7. agent-linux 工程基线](#7-agent-linux-工程基线)
 - [8. 前沿理论参考](#8-前沿理论参考)
 - [9. 与其他子仓的协作](#9-与其他子仓的协作)
 - [10. 里程碑（M0-M8）](#10-里程碑m0-m8)
@@ -38,19 +38,19 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 子仓职责
 
-`security` 是 agentrt-linux（AirymaxOS）的安全子仓，承担以下核心职责：
+`security` 是 agent-linux（AirymaxOS）的安全子仓，承担以下核心职责：
 
 1. **capability 系统 \[SC]**：基于 seL4 风格的不可伪造令牌实现最小权限访问控制，capability ID 枚举与派生模型与 agentrt 共享。
 2. **LSM Hook \[SS]**：airy\_lsm 提供 Linux Security Module 钩子，调度机制与 agentrt cupolas 语义同源。
 3. **沙箱隔离 \[SS]**：Landlock + seccomp 构建用户态沙箱，三系统调用语义与 agentrt 同源。
 4. **机密计算 \[IND]**：支持 TEE/SGX/SEV-SNP/TDX/CCA 等可信执行环境，Vault backend 抽象 \[SC] 与 agentrt 共享。
-5. **国密算法 \[IND]**：遵循 agentrt-linux 标准集成 SM2/SM3/SM4 国密算法。
+5. **国密算法 \[IND]**：遵循 agent-linux 标准集成 SM2/SM3/SM4 国密算法。
 6. **零信任网络 \[IND]**：基于身份的零信任网络架构。
 7. **纯 C LSM 编译期校验 + CBMC 形式化验证 [SS]**：airy_lsm 代码完整性通过编译期校验 + 静态分析 + CBMC 形式化验证保证（H5：不依赖 BPF_SYSCALL/BPF_JIT/DEBUG_INFO_BTF，对齐 openEuler 纯 C LSM 模式）。
 
 ### 1.1 横切关注点声明
 
-安全**不是独立数据流**，而是横切关注点（cross-cutting concern），贯穿 agentrt-linux 全部 4 大数据流：
+安全**不是独立数据流**，而是横切关注点（cross-cutting concern），贯穿 agent-linux 全部 4 大数据流：
 
 | 数据流      | 安全切入点                                      | 同源标注   |
 | -------- | ------------------------------------------ | ------ |
@@ -63,7 +63,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 同源关系（IRON-9 v3 四层共享模型）
 
-依据 IRON-9 v3 决策，agentrt（用户态 cupolas）与 agentrt-linux（内核态 security）通过 v3 四层共享模型（[SC] 共享契约 + [SS] 同源签名 + [IND] 独立 + [DSL] 降级生存）协作：
+依据 IRON-9 v3 决策，agentrt（用户态 cupolas）与 agent-linux（内核态 security）通过 v3 四层共享模型（[SC] 共享契约 + [SS] 同源签名 + [IND] 独立 + [DSL] 降级生存）协作：
 
 | 层次               | 共享程度                               | 安全子系统内容                                                                                                                                                           | 组织方式                               |
 | ---------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
@@ -74,7 +74,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 维度对比
 
-| 维度  | agentrt（cupolas） | agentrt-linux（security）                      | 同源标注   |
+| 维度  | agentrt（cupolas） | agent-linux（security）                      | 同源标注   |
 | --- | ---------------- | -------------------------------------------- | ------ |
 | LSM | Cupolas 用户态策略注入  | airy\_lsm 内核态钩子注册                           | \[SS]  |
 | 沙箱  | 进程沙箱（用户态）        | Landlock + seccomp + capability（内核态强制）       | \[SS]  |
@@ -102,7 +102,7 @@ security/
 ├── lsm/                    # airy_lsm（LSM hook）[SS]
 ├── sandbox/               # Landlock + seccomp [SS]
 ├── confidential-compute/   # 机密计算（TEE/SGX/SEV-SNP/TDX/CCA）[IND]
-├── crypto/                 # 国密算法（agentrt-linux 标准）[IND]
+├── crypto/                 # 国密算法（agent-linux 标准）[IND]
 ├── zero-trust/             # 零信任网络 [IND]
 ├── lsm-verify/             # 纯 C LSM 编译期校验 + CBMC 形式化验证（H5）[SS]
 └── docs/
@@ -147,7 +147,7 @@ security/
 
 ### 3.5 crypto/（国密算法）\[IND]
 
-遵循 **agentrt-linux 安全治理组** 标准：
+遵循 **agent-linux 安全治理组** 标准：
 
 - `sm2/`：SM2 椭圆曲线公钥密码算法。
 - `sm3/`：SM3 密码杂凑算法。
@@ -300,7 +300,7 @@ extern atomic_t airy_cap_global_epoch;
 
 **v1.0.1 Capability Folding 集成**（CNode/CSpace 概念保留 + 物理存储重构）：
 
-**v1.0.1 重构**：自 v1.0.1 起，agentrt-linux 的 capability 存储从 v1.0 的 `airy_cnode`（radix-tree）+ `airy_cap_mdb`（MDB 派生树）+ v1.0 capability 元数据结构体（含 cap_id/cap_type/rights/parent_cap_id/mint_depth/mint_quota 六字段）重构为 **Capability Folding 单平面架构**——`airy_cnode`/`airy_cspace`/v1.0 capability 元数据结构体作为逻辑/语义概念保留（[03-capability-model.md §2.1-2.4](../110-security/03-capability-model.md)），但物理存储改用 `agent_caps[1024]` 内核静态数组 + Badge 64-bit Native Word，撤销机制改用 `airy_cap_epoch_bump(agent_id)` O(1) per-agent 定向失效（K9-1 主要撤销机制；`airy_cap_global_epoch` 作为补充性全局计数器仅用于 UNFREEZE）。
+**v1.0.1 重构**：自 v1.0.1 起，agent-linux 的 capability 存储从 v1.0 的 `airy_cnode`（radix-tree）+ `airy_cap_mdb`（MDB 派生树）+ v1.0 capability 元数据结构体（含 cap_id/cap_type/rights/parent_cap_id/mint_depth/mint_quota 六字段）重构为 **Capability Folding 单平面架构**——`airy_cnode`/`airy_cspace`/v1.0 capability 元数据结构体作为逻辑/语义概念保留（[03-capability-model.md §2.1-2.4](../110-security/03-capability-model.md)），但物理存储改用 `agent_caps[1024]` 内核静态数组 + Badge 64-bit Native Word，撤销机制改用 `airy_cap_epoch_bump(agent_id)` O(1) per-agent 定向失效（K9-1 主要撤销机制；`airy_cap_global_epoch` 作为补充性全局计数器仅用于 UNFREEZE）。
 
 | 维度 | v1.0 实现（已废弃） | v1.0.1 实现（当前权威） |
 |------|-------------------|---------------------|
@@ -313,7 +313,7 @@ extern atomic_t airy_cap_global_epoch;
 
 > **权威定义**：v1.0.1 Capability Folding 完整设计以 [03-capability-model.md](../110-security/03-capability-model.md) 和 [07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md) 为 SSoT 权威源。本文件仅做概念性引用，不重新定义实现细节。
 
-**与 seL4 的差异**：seL4 的 CNode/MDB 实现完全在微内核中（形式化验证）；agentrt-linux v1.0.1 借鉴其 capability 思想但物理实现基于 **`agent_caps[1024]` 静态数组 + atomic Epoch + Badge 64-bit Native Word**（性能优先，CBMC 全函数验证 fastpath），属于 \[IND] 实现独立层。capability ID 枚举与派生模型（mint/mintcopy/derive/revoke）的语义在 \[SC] 层与 agentrt 共享。该简化符合"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造"定位（ADR-012 + ADR-014），不引入 seL4 完整 CSpace/MDB 实现复杂度。
+**与 seL4 的差异**：seL4 的 CNode/MDB 实现完全在微内核中（形式化验证）；agent-linux v1.0.1 借鉴其 capability 思想但物理实现基于 **`agent_caps[1024]` 静态数组 + atomic Epoch + Badge 64-bit Native Word**（性能优先，CBMC 全函数验证 fastpath），属于 \[IND] 实现独立层。capability ID 枚举与派生模型（mint/mintcopy/derive/revoke）的语义在 \[SC] 层与 agentrt 共享。该简化符合"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造"定位（ADR-012 + ADR-014），不引入 seL4 完整 CSpace/MDB 实现复杂度。
 
 ### 4.2 airy\_lsm（LSM hook，Cupolas 同源）\[SS]
 
@@ -434,7 +434,7 @@ typedef struct airy_vault_backend {
 - `log`：slowpath LSM 钩子记录异常路径策略裁决。
 - `disable`：[DSL] 降级模式（仅开发环境，退化为最小可运行子集）。
 
-### 4.6 国密算法支持（agentrt-linux 标准）\[IND]
+### 4.6 国密算法支持（agent-linux 标准）\[IND]
 
 遵循 **GB/T 32918、GB/T 32905、GB/T 32907** 等国密标准：
 
@@ -475,7 +475,7 @@ typedef enum {
 
 ### 4.9 Cupolas 7 大子系统（与 agentrt 同源 \[SS]）
 
-| 子系统                   | 职责     | agentrt-linux 实现    | 同源标注           |
+| 子系统                   | 职责     | agent-linux 实现    | 同源标注           |
 | --------------------- | ------ | ------------------- | -------------- |
 | Guards 守卫             | 入口防护   | 内核态 + 用户态双层守卫       | \[SS]          |
 | Permission 权限裁决       | 策略裁决   | capability + LSM 钩子 | \[SS]          |
@@ -590,7 +590,7 @@ static int airy_uring_cmd_security(struct io_uring_cmd *ioucmd)
 
 #### 4.11.3 SQE128 模式下的安全校验
 
-agentrt-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+，OLK 6.6 基线支持）：
+agent-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+，OLK 6.6 基线支持）：
 
 - SQE 大小从标准 64 字节扩展到 128 字节（64B 标准 + 64B 扩展）。
 - `cmd` 字段从 16 字节扩展到 80 字节（标准 16B + 扩展 64B），承载 `airy_ipc_cmd`（≤ 80 字节）。
@@ -693,7 +693,7 @@ agentrt-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+
 
 ### 6.1 \[SC] 共享契约层——`include/uapi/linux/airymax/security_types.h`
 
-本头文件完全共享代码，agentrt 用户态与 agentrt-linux 内核态两端直接 include。内容清单：
+本头文件完全共享代码，agentrt 用户态与 agent-linux 内核态两端直接 include。内容清单：
 
 | 内容                                 | 说明                                                                                   |
 | ---------------------------------- | ------------------------------------------------------------------------------------ |
@@ -712,7 +712,7 @@ agentrt-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+
 
 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进：
 
-| 序号 | API                                 | 语义               | agentrt 实现 | agentrt-linux 实现        |
+| 序号 | API                                 | 语义               | agentrt 实现 | agent-linux 实现        |
 | -- | ----------------------------------- | ---------------- | ---------- | ----------------------- |
 | 1  | `security_add_hooks()`              | 钩子注册             | 用户态策略表注册   | 内核 `hlist_add_tail_rcu` |
 | 2  | `call_int_hook`                     | first-deny 短路    | 用户态遍历      | 内核宏展开                   |
@@ -736,14 +736,14 @@ agentrt-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+
 
 | 序号 | 内容              | 不共享原因                                           |
 | -- | --------------- | ----------------------------------------------- |
-| 1  | SELinux 完整实现    | agentrt-linux 不移植 SELinux（TE/RBAC/MLS 过重）       |
-| 2  | AppArmor 完整实现   | agentrt-linux 不移植 AppArmor（路径基策略与 Cupolas 语义冲突） |
-| 3  | Smack           | agentrt-linux 不移植 Smack                         |
-| 4  | TOMOYO          | agentrt-linux 不移植 TOMOYO                        |
+| 1  | SELinux 完整实现    | agent-linux 不移植 SELinux（TE/RBAC/MLS 过重）       |
+| 2  | AppArmor 完整实现   | agent-linux 不移植 AppArmor（路径基策略与 Cupolas 语义冲突） |
+| 3  | Smack           | agent-linux 不移植 Smack                         |
+| 4  | TOMOYO          | agent-linux 不移植 TOMOYO                        |
 | 5  | IMA digest list | 与完整性解耦冲突，用 Cupolas Vault 运行时签名替代                |
 | 6  | IMA VirtCCA     | Huawei 硬件绑定，用 Cupolas 机密计算抽象层替代                 |
-| 7  | IMA 策略 DB       | agentrt-linux 用 Cupolas 声明式策略引擎替代               |
-| 8  | EVM xattr 签名    | agentrt-linux 用 Cupolas Vault seal/unseal 替代    |
+| 7  | IMA 策略 DB       | agent-linux 用 Cupolas 声明式策略引擎替代               |
+| 8  | EVM xattr 签名    | agent-linux 用 Cupolas Vault seal/unseal 替代    |
 | 9  | 内核 ABI 预留机制     | 与 IRON-1 冲突（0.1.1 唯一奠基版本）                       |
 | 10 | 内核发行版特有增强       | 详见工程规范委员会发布的安全技术规范                              |
 
@@ -769,7 +769,7 @@ sequenceDiagram
     participant AGENT as Agent 进程
     participant CUP_U as agentrt Cupolas (用户态)
     participant IPC as AgentsIPC 总线
-    participant CUP_K as agentrt-linux Cupolas (内核态)
+    participant CUP_K as agent-linux Cupolas (内核态)
     participant LSM as LSM 框架
     participant KRES as 内核资源
 
@@ -788,12 +788,12 @@ sequenceDiagram
 
 ***
 
-## 7. agentrt-linux 工程基线
+## 7. agent-linux 工程基线
 
-- **agentrt-linux 安全治理组**：安全子系统最佳实践。
-- **agentrt-linux 国密**：SM2/SM3/SM4 国密算法实现。
-- **agentrt-linux LSM**：LSM hook 集成经验——250 钩子 + 扁平 blob + 三源排序。
-- **agentrt-linux 机密计算**：TEE 集成基线——Vault backend 抽象 \[SC]。
+- **agent-linux 安全治理组**：安全子系统最佳实践。
+- **agent-linux 国密**：SM2/SM3/SM4 国密算法实现。
+- **agent-linux LSM**：LSM hook 集成经验——250 钩子 + 扁平 blob + 三源排序。
+- **agent-linux 机密计算**：TEE 集成基线——Vault backend 抽象 \[SC]。
 - **Linux 6.6 内核基线**：LSM 框架 + Landlock + capability + Lockdown + 4 层密钥环。
 
 ### 7.1 五维正交 24 原则映射
@@ -890,7 +890,7 @@ AirymaxOS 用户态 **12 daemon**（daemon 命名后缀统一为 `_d`，**无例
 
 对 agentrt cupolas 设计进行一致性检查，确认两端在 IRON-9 v3 四层共享模型下无冲突：
 
-| 序号 | 检查项                          | agentrt 状态                                                | agentrt-linux 状态                | 结论          |
+| 序号 | 检查项                          | agentrt 状态                                                | agent-linux 状态                | 结论          |
 | -- | ---------------------------- | --------------------------------------------------------- | ------------------------------- | ----------- |
 | 1  | capability ID 枚举一致性          | 41 个 POSIX caps                                           | 41 个 POSIX caps                 | PASS \[SC]  |
 | 2  | LSM 钩子 ID 枚举一致性              | 250 个钩子 ID                                                | 250 个钩子 ID                      | PASS \[SC]  |
@@ -953,7 +953,7 @@ AirymaxOS 用户态 **12 daemon**（daemon 命名后缀统一为 `_d`，**无例
 - CCC（Confidential Computing Consortium）白皮书
 - Landlock 官方文档
 - seccomp BPF 教程
-- agentrt-linux 安全治理组文档
+- agent-linux 安全治理组文档
 - 国密标准文档（GB/T 32918 等）
 - agentrt cupolas 设计文档
 - Liedtke SOSP'95（微内核最小化原则，seL4 思想来源之一，ADR-014）

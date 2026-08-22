@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # CNI 网络策略设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）云原生体系核心子文档，定义 Agent 间网络隔离、Cupolas 安全策略与 CNI NetworkPolicy 的联动机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）云原生体系核心子文档，定义 Agent 间网络隔离、Cupolas 安全策略与 CNI NetworkPolicy 的联动机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：Linux 6.6 容器网络（IRON-9 v3 [IND] 完全独立层，CNI 为 agentrt-linux 专属扩展）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：Linux 6.6 容器网络（IRON-9 v3 [IND] 完全独立层，CNI 为 agent-linux 专属扩展）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **IRON-9 v3 层次**：[SS] Cupolas 安全模型同源 + [IND] CNI 实现独立
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）在云原生场景下需要为 Agent 提供细粒度的网络隔离与安全策略。CNI 网络策略设计达成以下工程目标：
+agent-linux（AirymaxOS）在云原生场景下需要为 Agent 提供细粒度的网络隔离与安全策略。CNI 网络策略设计达成以下工程目标：
 
 1. **Agent 间网络隔离**：默认禁止 Agent 间网络通信，仅显式声明的允许通信
 2. **Cupolas 策略联动**：CNI NetworkPolicy 与 Cupolas capability 令牌联动，双重过滤
@@ -31,7 +31,7 @@ agentrt-linux（AirymaxOS）在云原生场景下需要为 Agent 提供细粒度
 | L1 | 容器网络 | CNI + Calico/Cilium | Pod 间网络 |
 | L2 | 网络策略 | Kubernetes NetworkPolicy | 流量过滤 |
 | L3 | 微核心网络 | AgentsIPC（io_uring） | Agent 间高性能通信 |
-| **L4** | **Cupolas 联动** | **capability + LSM 钩子** | **agentrt-linux 专属** |
+| **L4** | **Cupolas 联动** | **capability + LSM 钩子** | **agent-linux 专属** |
 
 ### 1.3 通信路径决策
 
@@ -61,7 +61,7 @@ Agent A -> Agent B 通信请求
 
 ### 2.1 默认拒绝策略
 
-agentrt-linux 命名空间默认部署「默认拒绝所有」策略：
+agent-linux 命名空间默认部署「默认拒绝所有」策略：
 
 ```yaml
 # default-deny-all.yaml
@@ -157,7 +157,7 @@ spec:
 
 ### 2.4 Cupolas 联动策略
 
-agentrt-linux 专属 CRD，将 NetworkPolicy 与 Cupolas capability 联动：
+agent-linux 专属 CRD，将 NetworkPolicy 与 Cupolas capability 联动：
 
 ```yaml
 # cloudnative/manifests/cupolas-network-policy.yaml
@@ -195,7 +195,7 @@ spec:
 
 ### 3.1 airymaxos-cni 插件架构
 
-agentrt-linux 提供专属 CNI 插件，与 Cupolas 联动：
+agent-linux 提供专属 CNI 插件，与 Cupolas 联动：
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -623,5 +623,5 @@ cat /var/lib/agentrt/memoryrovol/cupolas-audit/last_record
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）CNI 网络策略设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）CNI 网络策略设计 v1.0.1
 > 遵循 IRON-9 v3 [SS] Cupolas 安全模型同源 + [IND] CNI 实现独立

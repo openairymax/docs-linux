@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Landlock 用户态沙箱
-> **文档定位**：agentrt-linux（AirymaxOS）安全工程体系第 2 主题文档——Landlock 用户态安全沙箱深度剖析\
+> **文档定位**：agent-linux（AirymaxOS）安全工程体系第 2 主题文档——Landlock 用户态安全沙箱深度剖析\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt Cupolas（安全穹顶）+ Linux 6.6 LSM/Landlock/capability\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-1 安全内生\
 > **核心约束**：IRON-9 v3 同源且部分代码共享
@@ -14,13 +14,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ## 目录
 
 - [第 1 章 Landlock 设计哲学](#第-1-章-landlock-设计哲学)
-- [第 2 章 Landlock 在 agentrt-linux 中的定位](#第-2-章-landlock-在-agentrt-linux-中的定位)
+- [第 2 章 Landlock 在 agent-linux 中的定位](#第-2-章-landlock-在-agent-linux-中的定位)
 - [第 3 章 landlock_ruleset 数据结构](#第-3-章-landlock_ruleset-数据结构)
 - [第 4 章 Landlock 安全 blob](#第-4-章-landlock-安全-blob)
 - [第 5 章 Landlock 文件系统访问控制](#第-5-章-landlock-文件系统访问控制)
 - [第 6 章 Landlock 网络访问控制](#第-6-章-landlock-网络访问控制)
 - [第 7 章 Landlock 系统调用 API](#第-7-章-landlock-系统调用-api)
-- [第 8 章 agentrt-linux Agent 沙箱实现](#第-8-章-agentrt-linux-agent-沙箱实现)
+- [第 8 章 agent-linux Agent 沙箱实现](#第-8-章-agent-linux-agent-沙箱实现)
 - [第 9 章 Workbench 虚拟工作台与 Landlock 集成](#第-9-章-workbench-虚拟工作台与-landlock-集成)
 - [第 10 章 五维原则映射](#第-10-章-五维原则映射)
 - [第 11 章 同源 agentrt 映射](#第-11-章-同源-agentrt-映射)
@@ -34,11 +34,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 非特权进程自限制
 
-Landlock 是 Linux 6.6 内核基线中唯一允许**非特权进程**自定义安全策略并施加于自身的安全模块。这一设计哲学颠覆了 SELinux/AppArmor 由管理员集中配置的范式：策略制定权下沉到每个进程，但被严格约束在"只能限制自己"的范围内——进程无法通过 Landlock 提权，也无法影响其他进程的访问权限。这一特性正是 agentrt-linux 选择 Landlock 作为 Agent 沙箱底座的根本原因：每个 Agent 都以非特权身份运行，但其工作负载需要的隔离能力可以通过 Landlock 自主声明，无需系统管理员介入。这契合 agentrt-linux 五维正交 24 原则中的 E-1（安全内生）与 K-3（服务隔离）——安全能力内置、隔离粒度下沉到进程级。
+Landlock 是 Linux 6.6 内核基线中唯一允许**非特权进程**自定义安全策略并施加于自身的安全模块。这一设计哲学颠覆了 SELinux/AppArmor 由管理员集中配置的范式：策略制定权下沉到每个进程，但被严格约束在"只能限制自己"的范围内——进程无法通过 Landlock 提权，也无法影响其他进程的访问权限。这一特性正是 agent-linux 选择 Landlock 作为 Agent 沙箱底座的根本原因：每个 Agent 都以非特权身份运行，但其工作负载需要的隔离能力可以通过 Landlock 自主声明，无需系统管理员介入。这契合 agent-linux 五维正交 24 原则中的 E-1（安全内生）与 K-3（服务隔离）——安全能力内置、隔离粒度下沉到进程级。
 
 ### 1.2 域的不可逆叠加
 
-Landlock 域（domain）一旦施加于进程，其效果**不可逆**且**单调收紧**：进程可以通过 `landlock_restrict_self` 进一步叠加更严的域，但永远无法放宽当前域。这与 `no_new_privs` 的语义吻合：施加 Landlock 域后，子进程通过 `execve` 也无法摆脱该域。agentrt-linux Cupolas 的 Workbench 子系统正是利用这一不可逆性来保证 Agent 即便被攻陷也无法越界。
+Landlock 域（domain）一旦施加于进程，其效果**不可逆**且**单调收紧**：进程可以通过 `landlock_restrict_self` 进一步叠加更严的域，但永远无法放宽当前域。这与 `no_new_privs` 的语义吻合：施加 Landlock 域后，子进程通过 `execve` 也无法摆脱该域。agent-linux Cupolas 的 Workbench 子系统正是利用这一不可逆性来保证 Agent 即便被攻陷也无法越界。
 
 ### 1.3 多层叠加与短路
 
@@ -46,11 +46,11 @@ Landlock 通过 `layer_masks` 机制支持多个域叠加：每一层独立裁�
 
 ### 1.4 与 MicroCoreRT 的契约
 
-Landlock 的用户态 API（三个系统调用）被 MicroCoreRT 列为"用户空间稳定 ABI"白名单成员，遵循 OS-IRON-001（用户空间 ABI 永不破坏）。agentrt-linux 在 Linux 6.6 内核基线之上对此 ABI 提供永久支持承诺，任何对 Landlock syscall 编号、参数布局、返回值语义的改动都必须经过 RFC 评审。
+Landlock 的用户态 API（三个系统调用）被 MicroCoreRT 列为"用户空间稳定 ABI"白名单成员，遵循 OS-IRON-001（用户空间 ABI 永不破坏）。agent-linux 在 Linux 6.6 内核基线之上对此 ABI 提供永久支持承诺，任何对 Landlock syscall 编号、参数布局、返回值语义的改动都必须经过 RFC 评审。
 
 ---
 
-## 第 2 章 Landlock 在 agentrt-linux 中的定位
+## 第 2 章 Landlock 在 agent-linux 中的定位
 
 ### 2.1 在安全体系分层中的位置
 
@@ -128,7 +128,7 @@ struct landlock_layer { u16 level; access_mask_t access; };
 
 ### 3.3 层级链与不可变性
 
-`struct landlock_hierarchy` 是域层级链节点，用于 ptrace 跨域校验：只有当 tracer 的域层级是 tracee 域层级的祖先时，ptrace 才被允许。一旦 ruleset 通过 `landlock_restrict_self` 绑定到进程凭据成为"域"，其红黑树即冻结为不可变；后续 `landlock_restrict_self` 创建新域，原域保留引用计数。这一不可变性是 Landlock 在 RCU 下被并发读取的前提，也是 agentrt-linux Cupolas 选择 Landlock 而非自研沙箱的重要原因——其并发安全已形式化沉淀。
+`struct landlock_hierarchy` 是域层级链节点，用于 ptrace 跨域校验：只有当 tracer 的域层级是 tracee 域层级的祖先时，ptrace 才被允许。一旦 ruleset 通过 `landlock_restrict_self` 绑定到进程凭据成为"域"，其红黑树即冻结为不可变；后续 `landlock_restrict_self` 创建新域，原域保留引用计数。这一不可变性是 Landlock 在 RCU 下被并发读取的前提，也是 agent-linux Cupolas 选择 Landlock 而非自研沙箱的重要原因——其并发安全已形式化沉淀。
 
 ---
 
@@ -214,7 +214,7 @@ static int hook_file_open(struct file *const file) {
 
 ### 5.3 path 类钩子覆盖面
 
-Landlock 注册了完整的 path 类钩子，覆盖 `mkdir`/`mknod`/`symlink`/`unlink`/`rmdir`/`rename`/`link`/`truncate`，以及 `sb_mount`/`move_mount`/`sb_umount`/`sb_remount`/`sb_pivotroot` 等挂载操作，还有 `file_alloc_security`/`file_open`/`file_truncate` 文件操作。这一覆盖面让 agentrt-linux Cupolas 可以把"Agent 可写目录"完整收敛到 Landlock 域内，无需另起一套文件系统过滤机制。
+Landlock 注册了完整的 path 类钩子，覆盖 `mkdir`/`mknod`/`symlink`/`unlink`/`rmdir`/`rename`/`link`/`truncate`，以及 `sb_mount`/`move_mount`/`sb_umount`/`sb_remount`/`sb_pivotroot` 等挂载操作，还有 `file_alloc_security`/`file_open`/`file_truncate` 文件操作。这一覆盖面让 agent-linux Cupolas 可以把"Agent 可写目录"完整收敛到 Landlock 域内，无需另起一套文件系统过滤机制。
 
 ---
 
@@ -222,11 +222,11 @@ Landlock 注册了完整的 path 类钩子，覆盖 `mkdir`/`mknod`/`symlink`/`u
 
 ### 6.1 网络规则的前瞻性
 
-Linux 6.6 内核基线中的 Landlock 仅覆盖文件系统访问；网络访问控制在主线 6.7+ 才稳定落地。agentrt-linux 在 Linux 6.6 内核基线之上对 Landlock 进行前向移植，把网络规则作为可选扩展集成进 Cupolas Workbench 沙箱，沿用相同的"层栈 + 不可逆叠加"语义。
+Linux 6.6 内核基线中的 Landlock 仅覆盖文件系统访问；网络访问控制在主线 6.7+ 才稳定落地。agent-linux 在 Linux 6.6 内核基线之上对 Landlock 进行前向移植，把网络规则作为可选扩展集成进 Cupolas Workbench 沙箱，沿用相同的"层栈 + 不可逆叠加"语义。
 
 ### 6.2 网络规则类型
 
-agentrt-linux Cupolas 沙箱使用的网络规则类型遵循上游 UAPI 设计：
+agent-linux Cupolas 沙箱使用的网络规则类型遵循上游 UAPI 设计：
 
 - `LANDLOCK_RULE_NET_PORT`：按 TCP/UDP 端口范围约束 bind/connect
 - `LANDLOCK_RULE_NET_SERVICE`：按服务类型约束（前瞻规范）
@@ -234,7 +234,7 @@ agentrt-linux Cupolas 沙箱使用的网络规则类型遵循上游 UAPI 设计�
 每条网络规则形如 `(port, allowed_access)`，与文件规则共享同一 ruleset 与层栈机制：
 
 ```c
-/* agentrt-linux Cupolas 网络规则示例（前向移植） */
+/* agent-linux Cupolas 网络规则示例（前向移植） */
 struct landlock_net_port_attr {
     __u64 allowed_access;   /* LANDLOCK_ACCESS_NET_* */
     __u64 port;             /* 端口号 */
@@ -247,13 +247,13 @@ struct landlock_net_port_attr {
 
 ### 6.3 与 Cupolas Network 子系统的协同
 
-Cupolas Network 子系统在 agentrt 端通过 `airy_cupolas_net_filter()` 实施用户态过滤；agentrt-linux 内核态则通过 Landlock 网络规则在 `bind()` / `connect()` syscall 路径上施加内核级强制。两端通过 `AgentsIPC` 总线同步规则，遵循 IRON-9 v3 同源且部分代码共享原则——同源在规则语义，独立在执行路径。网络规则端口范围最大 65535，端口号之外的协议字段（如 ICMP type）暂不支持；agentrt-linux Cupolas 在沙箱策略中明确"网络规则为可选增强"，策略缺失时回退默认拒绝。
+Cupolas Network 子系统在 agentrt 端通过 `airy_cupolas_net_filter()` 实施用户态过滤；agent-linux 内核态则通过 Landlock 网络规则在 `bind()` / `connect()` syscall 路径上施加内核级强制。两端通过 `AgentsIPC` 总线同步规则，遵循 IRON-9 v3 同源且部分代码共享原则——同源在规则语义，独立在执行路径。网络规则端口范围最大 65535，端口号之外的协议字段（如 ICMP type）暂不支持；agent-linux Cupolas 在沙箱策略中明确"网络规则为可选增强"，策略缺失时回退默认拒绝。
 
 ```mermaid
 flowchart LR
     APP["Agent bind/connect"] --> SC["socket() / connect() / bind()"]
     SC --> LSM["LSM 钩子<br/>security_socket_*"]
-    LSM --> LL["Landlock 网络规则<br/>(agentrt-linux 前向移植)"]
+    LSM --> LL["Landlock 网络规则<br/>(agent-linux 前向移植)"]
     LSM --> CUP["Cupolas Network 子系统"]
     LL --> NET["网络协议栈"]
     CUP --> NET
@@ -299,7 +299,7 @@ SYSCALL_DEFINE3(landlock_create_ruleset, const struct landlock_ruleset_attr __us
 
 ### 7.3 landlock_restrict_self
 
-把 ruleset 绑定到当前线程凭据成为不可逆域。关键步骤：`prepare_creds()` 复制当前凭据 → `landlock_merge_ruleset()` 把新 ruleset 合并到旧域得到新域 → `commit_creds()` 原子提交。整个过程在当前线程独占的凭据副本上操作，无并发竞争。这是 Landlock 在 agentrt-linux 安全体系中受推崇的核心原因——其原子性与不可逆性已形式化沉淀。
+把 ruleset 绑定到当前线程凭据成为不可逆域。关键步骤：`prepare_creds()` 复制当前凭据 → `landlock_merge_ruleset()` 把新 ruleset 合并到旧域得到新域 → `commit_creds()` 原子提交。整个过程在当前线程独占的凭据副本上操作，无并发竞争。这是 Landlock 在 agent-linux 安全体系中受推崇的核心原因——其原子性与不可逆性已形式化沉淀。
 
 ```c
 // security/landlock/syscalls.c（节选）
@@ -380,14 +380,14 @@ stateDiagram-v2
 
 ---
 
-## 第 8 章 agentrt-linux Agent 沙箱实现
+## 第 8 章 agent-linux Agent 沙箱实现
 
 ### 8.1 沙箱施加流程
 
 Cupolas Workbench 子系统在每个 Agent 启动时按下列流程施加 Landlock 沙箱：
 
 ```c
-/* agentrt-linux Cupolas Agent 沙箱示例（用户态） */
+/* agent-linux Cupolas Agent 沙箱示例（用户态） */
 #include <linux/landlock.h>
 #include <sys/prctl.h>
 int cupolas_sandbox_agent(const char *ro_root, const char *rw_work) {
@@ -425,7 +425,7 @@ int cupolas_sandbox_agent(const char *ro_root, const char *rw_work) {
 
 ### 8.2 与 Cupolas Vault 的协同
 
-Agent 在沙箱内运行的敏感数据由 Cupolas Vault 子系统通过 TPM + 机密计算保护，与 Landlock 沙箱形成"数据-代码"双层隔离：Landlock 限制代码可访问的文件范围，Vault 保护数据本身的机密性。施加失败时 Cupolas 通过 `AgentsIPC` 总线上报 `CUPOLAS_SANDBOX_FAIL` 事件，Agent 拒绝启动而非降级运行。这遵循 agentrt-linux 五维正交 24 原则中的 E-1（安全内生）——失败必须可见、可拒绝，不可静默退化。
+Agent 在沙箱内运行的敏感数据由 Cupolas Vault 子系统通过 TPM + 机密计算保护，与 Landlock 沙箱形成"数据-代码"双层隔离：Landlock 限制代码可访问的文件范围，Vault 保护数据本身的机密性。施加失败时 Cupolas 通过 `AgentsIPC` 总线上报 `CUPOLAS_SANDBOX_FAIL` 事件，Agent 拒绝启动而非降级运行。这遵循 agent-linux 五维正交 24 原则中的 E-1（安全内生）——失败必须可见、可拒绝，不可静默退化。
 
 ---
 
@@ -447,7 +447,7 @@ Workbench 与 Cupolas Audit 子系统通过 `AgentsIPC` 总线传递沙箱事件
 
 ## 第 10 章 五维原则映射
 
-agentrt-linux 五维正交 24 原则在 Landlock 沙箱层的体现：
+agent-linux 五维正交 24 原则在 Landlock 沙箱层的体现：
 
 | 原则 | 编号 | 在 Landlock 的体现 |
 |------|------|---------------------|
@@ -469,9 +469,9 @@ agentrt-linux 五维正交 24 原则在 Landlock 沙箱层的体现：
 
 ## 第 11 章 同源 agentrt 映射
 
-agentrt 的 `cupolas/workbench/` 模块与 agentrt-linux 内核态 Landlock 沙箱同源，遵循 IRON-9 v3 同源且部分代码共享原则。Landlock 沙箱在 Cupolas 7 大子系统中的角色：
+agentrt 的 `cupolas/workbench/` 模块与 agent-linux 内核态 Landlock 沙箱同源，遵循 IRON-9 v3 同源且部分代码共享原则。Landlock 沙箱在 Cupolas 7 大子系统中的角色：
 
-| Cupolas 子系统 | agentrt 端（用户态） | agentrt-linux 端（内核态 Landlock） |
+| Cupolas 子系统 | agentrt 端（用户态） | agent-linux 端（内核态 Landlock） |
 |----------------|----------------------|----------------------------------|
 | **Guards 守卫** | `airy_cupolas_guard_check()` 沙箱入口校验 | `landlock_restrict_self` 后 syscall 被钩子拦截 |
 | **Permission 权限裁决** | `airy_cupolas_perm_decide()` 策略裁决 | ruleset 中 `(path, allowed_access)` 二元组 |
@@ -479,13 +479,13 @@ agentrt 的 `cupolas/workbench/` 模块与 agentrt-linux 内核态 Landlock 沙�
 | **Audit 审计追踪** | `airy_cupolas_audit_log()` 拒绝事件落盘 | `-EACCES` 返回通过 `AgentsIPC` 上报 |
 | **Workbench 虚拟工作台** | `airy_cupolas_workbench_apply()` 策略施加 | 调用 `landlock_create_ruleset` + `add_rule` + `restrict_self` |
 | **Security Vault 安全金库** | `airy_cupolas_vault_seal()` 数据密封 | 沙箱限制可写路径，密钥仅存 Vault |
-| **Network Security 网络安全** | `airy_cupolas_net_filter()` 网络过滤 | Landlock 网络规则（agentrt-linux 前向移植） |
+| **Network Security 网络安全** | `airy_cupolas_net_filter()` 网络过滤 | Landlock 网络规则（agent-linux 前向移植） |
 
 两端通过 `AgentsIPC` 总线同步沙箱策略与审计事件，遵循 IRON-9 v3 同源且部分代码共享原则——同源在策略语义，独立在执行路径（用户态 API vs 内核态 syscall）。MicroCoreRT 锁定的 128B 消息头保证两端无适配层互操作。
 
 ### 11.1 IRON-9 v3 四层共享模型
 
-IRON-9 v3 将 agentrt Cupolas Workbench 与 agentrt-linux Landlock 沙箱的协作划分为四层：
+IRON-9 v3 将 agentrt Cupolas Workbench 与 agent-linux Landlock 沙箱的协作划分为四层：
 
 | 层次 | 共享程度 | Landlock 沙箱内容 |
 |------|---------|-----------------|
@@ -549,25 +549,25 @@ enum airy_verdict {
 ```
 ```
 
-**OS-IRON-005 约束**: agentrt-linux Landlock 与 agentrt Cupolas Workbench 共享 `include/uapi/linux/airymax/security_types.h`，task blob 偏移语义两端必须一致（沙箱域指针挂载点）；策略裁决 4 值枚举在两端语义完全相同，COMPLAIN 学习模式两端行为一致。
+**OS-IRON-005 约束**: agent-linux Landlock 与 agentrt Cupolas Workbench 共享 `include/uapi/linux/airymax/security_types.h`，task blob 偏移语义两端必须一致（沙箱域指针挂载点）；策略裁决 4 值枚举在两端语义完全相同，COMPLAIN 学习模式两端行为一致。
 
 #### [SS] 语义同源层
 
-| 维度 | agentrt 用户态（Cupolas Workbench） | agentrt-linux 内核态（Landlock） | 同源点 |
+| 维度 | agentrt 用户态（Cupolas Workbench） | agent-linux 内核态（Landlock） | 同源点 |
 |------|------------------------------------|--------------------------------|--------|
 | 规则集创建 | `airy_cupolas_workbench_spawn()` 创建沙箱域 | `landlock_create_ruleset()` 创建 ruleset | 创建语义同源 |
 | 规则添加 | `airy_cupolas_workbench_add_path()` 添加路径规则 | `landlock_add_rule()` 添加路径规则 | 路径绑定语义同源 |
 | 策略施加 | `airy_cupolas_workbench_apply()` 施加沙箱 | `landlock_restrict_self()` 限制自身 | 自限制语义同源 |
 | 访问掩码 | 用户态 access_mask 位图 | `LANDLOCK_ACCESS_FS_*` 位图 | 掩码语义同源 |
 | 路径匹配 | 用户态路径前缀匹配 | 内核态 `landlock_init_layer_names` 层级匹配 | 匹配语义同源 |
-| scope 限制 | 用户态 scope 配置 | `LANDLOCK_SCOPE_*` 限制（agentrt-linux 前向移植） | 作用域语义同源 |
+| scope 限制 | 用户态 scope 配置 | `LANDLOCK_SCOPE_*` 限制（agent-linux 前向移植） | 作用域语义同源 |
 | 拒绝上报 | `AgentsIPC` 上报 `-EACCES` 事件 | `AgentsIPC` 上报 `-EACCES` 事件 | 上报通道同源 |
 
 agentrt 的 `cupolas/workbench` 模块定义了 `airy_cupolas_workbench_spawn(domain, mask)`，与内核 Landlock 的 `landlock_create_ruleset(attr, size, flags)` 同源——两者都遵循"创建规则集 → 绑定路径 → 施加于自身"三段式。[SS] 语义同源在此体现为：操作模式同源（创建/添加/施加三 syscall 模式概念一致），函数签名因抽象层级不同而独立（用户态策略引擎 vs 内核态 ruleset）。
 
 #### [IND] 完全独立层
 
-| 维度 | agentrt 用户态（Cupolas Workbench） | agentrt-linux 内核态（Landlock） |
+| 维度 | agentrt 用户态（Cupolas Workbench） | agent-linux 内核态（Landlock） |
 |------|------------------------------------|--------------------------------|
 | 文件系统实现 | 不适用（用户态无 fs 实现） | `fs/landlock/` 完整子系统（ruleset.c、fs.c、object.c） |
 | 强制执行 | 用户态策略拦截（syscall 包装） | eBPF 钩子强制执行（`security_file_open` 等 LSM 钩子） |
@@ -583,7 +583,7 @@ agentrt 的 `cupolas/workbench` 模块定义了 `airy_cupolas_workbench_spawn(do
 graph LR
     A[agentrt Workbench 策略引擎] -->|读取 [SC] task_offset| B[security_types.h]
     A -->|spawn 沙箱域| C[landlock_create_ruleset]
-    C --> D[agentrt-linux Landlock 规则集]
+    C --> D[agent-linux Landlock 规则集]
     D -->|restrict_self| E[内核 eBPF 钩子强制]
     E -->|沙箱违规 -EACCES| F[AgentsIPC 上报审计事件]
     A -->|策略下发| F
@@ -591,7 +591,7 @@ graph LR
     style F fill:#fde68a,stroke:#b45309
 ```
 
-agentrt Cupolas Workbench 策略引擎通过 [SC] 共享契约层读取 `security_types.h` 中的 task blob 偏移，定位沙箱域指针在 task_struct 中的挂载点，随后通过三 syscall（create_ruleset / add_rule / restrict_self）在 agentrt-linux 内核态建立 Landlock 规则集。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步沙箱违规事件，无适配层。MicroCoreRT 极简内核契约要求：内核态 Landlock 不解析用户态策略 payload，仅按 [SC] 裁决枚举透传 `-EACCES` 事件；用户态 Workbench 守护进程负责跨态策略聚合与审计。沙箱域叠加遵循 Landlock 不可逆原则——一旦 `landlock_restrict_self` 提交，规则集 layer 栈固化于 cred blob，运行时不可撤销。
+agentrt Cupolas Workbench 策略引擎通过 [SC] 共享契约层读取 `security_types.h` 中的 task blob 偏移，定位沙箱域指针在 task_struct 中的挂载点，随后通过三 syscall（create_ruleset / add_rule / restrict_self）在 agent-linux 内核态建立 Landlock 规则集。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步沙箱违规事件，无适配层。MicroCoreRT 极简内核契约要求：内核态 Landlock 不解析用户态策略 payload，仅按 [SC] 裁决枚举透传 `-EACCES` 事件；用户态 Workbench 守护进程负责跨态策略聚合与审计。沙箱域叠加遵循 Landlock 不可逆原则——一旦 `landlock_restrict_self` 提交，规则集 layer 栈固化于 cred blob，运行时不可撤销。
 
 ### 11.2 Landlock 与 Cupolas 集成深化
 
@@ -618,7 +618,7 @@ final_mask = domain_L0 & domain_L1 & domain_L2
 某层未授予的访问位，在最终掩码中必为 0；任一层否决即整体否决。这与 Landlock `layer_masks` 多层短路语义一致（§3.2），保证 Agent 沙箱的最严策略优先。
 
 ```c
-/* security/airy/（agentrt-linux 专属，规划）—— 注：agentrt-linux 内核无
+/* security/airy/（agent-linux 专属，规划）—— 注：agent-linux 内核无
  * security/cupolas/ 目录；此合并辅助函数属规划实现，当前由用户态
  * cupolas_d 在 Landlock 三层域下发前合并掩码，内核侧无需落地。
  */
@@ -663,7 +663,7 @@ graph LR
 
 Cupolas daemon 创建 ruleset 后按 L0→L1→L2 顺序追加规则并三次调用 `landlock_restrict_self`，每次 `commit_creds()` 后规则集 layer 栈固化于 cred blob，运行时不可撤销（OS-STD-009）；syscall 违规时通过 `AgentsIPC` 上报 `CUPOLAS_SANDBOX_DENY` 事件（OS-SEC-006）。
 
-#### 11.2.4 OS-SEC 规则集（agentrt-linux 专属扩展深化）
+#### 11.2.4 OS-SEC 规则集（agent-linux 专属扩展深化）
 
 | 规则编号 | 类型 | 描述 |
 |----------|------|------|
@@ -672,7 +672,7 @@ Cupolas daemon 创建 ruleset 后按 L0→L1→L2 顺序追加规则并三次调
 | OS-SEC-014 | 安全规范 | `landlock_restrict_self` 必须在 Agent 进程 `fork()` 后立即调用，禁止延迟施加 |
 | OS-SEC-015 | 安全规范 | 沙箱创建失败必须终止 Agent 启动，禁止降级运行（与 OS-STD-SEC-011 一致） |
 
-上述规则在 IRON-9 v3 [SC] 共享契约层约束下，保证 agentrt 用户态 Cupolas Workbench 与 agentrt-linux 内核态 Landlock 沙箱的分层语义同源；任何对域叠加层数或合并算法的修改必须经 RFC 评审与五维原则映射检查（OS-STD-007）。
+上述规则在 IRON-9 v3 [SC] 共享契约层约束下，保证 agentrt 用户态 Cupolas Workbench 与 agent-linux 内核态 Landlock 沙箱的分层语义同源；任何对域叠加层数或合并算法的修改必须经 RFC 评审与五维原则映射检查（OS-STD-007）。
 
 ---
 
@@ -719,7 +719,7 @@ Cupolas daemon 创建 ruleset 后按 L0→L1→L2 顺序追加规则并三次调
 | 文档定位 | Landlock 用户态沙箱 |
 | 当前版本 | v1.0.1 |
 | 最后更新 | 2026-07-06 |
-| 维护者 | agentrt-linux 安全工程组 |
+| 维护者 | agent-linux 安全工程组 |
 | 同源映射 | agentrt Cupolas + Linux 6.6 LSM/Landlock/capability |
 | 理论根基 | Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-1 安全内生 |
 | 核心约束 | IRON-9 v3 同源且部分代码共享 |
@@ -914,7 +914,7 @@ struct landlock_superblock_security {
  */
 struct landlock_ruleset_attr {
     __u64 handled_access_fs;
-    /* v2（agentrt-linux 前向移植）: __u64 handled_access_net; */
+    /* v2（agent-linux 前向移植）: __u64 handled_access_net; */
 };
 
 /**
@@ -931,9 +931,9 @@ struct landlock_path_beneath_attr {
 };
 
 /**
- * struct landlock_net_port_attr - 网络端口规则属性（agentrt-linux 前向移植）
+ * struct landlock_net_port_attr - 网络端口规则属性（agent-linux 前向移植）
  *
- * 对齐 Linux 6.7+ include/uapi/linux/landlock.h（agentrt-linux 6.6 基线前向移植）
+ * 对齐 Linux 6.7+ include/uapi/linux/landlock.h（agent-linux 6.6 基线前向移植）
  *
  * @field allowed_access: 允许的网络访问位掩码（LANDLOCK_ACCESS_NET_*）
  * @field port:            TCP/UDP 端口号（0-65535）
@@ -1181,14 +1181,14 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 #define LANDLOCK_NUM_ACCESS_FS  15
 ```
 
-#### A.3.2 网络访问权限位（agentrt-linux 前向移植）
+#### A.3.2 网络访问权限位（agent-linux 前向移植）
 
 ```c
 /**
- * LANDLOCK_ACCESS_NET_* - 网络访问权限位（agentrt-linux 6.6 前向移植）
+ * LANDLOCK_ACCESS_NET_* - 网络访问权限位（agent-linux 6.6 前向移植）
  *
  * 对齐 Linux 6.7+ include/uapi/linux/landlock.h
- * agentrt-linux 在 6.6 基线上前向移植网络规则，沿用相同层栈语义
+ * agent-linux 在 6.6 基线上前向移植网络规则，沿用相同层栈语义
  */
 #define LANDLOCK_ACCESS_NET_BIND_TCP     (1ULL << 0)  /* bind TCP */
 #define LANDLOCK_ACCESS_NET_CONNECT_TCP (1ULL << 1)   /* connect TCP */
@@ -1213,7 +1213,7 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
  * 对齐 Linux 6.6 include/uapi/linux/landlock.h
  */
 #define LANDLOCK_RULE_PATH_BENEATH  (1U << 0)  /* 路径规则（文件系统） */
-#define LANDLOCK_RULE_NET_PORT      (1U << 1)  /* 网络端口规则（agentrt-linux 前向移植） */
+#define LANDLOCK_RULE_NET_PORT      (1U << 1)  /* 网络端口规则（agent-linux 前向移植） */
 
 /**
  * LANDLOCK_CREATE_RULESET_VERSION - ruleset 属性结构版本
@@ -1259,7 +1259,7 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
 /**
  * Landlock 系统调用号（对齐 Linux 6.6 arch/x86/entry/syscalls/syscall_64.tbl）
  *
- * agentrt-linux 在所有支持的架构上保留这三个 syscall 编号，
+ * agent-linux 在所有支持的架构上保留这三个 syscall 编号，
  * 由 MicroCoreRT 锁定为"用户空间稳定 ABI"（OS-IRON-004 / OS-KER-079）
  */
 #define __NR_landlock_create_ruleset  444
@@ -1295,11 +1295,11 @@ DEFINE_LSM(landlock, {
 });
 ```
 
-#### A.3.7 Cupolas 沙箱事件类型（agentrt-linux 专属）
+#### A.3.7 Cupolas 沙箱事件类型（agent-linux 专属）
 
 ```c
 /**
- * Cupolas 沙箱事件类型（agentrt-linux 专属，对齐 security_types.h [SC]）
+ * Cupolas 沙箱事件类型（agent-linux 专属，对齐 security_types.h [SC]）
  *
  * 通过 AgentsIPC 总线上报（128B 消息头，magic 0x41524531）
  * 由 Cupolas Audit 子系统持久化到 Workbench 日志卷
@@ -1313,7 +1313,7 @@ DEFINE_LSM(landlock, {
  * CONFIG_LANDLOCK - Landlock 编译开关
  *
  * 对齐 Linux 6.6 security/landlock/Kconfig
- * agentrt-linux 默认开启（CONFIG_LANDLOCK=y），作为 Agent 沙箱底座
+ * agent-linux 默认开启（CONFIG_LANDLOCK=y），作为 Agent 沙箱底座
  */
 #define CONFIG_LANDLOCK  1
 ```

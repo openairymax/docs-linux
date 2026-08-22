@@ -19,7 +19,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 架构师、跨端集成工程师、agentrt 核心开发者
+- **目标读者**：agent-linux 架构师、跨端集成工程师、agentrt 核心开发者
 - **前置知识**：理解 [10-unify-design.md](10-unify-design.md) Unify Design 总纲、[11-degraded-survival-layer.md](11-degraded-survival-layer.md) [DSL] 降级层
 - **预计阅读时间**：30 分钟
 - **核心概念**：IRON-9 v3、[SC]、[SS]、[IND]、[DSL]、四层模型
@@ -36,7 +36,7 @@ Airymax 体系包含两个核心工程：
 | 工程 | 定位 | 运行形态 |
 |------|------|---------|
 | **agentrt**（AirymaxAgentRT） | AI Agent 运行时平台工程 | 用户态跨平台（Linux/macOS/Windows） |
-| **agentrt-linux**（AirymaxOS） | 智能体操作系统 | Linux 6.6 内核态发行版（ALK 6.6） |
+| **agent-linux**（AirymaxOS） | 智能体操作系统 | Linux 6.6 内核态发行版（ALK 6.6） |
 
 两者之间存在大量共享的技术契约——IPC 消息头布局、错误码体系、capability 安全模型、调度参数、任务描述符格式等。IRON-9 跨端共享模型即为管理这些共享契约而建立。
 
@@ -74,11 +74,11 @@ IRON-9 v2（三层）                    IRON-9 v3（四层）
 
 ### 2.1 [SC] 层定义
 
-**[SC]（Shared Contract，共享契约层）**：agentrt 与 agentrt-linux **物理共享同一份头文件**，逐字节相同，通过 `#include` 引用。
+**[SC]（Shared Contract，共享契约层）**：agentrt 与 agent-linux **物理共享同一份头文件**，逐字节相同，通过 `#include` 引用。
 
 **特征**：
 
-- 物理宿主在 `agentrt-linux/kernel/include/uapi/linux/airymax/` 目录
+- 物理宿主在 `agent-linux/kernel/include/uapi/linux/airymax/` 目录
 - agentrt 通过 `-I` 编译选项引用同一物理文件
 - **禁止任何一端单方面修改**——变更必须双向同步，通过 `sc-dual-ci.yml` 逐字节校验
 - 使用内核 UAPI 类型（`__u32`/`__u16`/`__u64`/`__u8`），不使用 `uint32_t` 等 C 标准库类型
@@ -86,7 +86,7 @@ IRON-9 v2（三层）                    IRON-9 v3（四层）
 
 ### 2.2 12 个 [SC] 头文件清单
 
-> **D-8 OLK 6.6 UAPI 路径对齐说明**：OLK 6.6 内核 UAPI 头文件标准路径为 `include/uapi/linux/`（参考 `include/uapi/linux/io_uring.h`、`include/uapi/linux/sched.h`）。Airymax 12 个 [SC] 共享契约头文件属用户态可见的 UAPI（agentrt 用户态与 agentrt-linux 内核双端共享），故物理宿主为 `include/uapi/linux/airymax/`。Airymax 内核内部头文件（`maintainer_types.h`/`build_types.h`/`kconfig_types.h` 等，[IND] 独立层）保留在 `include/airymax/`（非 UAPI）。
+> **D-8 OLK 6.6 UAPI 路径对齐说明**：OLK 6.6 内核 UAPI 头文件标准路径为 `include/uapi/linux/`（参考 `include/uapi/linux/io_uring.h`、`include/uapi/linux/sched.h`）。Airymax 12 个 [SC] 共享契约头文件属用户态可见的 UAPI（agentrt 用户态与 agent-linux 内核双端共享），故物理宿主为 `include/uapi/linux/airymax/`。Airymax 内核内部头文件（`maintainer_types.h`/`build_types.h`/`kconfig_types.h` 等，[IND] 独立层）保留在 `include/airymax/`（非 UAPI）。
 
 v3 将 [SC] 头文件数量从 v2 的 6 个扩展为 **12 个**（v1.0.1 补全 `syscall.h` / `bpf_struct_ops.h`）：
 
@@ -131,19 +131,19 @@ v3 新增 6 个 [SC] 头文件的原因：
 
 ### 3.1 [SS] 层定义
 
-**[SS]（Semantic Sibling，语义同源层）**：agentrt 与 agentrt-linux 的**高层 API 语义同源**——功能语义一致，但函数签名各自独立演进。
+**[SS]（Semantic Sibling，语义同源层）**：agentrt 与 agent-linux 的**高层 API 语义同源**——功能语义一致，但函数签名各自独立演进。
 
 **特征**：
 
 - 不共享同一份源码，但 API 语义保持一致
 - agentrt 侧使用 JSON-RPC 风格高层 API
-- agentrt-linux 侧使用编号 syscall 风格
+- agent-linux 侧使用编号 syscall 风格
 - SDK 层签名同源（同一份源码两端编译）
 - 详细的语义映射表见 [30-interfaces/05-syscall-semantic-mapping.md](../30-interfaces/05-syscall-semantic-mapping.md)
 
 ### 3.2 [SS] 语义同源映射示例
 
-| # | agentrt 高层 API | agentrt-linux v1.0.1 syscall + op-dispatch | 语义 |
+| # | agentrt 高层 API | agent-linux v1.0.1 syscall + op-dispatch | 语义 |
 |---|-----------------|------------------------------------------|------|
 | 1 | `airy_sys_task_submit(input, input_len, timeout_ms, out_output)` | #548 `airy_sys_call(AIRY_OP_COMPILE_BADGE, task_desc, priority)` | 提交 Agent 任务（Badge 编译） |
 | 2 | `airy_sys_task_query(task_id, out_status)` | #550 `airy_sys_sched_ctl(AIRY_SCHED_GET_LATENCY, task_id)` | 查询任务状态 |
@@ -158,21 +158,21 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 
 ---
 
-## §4 [IND] 完全独立层：agentrt POSIX MQ + mmap ↔ agentrt-linux io_uring + IORING_OP_URING_CMD
+## §4 [IND] 完全独立层：agentrt POSIX MQ + mmap ↔ agent-linux io_uring + IORING_OP_URING_CMD
 
 ### 4.1 [IND] 层定义
 
-**[IND]（Independent，完全独立层）**：agentrt 与 agentrt-linux 各自独有，不共享。
+**[IND]（Independent，完全独立层）**：agentrt 与 agent-linux 各自独有，不共享。
 
 **特征**：
 - agentrt 独有：跨平台抽象（POSIX/libc）、JSON-RPC 统一入口 `airy_syscall_invoke()`
-- agentrt-linux 独有：内核态 syscall 编号（548-571）、LSM 钩子集成、KABI 二进制兼容、Kbuild/Kconfig 构建系统
+- agent-linux 独有：内核态 syscall 编号（548-571）、LSM 钩子集成、KABI 二进制兼容、Kbuild/Kconfig 构建系统
 
 ### 4.2 [IND] 的 IPC 实现差异
 
 两端 IPC 实现完全独立，但通过 [SC] 的 `ipc.h` 共享 128B 消息头布局：
 
-| 维度 | agentrt（[IND]） | agentrt-linux（[IND]） |
+| 维度 | agentrt（[IND]） | agent-linux（[IND]） |
 |------|-----------------|---------------------|
 | IPC 机制 | POSIX MQ + mmap 共享内存 | io_uring + `IORING_OP_URING_CMD` |
 | 零拷贝 | mmap 共享页 | registered buffer + mmap |
@@ -180,7 +180,7 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 | 调度 | MicroCoreRT 用户态调度 | sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF） |
 | 安全 | 应用权限模型 | 纯 C LSM + Capability 系统 |
 
-### 4.3 agentrt-linux [IND] 独有内容
+### 4.3 agent-linux [IND] 独有内容
 
 | # | 独有内容 | 说明 |
 |---|---------|------|
@@ -291,7 +291,7 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 [SC] 共享契约层的变更必须遵循以下流程：
 
 1. **提议**：在对应的契约文档（如 `08-sc-error-contract.md`）提出变更提案
-2. **双向评审**：agentrt 和 agentrt-linux 双方维护者评审
+2. **双向评审**：agentrt 和 agent-linux 双方维护者评审
 3. **同步修改**：修改 `kernel/include/uapi/linux/airymax/*.h` 物理头文件
 4. **CI 验证**：`sc-dual-ci.yml` 双端逐字节校验通过
 5. **文档更新**：更新对应契约文档版本号 + 本文件版本号

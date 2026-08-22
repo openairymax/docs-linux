@@ -1,31 +1,31 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 集成标准合集
-> **文档定位**：合并与 agentrt 的集成规范、生态伙伴计划、Manager 模块配置集成标准、标准参与与技术方案贡献四部分内容，作为 agentrt-linux（AirymaxOS）集成标准的完整参考。理论根基：IRON-9 v3 工程铁律、五维正交24原则、体系并行论。\
+# agent-linux 集成标准合集
+> **文档定位**：合并与 agentrt 的集成规范、生态伙伴计划、Manager 模块配置集成标准、标准参与与技术方案贡献四部分内容，作为 agent-linux（AirymaxOS）集成标准的完整参考。理论根基：IRON-9 v3 工程铁律、五维正交24原则、体系并行论。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)\
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **SSoT 依赖声明**：本文件规则编号权威为 09-ssot-registry.md §3
 
 ---
 
-## Part I: agentrt-linux 与 agentrt 的集成规范
+## Part I: agent-linux 与 agentrt 的集成规范
 
 ### 1. 集成架构总览
 
 #### 1.1 核心集成原则
 
-agentrt（AirymaxAgentRT）与 agentrt-linux（AirymaxOS）的集成基于 **IRON-9 v3 工程铁律**，核心原则如下：
+agentrt（AirymaxAgentRT）与 agent-linux（AirymaxOS）的集成基于 **IRON-9 v3 工程铁律**，核心原则如下：
 
 | 原则 | 说明 |
 |------|------|
-| **无适配层** | agentrt 在 agentrt-linux 上原生运行，无需任何适配层或转换层 |
+| **无适配层** | agentrt 在 agent-linux 上原生运行，无需任何适配层或转换层 |
 | **同源天然契合** | 两者共享 Airymax 设计理念（MicroCoreRT / AgentsIPC / Cupolas / MemoryRovol / CoreLoopThree），设计假设和实现假设一致 |
 | **契约共享** | [SC] 共享契约层代码完全共享，通过 `include/uapi/linux/airymax/` 头文件库同步 |
 | **语义同源** | [SS] 语义同源层高层 API 语义同源，签名因抽象层级不同而独立演进 |
 | **完全独立** | [IND] 完全独立层各自独立演进，不互相依赖 |
-| **可选使用** | agentrt 在 agentrt-linux 上运行时，可选使用 OS 原生能力（同源红利），非强制 |
+| **可选使用** | agentrt 在 agent-linux 上运行时，可选使用 OS 原生能力（同源红利），非强制 |
 
 #### 1.2 集成架构总览图
 
@@ -58,7 +58,7 @@ graph TB
         IND["[IND] 完全独立层<br/>━━━━━━━━━━━━━<br/>平台适配层<br/>构建系统<br/>跨平台兼容层<br/>各自独立演进"]
     end
 
-    subgraph "agentrt-linux（AirymaxOS）"
+    subgraph "agent-linux（AirymaxOS）"
         direction TB
         subgraph "用户态服务"
             AS[services<br/>VFS/网络/驱动/12 daemons]
@@ -124,20 +124,20 @@ graph TB
     class AS,ASC,ASM,ASS,ACN,ASY,AK,LK os
 ```
 
-#### 1.3 agentrt 在 agentrt-linux 上的运行模式
+#### 1.3 agentrt 在 agent-linux 上的运行模式
 
-agentrt 在 agentrt-linux 上有两种运行模式：
+agentrt 在 agent-linux 上有两种运行模式：
 
 | 模式 | 说明 | 同源红利 |
 |------|------|----------|
 | **标准模式** | 作为普通用户态应用运行，使用标准 libc/POSIX 接口 | 天然更稳健（设计假设一致） |
-| **增强模式** | 可选使用 agentrt-linux 原生能力（sched_tac 调度策略、io_uring IPC 等） | 获得 OS 级性能优化 + 同源语义 |
+| **增强模式** | 可选使用 agent-linux 原生能力（sched_tac 调度策略、io_uring IPC 等） | 获得 OS 级性能优化 + 同源语义 |
 
 ```
-agentrt 在 agentrt-linux 上的运行示意：
+agentrt 在 agent-linux 上的运行示意：
 
-  标准模式: agentrt → libc → syscall → agentrt-linux 内核
-  增强模式: agentrt → agentrt SDK → stc_agent/io_uring → agentrt-linux 内核
+  标准模式: agentrt → libc → syscall → agent-linux 内核
+  增强模式: agentrt → agentrt SDK → stc_agent/io_uring → agent-linux 内核
 ```
 
 ---
@@ -146,7 +146,7 @@ agentrt 在 agentrt-linux 上的运行示意：
 
 #### 2.1 共享契约层定义
 
-[SC] 共享契约层是 IRON-9 v3 的核心，包含 agentrt 和 agentrt-linux 完全共享的代码。该层代码存放于 `include/uapi/linux/airymax/` 头文件库，由 agentrt 维护，agentrt-linux 引用。
+[SC] 共享契约层是 IRON-9 v3 的核心，包含 agentrt 和 agent-linux 完全共享的代码。该层代码存放于 `include/uapi/linux/airymax/` 头文件库，由 agentrt 维护，agent-linux 引用。
 
 #### 2.2 集成关键共享头文件（节选 6 个：5 个 [SC] 核心 + bpf_struct_ops.h 补充共享；全量 [SC] 核心为 10 个）
 
@@ -157,7 +157,7 @@ agentrt 在 agentrt-linux 上的运行示意：
 | 文件名 | `include/uapi/linux/airymax/bpf_struct_ops.h` |
 | 维护方 | agentrt |
 | 共享内容 | sched_tac 用户态调度器 struct airy_sched_ops 状态机定义、common_value 共享结构、调度器注册接口 |
-| agentrt-linux 使用方式 | 内核态 `#include` 使用，sched_tac 用户态调度器通过 struct airy_sched_ops 注册调度策略 |
+| agent-linux 使用方式 | 内核态 `#include` 使用，sched_tac 用户态调度器通过 struct airy_sched_ops 注册调度策略 |
 
 ```c
 /* bpf_struct_ops.h — 共享契约（简化示意） */
@@ -176,7 +176,7 @@ struct airy_sched_ops {
 };
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -189,7 +189,7 @@ struct airy_sched_ops {
 | 文件名 | `include/uapi/linux/airymax/memory_types.h` |
 | 维护方 | agentrt |
 | 共享内容 | MemoryRovol L1-L4 数据结构、GFP 掩码语义、PMEM 持久化接口 |
-| agentrt-linux 使用方式 | 内核态 MemoryRovol 使用相同的数据结构 |
+| agent-linux 使用方式 | 内核态 MemoryRovol 使用相同的数据结构 |
 
 ```c
 /* memory_types.h — 共享契约（简化示意） */
@@ -214,7 +214,7 @@ typedef struct {
 #define AIRY_GFP_ROVOL_L4     (__GFP_RECLAIMABLE)
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -228,7 +228,7 @@ typedef struct {
 | 文件名 | `include/uapi/linux/airymax/security_types.h` |
 | 维护方 | agentrt |
 | 共享内容 | capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）、LSM 钩子 250 ID 枚举、Cupolas blob 布局（cred/inode/file/task）、capability 派生模型（mint/mintcopy/derive/revoke）、Vault backend 抽象、策略裁决结果 4 值枚举 |
-| agentrt-linux 使用方式 | 内核态 capability 系统使用相同的令牌格式与安全类型 |
+| agent-linux 使用方式 | 内核态 capability 系统使用相同的令牌格式与安全类型 |
 
 ```c
 /* security_types.h — 共享契约（简化示意） */
@@ -261,7 +261,7 @@ typedef enum {
 } airy_lsm_verdict_t;
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -276,7 +276,7 @@ typedef enum {
 | 文件名 | `include/uapi/linux/airymax/cognition_types.h` |
 | 维护方 | agentrt |
 | 共享内容 | CoreLoopThree 阶段枚举（PERCEPT/THINK/ACT）、Thinkdual 模式枚举（AIRY_THINK_FAST/AIRY_THINK_SLOW）、LLM 推理阶段枚举（PREFILL/DECODE/SPECULATIVE）、CoreLoopThree 上下文结构、Token 能效指标结构、GPU/NPU 能力描述符 |
-| agentrt-linux 使用方式 | 内核态 CoreLoopThree kthread 使用相同的阶段枚举与上下文结构 |
+| agent-linux 使用方式 | 内核态 CoreLoopThree kthread 使用相同的阶段枚举与上下文结构 |
 
 ```c
 /* cognition_types.h — 共享契约（简化示意） */
@@ -298,7 +298,7 @@ typedef enum {
 } airy_llm_phase_t;
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -312,7 +312,7 @@ typedef enum {
 | 文件名 | `include/uapi/linux/airymax/sched.h` |
 | 维护方 | agentrt |
 | 共享内容 | sched_tac 调度类约束（使用 SCHED_DEADLINE/SCHED_FIFO/EEVDF 原生调度类，禁止 SCHED_AGENT 内核调度类宏）、任务描述符（magic 0x41475453 'AGTS'）、vtime 类型与衰减公式、优先级范围 0-139、AIRY_SLICE_DFL（20ms） |
-| agentrt-linux 使用方式 | sched_tac 用户态调度器使用相同的任务描述符与 vtime 语义 |
+| agent-linux 使用方式 | sched_tac 用户态调度器使用相同的任务描述符与 vtime 语义 |
 
 ```c
 /* sched.h — 共享契约（简化示意） */
@@ -344,7 +344,7 @@ struct AIRY_ALIGNED(64) airy_task_desc {
 };
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -358,7 +358,7 @@ struct AIRY_ALIGNED(64) airy_task_desc {
 | 文件名 | `include/uapi/linux/airymax/ipc.h` |
 | 维护方 | agentrt |
 | 共享内容 | IPC magic（0x41524531 'ARE1'）、128B 消息头结构（struct airy_ipc_msg_hdr）、SQE/CQE 操作码与标志位 |
-| agentrt-linux 使用方式 | 内核态 IPC 子系统原生支持 128B 消息头 |
+| agent-linux 使用方式 | 内核态 IPC 子系统原生支持 128B 消息头 |
 
 ```c
 /* ipc.h — 共享契约（简化示意） */
@@ -380,7 +380,7 @@ typedef enum {
  * 50-engineering-standards/120-cross-project-code-sharing.md §Layout C） */
 ```
 
-**agentrt-linux 落地**：
+**agent-linux 落地**：
 
 | 落地位置 | 集成方式 | 说明 |
 |----------|----------|------|
@@ -392,9 +392,9 @@ typedef enum {
 
 | 同步维度 | 机制 | 频率 |
 |----------|------|------|
-| 头文件变更 | agentrt 维护，agentrt-linux 通过 git submodule 或定期同步 | 按需 |
+| 头文件变更 | agentrt 维护，agent-linux 通过 git submodule 或定期同步 | 按需 |
 | 版本对齐 | 头文件版本号与 agentrt 版本号对齐 | 每次 agentrt 发布 |
-| 变更通知 | agentrt 发布变更公告，agentrt-linux 评估影响 | 每次变更 |
+| 变更通知 | agentrt 发布变更公告，agent-linux 评估影响 | 每次变更 |
 | 双向校验 | 跨仓 CI 校验头文件兼容性 | 每次 PR |
 
 ---
@@ -403,11 +403,11 @@ typedef enum {
 
 #### 3.1 语义同源层定义
 
-[SS] 语义同源层是 IRON-9 v3 的第二层，包含 agentrt 和 agentrt-linux 语义一致但实现独立的模块。高层 API 语义同源（概念操作一致）；SDK 层签名同源（同一份源码两端编译），其他层签名因抽象层级不同而独立演进。
+[SS] 语义同源层是 IRON-9 v3 的第二层，包含 agentrt 和 agent-linux 语义一致但实现独立的模块。高层 API 语义同源（概念操作一致）；SDK 层签名同源（同一份源码两端编译），其他层签名因抽象层级不同而独立演进。
 
 #### 3.2 调度语义集成
 
-| 维度 | agentrt（MicroCoreRT） | agentrt-linux（stc_agent） | 同源语义 |
+| 维度 | agentrt（MicroCoreRT） | agent-linux（stc_agent） | 同源语义 |
 |------|------------------------|------------------------------|----------|
 | **调度模型** | 用户态优先级调度 | 用户态 sched_tac 调度策略 | 优先级调度语义一致 |
 | **任务描述** | `struct airy_task_desc` | 内核态 `task_struct` 扩展 | 任务结构语义一致 |
@@ -419,7 +419,7 @@ typedef enum {
 **集成方式**：
 
 ```
-agentrt MicroCoreRT 在 agentrt-linux 上运行时：
+agentrt MicroCoreRT 在 agent-linux 上运行时：
   标准模式: agentrt 使用 pthread 调度（优先级映射到 Linux nice 值）
   增强模式: agentrt 可选调用 sched_tac 调度策略
             → 因为 stc_agent 的语义和 MicroCoreRT 一致
@@ -428,7 +428,7 @@ agentrt MicroCoreRT 在 agentrt-linux 上运行时：
 
 #### 3.3 IPC 语义集成
 
-| 维度 | agentrt（AgentsIPC） | agentrt-linux（io_uring IPC） | 同源语义 |
+| 维度 | agentrt（AgentsIPC） | agent-linux（io_uring IPC） | 同源语义 |
 |------|----------------------|-------------------------------|----------|
 | **消息头格式** | 128B 定长 | 128B 定长 | 同源（[SC] 层共享） |
 | **通信模型** | 异步消息传递 | io_uring 异步消息传递 | 异步语义一致 |
@@ -440,7 +440,7 @@ agentrt MicroCoreRT 在 agentrt-linux 上运行时：
 **集成方式**：
 
 ```
-agentrt AgentsIPC 在 agentrt-linux 上运行时：
+agentrt AgentsIPC 在 agent-linux 上运行时：
   标准模式: agentrt 使用标准 Unix Domain Socket
   增强模式: agentrt 可选使用 io_uring IPC（通过 liburing）
             → 因为 io_uring IPC 的 128B 消息头与 AgentsIPC 同源
@@ -449,7 +449,7 @@ agentrt AgentsIPC 在 agentrt-linux 上运行时：
 
 #### 3.4 安全语义集成
 
-| 维度 | agentrt（Cupolas） | agentrt-linux（capability + LSM） | 同源语义 |
+| 维度 | agentrt（Cupolas） | agent-linux（capability + LSM） | 同源语义 |
 |------|--------------------|-----------------------------------|----------|
 | **安全模型** | capability-based | capability-based（纯 C LSM，不用 SELinux） | capability 模型一致 |
 | **令牌格式** | 不可伪造令牌 | 不可伪造令牌（内核签名） | 令牌格式一致（[SC] 层共享） |
@@ -460,16 +460,16 @@ agentrt AgentsIPC 在 agentrt-linux 上运行时：
 **集成方式**：
 
 ```
-agentrt Cupolas 在 agentrt-linux 上运行时：
+agentrt Cupolas 在 agent-linux 上运行时：
   标准模式: agentrt 使用自身的 Cupolas 安全模型
-  增强模式: agentrt 可选将 capability 检查委托给 agentrt-linux 内核
+  增强模式: agentrt 可选将 capability 检查委托给 agent-linux 内核
             → 因为 capability 令牌格式和操作语义一致
-            → 所以令牌可以在 agentrt 和 agentrt-linux 之间传递
+            → 所以令牌可以在 agentrt 和 agent-linux 之间传递
 ```
 
 #### 3.5 记忆语义集成
 
-| 维度 | agentrt（MemoryRovol） | agentrt-linux（MemoryRovol 内核态） | 同源语义 |
+| 维度 | agentrt（MemoryRovol） | agent-linux（MemoryRovol 内核态） | 同源语义 |
 |------|------------------------|-------------------------------------|----------|
 | **记忆模型** | L1-L4 四层递进 | L1-L4 四层递进 | 模型一致 |
 | **存用分离** | L1 不可变 + L2-L4 索引 | L1 仅追加 + L2-L4 索引 | 存用分离语义一致 |
@@ -479,7 +479,7 @@ agentrt Cupolas 在 agentrt-linux 上运行时：
 
 #### 3.6 认知语义集成
 
-| 维度 | agentrt（CoreLoopThree） | agentrt-linux（CoreLoopThree kthread） | 同源语义 |
+| 维度 | agentrt（CoreLoopThree） | agent-linux（CoreLoopThree kthread） | 同源语义 |
 |------|--------------------------|----------------------------------------|----------|
 | **认知循环** | 三层循环（认知→规划→执行） | 三层循环（认知→规划→执行） | 循环模型一致 |
 | **双系统** | System 1 + System 2 | System 1 + System 2 | 双系统模型一致 |
@@ -490,9 +490,9 @@ agentrt Cupolas 在 agentrt-linux 上运行时：
 **集成方式**：
 
 ```
-agentrt CoreLoopThree 在 agentrt-linux 上运行时：
+agentrt CoreLoopThree 在 agent-linux 上运行时：
   标准模式: agentrt 使用自身的 CoreLoopThree 用户态认知循环
-  增强模式: agentrt 可选将认知循环迁移到 agentrt-linux 的 CoreLoopThree kthread
+  增强模式: agentrt 可选将认知循环迁移到 agent-linux 的 CoreLoopThree kthread
             → 因为认知循环模型完全一致
             → 所以迁移是语义无损的，获得内核态性能提升
 ```
@@ -503,7 +503,7 @@ agentrt CoreLoopThree 在 agentrt-linux 上运行时：
 
 #### 4.1 ABI 稳定性承诺
 
-agentrt-linux（AirymaxOS）对 agentrt 提供以下 ABI 兼容性保证：
+agent-linux（AirymaxOS）对 agentrt 提供以下 ABI 兼容性保证：
 
 | 保证维度 | 承诺 | 说明 |
 |----------|------|------|
@@ -540,32 +540,32 @@ agentrt-linux（AirymaxOS）对 agentrt 提供以下 ABI 兼容性保证：
 
 | 原则 | 说明 |
 |------|------|
-| **独立版本号** | agentrt 和 agentrt-linux 各自独立版本号，不强耦合 |
-| **契约版本锁定** | [SC] 层头文件有独立版本号，agentrt 和 agentrt-linux 锁定同一版本 |
+| **独立版本号** | agentrt 和 agent-linux 各自独立版本号，不强耦合 |
+| **契约版本锁定** | [SC] 层头文件有独立版本号，agentrt 和 agent-linux 锁定同一版本 |
 | **语义版本号** | 两者遵循语义化版本规范（MAJOR.MINOR.PATCH） |
-| **向前兼容** | agentrt 的新版本应能在 agentrt-linux 的旧版本上运行（标准模式） |
-| **增强模式兼容** | 增强模式需要 agentrt-linux 版本 >= 增强特性引入版本 |
+| **向前兼容** | agentrt 的新版本应能在 agent-linux 的旧版本上运行（标准模式） |
+| **增强模式兼容** | 增强模式需要 agent-linux 版本 >= 增强特性引入版本 |
 
 #### 5.2 版本对齐矩阵
 
-| agentrt 版本 | agentrt-linux 版本 | 标准模式 | 增强模式 | [SC] 层版本 |
+| agentrt 版本 | agent-linux 版本 | 标准模式 | 增强模式 | [SC] 层版本 |
 |--------------|-------------------|----------|----------|------------|
 | 0.1.1 | 0.1.1 | 兼容 | N/A（文档阶段） | 0.1.1 |
 | 1.0.1 | 1.0.1 | 兼容 | 全部特性 | 1.0.1 |
 | 1.0.2 | 1.0.1 | 兼容 | 部分特性 | 1.0.1 |
 | 1.0.1 | 1.0.2 | 兼容 | 全部特性 | 1.0.1 |
-| 2.0.0 | 1.0.1 | 兼容 | ❌ 需 agentrt-linux 2.0.0 | 2.0.0 |
+| 2.0.0 | 1.0.1 | 兼容 | ❌ 需 agent-linux 2.0.0 | 2.0.0 |
 
 #### 5.3 版本对齐流程
 
 ```mermaid
 graph TD
     A[agentrt 发布新版本] --> B{是否变更 [SC] 层?}
-    B -->|是| C[通知 agentrt-linux 团队]
-    B -->|否| D[agentrt-linux 无需强制升级]
-    C --> E[agentrt-linux 评估影响]
+    B -->|是| C[通知 agent-linux 团队]
+    B -->|否| D[agent-linux 无需强制升级]
+    C --> E[agent-linux 评估影响]
     E --> F{是否需要升级?}
-    F -->|是| G[agentrt-linux 升级 [SC] 层版本]
+    F -->|是| G[agent-linux 升级 [SC] 层版本]
     F -->|否| H[保持当前 [SC] 层版本]
     G --> I[跨仓 CI 双向校验]
     I --> J[同步发布]
@@ -593,7 +593,7 @@ graph TD
 |--------|------|----------|
 | **L1: [SC] 层契约测试** | 验证共享契约层头文件的一致性 | 10 个头文件的结构体布局、枚举值、宏定义 |
 | **L2: [SS] 层语义测试** | 验证语义同源层的语义一致性 | 调度、IPC、安全、记忆、认知 |
-| **L3: 端到端集成测试** | 验证 agentrt 在 agentrt-linux 上的完整运行 | 标准模式 + 增强模式 |
+| **L3: 端到端集成测试** | 验证 agentrt 在 agent-linux 上的完整运行 | 标准模式 + 增强模式 |
 | **L4: 性能基准测试** | 验证集成不降低性能 | 关键路径性能 |
 | **L5: 兼容性回归测试** | 验证新版本不破坏兼容性 | ABI 兼容性 |
 
@@ -601,7 +601,7 @@ graph TD
 
 | 测试项 | 测试方法 | 预期结果 |
 |--------|----------|----------|
-| 头文件结构体布局一致性 | 编译时 `static_assert` 检查 sizeof 和 offsetof | agentrt 和 agentrt-linux 的结构体大小和偏移完全一致 |
+| 头文件结构体布局一致性 | 编译时 `static_assert` 检查 sizeof 和 offsetof | agentrt 和 agent-linux 的结构体大小和偏移完全一致 |
 | 枚举值一致性 | 编译时预处理器断言 | 枚举值完全一致 |
 | 宏定义一致性 | 编译时预处理器断言 | 宏定义值完全一致 |
 | 头文件可独立编译 | 单独编译每个头文件 | 0 警告 0 错误 |
@@ -627,29 +627,29 @@ static_assert(offsetof(struct airy_ipc_msg_hdr, trace_id) == 8,
 
 | 测试项 | 测试方法 | 预期结果 |
 |--------|----------|----------|
-| 调度语义一致性 | agentrt 任务优先级 → agentrt-linux stc_agent 优先级 | 优先级映射正确，调度行为一致 |
-| IPC 语义一致性 | agentrt 发送消息 → agentrt-linux io_uring 接收 | 消息格式无损，5 种 payload 全部正确 |
-| 安全语义一致性 | agentrt capability 令牌 → agentrt-linux capability 检查 | 令牌验证通过，权限操作正确 |
-| 记忆语义一致性 | agentrt 记忆写入 → agentrt-linux MemoryRovol 查询 | 数据格式正确，L1-L4 检索正确 |
-| 认知语义一致性 | agentrt CoreLoopThree 循环 → agentrt-linux kthread 循环 | 循环状态一致，切换阈值一致 |
+| 调度语义一致性 | agentrt 任务优先级 → agent-linux stc_agent 优先级 | 优先级映射正确，调度行为一致 |
+| IPC 语义一致性 | agentrt 发送消息 → agent-linux io_uring 接收 | 消息格式无损，5 种 payload 全部正确 |
+| 安全语义一致性 | agentrt capability 令牌 → agent-linux capability 检查 | 令牌验证通过，权限操作正确 |
+| 记忆语义一致性 | agentrt 记忆写入 → agent-linux MemoryRovol 查询 | 数据格式正确，L1-L4 检索正确 |
+| 认知语义一致性 | agentrt CoreLoopThree 循环 → agent-linux kthread 循环 | 循环状态一致，切换阈值一致 |
 
 #### 6.4 L3: 端到端集成测试
 
 | 测试场景 | 测试方法 | 预期结果 |
 |----------|----------|----------|
-| 标准模式运行 | agentrt 在 agentrt-linux 上以标准模式运行 | 全部功能正常，无错误 |
-| 增强模式运行 | agentrt 在 agentrt-linux 上以增强模式运行 | 全部功能正常，性能提升 |
+| 标准模式运行 | agentrt 在 agent-linux 上以标准模式运行 | 全部功能正常，无错误 |
+| 增强模式运行 | agentrt 在 agent-linux 上以增强模式运行 | 全部功能正常，性能提升 |
 | 模式切换 | agentrt 在标准模式和增强模式之间切换 | 无缝切换，无数据丢失 |
-| 降级运行 | agentrt-linux 增强特性不可用时，agentrt 降级到标准模式 | 自动降级，功能正常 |
-| 长时间运行 | agentrt 在 agentrt-linux 上持续运行 72 小时 | 无内存泄漏，无性能衰减 |
+| 降级运行 | agent-linux 增强特性不可用时，agentrt 降级到标准模式 | 自动降级，功能正常 |
+| 长时间运行 | agentrt 在 agent-linux 上持续运行 72 小时 | 无内存泄漏，无性能衰减 |
 
 #### 6.5 集成测试环境
 
 | 环境 | 用途 | 配置 |
 |------|------|------|
-| CI 环境 | 每次 PR 自动运行 L1-L3 测试 | 标准 agentrt-linux 构建环境 |
+| CI 环境 | 每次 PR 自动运行 L1-L3 测试 | 标准 agent-linux 构建环境 |
 | 性能测试环境 | 每次发布运行 L4 测试 | 专用硬件，无其他负载 |
-| 兼容性测试环境 | 每次发布运行 L5 测试 | 多版本 agentrt + agentrt-linux 组合 |
+| 兼容性测试环境 | 每次发布运行 L5 测试 | 多版本 agentrt + agent-linux 组合 |
 
 ---
 
@@ -657,9 +657,9 @@ static_assert(offsetof(struct airy_ipc_msg_hdr, trace_id) == 8,
 
 #### 7.1 性能基准定义
 
-agentrt 在 agentrt-linux 上运行的性能基准，以 agentrt 在普通 Linux 上运行为基线：
+agentrt 在 agent-linux 上运行的性能基准，以 agentrt 在普通 Linux 上运行为基线：
 
-| 基准指标 | 基线（普通 Linux） | agentrt-linux 标准模式 | agentrt-linux 增强模式 | 说明 |
+| 基准指标 | 基线（普通 Linux） | agent-linux 标准模式 | agent-linux 增强模式 | 说明 |
 |----------|-------------------|----------------------|----------------------|------|
 | IPC 消息吞吐量 | 50K msg/s | 50K msg/s（等同） | > 100K msg/s（2x+） | 增强模式使用 io_uring 零拷贝 |
 | IPC 消息延迟（P99） | 100us | 100us（等同） | < 50us（2x） | 增强模式使用 io_uring 零拷贝 |
@@ -686,8 +686,8 @@ agentrt 在 agentrt-linux 上运行的性能基准，以 agentrt 在普通 Linux
 每次发布必须附带性能基准报告：
 
 ```
-=== agentrt-linux 集成性能基准报告 ===
-版本: agentrt 1.0.1 + agentrt-linux 1.0.1
+=== agent-linux 集成性能基准报告 ===
+版本: agentrt 1.0.1 + agent-linux 1.0.1
 日期: 2027-XX-XX
 
 | 测试项 | 基线 | 标准模式 | 增强模式 | 达标 |
@@ -704,15 +704,15 @@ agentrt 在 agentrt-linux 上运行的性能基准，以 agentrt 在普通 Linux
 
 ### 8. 数据流集成图
 
-#### 8.1 agentrt 在 agentrt-linux 上的完整数据流
+#### 8.1 agentrt 在 agent-linux 上的完整数据流
 
 ```mermaid
 sequenceDiagram
     participant App as Agent 应用
     participant RT as agentrt 运行时
     participant SC as [SC] 共享契约层
-    participant OS_SVC as agentrt-linux 服务层
-    participant OS_KERN as agentrt-linux 内核层
+    participant OS_SVC as agent-linux 服务层
+    participant OS_KERN as agent-linux 内核层
 
     Note over App,OS_KERN: === 标准模式 ===
     App->>RT: 提交任务
@@ -754,7 +754,7 @@ graph LR
         S3[版本锁定]
     end
 
-    subgraph "agentrt-linux 仓库"
+    subgraph "agent-linux 仓库"
         B1[include/uapi/linux/airymax/ → 引用]
         B2[kernel IPC]
         B3[security cap]
@@ -789,9 +789,9 @@ graph LR
 
 | 铁律 | 内容 | 关联规范 |
 |------|------|----------|
-| **无适配层** | agentrt 在 agentrt-linux 上运行时不得引入任何适配层或转换层 | IRON-9 v3 |
+| **无适配层** | agentrt 在 agent-linux 上运行时不得引入任何适配层或转换层 | IRON-9 v3 |
 | **[SC] 层不可变** | [SC] 层共享契约一旦发布，不得修改已有结构体布局和枚举值 | IRON-9 v3 |
-| **双向校验** | [SC] 层变更须经 agentrt + agentrt-linux 两端 CI 双向校验 | IRON-9 v3 |
+| **双向校验** | [SC] 层变更须经 agentrt + agent-linux 两端 CI 双向校验 | IRON-9 v3 |
 | **ABI 稳定** | 系统调用 ABI 和 [SC] 层 ABI 在 LTS 周期内保持稳定 | K-2 接口契约化原则 |
 | **性能不退化** | 集成后性能基准不得劣于基线 | E-8 可测试性原则 |
 | **版本透明** | 版本对齐状态必须公开透明，记录在版本对齐矩阵中 | E-7 文档即代码原则 |

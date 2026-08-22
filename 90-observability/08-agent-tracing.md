@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Agent 行为追踪
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L9 层——agentrt-linux 专属 Agent 行为追踪的工程规范\
+# agent-linux（AirymaxOS）Agent 行为追踪
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L9 层——agent-linux 专属 Agent 行为追踪的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + ftrace + user_events + eBPF 三位一体追踪\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + sched_tac 调度\
-> **核心约束**：Agent 行为追踪是 agentrt-linux 专属 L9 层可观测性，覆盖 Agent 决策路径全生命周期
+> **核心约束**：Agent 行为追踪是 agent-linux 专属 L9 层可观测性，覆盖 Agent 决策路径全生命周期
 
 ---
 
@@ -31,13 +31,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-Agent 行为追踪是 agentrt-linux 专属的可观测性 L9 层，专门追踪智能体操作系统中每个 Agent 从创建到终止的完整决策路径与行为序列。与传统 Linux 内核追踪进程的 syscall/CPU/IO 不同，Agent 行为追踪聚焦于智能体特有的语义维度：状态转换、调度延迟、IPC 交互、记忆访问、认知循环。agentrt-linux 将 Agent 行为追踪作为可观测性体系的最高语义层，原因有三：
+Agent 行为追踪是 agent-linux 专属的可观测性 L9 层，专门追踪智能体操作系统中每个 Agent 从创建到终止的完整决策路径与行为序列。与传统 Linux 内核追踪进程的 syscall/CPU/IO 不同，Agent 行为追踪聚焦于智能体特有的语义维度：状态转换、调度延迟、IPC 交互、记忆访问、认知循环。agent-linux 将 Agent 行为追踪作为可观测性体系的最高语义层，原因有三：
 
 1. **决策可审计性**：Agent 的每次决策（认知→规划→调度→执行）必须可追溯，是合规审计与故障诊断的基础。Agent 行为追踪记录完整的决策路径，满足金融/医疗等强监管场景的审计要求。
 2. **性能归因**：Agent 性能问题（如响应延迟、Token 超预算）需要追溯到具体的决策环节。行为追踪提供从 LLM 推理调用到 IPC 交互的端到端归因能力。
 3. **sched_tac 协同**：Agent 的调度类切换（DL→RT→EEVDF）是sched_tac 的核心机制，行为追踪记录每次切换的触发原因与效果，是验证sched_tac 有效性的关键数据源。
 
-**OS-OBS-081: Agent 行为追踪是 agentrt-linux 可观测性 L9 层的强制基线，所有 Agent 必须接受行为追踪，不得存在"匿名行为"路径。**
+**OS-OBS-081: Agent 行为追踪是 agent-linux 可观测性 L9 层的强制基线，所有 Agent 必须接受行为追踪，不得存在"匿名行为"路径。**
 
 **OS-KER-171: Agent 行为追踪规划配置项 `CONFIG_AIRY_AGENT_TRACING`（**当前 kernel 源码中不存在，属规划**）；落地时由内建 Airy LSM（非 agentrt.ko）在 `airy_init()` 阶段注册 Agent 行为追踪基础设施。**
 
@@ -84,7 +84,7 @@ graph TD
 
 ### 2.1 五大追踪维度
 
-agentrt-linux 定义 Agent 行为追踪的五大维度：
+agent-linux 定义 Agent 行为追踪的五大维度：
 
 | 维度 | 追踪内容 | 主要工具 | 数据来源 |
 |------|---------|---------|---------|
@@ -112,7 +112,7 @@ agentrt-linux 定义 Agent 行为追踪的五大维度：
 
 ### 2.3 追踪粒度
 
-agentrt-linux 支持三级追踪粒度：
+agent-linux 支持三级追踪粒度：
 
 | 粒度 | 事件数/Agent/秒 | 开销 | 适用场景 |
 |------|---------------|------|---------|
@@ -128,7 +128,7 @@ agentrt-linux 支持三级追踪粒度：
 
 ### 3.1 ftrace + user_events + eBPF 三位一体
 
-agentrt-linux Agent 行为追踪采用三工具协同：
+agent-linux Agent 行为追踪采用三工具协同：
 
 | 工具 | 角色 | 优势 | 局限 |
 |------|------|------|------|
@@ -227,7 +227,7 @@ int trace_airy_sched_switch(struct trace_event_raw_airy_sched_switch *ctx)
 
 ### 4.1 airy_trace_agent_call_graph() API
 
-agentrt-linux 提供 `airy_trace_agent_call_graph()` API，用于构建 Agent 间的调用关系图：
+agent-linux 提供 `airy_trace_agent_call_graph()` API，用于构建 Agent 间的调用关系图：
 
 ```c
 /* include/uapi/linux/airymax/trace.h（v1.0.1 计划实现，当前未创建） */
@@ -441,7 +441,7 @@ perf report -i perf.data --sort overhead,symbol,dso
 
 ### 6.2 自定义分析脚本
 
-agentrt-linux 提供 `airy-trace-analyze.py` 脚本，基于追踪数据生成分析报告：
+agent-linux 提供 `airy-trace-analyze.py` 脚本，基于追踪数据生成分析报告：
 
 ```bash
 # 分析 Agent 42 的行为追踪
@@ -726,4 +726,4 @@ Agent 42 Cognition-Scheduling Correlation:
 
 ---
 
-> **文档结束** | agentrt-linux Agent 行为追踪 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Every agent leaves a trace; every trace tells a story."
+> **文档结束** | agent-linux Agent 行为追踪 v1.0.1 | 维护者：开源极境工程与规范委员会 | "Every agent leaves a trace; every trace tells a story."

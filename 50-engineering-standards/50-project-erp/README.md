@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 项目管理规范总览
-> **文档定位**：agentrt-linux（AirymaxOS）项目管理规范的顶层入口，定义项目资源、错误码、SBOM 等核心管理域的规范体系\
+# agent-linux 项目管理规范总览
+> **文档定位**：agent-linux（AirymaxOS）项目管理规范的顶层入口，定义项目资源、错误码、SBOM 等核心管理域的规范体系\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[工程标准规范手册](../00-engineering-standards-handbook.md)\
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 项目管理在 OS 开发中的重要性
 
-操作系统级项目的管理不同于普通应用软件项目。agentrt-linux（AirymaxOS）作为基于 Linux 内核的 Agentic OS 发行版，其项目管理面临以下独特挑战：
+操作系统级项目的管理不同于普通应用软件项目。agent-linux（AirymaxOS）作为基于 Linux 内核的 Agentic OS 发行版，其项目管理面临以下独特挑战：
 
 | 挑战维度 | 说明 | 管理应对 |
 |----------|------|----------|
@@ -27,7 +27,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 五维正交 24 原则在项目管理中的映射
 
-agentrt-linux（AirymaxOS）的项目管理规范遵循五维正交 24 原则，尤其体现在以下工程观原则：
+agent-linux（AirymaxOS）的项目管理规范遵循五维正交 24 原则，尤其体现在以下工程观原则：
 
 | 原则编号 | 原则名称 | 在项目管理中的体现 |
 |----------|----------|---------------------|
@@ -80,8 +80,8 @@ graph TD
 
 | 文档 | 职责 | 受众 |
 |------|------|------|
-| **project_erp.md Part II** | 定义 agentrt-linux 全系统统一错误码体系，涵盖内核态与用户态双错误码空间、分段规划、与 agentrt 的映射关系、使用规范与维护流程 | 内核开发者、服务开发者、测试工程师 |
-| **project_erp.md Part I** | 定义 agentrt-linux 软件物料清单的生成标准、组件追踪规则、许可证合规矩阵、漏洞扫描策略与自动生成流程 | 发布工程师、安全审计员、合规团队 |
+| **project_erp.md Part II** | 定义 agent-linux 全系统统一错误码体系，涵盖内核态与用户态双错误码空间、分段规划、与 agentrt 的映射关系、使用规范与维护流程 | 内核开发者、服务开发者、测试工程师 |
+| **project_erp.md Part I** | 定义 agent-linux 软件物料清单的生成标准、组件追踪规则、许可证合规矩阵、漏洞扫描策略与自动生成流程 | 发布工程师、安全审计员、合规团队 |
 
 ---
 
@@ -89,16 +89,16 @@ graph TD
 
 ### 3.1 为什么需要统一错误码体系
 
-agentrt-linux（AirymaxOS）是一个跨内核态和用户态、跨 8 个子仓的复杂系统。没有统一的错误码体系，将导致以下问题：
+agent-linux（AirymaxOS）是一个跨内核态和用户态、跨 8 个子仓的复杂系统。没有统一的错误码体系，将导致以下问题：
 
 1. **错误不可追溯**：同一错误在不同子仓中表现为不同的错误码，无法定位根源（违反 E-6 错误可追溯原则）
 2. **跨层调试困难**：内核态错误码与用户态错误码无法关联，调试时无法获得完整错误链
-3. **与 agentrt 无法对接**：agentrt 在 agentrt-linux 上运行时，若错误码不一致，同源红利丧失
+3. **与 agentrt 无法对接**：agentrt 在 agent-linux 上运行时，若错误码不一致，同源红利丧失
 4. **文档与代码脱节**：错误码定义分散，维护成本高（违反 E-7 文档即代码原则）
 
 ### 3.2 双错误码体系总览
 
-agentrt-linux 采用**双错误码体系**：
+agent-linux 采用**双错误码体系**：
 
 | 错误码空间 | 表示形式 | 适用范围 | 说明 |
 |------------|----------|----------|------|
@@ -123,11 +123,11 @@ agentrt-linux 采用**双错误码体系**：
 
 ### 3.4 与 agentrt 错误码的映射关系
 
-根据 IRON-9 v3 工程铁律，agentrt-linux 与 agentrt 共享契约层代码（[SC] 层）。错误码映射遵循以下规则：
+根据 IRON-9 v3 工程铁律，agent-linux 与 agentrt 共享契约层代码（[SC] 层）。错误码映射遵循以下规则：
 
 | 层级 | 错误码关系 | 映射方式 |
 |------|------------|----------|
-| **[SC] 共享契约层** | 完全共享 | agentrt 错误码与 agentrt-linux 内核态错误码直接映射，无需转换 |
+| **[SC] 共享契约层** | 完全共享 | agentrt 错误码与 agent-linux 内核态错误码直接映射，无需转换 |
 | **[SS] 语义同源层** | 语义一致 | 错误码语义一致，但具体数值可能不同（各自独立实现） |
 | **[IND] 完全独立层** | 各自独立 | 无映射关系，各自定义错误码 |
 
@@ -139,7 +139,7 @@ agentrt-linux 采用**双错误码体系**：
 
 ### 4.1 为什么需要 SBOM
 
-软件物料清单（SBOM）是 agentrt-linux（AirymaxOS）供应链安全的核心组成部分：
+软件物料清单（SBOM）是 agent-linux（AirymaxOS）供应链安全的核心组成部分：
 
 | 需求 | 说明 |
 |------|------|
@@ -151,11 +151,11 @@ agentrt-linux 采用**双错误码体系**：
 
 ### 4.2 SBOM 覆盖范围
 
-agentrt-linux SBOM 覆盖以下组件类别：
+agent-linux SBOM 覆盖以下组件类别：
 
 | 类别 | 组件示例 | 优先级 |
 |------|----------|--------|
-| **Linux 内核基线** | Linux 内核 6.6 基线（含 agentrt-linux 内核增强） | 最高 |
+| **Linux 内核基线** | Linux 内核 6.6 基线（含 agent-linux 内核增强） | 最高 |
 | **eBPF 可观测性（非核心，H5）** | eBPF kfunc、dynamic pointer（仅用于 90-observability，airy_lsm 不依赖 BPF） | 中 |
 | **sched_tac 调度** | SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射（不使用 sched_ext） | 高 |
 | **Rust 工具链** | Rust 编译器、cargo、核心 crate | 高 |
@@ -169,7 +169,7 @@ agentrt-linux SBOM 覆盖以下组件类别：
 
 根据 IRON-9 v3 分层：
 
-- **[SC] 共享契约层**：agentrt-linux 与 agentrt 共享 `include/uapi/linux/airymax/` 头文件库，SBOM 中共同标注此部分
+- **[SC] 共享契约层**：agent-linux 与 agentrt 共享 `include/uapi/linux/airymax/` 头文件库，SBOM 中共同标注此部分
 - **[SS] 语义同源层**：两者的实现使用各自独立的组件，SBOM 各自维护
 - **[IND] 完全独立层**：SBOM 完全独立，无交叉
 
@@ -181,7 +181,7 @@ agentrt-linux SBOM 覆盖以下组件类别：
 
 ### 5.1 资源管理总览
 
-agentrt-linux（AirymaxOS）的资源管理遵循 E-3 资源确定性原则：每块内存的分配者必须明确其释放者，每个文件句柄的打开者必须明确其关闭者，每个线程的创建者必须明确其销毁者。
+agent-linux（AirymaxOS）的资源管理遵循 E-3 资源确定性原则：每块内存的分配者必须明确其释放者，每个文件句柄的打开者必须明确其关闭者，每个线程的创建者必须明确其销毁者。
 
 | 资源类型 | 管理机制 | 确定性保障 |
 |----------|----------|------------|
@@ -231,12 +231,12 @@ agentrt-linux（AirymaxOS）的资源管理遵循 E-3 资源确定性原则：�
 
 ### 5.5 风险管理
 
-agentrt-linux（AirymaxOS）作为 OS 级项目，面临以下关键风险，项目管理规范定义相应的应对策略：
+agent-linux（AirymaxOS）作为 OS 级项目，面临以下关键风险，项目管理规范定义相应的应对策略：
 
 | 风险类别 | 风险描述 | 影响等级 | 应对策略 |
 |----------|----------|----------|----------|
 | **内核基线漂移** | 引用未来内核特性作为 6.6 原生能力 | 严重 | IRON-10 / BAN-361 / ACC-OS04 三重防护 |
-| **同源失配** | agentrt 与 agentrt-linux 的 [SC] 层版本不一致 | 严重 | 跨仓 CI 双向校验 + 版本锁定 |
+| **同源失配** | agentrt 与 agent-linux 的 [SC] 层版本不一致 | 严重 | 跨仓 CI 双向校验 + 版本锁定 |
 | **供应链漏洞** | 第三方组件 CVE 未及时修复 | 高 | 每日漏洞扫描 + 响应 SLA |
 | **许可证冲突** | 引入不兼容许可证的第三方组件 | 高 | 引入前许可证审查 + SPDX 合规矩阵 |
 | **接口契约破坏** | ABI 变更导致 agentrt 无法运行 | 严重 | ABI 兼容性检查 + 锁定 [SC] 层不可变 |
@@ -261,7 +261,7 @@ agentrt-linux（AirymaxOS）作为 OS 级项目，面临以下关键风险，项
 
 ### 5.7 变更管理流程
 
-agentrt-linux（AirymaxOS）的项目管理变更遵循以下流程：
+agent-linux（AirymaxOS）的项目管理变更遵循以下流程：
 
 ```mermaid
 graph TD
@@ -270,7 +270,7 @@ graph TD
     C --> D{影响范围?}
     D -->|单子仓| E[子仓治理组批准]
     D -->|跨子仓| F[工程规范委员会批准]
-    D -->|涉及 [SC] 层| G[agentrt + agentrt-linux 联合审查]
+    D -->|涉及 [SC] 层| G[agentrt + agent-linux 联合审查]
     E --> H[实施变更]
     F --> H
     G --> H
@@ -316,7 +316,7 @@ graph TD
 
 ### 5.9 项目文档管理规范
 
-agentrt-linux（AirymaxOS）的项目文档遵循 E-7 文档即代码原则，全部文档纳入版本控制：
+agent-linux（AirymaxOS）的项目文档遵循 E-7 文档即代码原则，全部文档纳入版本控制：
 
 | 文档类型 | 存放位置 | 版本控制 | 审查要求 |
 |----------|----------|----------|----------|
@@ -370,7 +370,7 @@ agentrt-linux（AirymaxOS）的项目文档遵循 E-7 文档即代码原则，�
 ## 7. 相关文档
 
 - [项目管理规范合集](./project_erp.md)：SBOM / 错误码 / 模块需求 / 资源管理
-- [集成标准总览](../40-integration/README.md)：agentrt-linux 集成标准
+- [集成标准总览](../40-integration/README.md)：agent-linux 集成标准
 - [集成标准合集](../40-integration/integration.md)：agentrt 集成 / 生态伙伴 / 配置集成 / 标准贡献
 - [架构设计](../../10-architecture/README.md)：系统架构总览
 - [五维正交原则](../../10-architecture/02-five-dimensional-principles.md)：五维正交 24 原则

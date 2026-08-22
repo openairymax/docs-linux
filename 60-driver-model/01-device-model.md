@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — device/driver/bus 三元组详解
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块首篇——device/driver/bus/class 四元关系核心抽象\
+# agent-linux（AirymaxOS）驱动模型 — device/driver/bus 三元组详解
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块首篇——device/driver/bus/class 四元关系核心抽象\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `daemons`（用户态服务）+ Linux 6.6 `drivers/base/`（device/driver/bus/class 实现）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——继承 Linux 设备模型语义，不耦合上游发行版实现
@@ -13,19 +13,19 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 概述
 
-Linux 设备模型核心可一句话概括："**device 描述有什么，driver 描述如何做，bus 负责把两者绑在一起**"。agentrt-linux 选择 Linux 6.6 内核基线作为驱动模型同源起点——这是经过最广泛硬件生态验证的解耦哲学。MicroCoreRT 在用户态重新实现智能体调度，AgentsIPC 在用户态承载进程间通信，而内核态硬件抽象层完整继承这套三元组。
+Linux 设备模型核心可一句话概括："**device 描述有什么，driver 描述如何做，bus 负责把两者绑在一起**"。agent-linux 选择 Linux 6.6 内核基线作为驱动模型同源起点——这是经过最广泛硬件生态验证的解耦哲学。MicroCoreRT 在用户态重新实现智能体调度，AgentsIPC 在用户态承载进程间通信，而内核态硬件抽象层完整继承这套三元组。
 
-本文档覆盖 device/driver/bus/class 四元关系、probe/remove 生命周期、name/OF/ACPI 三源匹配、sysfs 导出、kref/kobject 引用计数五大主题。IRON-9 v3 同源且部分代码共享体现为：内核态结构体与上游保持语义等价（确保可直接复用上游驱动代码）；用户态扩展（`agent_bus_type`、`devm_airy_*` 资源族）不进入上游内核，而是作为 agentrt-linux 专属扩展通过 `agentrt/daemon/` 适配器接入。
+本文档覆盖 device/driver/bus/class 四元关系、probe/remove 生命周期、name/OF/ACPI 三源匹配、sysfs 导出、kref/kobject 引用计数五大主题。IRON-9 v3 同源且部分代码共享体现为：内核态结构体与上游保持语义等价（确保可直接复用上游驱动代码）；用户态扩展（`agent_bus_type`、`devm_airy_*` 资源族）不进入上游内核，而是作为 agent-linux 专属扩展通过 `agentrt/daemon/` 适配器接入。
 
 | 层次 | 来源 | 演进策略 |
 |------|------|---------|
 | `struct device` / `struct device_driver` / `struct bus_type` | Linux 6.6 `include/linux/device.h` | 跟随上游，按需 backport |
 | `struct kref` / `struct kobject` | Linux 6.6 `include/linux/kref.h` | 跟随上游 |
-| `agent_bus_type` / `devm_airy_*` | agentrt-linux 自研 | 独立演进，不回传上游 |
+| `agent_bus_type` / `devm_airy_*` | agent-linux 自研 | 独立演进，不回传上游 |
 
 > **OS-DRV-001**： 内核态设备模型结构体（`device`/`device_driver`/`bus_type`/`class`/`kref`/`kobject`）的字段、签名、生命周期语义必须与 Linux 6.6 内核基线保持二进制兼容。任何扩展通过包装结构实现（不使用内核 ABI 预留槽位，与 IRON-1 一致）。
 
-> **OS-DRV-002**： agentrt-linux 用户态扩展不得在内核态引入新的总线类型；它们必须作为用户态 daemon 实现，通过 `syscalls.h` 与 MicroCoreRT 通信。
+> **OS-DRV-002**： agent-linux 用户态扩展不得在内核态引入新的总线类型；它们必须作为用户态 daemon 实现，通过 `syscalls.h` 与 MicroCoreRT 通信。
 
 ---
 
@@ -33,7 +33,7 @@ Linux 设备模型核心可一句话概括："**device 描述有什么，driver 
 
 ### 2.1 四元角色
 
-| 角色 | 内核类型 | 头文件 | 职责 | agentrt-linux 类比 |
+| 角色 | 内核类型 | 头文件 | 职责 | agent-linux 类比 |
 |------|---------|--------|------|----------------|
 | **device** | `struct device` | `include/linux/device.h` | 描述硬件或虚拟设备实例（资源、属性、状态） | Agent 实例（含 SDK 句柄） |
 | **driver** | `struct device_driver` | `include/linux/device/driver.h` | 描述如何操作设备（probe/remove/PM 回调） | Agent 实现模块 |
@@ -65,7 +65,7 @@ struct device {
 
 `struct bus_type`（节选自 Linux 6.6 `include/linux/device/bus.h` 第 80 行）核心字段：`name`、`match`、`uevent`、`probe`、`remove`、`shutdown`、`suspend`/`resume`、`dma_configure`、`pm`。`match` 回调是绑定入口，返回正数表示匹配成功。
 
-> **OS-STD-DRV-010**： 任何 agentrt-linux 内核态 driver 必须通过 `driver_register()` 注册，禁止绕过驱动核心直接调用 `probe`。
+> **OS-STD-DRV-010**： 任何 agent-linux 内核态 driver 必须通过 `driver_register()` 注册，禁止绕过驱动核心直接调用 `probe`。
 
 > **OS-DRV-003**： 自定义总线必须实现 `match` 回调；`probe`/`remove` 回调可委托给 driver 自身，但 `match` 不能为空。
 
@@ -298,7 +298,7 @@ module_platform_driver(my_driver);
 
 ### 4.3 ACPI 匹配与 DT/ACPI 双源回退
 
-ACPI 匹配通过 `_HID`（Hardware ID）匹配 driver 的 `acpi_match_table`。同一 driver 可同时声明 OF 与 ACPI 匹配表，实现"一次编写，双源运行"。`platform_match` 会先尝试 OF，再尝试 ACPI，最后回退到名称匹配——这是 agentrt-linux 实现"同一 driver 服务异构硬件平台"的基石，也是 E-4 跨平台一致性原则在内核态的体现。
+ACPI 匹配通过 `_HID`（Hardware ID）匹配 driver 的 `acpi_match_table`。同一 driver 可同时声明 OF 与 ACPI 匹配表，实现"一次编写，双源运行"。`platform_match` 会先尝试 OF，再尝试 ACPI，最后回退到名称匹配——这是 agent-linux 实现"同一 driver 服务异构硬件平台"的基石，也是 E-4 跨平台一致性原则在内核态的体现。
 
 ```c
 static const struct acpi_device_id my_acpi_match[] = {
@@ -323,7 +323,7 @@ static struct platform_driver my_driver = {
 
 ### 5.1 sysfs 拓扑
 
-每个 `struct device` 注册时在 `/sys/devices/` 下创建目录，每个 `struct device_driver` 在 `/sys/bus/<bus>/drivers/` 下创建目录。agentrt-linux 的可观测性原则（E-2）要求所有 driver 暴露必要的属性用于诊断。
+每个 `struct device` 注册时在 `/sys/devices/` 下创建目录，每个 `struct device_driver` 在 `/sys/bus/<bus>/drivers/` 下创建目录。agent-linux 的可观测性原则（E-2）要求所有 driver 暴露必要的属性用于诊断。
 
 | 路径 | 来源 | 内容 |
 |------|------|------|
@@ -429,7 +429,7 @@ static void my_dev_release(struct device *dev)
 
 ## 7. 五维原则映射
 
-device/driver/bus 四元抽象在 agentrt-linux 五维正交 24 原则上的映射：
+device/driver/bus 四元抽象在 agent-linux 五维正交 24 原则上的映射：
 
 | 原则 | 在本模块的体现 |
 |------|---------------|
@@ -464,7 +464,7 @@ device/driver/bus 四元抽象在 agentrt-linux 五维正交 24 原则上的映�
 
 ## 8. 同源 agentrt 映射
 
-device/driver/bus 三元组在 agentrt-linux 用户态（agentrt）中的同源映射：
+device/driver/bus 三元组在 agent-linux 用户态（agentrt）中的同源映射：
 
 | 内核态抽象 | 用户态 agentrt 同源 | 映射说明 |
 |-----------|---------------------|---------|
@@ -483,7 +483,7 @@ device/driver/bus 三元组在 agentrt-linux 用户态（agentrt）中的同源�
 
 ### 8.2 IRON-9 v3 四层共享模型
 
-IRON-9 v3 将 agentrt daemons 设备访问模式与 agentrt-linux 内核 device model 的协作划分为三层。驱动模型以 [IND] 完全独立层为主——Linux device core 是内核基石，agentrt 不进入内核共享其实现；[SC] 共享契约层仅间接依赖任务描述符的 agent_id 字段用于 Agent 驱动匹配：
+IRON-9 v3 将 agentrt daemons 设备访问模式与 agent-linux 内核 device model 的协作划分为三层。驱动模型以 [IND] 完全独立层为主——Linux device core 是内核基石，agentrt 不进入内核共享其实现；[SC] 共享契约层仅间接依赖任务描述符的 agent_id 字段用于 Agent 驱动匹配：
 
 | 层次 | 共享程度 | 设备模型内容 |
 |------|---------|------------|
@@ -512,11 +512,11 @@ struct airy_task_desc {       /* [SC] SSoT，物理宿主 include/uapi/linux/air
 };
 ```
 
-**OS-DRV-IRON 约束**: agentrt daemons 与 agentrt-linux device model 不直接共享 device core 头文件；`agent_id` 字段语义两端一致（Agent 实例 ↔ 内核设备匹配键），由 `include/uapi/linux/airymax/sched.h` 间接锁定。Agent 驱动匹配发生在语义层，不跨态共享 device_struct 内存布局。
+**OS-DRV-IRON 约束**: agentrt daemons 与 agent-linux device model 不直接共享 device core 头文件；`agent_id` 字段语义两端一致（Agent 实例 ↔ 内核设备匹配键），由 `include/uapi/linux/airymax/sched.h` 间接锁定。Agent 驱动匹配发生在语义层，不跨态共享 device_struct 内存布局。
 
 #### [SS] 语义同源层
 
-| 维度 | agentrt 用户态（daemons） | agentrt-linux 内核态（device model） | 同源点 |
+| 维度 | agentrt 用户态（daemons） | agent-linux 内核态（device model） | 同源点 |
 |------|--------------------------|--------------------------------------|--------|
 | 设备注册 | `airy_agent_instance_register()` | `device_register()` | 注册模式同源 |
 | 驱动注册 | `airy_agent_module_register()` | `driver_register()` | 注册模式同源 |
@@ -530,7 +530,7 @@ agentrt daemons 的 `airy_agent_module_register()` 与内核 `driver_register()`
 
 #### [IND] 完全独立层
 
-| 维度 | agentrt 用户态（daemons） | agentrt-linux 内核态（device model） |
+| 维度 | agentrt 用户态（daemons） | agent-linux 内核态（device model） |
 |------|--------------------------|--------------------------------------|
 | device core | 不适用（用户态无 kobject） | kobject、sysfs、kobj_type 完整实现 |
 | devm 分配器 | 用户态 arena/glibc 分配 | devm_ 分配器内核实现（devres 链表） |
@@ -545,7 +545,7 @@ agentrt daemons 的 `airy_agent_module_register()` 与内核 `driver_register()`
 ```mermaid
 graph LR
     A[agentrt daemons 设备访问] -->|读取 [SC] agent_id| B[sched.h 任务描述符]
-    A -->|agent_id 匹配| C[agentrt-linux device model]
+    A -->|agent_id 匹配| C[agent-linux device model]
     C -->|bus_type.match| D[driver probe 探测]
     D -->|设备事件 uevent| E[AgentsIPC 上报设备事件]
     A -->|策略下发| E
@@ -553,7 +553,7 @@ graph LR
     style E fill:#fde68a,stroke:#b45309
 ```
 
-agentrt daemons 通过 [SC] 间接共享契约层读取 `include/uapi/linux/airymax/sched.h` 任务描述符的 `agent_id` 字段，将 Agent 实例与 agentrt-linux 内核设备匹配，触发 `bus_type.match` → `driver probe` 探测链。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步设备事件（uevent），无适配层。MicroCoreRT 极简内核契约要求（OS-KER-149）：内核态 device model 不得引入对用户态 daemon 的强依赖——`probe` 回调不得阻塞等待 daemon 响应；daemon 缺失时内核回退到默认行为，daemon 在 5 秒内未响应触发超时回退。
+agentrt daemons 通过 [SC] 间接共享契约层读取 `include/uapi/linux/airymax/sched.h` 任务描述符的 `agent_id` 字段，将 Agent 实例与 agent-linux 内核设备匹配，触发 `bus_type.match` → `driver probe` 探测链。两端通过 AgentsIPC 总线（128B 消息头，magic `0x41524531`）同步设备事件（uevent），无适配层。MicroCoreRT 极简内核契约要求（OS-KER-149）：内核态 device model 不得引入对用户态 daemon 的强依赖——`probe` 回调不得阻塞等待 daemon 响应；daemon 缺失时内核回退到默认行为，daemon 在 5 秒内未响应触发超时回退。
 
 ### 8.3 IRON-9 v3 同源且部分代码共享的实践
 
@@ -569,14 +569,14 @@ agentrt daemons 通过 [SC] 间接共享契约层读取 `include/uapi/linux/airy
 
 ### 8.4 Agent 虚拟设备驱动深化
 
-Agent 虚拟设备驱动是 agentrt-linux 专属扩展的核心——它将 agentrt 用户态的 Agent 实例映射为符合 Linux 设备模型的虚拟设备，使 Agent 可通过标准 `device_register`/`driver_register`/`bus_type.match` API 统一管理。此扩展完全在用户态 daemon（`agentrt-bus`）中实现（OS-DRV-002），内核态仅提供 `kobject_uevent` 异步通知通道，不引入对 daemon 的强依赖（OS-KER-149）。
+Agent 虚拟设备驱动是 agent-linux 专属扩展的核心——它将 agentrt 用户态的 Agent 实例映射为符合 Linux 设备模型的虚拟设备，使 Agent 可通过标准 `device_register`/`driver_register`/`bus_type.match` API 统一管理。此扩展完全在用户态 daemon（`agentrt-bus`）中实现（OS-DRV-002），内核态仅提供 `kobject_uevent` 异步通知通道，不引入对 daemon 的强依赖（OS-KER-149）。
 
 #### 8.4.1 agent_device 结构定义
 
 `agent_device` 嵌入标准 `struct device` 作为首字段，复用 kobj/sysfs/kref 全套机制。`agent_id` 与 `include/uapi/linux/airymax/sched.h` 任务描述符的 `agent_id` 同源（[SC] 间接共享），用于跨态匹配。
 
 ```c
-/* agentrt/daemon/include/agent_device.h — agentrt-linux 专属扩展 */
+/* agentrt/daemon/include/agent_device.h — agent-linux 专属扩展 */
 
 /**
  * struct agent_device - Agent 虚拟设备
@@ -773,8 +773,8 @@ Agent 设备的 probe/remove 与内核 uevent 形成异步协作：daemon 侧完
 
 | 版本 | 日期 | 维护者 | 变更摘要 |
 |------|------|--------|---------|
-| 0.1.1 | 2026-07-06 | agentrt-linux 驱动子系统组 | 占位版本，建立文档骨架与规则编号体系 |
-| 1.0.1 | 2026-07-06 | agentrt-linux 驱动子系统组 | 开发版本，完成四元关系、生命周期、匹配、sysfs、kref 五章正文 |
+| 0.1.1 | 2026-07-06 | agent-linux 驱动子系统组 | 占位版本，建立文档骨架与规则编号体系 |
+| 1.0.1 | 2026-07-06 | agent-linux 驱动子系统组 | 开发版本，完成四元关系、生命周期、匹配、sysfs、kref 五章正文 |
 
 ### 11.1 维护规则
 
@@ -993,7 +993,7 @@ struct class {
 
 ```c
 /**
- * struct subsys_private - 子系统私有数据（agentrt-linux 专属说明）
+ * struct subsys_private - 子系统私有数据（agent-linux 专属说明）
  *
  * bus_type 与 class 都通过 p 指针持有此结构，承载 kset、klist
  * 等驱动核心私有数据。driver 与 device 通过 klist_devices /
@@ -1389,7 +1389,7 @@ enum probe_type {
 /**
  * CONFIG_* - 驱动模型相关编译开关（对齐 Linux 6.6 drivers/base/Kconfig）
  *
- * agentrt-linux 默认开启设备模型核心
+ * agent-linux 默认开启设备模型核心
  */
 #define CONFIG_DEVICE_MODEL  1   /* 设备模型核心（kobject/sysfs） */
 #define CONFIG_OF           1   /* Device Tree 支持（ARM/ARM64/RISC-V） */
@@ -1398,4 +1398,4 @@ enum probe_type {
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 60 模块首篇 | IRON-9 v3 同源且部分代码共享 | Linux 6.6 内核基线
+> **文档结束** | agent-linux 驱动模型 60 模块首篇 | IRON-9 v3 同源且部分代码共享 | Linux 6.6 内核基线

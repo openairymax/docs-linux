@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 架构决策记录（ADR）
+# agent-linux 架构决策记录（ADR）
 
-> **文档定位**：agentrt-linux（AirymaxOS）架构决策记录（Architecture Decision Records）\
+> **文档定位**：agent-linux（AirymaxOS）架构决策记录（Architecture Decision Records）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **决策者**：OpenAirymax 工程规范委员会
 
 ***
@@ -34,7 +34,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | ------- | -------------------------------------------------------- | -------- |
 | ADR-001 | 采用 Linux 6.6 内核基线（同步 SP3 增强）                             | Accepted |
 | ADR-002 | 微内核化改造策略（基于 Linux + sched\_tac + 纯 C LSM + io\_uring） | Accepted |
-| ADR-003 | 8 子仓划分（基于微内核设计思想 + agentrt-linux 工程基线 + Airymax 同源）      | Accepted |
+| ADR-003 | 8 子仓划分（基于微内核设计思想 + agent-linux 工程基线 + Airymax 同源）      | Accepted |
 | ADR-004 | capability 安全模型（seL4 风格，security）                        | Accepted |
 | ADR-005 | io\_uring IPC 子系统（同源 AgentsIPC 128B 消息头）                 | Accepted |
 | ADR-006 | CoreLoopThree kthread 认知循环（cognition）—— kthread 仅承担调度协调机制，AI 策略在用户态执行（OS-IRON-KTHREAD-BOUNDARY） | Accepted |
@@ -61,7 +61,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 背景
 
-agentrt-linux 需要选择一个稳定的 Linux 内核基线作为系统基础。内核基线的选择直接影响：
+agent-linux 需要选择一个稳定的 Linux 内核基线作为系统基础。内核基线的选择直接影响：
 
 1. 硬件兼容性（CPU 架构、设备驱动）
 2. 生态兼容性（包管理、发行版兼容）
@@ -73,7 +73,7 @@ agentrt-linux 需要选择一个稳定的 Linux 内核基线作为系统基础�
 
 ### 决策
 
-agentrt-linux 1.0.1 采用 **Linux 6.6 内核基线** 作为内核基线。
+agent-linux 1.0.1 采用 **Linux 6.6 内核基线** 作为内核基线。
 
 具体技术特性映射：
 
@@ -83,16 +83,16 @@ agentrt-linux 1.0.1 采用 **Linux 6.6 内核基线** 作为内核基线。
 | Rust 实验性支持                   | Linux 6.6          | 主线       |
 | MGLRU（多代 LRU）                | Linux 6.6          | 主线       |
 | XFS 在线 fsck                  | Linux 6.6          | 主线       |
-| eBPF kfunc + dynamic pointer | Linux 6.6 原生       | 主线（agentrt-linux 核心架构不使用，H5 约束）      |
+| eBPF kfunc + dynamic pointer | Linux 6.6 原生       | 主线（agent-linux 核心架构不使用，H5 约束）      |
 | io\_uring 异步 I/O 改进          | Linux 6.6          | 主线       |
-| sched\_ext（SCHED\_AGENT）     | agentrt-linux 内核增强 | 主线 6.12+ |
+| sched\_ext（SCHED\_AGENT）     | agent-linux 内核增强 | 主线 6.12+ |
 
 ### 理由
 
 1. **生态兼容性**：Linux 6.6 内核基线继承企业级 Linux 生态（包管理、systemd、SELinux、国密等），具备广泛的企业级落地基础
-2. **长期支持**：Linux 6.6 内核基线提供 4+ 年长期支持，符合 agentrt-linux 1.0.1 的稳定运行需求
-3. **新特性完备**：Linux 6.6 原生提供 EEVDF 调度器、Rust 实验性支持、MGLRU、XFS 在线 fsck、eBPF kfunc（非核心架构，H5 约束），配合 sched\_tac（Linux 6.6 原生调度类组合 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF + cgroup cpuset 隔离 + seL4 MCS 语义映射，详见 ADR-013），覆盖 agentrt-linux 全部技术需求
-4. **多架构支持**：Linux 6.6 内核基线支持 x86 / ARM（鲲鹏/飞腾）/ RISC-V / LoongArch，符合 agentrt-linux 多架构目标
+2. **长期支持**：Linux 6.6 内核基线提供 4+ 年长期支持，符合 agent-linux 1.0.1 的稳定运行需求
+3. **新特性完备**：Linux 6.6 原生提供 EEVDF 调度器、Rust 实验性支持、MGLRU、XFS 在线 fsck、eBPF kfunc（非核心架构，H5 约束），配合 sched\_tac（Linux 6.6 原生调度类组合 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF + cgroup cpuset 隔离 + seL4 MCS 语义映射，详见 ADR-013），覆盖 agent-linux 全部技术需求
+4. **多架构支持**：Linux 6.6 内核基线支持 x86 / ARM（鲲鹏/飞腾）/ RISC-V / LoongArch，符合 agent-linux 多架构目标
 5. **避免误引风险**：明确锁定 6.6 基线，避免引用未来内核专属特性作为 6.6 原生能力（见 IRON-10 / BAN-361）
 
 ### 影响
@@ -125,7 +125,7 @@ agentrt-linux 1.0.1 采用 **Linux 6.6 内核基线** 作为内核基线。
 
 **负面后果**：
 
-- 部分主线新特性（6.7+）需等待 agentrt-linux 内核增强
+- 部分主线新特性（6.7+）需等待 agent-linux 内核增强
 - sched\_tac 基于 Linux 6.6 原生调度类组合，无需内核增强（ADR-013）
 
 ***
@@ -138,13 +138,13 @@ agentrt-linux 1.0.1 采用 **Linux 6.6 内核基线** 作为内核基线。
 
 ### 背景
 
-agentrt-linux 的设计支柱之一是"微内核设计思想"（参考 seL4，ADR-014）。但直接从零开发微内核会失去 Linux 30 年积累的硬件支持、驱动生态和稳定性。
+agent-linux 的设计支柱之一是"微内核设计思想"（参考 seL4，ADR-014）。但直接从零开发微内核会失去 Linux 30 年积累的硬件支持、驱动生态和稳定性。
 
 需要在"从零开发微内核"和"完全基于 Linux 宏内核"之间找到平衡点。
 
 ### 决策
 
-agentrt-linux 采用**微内核化改造策略**：基于 Linux 6.6 内核基线，利用 sched\_tac（SCHED\_DEADLINE / SCHED\_FIFO / EEVDF 调度类组合，详见 ADR-013）+ 纯 C LSM（airy\_lsm，H5 硬约束）+ io\_uring 实现微内核化改造，而非从零开发微内核。
+agent-linux 采用**微内核化改造策略**：基于 Linux 6.6 内核基线，利用 sched\_tac（SCHED\_DEADLINE / SCHED\_FIFO / EEVDF 调度类组合，详见 ADR-013）+ 纯 C LSM（airy\_lsm，H5 硬约束）+ io\_uring 实现微内核化改造，而非从零开发微内核。
 
 具体改造路径：
 
@@ -197,7 +197,7 @@ agentrt-linux 采用**微内核化改造策略**：基于 Linux 6.6 内核基线
 
 ***
 
-## ADR-003: 8 子仓划分（基于微内核设计思想 + agentrt-linux 工程基线 + Airymax 同源）
+## ADR-003: 8 子仓划分（基于微内核设计思想 + agent-linux 工程基线 + Airymax 同源）
 
 - **状态**: Accepted
 - **日期**: 2026-07-06
@@ -205,10 +205,10 @@ agentrt-linux 采用**微内核化改造策略**：基于 Linux 6.6 内核基线
 
 ### 背景
 
-agentrt-linux 需要划分子仓结构以支持模块化开发。子仓划分需要满足：
+agent-linux 需要划分子仓结构以支持模块化开发。子仓划分需要满足：
 
 1. 微内核设计思想（按能力域划分）
-2. agentrt-linux 治理组标准（采用 agentrt-linux 子仓治理模式）
+2. agent-linux 治理组标准（采用 agent-linux 子仓治理模式）
 3. Airymax 同源性（与 agentrt 模块对应）
 4. 清晰的依赖关系（层次分解原则 S-2）
 5. 独立的可测试性（E-8）
@@ -217,7 +217,7 @@ agentrt-linux 需要划分子仓结构以支持模块化开发。子仓划分需
 
 ### 决策
 
-agentrt-linux 采用 **8 子仓划分**：
+agent-linux 采用 **8 子仓划分**：
 
 | # | 子仓          | 中文    | 核心职责                         | 同源 agentrt                   |
 | - | ----------- | ----- | ---------------------------- | ---------------------------- |
@@ -233,7 +233,7 @@ agentrt-linux 采用 **8 子仓划分**：
 ### 理由
 
 1. **微内核能力域**：8 子仓严格按微内核能力域划分（内核 / 服务 / 安全 / 内存 / 认知 / 云原生 / 系统 / 测试），无功能重叠
-2. **agentrt-linux 治理组对应**：8 子仓与 agentrt-linux 子仓治理组（Kernel / Base Systems / Security / Cloud Native / QA 等）一一对应
+2. **agent-linux 治理组对应**：8 子仓与 agent-linux 子仓治理组（Kernel / Base Systems / Security / Cloud Native / QA 等）一一对应
 3. **Airymax 同源**：8 子仓与 agentrt 核心模块（atoms/corekern、daemons、cupolas、heapstore+memoryrovol、coreloopthree+frameworks、gateway+sdk、commons）一一对应
 4. **清晰依赖**：层次分解明确（kernel → services/security/memory/cognition → cloudnative → system → tests-linux），符合 S-2 层次分解原则
 5. **独立测试**：每个子仓可独立测试，符合 E-8 可测试性原则
@@ -243,8 +243,8 @@ agentrt-linux 采用 **8 子仓划分**：
 
 | 影响范围   | 描述                                                           |
 | ------ | ------------------------------------------------------------ |
-| 仓库管理   | 1 伞仓 + 5 管理仓 + 29 叶子仓 + 3 顶层仓 = 38 总仓库（agentrt-linux 为管理仓之一） |
-| SIG 治理 | 每个子仓对应一个治理组，采用 agentrt-linux 子仓治理模式                          |
+| 仓库管理   | 1 伞仓 + 5 管理仓 + 29 叶子仓 + 3 顶层仓 = 38 总仓库（agent-linux 为管理仓之一） |
+| SIG 治理 | 每个子仓对应一个治理组，采用 agent-linux 子仓治理模式                          |
 | 开发流程   | 每个子仓独立 CI/CD，统一版本管理                                          |
 | 文档体系   | 每个子仓对应 `20-modules/01-08.md` 设计文档                            |
 
@@ -262,7 +262,7 @@ agentrt-linux 采用 **8 子仓划分**：
 
 - 子仓按能力域清晰划分，无功能重叠
 - 与 agentrt 同源对应，天然适配
-- 与 agentrt-linux 治理组一一对应，便于社区协作
+- 与 agent-linux 治理组一一对应，便于社区协作
 - 每个子仓可独立测试和演进
 
 **负面后果**：
@@ -280,7 +280,7 @@ agentrt-linux 采用 **8 子仓划分**：
 
 ### 背景
 
-agentrt-linux 需要一个安全模型来控制资源访问。候选方案包括：
+agent-linux 需要一个安全模型来控制资源访问。候选方案包括：
 
 1. 传统 Linux DAC（自主访问控制）
 2. SELinux MAC（强制访问控制）
@@ -289,7 +289,7 @@ agentrt-linux 需要一个安全模型来控制资源访问。候选方案包括
 
 ### 决策
 
-agentrt-linux 在 security 子仓实现 **capability-based security 模型**（seL4 风格），与 SELinux 共存形成纵深防御。
+agent-linux 在 security 子仓实现 **capability-based security 模型**（seL4 风格），与 SELinux 共存形成纵深防御。
 
 具体设计：
 
@@ -309,7 +309,7 @@ agentrt-linux 在 security 子仓实现 **capability-based security 模型**（s
 2. **细粒度控制**：capability 提供比 DAC/MAC 更细粒度的资源访问控制
 3. **不可伪造**：capability 由内核管理，用户态无法伪造，安全性高于传统权限位
 4. **可委托**：capability 支持委托和限制，适合 Agent 间的权限传递场景
-5. **同源红利**：与 agentrt Cupolas 安全模型同源，agentrt 在 agentrt-linux 上运行时权限检查天然兼容
+5. **同源红利**：与 agentrt Cupolas 安全模型同源，agentrt 在 agent-linux 上运行时权限检查天然兼容
 6. **eBPF 支持**：Linux 6.6 原生的 纯 C LSM（airy\_lsm）+ agent_caps[1024] 为 capability 检查提供内核态实现（H5 硬约束）
 
 ### 影响
@@ -355,7 +355,7 @@ agentrt-linux 在 security 子仓实现 **capability-based security 模型**（s
 
 ### 背景
 
-agentrt-linux 需要一个高性能 IPC 子系统支持服务间通信。需求包括：
+agent-linux 需要一个高性能 IPC 子系统支持服务间通信。需求包括：
 
 1. 高性能（> 100K msg/s，NFR-P-002）
 2. 零拷贝
@@ -365,7 +365,7 @@ agentrt-linux 需要一个高性能 IPC 子系统支持服务间通信。需求�
 
 ### 决策
 
-agentrt-linux 在 kernel + services 实现 **基于 io\_uring 的 IPC 子系统**，采用与 agentrt AgentsIPC 同源的 128B 定长消息头。
+agent-linux 在 kernel + services 实现 **基于 io\_uring 的 IPC 子系统**，采用与 agentrt AgentsIPC 同源的 128B 定长消息头。
 
 具体设计：
 
@@ -381,7 +381,7 @@ agentrt-linux 在 kernel + services 实现 **基于 io\_uring 的 IPC 子系统*
 
 ### 理由
 
-1. **同源红利**：128B 消息头与 agentrt AgentsIPC 完全同源，agentrt 在 agentrt-linux 上运行时 IPC 无需任何转换层
+1. **同源红利**：128B 消息头与 agentrt AgentsIPC 完全同源，agentrt 在 agent-linux 上运行时 IPC 无需任何转换层
 2. **高性能**：io\_uring 零拷贝实现 > 100K msg/s（满足 NFR-P-002）
 3. **异步通信**：io\_uring 原生支持异步，适合 Agent 长任务场景
 4. **Linux 6.6 原生**：io\_uring 在 Linux 6.6 已成熟，无需额外依赖
@@ -430,7 +430,7 @@ agentrt-linux 在 kernel + services 实现 **基于 io\_uring 的 IPC 子系统*
 
 ### 背景
 
-agentrt-linux 需要在内核态实现认知循环以支持 Agent 的高性能认知决策。需求包括：
+agent-linux 需要在内核态实现认知循环以支持 Agent 的高性能认知决策。需求包括：
 
 1. 与 agentrt CoreLoopThree 三层认知循环同源
 2. 内核态高性能执行
@@ -440,7 +440,7 @@ agentrt-linux 需要在内核态实现认知循环以支持 Agent 的高性能�
 
 ### 决策
 
-agentrt-linux 在 cognition 子仓实现 **CoreLoopThree kthread 认知循环**，作为内核态认知运行时。
+agent-linux 在 cognition 子仓实现 **CoreLoopThree kthread 认知循环**，作为内核态认知运行时。
 
 具体设计：
 
@@ -484,7 +484,7 @@ agentrt-linux 在 cognition 子仓实现 **CoreLoopThree kthread 认知循环**�
 
 ### 理由
 
-1. **同源红利**：CoreLoopThree 三层循环与 agentrt 同源，agentrt 在 agentrt-linux 上运行时认知调度天然契合
+1. **同源红利**：CoreLoopThree 三层循环与 agentrt 同源，agentrt 在 agent-linux 上运行时认知调度天然契合
 2. **内核态性能**：kthread 提供内核态高性能执行，避免用户态上下文切换开销
 3. **sched\_tac 集成**：通过 sched\_tac 调度框架（SCHED\_DEADLINE / SCHED\_FIFO），认知循环获得原生调度优先级（ADR-013 禁止 sched\_ext / SCHED\_AGENT）
 4. **双系统协同**：内核态实现 System 1 + System 2 双路径，符合 C-1 双思考功能原则
@@ -532,7 +532,7 @@ agentrt-linux 在 cognition 子仓实现 **CoreLoopThree kthread 认知循环**�
 
 ### 背景
 
-agentrt-linux 需要一个记忆系统支持 Agent 的长期记忆与知识提炼。需求包括：
+agent-linux 需要一个记忆系统支持 Agent 的长期记忆与知识提炼。需求包括：
 
 1. 与 agentrt MemoryRovol 四层递进同源
 2. 高性能记忆持久化
@@ -542,7 +542,7 @@ agentrt-linux 需要一个记忆系统支持 Agent 的长期记忆与知识提�
 
 ### 决策
 
-agentrt-linux 在 memory 子仓实现 **MemoryRovol 内核态实现**，采用 L1-L4 四层递进架构。
+agent-linux 在 memory 子仓实现 **MemoryRovol 内核态实现**，采用 L1-L4 四层递进架构。
 
 具体设计：
 
@@ -557,7 +557,7 @@ agentrt-linux 在 memory 子仓实现 **MemoryRovol 内核态实现**，采用 L
 
 ### 理由
 
-1. **同源红利**：L1-L4 四层卷载与 agentrt MemoryRovol 完全同源，agentrt 在 agentrt-linux 上运行时记忆持久化无语义损失
+1. **同源红利**：L1-L4 四层卷载与 agentrt MemoryRovol 完全同源，agentrt 在 agent-linux 上运行时记忆持久化无语义损失
 2. **CNN 类比**：四层递进类比 CNN 的层级特征提取（像素 → 边缘 → 对象 → 场景），符合认知科学原理
 3. **存用分离**：L1 不可变 + L2-L4 索引可重建，保证数据安全性和可恢复性
 4. **CXL 支持**：Linux 6.6 的 CXL 支持实现跨节点内存池化，适合 L1 大容量原始数据存储
@@ -606,7 +606,7 @@ agentrt-linux 在 memory 子仓实现 **MemoryRovol 内核态实现**，采用 L
 
 ### 背景
 
-agentrt-linux 需要一个沙箱运行时支持 Agent 的安全执行。需求包括：
+agent-linux 需要一个沙箱运行时支持 Agent 的安全执行。需求包括：
 
 1. 内存安全（防止缓冲区溢出等内存错误）
 2. 沙箱隔离（Agent 之间互不影响）
@@ -616,7 +616,7 @@ agentrt-linux 需要一个沙箱运行时支持 Agent 的安全执行。需求�
 
 ### 决策
 
-agentrt-linux 在 cognition 子仓的 frameworks 模块实现 **Wasm 3.0 沙箱运行时**。
+agent-linux 在 cognition 子仓的 frameworks 模块实现 **Wasm 3.0 沙箱运行时**。
 
 具体设计：
 
@@ -628,7 +628,7 @@ agentrt-linux 在 cognition 子仓的 frameworks 模块实现 **Wasm 3.0 沙箱�
 | 语言支持  | Rust / C / C++ / Go / AssemblyScript    |
 | 同源    | 与 agentrt frameworks 同源                 |
 | 集成    | 通过 io\_uring 与 CoreLoopThree kthread 交互 |
-| 超节点沙箱 | 集成 agentrt-linux 超节点沙箱（软硬协同）            |
+| 超节点沙箱 | 集成 agent-linux 超节点沙箱（软硬协同）            |
 
 ### 理由
 
@@ -637,7 +637,7 @@ agentrt-linux 在 cognition 子仓的 frameworks 模块实现 **Wasm 3.0 沙箱�
 3. **跨平台兼容**：Wasm 是跨平台标准，与 agentrt frameworks 同源
 4. **高性能**：Wasm 3.0 的 JIT 编译提供接近原生的性能
 5. **多语言支持**：Wasm 支持 Rust / C / C++ / Go / AssemblyScript 等多种语言
-6. **agentrt-linux 集成**：agentrt-linux 超节点沙箱提供软硬协同优化
+6. **agent-linux 集成**：agent-linux 超节点沙箱提供软硬协同优化
 
 ### 影响
 
@@ -682,17 +682,17 @@ agentrt-linux 在 cognition 子仓的 frameworks 模块实现 **Wasm 3.0 沙箱�
 
 ### 背景
 
-agentrt-linux 需要云原生支持以实现大规模 Agent 部署。需求包括：
+agent-linux 需要云原生支持以实现大规模 Agent 部署。需求包括：
 
 1. 容器化部署（Agent 容器化）
 2. 集群编排（多节点 Agent 协同）
-3. 与 agentrt-linux 超节点 OS 对齐
+3. 与 agent-linux 超节点 OS 对齐
 4. 与 agentrt gateway + sdk 同源
 5. 兼容主流云原生生态（K8s / OCI / CNI）
 
 ### 决策
 
-agentrt-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生方案**。
+agent-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生方案**。
 
 具体设计：
 
@@ -703,15 +703,15 @@ agentrt-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生
 | 镜像格式      | OCI（Open Container Initiative）        |
 | 网络        | CNI（Container Network Interface）      |
 | 命令行       | agentctl（兼容 kubectl）                  |
-| 超节点 OS    | 集成 agentrt-linux 超节点 OS               |
+| 超节点 OS    | 集成 agent-linux 超节点 OS               |
 | 同源        | 与 agentrt gateway + sdk 同源            |
 | Agent CRD | 自定义 Agent CRD，原生支持 Agent 工作负载         |
 
 ### 理由
 
 1. **行业标准**：K8s + containerd + OCI + CNI 是云原生事实标准，生态最完整
-2. **超节点对齐**：agentrt-linux 超节点 OS 提供大规模容器低时延通信，RPC 时延下降 20%
-3. **同源红利**：与 agentrt gateway + sdk 同源，agentrt 应用可原生部署到 agentrt-linux 集群
+2. **超节点对齐**：agent-linux 超节点 OS 提供大规模容器低时延通信，RPC 时延下降 20%
+3. **同源红利**：与 agentrt gateway + sdk 同源，agentrt 应用可原生部署到 agent-linux 集群
 4. **CRD 扩展**：通过自定义 Agent CRD，K8s 原生支持 Agent 工作负载调度
 5. **Wasm 支持**：containerd shim 支持 Wasm 容器（与 ADR-008 集成）
 6. **agentctl 兼容**：agentctl 兼容 kubectl 语法，降低学习成本
@@ -739,7 +739,7 @@ agentrt-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生
 **正面后果**：
 
 - 获得行业标准云原生能力
-- 与 agentrt-linux 超节点 OS 对齐
+- 与 agent-linux 超节点 OS 对齐
 - 与 agentrt gateway + sdk 同源
 - 支持 Wasm 容器（与 ADR-008 集成）
 
@@ -747,7 +747,7 @@ agentrt-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生
 
 - K8s 复杂度高，部署运维成本大
 - containerd shim 自定义开发需维护
-- 超节点 OS 依赖 Linux 6.6 内核基线（SP3 增强）+ agentrt-linux 微内核化改造补丁，跨节点 Badge 一致性需要 gateway_d 协调
+- 超节点 OS 依赖 Linux 6.6 内核基线（SP3 增强）+ agent-linux 微内核化改造补丁，跨节点 Badge 一致性需要 gateway_d 协调
 
 ***
 
@@ -759,34 +759,34 @@ agentrt-linux 在 cloudnative 子仓实现 **K8s CRD + containerd shim 云原生
 
 ### 背景
 
-agentrt-linux 与 agentrt 的关系是架构设计的核心问题。需要明确：
+agent-linux 与 agentrt 的关系是架构设计的核心问题。需要明确：
 
-1. agentrt-linux 是否共享 agentrt 代码？
-2. agentrt 在 agentrt-linux 上运行是否需要适配层？
+1. agent-linux 是否共享 agentrt 代码？
+2. agentrt 在 agent-linux 上运行是否需要适配层？
 3. 两者的演进如何协同？
 4. 两者的边界在哪里？
 
 ### 决策
 
-agentrt-linux 与 agentrt 是 **同源且部分代码共享** 的关系（IRON-9 v3 工程铁律）：
+agent-linux 与 agentrt 是 **同源且部分代码共享** 的关系（IRON-9 v3 工程铁律）：
 
-| 维度   | agentrt                                                    | agentrt-linux                                     |
+| 维度   | agentrt                                                    | agent-linux                                     |
 | ---- | ---------------------------------------------------------- | ------------------------------------------------- |
 | 性质   | 跨平台用户态运行时（Linux/macOS/Windows）                             | Linux 发行版（仅 Linux 6.6）                            |
 | 代码   | 共享契约层（`include/uapi/linux/airymax/`）+ 实现独立                            | 共享契约层（`include/uapi/linux/airymax/`）+ 实现独立                   |
 | 设计理念 | 共享 Airymax 设计理念                                            | 共享 Airymax 设计理念                                   |
 | 同源体现 | MicroCoreRT/AgentsIPC/Cupolas/MemoryRovol/CoreLoopThree 语义 | sched\_tac/128B IPC/capability/L1-L4/kthread 语义 |
-| 关系   | 可独立运行于任何平台                                                 | agentrt-linux 是 agentrt 的最佳载体                     |
+| 关系   | 可独立运行于任何平台                                                 | agent-linux 是 agentrt 的最佳载体                     |
 | 适配层  | 无需适配层                                                      | 无需适配层（天然契合）                                       |
 
 ### 理由
 
-1. **同源定义**：同源 = 共享设计理念 + 共享契约层代码（IRON-9 v3）。agentrt 和 agentrt-linux 共享 MicroCoreRT/AgentsIPC/Cupolas/MemoryRovol/CoreLoopThree 的语义，并共享契约层代码（IPC 消息头结构、syscall 编号、capability 令牌格式、MemoryRovol L1-L4 数据结构、CoreLoopThree 接口定义、错误码、规则编号体系，统一存放于 `include/uapi/linux/airymax/` 头文件库），实现层各自独立
-2. **天然契合**：因为设计假设和实现假设一致，agentrt 在 agentrt-linux 上运行**无适配层**，天然更稳健
-3. **独立性**：agentrt 是跨平台用户态运行时，必须独立于任何特定 OS；agentrt-linux 是 Linux 发行版，专注于 Linux 6.6 优化
-4. **演进协同**：两者通过共享设计理念（00-architectural-principles.md）与共享契约层代码（`include/uapi/linux/airymax/`）协同演进，契约层变更须经 agentrt + agentrt-linux 两端 CI 双向校验
-5. **IRON-9 v3 约束**：工程标准规范手册 IRON-9 v3 明确规定"agentrt 和 agentrt-linux 同源且部分代码共享"——共享契约层代码完全共享（`include/uapi/linux/airymax/`），语义同源层高层 API 语义同源（概念操作一致）、签名因抽象层级不同而独立演进，完全独立层各自独立
-6. **边界清晰**：agentrt 是用户态库 + 守护进程，agentrt-linux 是 Linux 内核 + 用户态服务，边界清晰
+1. **同源定义**：同源 = 共享设计理念 + 共享契约层代码（IRON-9 v3）。agentrt 和 agent-linux 共享 MicroCoreRT/AgentsIPC/Cupolas/MemoryRovol/CoreLoopThree 的语义，并共享契约层代码（IPC 消息头结构、syscall 编号、capability 令牌格式、MemoryRovol L1-L4 数据结构、CoreLoopThree 接口定义、错误码、规则编号体系，统一存放于 `include/uapi/linux/airymax/` 头文件库），实现层各自独立
+2. **天然契合**：因为设计假设和实现假设一致，agentrt 在 agent-linux 上运行**无适配层**，天然更稳健
+3. **独立性**：agentrt 是跨平台用户态运行时，必须独立于任何特定 OS；agent-linux 是 Linux 发行版，专注于 Linux 6.6 优化
+4. **演进协同**：两者通过共享设计理念（00-architectural-principles.md）与共享契约层代码（`include/uapi/linux/airymax/`）协同演进，契约层变更须经 agentrt + agent-linux 两端 CI 双向校验
+5. **IRON-9 v3 约束**：工程标准规范手册 IRON-9 v3 明确规定"agentrt 和 agent-linux 同源且部分代码共享"——共享契约层代码完全共享（`include/uapi/linux/airymax/`），语义同源层高层 API 语义同源（概念操作一致）、签名因抽象层级不同而独立演进，完全独立层各自独立
+6. **边界清晰**：agentrt 是用户态库 + 守护进程，agent-linux 是 Linux 内核 + 用户态服务，边界清晰
 
 ### 影响
 
@@ -794,16 +794,16 @@ agentrt-linux 与 agentrt 是 **同源且部分代码共享** 的关系（IRON-9
 | ---- | ----------------------------------------------- |
 | 工程规范 | IRON-9 工程铁律约束同源且部分代码共享关系                        |
 | 演进协同 | 通过 00-architectural-principles.md 共享设计理念        |
-| 测试验证 | tests-linux 需验证 agentrt 在 agentrt-linux 上的天然契合性 |
+| 测试验证 | tests-linux 需验证 agentrt 在 agent-linux 上的天然契合性 |
 | 文档规范 | 所有文档明确标注"同源 agentrt"对应关系                        |
-| 部署模式 | agentrt 可独立运行，但在 agentrt-linux 上运行获得同源红利        |
+| 部署模式 | agentrt 可独立运行，但在 agent-linux 上运行获得同源红利        |
 
 ### 替代方案
 
 | 方案                         | 优势        | 劣势        | 未采纳原因            |
 | -------------------------- | --------- | --------- | ---------------- |
 | 共享代码（monorepo）             | 代码复用、统一演进 | 耦合、违反独立性  | 违反 IRON-9        |
-| agentrt 完全依赖 agentrt-linux | 紧密集成      | 失去跨平台能力   | 违反 agentrt 跨平台定位 |
+| agentrt 完全依赖 agent-linux | 紧密集成      | 失去跨平台能力   | 违反 agentrt 跨平台定位 |
 | 完全独立（无同源）                  | 完全解耦      | 失去同源红利    | 违反三大支柱           |
 | 适配层模式                      | 解耦        | 性能损失、复杂度高 | 违反"无适配层天然契合"目标   |
 
@@ -811,7 +811,7 @@ agentrt-linux 与 agentrt 是 **同源且部分代码共享** 的关系（IRON-9
 
 **正面后果**：
 
-- agentrt 在 agentrt-linux 上运行天然契合，无适配层
+- agentrt 在 agent-linux 上运行天然契合，无适配层
 - 两者独立演进，互不制约
 - 通过共享设计理念保证协同
 - agentrt 保持跨平台能力
@@ -832,29 +832,29 @@ agentrt-linux 与 agentrt 是 **同源且部分代码共享** 的关系（IRON-9
 
 ### 背景
 
-agentrt-linux 的 7 层架构模型（L1-L7）用于组织 8 个子仓的依赖关系。需要明确回答两个核心架构问题：
+agent-linux 的 7 层架构模型（L1-L7）用于组织 8 个子仓的依赖关系。需要明确回答两个核心架构问题：
 
-1. **7 层架构模型是否包含 agentrt 组件？**——agentrt 是否作为某一层纳入 agentrt-linux 的内部架构？
-2. **agentrt 是否可以直接作为 agentrt-linux 的用户态？**——而非仅保持 IRON-9 v3 同源映射关系？
+1. **7 层架构模型是否包含 agentrt 组件？**——agentrt 是否作为某一层纳入 agent-linux 的内部架构？
+2. **agentrt 是否可以直接作为 agent-linux 的用户态？**——而非仅保持 IRON-9 v3 同源映射关系？
 
 ### 决策
 
 **决策一：7 层架构模型不包含 agentrt 组件。**
 
-agentrt-linux 的 7 层架构（L1-L7）是 agentrt-linux **内部**的组织架构，仅涵盖 agentrt-linux 自身的 8 个子仓，agentrt 作为独立跨平台项目**不属于**此 7 层架构的任何一层：
+agent-linux 的 7 层架构（L1-L7）是 agent-linux **内部**的组织架构，仅涵盖 agent-linux 自身的 8 个子仓，agentrt 作为独立跨平台项目**不属于**此 7 层架构的任何一层：
 
 > **权威定义引用**： 7 层架构模型的权威定义见 [10-architecture/README.md §3](README.md#3-架构层次模型)（含 Mermaid 图 + 各层职责详述表 + 层次纪律说明）。本表与权威定义保持完全一致。
 
 | 层次 | 子仓                             | 性质                            |
 | -- | ------------------------------ | ----------------------------- |
-| L1 | 硬件层（CPU/内存/CXL/PMEM，非子仓）       | agentrt-linux 内部（硬件基座）        |
-| L2 | kernel                         | agentrt-linux 内部              |
-| L3 | services + security + memory   | agentrt-linux 内部              |
-| L4 | cognition                      | agentrt-linux 内部              |
-| L5 | cloudnative                    | agentrt-linux 内部              |
-| L6 | system                         | agentrt-linux 内部              |
-| L7 | tests-linux（横向测试层，覆盖 L2-L6 全部） | agentrt-linux 内部              |
-| —  | **agentrt（跨平台用户态运行时）**         | **外部组件，运行于 agentrt-linux 之上** |
+| L1 | 硬件层（CPU/内存/CXL/PMEM，非子仓）       | agent-linux 内部（硬件基座）        |
+| L2 | kernel                         | agent-linux 内部              |
+| L3 | services + security + memory   | agent-linux 内部              |
+| L4 | cognition                      | agent-linux 内部              |
+| L5 | cloudnative                    | agent-linux 内部              |
+| L6 | system                         | agent-linux 内部              |
+| L7 | tests-linux（横向测试层，覆盖 L2-L6 全部） | agent-linux 内部              |
+| —  | **agentrt（跨平台用户态运行时）**         | **外部组件，运行于 agent-linux 之上** |
 
 **层次纪律**（S-2 层次分解原则，详见 [10-architecture/README.md §3.3](README.md#33-层次纪律)）：
 
@@ -865,21 +865,21 @@ agentrt-linux 的 7 层架构（L1-L7）是 agentrt-linux **内部**的组织架
 
 > **论证支撑**： 本决策经完整技术论证（C-2.3 架构模型论证报告，VP-4 决策确认）。
 
-**决策二：agentrt 是 agentrt-linux 的推荐用户态运行时，但非唯一用户态。agentrt 不直接"成为"agentrt-linux 的用户态，而是以 IRON-9 v3 同源关系运行于其上。**
+**决策二：agentrt 是 agent-linux 的推荐用户态运行时，但非唯一用户态。agentrt 不直接"成为"agent-linux 的用户态，而是以 IRON-9 v3 同源关系运行于其上。**
 
-agentrt 与 agentrt-linux 的关系是"平台—应用"关系，而非"内核—用户态"关系：
+agentrt 与 agent-linux 的关系是"平台—应用"关系，而非"内核—用户态"关系：
 
 ```
 ┌─────────────────────────────────────────────────┐
 │  agentrt（跨平台用户态运行时，Linux/macOS/Windows） │  ← 外部组件
-│  ├── 在 agentrt-linux 上：同源红利，零适配层        │
+│  ├── 在 agent-linux 上：同源红利，零适配层        │
 │  ├── 在普通 Linux 上：标准 libc/POSIX              │
 │  ├── 在 macOS 上：标准 libc/POSIX                │
 │  └── 在 Windows 上：Win32 API                   │
 └──────────────────────┬──────────────────────────┘
                        │ 同源天然适配（IRON-9 v3 [SC] 共享契约层）
 ┌──────────────────────▼──────────────────────────┐
-│  agentrt-linux（AirymaxOS，Linux 发行版）           │  ← 7 层架构内部
+│  agent-linux（AirymaxOS，Linux 发行版）           │  ← 7 层架构内部
 │  L7: cloudnative / tests-linux                   │
 │  L6: system                                       │
 │  L5: services                                     │
@@ -891,18 +891,18 @@ agentrt 与 agentrt-linux 的关系是"平台—应用"关系，而非"内核—
 
 ### 理由
 
-1. **硬约束：agentrt 必须保持跨平台**（开源极境工程与规范委员会决策 2026-07-04）：atoms 核心路径保持用户态跨 Linux/macOS/Windows 三平台。若 agentrt 成为 agentrt-linux 的专属用户态，将丧失跨平台能力，违反此硬约束。
-2. **架构正交性**：7 层架构是 agentrt-linux 的内部依赖管理工具。agentrt 是外部独立项目，将其纳入 agentrt-linux 内部架构会破坏架构正交性——agentrt 的演进不应受 agentrt-linux 内部层次变化制约。
-3. **IRON-9 v3 已是最优实现**：IRON-9 v3 的四层共享模型（\[SC] 共享契约层 + \[SS] 语义同源层 + \[IND] 完全独立层 + \[DSL] 降级生存层）已实现"天然契合零适配层"的目标，无需将 agentrt 纳入 agentrt-linux 内部架构即可获得同源红利。
-4. **seL4 root task 模型验证**：seL4 微内核架构中，root task（用户态初始进程）是独立于内核的外部组件，通过 capability 与内核交互。agentrt 与 agentrt-linux 的关系类比于此——agentrt 是 agentrt-linux 上的"root task 级"用户态运行时，但并非内核的一部分。
-5. **"微核心"与"微内核"的区分**（开源极境工程与规范委员会决策 2026-07-09）：agentrt 是"微核心"（MicroCoreRT，用户态微核心运行时），agentrt-linux 是"微内核"（基于 Linux 改造的微内核化 OS）。两者是不同层级的概念，不应混为一谈。
+1. **硬约束：agentrt 必须保持跨平台**（开源极境工程与规范委员会决策 2026-07-04）：atoms 核心路径保持用户态跨 Linux/macOS/Windows 三平台。若 agentrt 成为 agent-linux 的专属用户态，将丧失跨平台能力，违反此硬约束。
+2. **架构正交性**：7 层架构是 agent-linux 的内部依赖管理工具。agentrt 是外部独立项目，将其纳入 agent-linux 内部架构会破坏架构正交性——agentrt 的演进不应受 agent-linux 内部层次变化制约。
+3. **IRON-9 v3 已是最优实现**：IRON-9 v3 的四层共享模型（\[SC] 共享契约层 + \[SS] 语义同源层 + \[IND] 完全独立层 + \[DSL] 降级生存层）已实现"天然契合零适配层"的目标，无需将 agentrt 纳入 agent-linux 内部架构即可获得同源红利。
+4. **seL4 root task 模型验证**：seL4 微内核架构中，root task（用户态初始进程）是独立于内核的外部组件，通过 capability 与内核交互。agentrt 与 agent-linux 的关系类比于此——agentrt 是 agent-linux 上的"root task 级"用户态运行时，但并非内核的一部分。
+5. **"微核心"与"微内核"的区分**（开源极境工程与规范委员会决策 2026-07-09）：agentrt 是"微核心"（MicroCoreRT，用户态微核心运行时），agent-linux 是"微内核"（基于 Linux 改造的微内核化 OS）。两者是不同层级的概念，不应混为一谈。
 
 ### 替代方案
 
 | 方案                               | 优势                | 劣势                  | 未采纳原因    |
 | -------------------------------- | ----------------- | ------------------- | -------- |
 | agentrt 纳入 7 层架构（作为 L8）          | 紧密集成              | 破坏跨平台、破坏架构正交        | 违反跨平台硬约束 |
-| agentrt 直接成为 agentrt-linux 专属用户态 | 零适配               | 丧失 macOS/Windows 支持 | 违反跨平台硬约束 |
+| agentrt 直接成为 agent-linux 专属用户态 | 零适配               | 丧失 macOS/Windows 支持 | 违反跨平台硬约束 |
 | **IRON-9 v3 同源关系（采纳）**           | 跨平台 + 同源红利 + 零适配层 | 需双向同步               | **最优平衡** |
 
 ### 后果
@@ -910,13 +910,13 @@ agentrt 与 agentrt-linux 的关系是"平台—应用"关系，而非"内核—
 **正面后果**：
 
 - agentrt 保持跨平台独立性
-- 7 层架构边界清晰，仅管理 agentrt-linux 内部 8 子仓
+- 7 层架构边界清晰，仅管理 agent-linux 内部 8 子仓
 - IRON-9 v3 提供零适配层天然契合
-- agentrt 可在任何 OS 上运行，在 agentrt-linux 上获得最佳同源体验
+- agentrt 可在任何 OS 上运行，在 agent-linux 上获得最佳同源体验
 
 **负面后果**：
 
-- agentrt 与 agentrt-linux 需通过 ADR 流程协同演进
+- agentrt 与 agent-linux 需通过 ADR 流程协同演进
 - \[SC] 共享契约层变更需双向 CI 校验
 
 ***
@@ -929,11 +929,11 @@ agentrt 与 agentrt-linux 的关系是"平台—应用"关系，而非"内核—
 
 ### 背景
 
-agentrt-linux 的微内核化技术路线需要在"从零开发微内核"与"基于 Linux 改造"之间做出明确选择。此决策影响整个项目的工程方向、开发成本、硬件兼容性和长期维护策略。
+agent-linux 的微内核化技术路线需要在"从零开发微内核"与"基于 Linux 改造"之间做出明确选择。此决策影响整个项目的工程方向、开发成本、硬件兼容性和长期维护策略。
 
 ### 决策
 
-agentrt-linux **不采用从零开发微内核**的模式，而是**基于 Linux 内核进行 seL4 思想借鉴的微内核化改造**：
+agent-linux **不采用从零开发微内核**的模式，而是**基于 Linux 内核进行 seL4 思想借鉴的微内核化改造**：
 
 1. **基座**：Linux 6.6 内核（LTS，30 年积累，广泛硬件支持）
 2. **思想来源**：seL4 微内核工程思想（Liedtke minimality principle、capability、消息传递 IPC、服务用户态化、形式化验证）——见 ADR-014
@@ -945,9 +945,9 @@ agentrt-linux **不采用从零开发微内核**的模式，而是**基于 Linux
 1. **硬件兼容性**：从零开发微内核（如 seL4）仅支持有限硬件平台。基于 Linux 改造可继承 Linux 30 年积累的硬件驱动支持，覆盖 x86\_64 / ARM64 / RISC-V / LoongArch 等全部目标架构。
 2. **生态兼容性**：从零开发微内核需要重建全部系统生态（文件系统、网络栈、包管理等）。基于 Linux 改造可直接复用 RPM/dnf/systemd/SELinux 等企业级生态，确保生产可用性。
 3. **工程成本**：从零开发生产级微内核需要数万人年（seL4 花费 20+ 人年仅完成 1 万行内核）。基于 Linux 改造可聚焦于微内核化改造，工程成本降低 10 倍以上。
-4. **Linux 新特性天然支持微内核化**：sched\_tac 调度框架（基于 Linux 6.6 原生调度类组合 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF + seL4 MCS 语义映射，详见 ADR-013）、io\_uring（高性能 IPC）、eBPF（可编程内核扩展）、userfaultfd（用户态缺页处理）、Landlock（用户态沙箱）——这些 Linux 原生特性本身就是微内核化方向，agentrt-linux 仅需系统性整合。
+4. **Linux 新特性天然支持微内核化**：sched\_tac 调度框架（基于 Linux 6.6 原生调度类组合 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF + seL4 MCS 语义映射，详见 ADR-013）、io\_uring（高性能 IPC）、eBPF（可编程内核扩展）、userfaultfd（用户态缺页处理）、Landlock（用户态沙箱）——这些 Linux 原生特性本身就是微内核化方向，agent-linux 仅需系统性整合。
 5. **seL4 思想吸收而非代码复制**：seL4 的工程思想（极简原则、capability、消息传递、形式化验证）可通过改造注入 Linux 内核，无需从零实现。这正是"Linux 6.6 为基、seL4 为鉴"工程取向的体现。
-6. **生产级定位**：agentrt-linux 定位为"生产级 Linux 发行版"（非研究型项目），必须基于成熟基座。从零开发微内核在可预见未来无法达到生产级稳定性。
+6. **生产级定位**：agent-linux 定位为"生产级 Linux 发行版"（非研究型项目），必须基于成熟基座。从零开发微内核在可预见未来无法达到生产级稳定性。
 
 ### seL4 工程思想注入路径
 
@@ -1003,7 +1003,7 @@ seL4 的 10 项核心工程思想（ES-SEL4-01\~10）通过 Linux 改造手段�
 
 ### 背景
 
-agentrt-linux 需要在 Linux 6.6 内核基线上选择 Agent 感知调度框架。候选方案包括：
+agent-linux 需要在 Linux 6.6 内核基线上选择 Agent 感知调度框架。候选方案包括：
 
 1. **sched\_ext**：Linux 主线的 BPF 调度器框架，允许通过 BPF 程序在用户态定义调度策略
 2. **sched\_tac**：基于 Linux 6.6 原生调度类组合（SCHED\_DEADLINE / SCHED\_FIFO / EEVDF）+ cgroup cpuset 隔离 + seL4 MCS 语义映射的策略框架
@@ -1013,7 +1013,7 @@ agentrt-linux 需要在 Linux 6.6 内核基线上选择 Agent 感知调度框架
 
 ### 决策
 
-agentrt-linux 采用 **sched\_tac** 作为 Agent 感知调度框架，**不使用 sched\_ext**：
+agent-linux 采用 **sched\_tac** 作为 Agent 感知调度框架，**不使用 sched\_ext**：
 
 - **基础调度类**：复用 Linux 6.6 原生 `SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF` 调度类组合，零内核调度器修改
 - **隔离机制**：通过 cgroup cpuset 实现 Agent / 系统 / 实时任务 CPU 隔离
@@ -1072,18 +1072,18 @@ agentrt-linux 采用 **sched\_tac** 作为 Agent 感知调度框架，**不使�
 
 ### 背景
 
-agentrt-linux 的微内核设计思想来源需要在"多元化借鉴"与"单一化聚焦"之间做出选择。此前的文档引用了 seL4 / Zircon / Minix3 三个微内核架构作为思想来源。
+agent-linux 的微内核设计思想来源需要在"多元化借鉴"与"单一化聚焦"之间做出选择。此前的文档引用了 seL4 / Zircon / Minix3 三个微内核架构作为思想来源。
 
 ### 决策
 
-agentrt-linux 的微内核设计思想**唯一来源：seL4**。不引入 Zircon / Minix3 / 其他微内核架构。
+agent-linux 的微内核设计思想**唯一来源：seL4**。不引入 Zircon / Minix3 / 其他微内核架构。
 
 ### 理由
 
 1. **哲学一致性**：seL4 的工程思想已形成完整自洽的体系——Liedtke minimality principle（极简原则）、capability 单一安全模型、消息传递 IPC、服务用户态化（root task 模型）、形式化验证、接口契约 XML（syscall.xml）、bitfield codegen（structures.bf）。引入其他微内核架构会导致设计哲学冲突。
 2. **seL4 vs Zircon 哲学冲突**：seL4 坚持"机制而非策略"（policy-free）原则，内核仅提供机制；Zircon 采用"内核对象导向"模型，内核包含对象管理逻辑。两者在内核职责界定上存在根本性分歧。
 3. **seL4 vs Minix3 哲学冲突**：seL4 通过形式化验证保证安全性；Minix3 通过自愈能力（服务崩溃重启）保证可用性。两者的安全哲学不同——前者是"预防"，后者是"恢复"。
-4. **工程思想可验证性**：单一来源便于验证 agentrt-linux 是否忠实吸收了 seL4 的工程思想。多来源会导致"选择性采纳"的随意性。
+4. **工程思想可验证性**：单一来源便于验证 agent-linux 是否忠实吸收了 seL4 的工程思想。多来源会导致"选择性采纳"的随意性。
 5. **避免"微内核原语"混淆**：此前文档中出现"微内核原语/microkernel primitives"表述，源于多来源引用造成的概念混淆。单一来源可彻底消除此类概念混淆。
 
 ### 影响
@@ -1119,11 +1119,11 @@ agentrt-linux 的微内核设计思想**唯一来源：seL4**。不引入 Zircon
 
 ### 背景
 
-本 ADR 曾尝试调整 agentrt-linux 的项目定位，引入与 ADR-001 / ADR-002 / ADR-012 / ADR-014 决策链冲突的定位偏移方案。
+本 ADR 曾尝试调整 agent-linux 的项目定位，引入与 ADR-001 / ADR-002 / ADR-012 / ADR-014 决策链冲突的定位偏移方案。
 
 ### 决策
 
-**撤销定位调整方案**。agentrt-linux 维持既有定位——"基于 Linux 6.6 内核基线、借鉴 seL4 微内核工程思想进行微内核化改造的智能体操作系统"（见 [README.md](README.md)）。
+**撤销定位调整方案**。agent-linux 维持既有定位——"基于 Linux 6.6 内核基线、借鉴 seL4 微内核工程思想进行微内核化改造的智能体操作系统"（见 [README.md](README.md)）。
 
 ### 理由
 
@@ -1151,11 +1151,11 @@ agentrt-linux 的微内核设计思想**唯一来源：seL4**。不引入 Zircon
 
 ### 背景
 
-agentrt-linux 需要明确的版本基线战略，确保：(1) 生产环境 ABI 稳定性 (2) 长期技术演进路径清晰 (3) 内核基线升级有规划、不频繁变动。
+agent-linux 需要明确的版本基线战略，确保：(1) 生产环境 ABI 稳定性 (2) 长期技术演进路径清晰 (3) 内核基线升级有规划、不频繁变动。
 
 ### 决策
 
-agentrt-linux 实施版本基线锁定战略：
+agent-linux 实施版本基线锁定战略：
 
 | 版本系列      | 内核基线                      | 锁定状态            | 预期周期        |
 | --------- | ------------------------- | --------------- | ----------- |
@@ -1171,7 +1171,7 @@ agentrt-linux 实施版本基线锁定战略：
 ### 理由
 
 1. **ABI 稳定性**：生产环境要求二进制兼容性。1.x.x 全系列锁定 Linux 6.6 确保用户态二进制在 1.x.x 全系列版本上可直接运行，无需重新编译。
-2. **Linux 6.6 LTS 成熟度**：Linux 6.6 是 LTS 内核，已验证 io\_uring / eBPF / EEVDF / MGLRU 等关键特性（注：sched\_ext 在 Linux 6.12 才合入主线，Linux 6.6 主线无 sched\_ext，agentrt-linux 改用 sched\_tac，详见 ADR-013），满足 agentrt-linux 1.x.x 全部技术需求。
+2. **Linux 6.6 LTS 成熟度**：Linux 6.6 是 LTS 内核，已验证 io\_uring / eBPF / EEVDF / MGLRU 等关键特性（注：sched\_ext 在 Linux 6.12 才合入主线，Linux 6.6 主线无 sched\_ext，agent-linux 改用 sched\_tac，详见 ADR-013），满足 agent-linux 1.x.x 全部技术需求。
 3. **Linux 7.1 前瞻性**：Linux 7.1 作为下一代内核（**非 LTS**，LTS 候选待 7.4/7.5 确认），预计带来调度器演进、内存管理增强、安全模型升级、AI 原生特性等。2.x.x 升级至 Linux 7.1 可获得下一代内核能力。
 4. **避免频繁基线变动**：版本基线锁定战略避免每个小版本都跟随上游内核变动，降低维护成本与回归测试负担。
 5. **迁移可控**：三阶段迁移路径确保生产环境平滑过渡，避免"大爆炸"式升级风险。
@@ -1232,7 +1232,7 @@ K9-1 将 Capability 撤销机制从全局 epoch（`airy_cap_global_epoch`）改�
 
 ### 理由
 
-1. **seL4 对齐**：seL4 的 CNode 操作遵循"源对象强制校验 + 完整字段继承 + 完整字段清理"三原则。agentrt-linux 借鉴 seL4 的 7 种派生操作，修复后完全对齐这三项原则。
+1. **seL4 对齐**：seL4 的 CNode 操作遵循"源对象强制校验 + 完整字段继承 + 完整字段清理"三原则。agent-linux 借鉴 seL4 的 7 种派生操作，修复后完全对齐这三项原则。
 
 2. **Linux 6.6 对齐**：
    - `prepare_creds()` 用 `memcpy` 整结构体复制所有字段 → 验证 #2/#4 修复正确
@@ -1280,7 +1280,7 @@ K9-1 将 Capability 撤销机制从全局 epoch（`airy_cap_global_epoch`）改�
 
 ### 背景
 
-agentrt-linux 需要广泛兼容国产主流硬件（鲲鹏/飞腾/海光/申威/昇腾）。直接从零适配成本极高，而 openEuler OLK-6.6 已完成企业级硬件兼容性验证。需要在"从零适配硬件"与"复用 openEuler 硬件适配层"之间做出选择。
+agent-linux 需要广泛兼容国产主流硬件（鲲鹏/飞腾/海光/申威/昇腾）。直接从零适配成本极高，而 openEuler OLK-6.6 已完成企业级硬件兼容性验证。需要在"从零适配硬件"与"复用 openEuler 硬件适配层"之间做出选择。
 
 ### 决策
 
@@ -1289,7 +1289,7 @@ agentrt-linux 需要广泛兼容国产主流硬件（鲲鹏/飞腾/海光/申威
 ```
 ALK-6.6 = vanilla 6.6.149 (IRON-7 基线)
          + openEuler 硬件适配层（LAYER，架构可选）
-         + agentrt-linux 微内核化改造补丁（≤ 2 万行）
+         + agent-linux 微内核化改造补丁（≤ 2 万行）
 ```
 
 具体落地：
@@ -1379,9 +1379,9 @@ ALK-6.6 = vanilla 6.6.149 (IRON-7 基线)
 | `lsm_types.h`       | ADR-004 | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架 | kernel / security  |
 | `bpf_struct_ops.h`  | ADR-010 | struct_ops 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局 | kernel / cognition |
 
-### \[SS] 语义同源层——ADR agentrt ↔ agentrt-linux 映射
+### \[SS] 语义同源层——ADR agentrt ↔ agent-linux 映射
 
-| ADR     | agentrt 实现（用户态）           | agentrt-linux 实现（内核态）                                 | 同源 API                  |
+| ADR     | agentrt 实现（用户态）           | agent-linux 实现（内核态）                                 | 同源 API                  |
 | ------- | ------------------------- | ----------------------------------------------------- | ----------------------- |
 | ADR-003 | 7 大模块（CMake target）       | 8 子仓（Kconfig menu）                                    | 模块边界同源                  |
 | ADR-004 | Cupolas 用户态 CNode         | LSM + Landlock + capability                           | mint/revoke/derive/copy |
@@ -1392,7 +1392,7 @@ ALK-6.6 = vanilla 6.6.149 (IRON-7 基线)
 
 ### \[IND] 完全独立层
 
-| 独立项   | agentrt 实现        | agentrt-linux 实现    | 独立原因           |
+| 独立项   | agentrt 实现        | agent-linux 实现    | 独立原因           |
 | ----- | ----------------- | ------------------- | -------------- |
 | 构建系统  | CMake             | Kbuild + Kconfig    | 工具链差异          |
 | 平台适配  | libc / POSIX 跨三平台 | Linux 6.6 内核 API    | IRON-1 二进制兼容约束 |
@@ -1410,7 +1410,7 @@ graph TB
         RT_010[7 模块同源]
     end
 
-    subgraph "agentrt-linux 内核态（ADR 落地）"
+    subgraph "agent-linux 内核态（ADR 落地）"
         OS_003[8 子仓]
         OS_004[LSM + cap]
         OS_005[io_uring + kfifo]
@@ -1494,10 +1494,10 @@ graph LR
 ## 相关文档
 
 - [架构设计 README](README.md)：架构设计层总览
-- [系统架构](01-system-architecture.md)：agentrt-linux 系统架构总览
+- [系统架构](01-system-architecture.md)：agent-linux 系统架构总览
 - [五维正交原则](02-five-dimensional-principles.md)：五维正交 24 原则落地映射
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
-- [工程基线](04-engineering-baseline.md)：agentrt-linux 工程基线
+- [工程基线](04-engineering-baseline.md)：agent-linux 工程基线
 - [架构原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
 - 工程标准规范手册：IRON-9 / IRON-10 / BAN-361 等工程铁律
 

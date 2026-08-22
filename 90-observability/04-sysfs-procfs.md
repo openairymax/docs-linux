@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）sysfs/procfs 接口
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L4 层——静态信息导出接口 sysfs/procfs 的工程规范\
+# agent-linux（AirymaxOS）sysfs/procfs 接口
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L4 层——静态信息导出接口 sysfs/procfs 的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
@@ -31,13 +31,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-sysfs 与 procfs 是 Linux 6.6 内核基线提供的标准伪文件系统，分别承载设备/内核子系统状态（sysfs）与进程/系统状态（procfs）的静态导出。agentrt-linux 选择 sysfs/procfs 作为可观测性 L4 层，原因有三：
+sysfs 与 procfs 是 Linux 6.6 内核基线提供的标准伪文件系统，分别承载设备/内核子系统状态（sysfs）与进程/系统状态（procfs）的静态导出。agent-linux 选择 sysfs/procfs 作为可观测性 L4 层，原因有三：
 
 1. **标准化访问语义**：运维人员与脚本工具天然熟悉 `cat /sys/...` 与 `cat /proc/...` 访问语义，无需引入新的客户端工具，符合"运维零学习成本"原则。
 2. **与 kobject/sysctl 集成**：sysfs 通过 `kobject` 与 `attribute` 自动管理生命周期；procfs 通过 `proc_ops` 注册回调，与 A-UCS 模块 config_d 的 sysctl/JSON 热重载天然协同。
 3. **零运行时开销**：sysfs/procfs 文件仅在 `read()` 时调用 `seq_show` 回调动态生成内容，不维护常驻缓冲区，对稳态运行无影响，符合 A-ULS 模块 macro_d 的"可观测性不破坏系统稳态"原则。
 
-**OS-OBS-041: sysfs 与 procfs 是 agentrt-linux 可观测性 L4 层的强制基线，所有静态状态导出必须经 sysfs/procfs，不得自创 /sys/kernel/airy 或 /proc/airy_v2 等并行目录。**
+**OS-OBS-041: sysfs 与 procfs 是 agent-linux 可观测性 L4 层的强制基线，所有静态状态导出必须经 sysfs/procfs，不得自创 /sys/kernel/airy 或 /proc/airy_v2 等并行目录。**
 
 **OS-KER-131: kernel 的 defconfig 必须开启 CONFIG_SYSFS、CONFIG_PROC_FS、CONFIG_KOBJECT；内建 Airy LSM 必须在 `airy_init()` 阶段完成 airy_kset 注册（非模块，无 agentrt.ko）。**
 
@@ -57,9 +57,9 @@ sysfs 与 procfs 是 Linux 6.6 内核基线提供的标准伪文件系统，分�
 
 ### 1.3 sysfs vs procfs 职责划分
 
-agentrt-linux 遵循上游 Linux 约定的职责划分：
+agent-linux 遵循上游 Linux 约定的职责划分：
 
-| 文件系统 | 职责 | agentrt-linux 在此导出的内容 |
+| 文件系统 | 职责 | agent-linux 在此导出的内容 |
 |---------|------|----------------------------|
 | sysfs | 设备/子系统级状态（全局唯一） | 调度器、IPC、daemons、A-ULP、A-ULS 全局统计 |
 | procfs | 进程级状态（per-PID 或 per-Agent） | Agent 实例状态、Token 统计、记忆统计 |
@@ -689,4 +689,4 @@ state: ALERT                   # NORMAL / ALERT / EXCEEDED
 
 ---
 
-> **文档结束** | agentrt-linux sysfs/procfs 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The interface is the system."
+> **文档结束** | agent-linux sysfs/procfs 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The interface is the system."

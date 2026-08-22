@@ -609,15 +609,15 @@ fastpath 总安全开销（实测口径）：`airy_cap_badge_ok` 校验 ~2-10ns�
 
 ### 7.1 io_uring_cmd_sock 模板
 
-OLK 6.6 的 `io_uring_cmd_sock()`（`io_uring/uring_cmd.c:252-276`）是 socket 专用 uring_cmd 包装，支持 `SOCKET_URING_OP_SIOCINQ` / `SOCKET_URING_OP_SIOCOUTQ`。agentrt-linux 的 `airy_uring_cmd()` 可参考其设计模式。
+OLK 6.6 的 `io_uring_cmd_sock()`（`io_uring/uring_cmd.c:252-276`）是 socket 专用 uring_cmd 包装，支持 `SOCKET_URING_OP_SIOCINQ` / `SOCKET_URING_OP_SIOCOUTQ`。agent-linux 的 `airy_uring_cmd()` 可参考其设计模式。
 
 ### 7.2 io_uring_cmd 取消机制
 
-OLK 6.6 的 `io_uring_cmd_mark_cancelable()`（`io_uring/uring_cmd.c:71-84`）提供标准取消机制，配合 `IORING_URING_CMD_CANCELABLE` 标志。agentrt-linux 的 `AIRY_IPC_OP_CANCEL`（opcode 0x0004）可复用此标准机制。
+OLK 6.6 的 `io_uring_cmd_mark_cancelable()`（`io_uring/uring_cmd.c:71-84`）提供标准取消机制，配合 `IORING_URING_CMD_CANCELABLE` 标志。agent-linux 的 `AIRY_IPC_OP_CANCEL`（opcode 0x0004）可复用此标准机制。
 
 ### 7.3 IOU_PBUF_RING_MMAP
 
-OLK 6.6 的 `IORING_REGISTER_PBUF_RING` 支持 `IOU_PBUF_RING_MMAP` 标志，由内核分配内存并 mmap 映射给用户态，避免用户空间预分配。agentrt-linux 的 registered buffer 可使用此标志简化内存管理。
+OLK 6.6 的 `IORING_REGISTER_PBUF_RING` 支持 `IOU_PBUF_RING_MMAP` 标志，由内核分配内存并 mmap 映射给用户态，避免用户空间预分配。agent-linux 的 registered buffer 可使用此标志简化内存管理。
 
 ---
 

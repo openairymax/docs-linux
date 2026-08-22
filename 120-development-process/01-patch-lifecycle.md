@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）补丁生命周期 6 阶段详解
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 1 卷——补丁生命周期。本文档详述代码从设计构想到主线、稳定版、长期维护的 6 阶段全生命周期，是工程标准层 `50-engineering-standards/05-development-process.md` 在模块设计层的展开。\
+# agent-linux（AirymaxOS）补丁生命周期 6 阶段详解
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 1 卷——补丁生命周期。本文档详述代码从设计构想到主线、稳定版、长期维护的 6 阶段全生命周期，是工程标准层 `50-engineering-standards/05-development-process.md` 在模块设计层的展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 开发流程 + Linux 6.6 内核开发流程（`Documentation/process/development-process.rst` 8 章）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + S-4 涌现性管理 + C-2 增量演化\
-> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 用户态运行时规范与 agentrt-linux 内核发行版规范并行演进，通过同源 API 保持互操作）
+> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 用户态运行时规范与 agent-linux 内核发行版规范并行演进，通过同源 API 保持互操作）
 
 ---
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 1 卷，回答"一个补丁从立项到归档的完整路径是什么"。它继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型，并将其适配到 agentrt-linux 的 GitHub PR 工作流。
+本文档是 120-development-process 模块的第 1 卷，回答"一个补丁从立项到归档的完整路径是什么"。它继承 Linux 6.6 内核基线的 6 阶段补丁生命周期模型，并将其适配到 agent-linux 的 GitHub PR 工作流。
 
 ### 1.1 与工程标准层的关系
 
@@ -24,7 +24,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 全部 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）以及同源 agentrt 的协同变更流程。涉及 MicroCoreRT 与 AgentsIPC 同源 API 的改动遵循第 10 节的跨仓流程。
+本文档适用于 agent-linux 全部 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）以及同源 agentrt 的协同变更流程。涉及 MicroCoreRT 与 AgentsIPC 同源 API 的改动遵循第 10 节的跨仓流程。
 
 ### 1.3 关键术语
 
@@ -33,14 +33,14 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 补丁 | 一个 git commit，对应一个逻辑变更 |
 | 补丁序列 | 一个 PR 内多个相互关联、按依赖顺序排列的补丁 |
 | 子系统树 | 子系统维护者维护的分支，补丁进入主线的中间站 |
-| `develop` 分支 | agentrt-linux 预览集成分支，等价 linux-next 树 |
-| `release/*` 分支 | agentrt-linux 稳定版分支，等价 Linux -stable 树 |
+| `develop` 分支 | agent-linux 预览集成分支，等价 linux-next 树 |
+| `release/*` 分支 | agent-linux 稳定版分支，等价 Linux -stable 树 |
 
 ---
 
 ## 2. 6 阶段生命周期总览
 
-agentrt-linux 继承 Linux 6.6 内核基线的 6 阶段模型：Design → Early Review → Wider Review → Mainline → Stable Release → Long-term Maintenance。每个阶段有明确的输入、输出、责任人、SLA 与工具关卡。
+agent-linux 继承 Linux 6.6 内核基线的 6 阶段模型：Design → Early Review → Wider Review → Mainline → Stable Release → Long-term Maintenance。每个阶段有明确的输入、输出、责任人、SLA 与工具关卡。
 
 ```mermaid
 flowchart LR
@@ -181,9 +181,9 @@ gh pr create --base develop --title "security/cupolas: add agent capability hook
 
 ### 5.4 develop 分支等价 linux-next
 
-`develop` 分支是 agentrt-linux 对 Linux linux-next 树的等价物：
+`develop` 分支是 agent-linux 对 Linux linux-next 树的等价物：
 
-| Linux 概念 | agentrt-linux 等价物 | 同源语义 |
+| Linux 概念 | agent-linux 等价物 | 同源语义 |
 |-----------|-----------------|---------|
 | linux-next 树 | `develop` 分支 | 下一 Merge Window 候选补丁汇聚 |
 | -mm 树 | `airymax-mm` 分支 | 无明确子系统归属的补丁归宿 |
@@ -198,12 +198,12 @@ gh pr create --base develop --title "security/cupolas: add agent capability hook
 
 ### 6.1 Merge Window 与 RC 周期
 
-agentrt-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏：Merge Window 接受新特性补丁；RC1 发布后仅接受修复补丁，新特性必须等待下一个 Merge Window。
+agent-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏：Merge Window 接受新特性补丁；RC1 发布后仅接受修复补丁，新特性必须等待下一个 Merge Window。
 
 ### 6.2 规则编号
 
 - **OS-DEV-131**：合并入 `main` 的补丁必须包含至少 1 个 `Reviewed-by:` 标签（来自非作者维护者）。
-- **OS-DEV-132**：合并入 `main` 的补丁若修改 AgentsIPC 128B 消息头布局，必须由 agentrt-linux 工程规范委员会额外签字。
+- **OS-DEV-132**：合并入 `main` 的补丁若修改 AgentsIPC 128B 消息头布局，必须由 agent-linux 工程规范委员会额外签字。
 - **OS-DEV-133**：合并入 `main` 的补丁若修改 MicroCoreRT 同源语义，必须通过 agentrt 兼容性测试。
 - **OS-DEV-134**：合并入 `main` 必须通过 GitHub Actions 全部检查；任一检查失败禁止合并。
 
@@ -254,13 +254,13 @@ agentrt-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏：Merge
 
 ### 7.4 安全补丁例外
 
-安全补丁不走常规稳定版审查流程，由 agentrt-linux 安全团队直接处理。严重安全漏洞可能进入短期 embargo；embargo 期间补丁禁止进入任何公开分支或 PR。
+安全补丁不走常规稳定版审查流程，由 agent-linux 安全团队直接处理。严重安全漏洞可能进入短期 embargo；embargo 期间补丁禁止进入任何公开分支或 PR。
 
 ---
 
 ## 8. 阶段六：Long-term Maintenance（长期维护）
 
-补丁作者需持续负责其合并入主线的代码。"the development community remembers developers who lose interest in their code after it's merged"——这是 Linux 内核社区的明确警告，agentrt-linux 完全继承。
+补丁作者需持续负责其合并入主线的代码。"the development community remembers developers who lose interest in their code after it's merged"——这是 Linux 内核社区的明确警告，agent-linux 完全继承。
 
 ### 8.1 LTS 版本维护
 
@@ -279,7 +279,7 @@ agentrt-linux 采用 2 周 Merge Window + 6 周 RC 周期的发布节奏：Merge
 Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
 ```
 
-溯源必须使用引入 bug 的原始 commit 的 12 字符 SHA + 单行摘要，不要跨行拆分标签。agentrt-linux 仓库对象众多，6-8 字符 SHA 有碰撞风险。
+溯源必须使用引入 bug 的原始 commit 的 12 字符 SHA + 单行摘要，不要跨行拆分标签。agent-linux 仓库对象众多，6-8 字符 SHA 有碰撞风险。
 
 ---
 
@@ -384,9 +384,9 @@ stateDiagram-v2
 
 ---
 
-## 10. agentrt-linux 8 子仓跨仓 PR 流程
+## 10. agent-linux 8 子仓跨仓 PR 流程
 
-agentrt-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）之间存在依赖关系。跨仓变更需通过 submodule 更新触发上游仓 PR。
+agent-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）之间存在依赖关系。跨仓变更需通过 submodule 更新触发上游仓 PR。
 
 ### 10.1 8 子仓依赖关系
 
@@ -457,11 +457,11 @@ gh pr create --base develop --title "kernel: consume airy_ipc agent_priority fie
 
 ## 11. GitHub PR 工作流适配邮件补丁
 
-agentrt-linux 将 Linux 内核的邮件 + `git send-email` 流程适配为 GitHub PR 流程，但保留同源语义。
+agent-linux 将 Linux 内核的邮件 + `git send-email` 流程适配为 GitHub PR 流程，但保留同源语义。
 
 ### 11.1 适配映射表
 
-| Linux 内核概念 | agentrt-linux 等价物 | 同源语义 |
+| Linux 内核概念 | agent-linux 等价物 | 同源语义 |
 |---------------|-----------------|---------|
 | 邮件列表 | GitHub PR + 子仓 issue tracker | 公开讨论存档 |
 | `git send-email` | GitHub PR 内联提交 | 补丁可被引用、逐行评论 |
@@ -480,7 +480,7 @@ agentrt-linux 将 Linux 内核的邮件 + `git send-email` 流程适配为 GitHu
 
 Fixes: 54a4f0239f2e ("original commit summary")
 Closes: #123
-Link: https://github.com/agentrt-linux/kernel/pull/456#discussion_r789
+Link: https://github.com/agent-linux/kernel/pull/456#discussion_r789
 
 Signed-off-by: Author Name <author@example.com>
 Reviewed-by: Reviewer Name <reviewer@example.com>
@@ -518,7 +518,7 @@ Reviewed-by: Reviewer Name <reviewer@example.com>
 
 本文档的开发流程与 agentrt 用户态运行时规范同源且部分代码共享（IRON-9 v3 同源且部分代码共享）：
 
-| 维度 | agentrt（用户态） | agentrt-linux（内核发行版） |
+| 维度 | agentrt（用户态） | agent-linux（内核发行版） |
 |------|------------------|----------------------|
 | SCM | GitHub PR | GitHub PR（同源） |
 | 预览分支 | develop | develop（同源语义） |
@@ -529,11 +529,11 @@ Reviewed-by: Reviewer Name <reviewer@example.com>
 
 ### 13.1 同源 API 变更流程
 
-MicroCoreRT 与 AgentsIPC 同源 API 的变更必须遵循双向同步：agentrt 端 RFC 必须同步到 agentrt-linux 端，反之亦然；变更必须通过两端兼容性测试；季度评审同源 API 漂移。
+MicroCoreRT 与 AgentsIPC 同源 API 的变更必须遵循双向同步：agentrt 端 RFC 必须同步到 agent-linux 端，反之亦然；变更必须通过两端兼容性测试；季度评审同源 API 漂移。
 
 ### 13.2 IRON-9 v3 四层共享模型
 
-IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux（内核发行版）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦补丁生命周期的三层映射。
+IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agent-linux（内核发行版）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦补丁生命周期的三层映射。
 
 #### 13.2.1 三层模型概览
 
@@ -541,7 +541,7 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 |------|---------|-------------|
 | **[SC] 共享契约层** | 无——开发流程为工程规范层，不涉及代码共享 | 无 [SC] 层头文件；补丁流程属工程规范层，两端无头文件级代码共享 |
 | **[SS] 语义同源层** | 语义两端一致，实现独立 | 补丁格式（git format-patch）、review 流程（Reviewed-by/Tested-by）、LTS 维护策略（stable backport）、补丁签名（Signed-off-by DCO） |
-| **[IND] 完全独立层** | agentrt-linux 独有 | 8 子仓补丁流转路径、子仓间依赖排序、submodule 更新流程、umbrella repo 发布 |
+| **[IND] 完全独立层** | agent-linux 独有 | 8 子仓补丁流转路径、子仓间依赖排序、submodule 更新流程、umbrella repo 发布 |
 
 #### 13.2.2 [SC] 共享契约层
 
@@ -549,9 +549,9 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 
 #### 13.2.3 [SS] 语义同源层
 
-[SS] 层的补丁流程语义两端一致，但仓库结构与合入路径独立：agentrt 用户态使用单一 monorepo（或少量仓库），agentrt-linux 使用 8 子仓 + umbrella repo 架构。两端语义映射如下：
+[SS] 层的补丁流程语义两端一致，但仓库结构与合入路径独立：agentrt 用户态使用单一 monorepo（或少量仓库），agent-linux 使用 8 子仓 + umbrella repo 架构。两端语义映射如下：
 
-| 语义维度 | agentrt（用户态运行时） | agentrt-linux（内核发行版） |
+| 语义维度 | agentrt（用户态运行时） | agent-linux（内核发行版） |
 |------|------------------------|------------------------|
 | 补丁格式 | git format-patch（同源） | git format-patch（同源格式） |
 | review 流程 | GitHub PR + Reviewed-by/Tested-by 标签 | GitHub PR + Reviewed-by/Tested-by 标签（同源） |
@@ -560,11 +560,11 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 | 补丁序列 | git bisect 友好，序列中点可编译 | git bisect 友好（同源），8 子仓各自独立 bisect |
 | 重发版本 | [RESEND] / v2 / v3 | [RESEND] / v2 / v3（同源） |
 
-两端在补丁流程语义上完全同源——补丁格式、review 标签语义、DCO 签名链、LTS backport 策略的概念模型一致——但 agentrt-linux 将流程语义落地为 8 子仓的分布式补丁流转（每仓独立 PR/review/merge），而 agentrt 用户态运行时保持单一仓库的线性补丁流。这种语义同源使得开发者从 agentrt 贡献迁移到 agentrt-linux 贡献时，补丁格式与 review 礼仪无需重新学习，仅需适应多仓依赖排序。
+两端在补丁流程语义上完全同源——补丁格式、review 标签语义、DCO 签名链、LTS backport 策略的概念模型一致——但 agent-linux 将流程语义落地为 8 子仓的分布式补丁流转（每仓独立 PR/review/merge），而 agentrt 用户态运行时保持单一仓库的线性补丁流。这种语义同源使得开发者从 agentrt 贡献迁移到 agent-linux 贡献时，补丁格式与 review 礼仪无需重新学习，仅需适应多仓依赖排序。
 
 #### 13.2.4 [IND] 完全独立层
 
-[IND] 层是 agentrt-linux 8 子仓架构的固有责任，agentrt 用户态运行时不涉及：
+[IND] 层是 agent-linux 8 子仓架构的固有责任，agentrt 用户态运行时不涉及：
 
 | 独立实现项 | 说明 | agentrt 是否涉及 |
 |------|------|------|
@@ -585,7 +585,7 @@ graph LR
         T2["Reviewed-by / Tested-by<br/>review 标签"]
         T3["Signed-off-by<br/>DCO 1.1 签名"]
     end
-    SS -->|"语义约束"| D["agentrt-linux<br/>8 子仓补丁流转"]
+    SS -->|"语义约束"| D["agent-linux<br/>8 子仓补丁流转"]
     D -->|"各自独立"| E["kernel → services → security<br/>→ memory → cognition<br/>→ cloudnative → system → tests-linux"]
     style SS fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style A fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
@@ -593,11 +593,11 @@ graph LR
     style E fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
-补丁协作流：agentrt 用户态使用单一仓库的 GitHub PR 流程提交补丁，补丁格式（git format-patch）、review 标签（Reviewed-by/Tested-by）、DCO 签名（Signed-off-by）由 [SS] 语义同源层两端共享。agentrt-linux 将这些语义落地为 8 子仓的分布式补丁流转（[IND] 完全独立——kernel→services→security→memory→cognition→cloudnative→system→tests-linux 的依赖链合入顺序、submodule 更新、umbrella repo 统一发布），每仓独立 PR/review/merge 但遵循同源补丁格式。两端通过 [SS] 层的补丁格式同源实现开发者经验的平滑迁移，同源 API 变更（MicroCoreRT/AgentsIPC）通过 §13.1 的双向同步机制确保两端一致性。
+补丁协作流：agentrt 用户态使用单一仓库的 GitHub PR 流程提交补丁，补丁格式（git format-patch）、review 标签（Reviewed-by/Tested-by）、DCO 签名（Signed-off-by）由 [SS] 语义同源层两端共享。agent-linux 将这些语义落地为 8 子仓的分布式补丁流转（[IND] 完全独立——kernel→services→security→memory→cognition→cloudnative→system→tests-linux 的依赖链合入顺序、submodule 更新、umbrella repo 统一发布），每仓独立 PR/review/merge 但遵循同源补丁格式。两端通过 [SS] 层的补丁格式同源实现开发者经验的平滑迁移，同源 API 变更（MicroCoreRT/AgentsIPC）通过 §13.1 的双向同步机制确保两端一致性。
 
 ### 13.3 8 子仓补丁流转路径与跨仓依赖排序
 
-agentrt-linux 的 8 子仓补丁流转存在严格的跨仓依赖排序问题：下层子仓（如 kernel）的补丁必须先 merge 到 develop 分支，上层子仓（如 services/cognition）依赖下层 commit SHA 的 submodule 指针更新后方可提交 PR；违反排序将导致上层 PR 的 CI 拉取到旧版下层产物，触发虚假的符号缺失或 ABI 断裂失败。
+agent-linux 的 8 子仓补丁流转存在严格的跨仓依赖排序问题：下层子仓（如 kernel）的补丁必须先 merge 到 develop 分支，上层子仓（如 services/cognition）依赖下层 commit SHA 的 submodule 指针更新后方可提交 PR；违反排序将导致上层 PR 的 CI 拉取到旧版下层产物，触发虚假的符号缺失或 ABI 断裂失败。
 
 #### 13.3.1 8 子仓补丁流转路径图
 
@@ -658,7 +658,7 @@ graph TD
 
 #### 13.3.3 跨仓 PR 的 submodule 更新触发机制
 
-agentrt-linux 的 umbrella repo 通过 `.gitmodules` 引用 8 子仓的 commit SHA。当某一子仓的 PR 合并到 `develop` 后，GitHub Actions 自动触发上游子仓的 submodule 更新 PR：
+agent-linux 的 umbrella repo 通过 `.gitmodules` 引用 8 子仓的 commit SHA。当某一子仓的 PR 合并到 `develop` 后，GitHub Actions 自动触发上游子仓的 submodule 更新 PR：
 
 1. **下游仓 merge 触发**：`kernel` 仓 PR 合并后，CI 调用 `git submodule update --remote kernel` 更新 `services`/`security`/`memory` 仓的 `.gitmodules` 指针。
 2. **自动 PR 创建**：CI 为每个上游子仓自动创建 `chore: bump kernel submodule to <sha>` 的 PR，目标分支为 `develop`，PR 描述必须引用下游仓的 commit SHA（12 字符）。
@@ -700,7 +700,7 @@ agentrt-linux 的 umbrella repo 通过 `.gitmodules` 引用 8 子仓的 commit S
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集补丁生命周期 6 阶段所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核开发流程（`Documentation/process/`）、git format-patch 补丁格式规范、DCO 1.1 标准，以及 agentrt-linux GitHub PR 工作流专属契约（`include/airymax/patch_types.h`，agentrt-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。
+> **附录定位**： 本附录汇集补丁生命周期 6 阶段所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核开发流程（`Documentation/process/`）、git format-patch 补丁格式规范、DCO 1.1 标准，以及 agent-linux GitHub PR 工作流专属契约（`include/airymax/patch_types.h`，agent-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。
 
 ### A.1 核心数据结构
 
@@ -714,7 +714,7 @@ agentrt-linux 的 umbrella repo 通过 `.gitmodules` 引用 8 子仓的 commit S
  * 用于 stage_transition() 阶段转换决策。
  *
  * 对齐 Linux 6.6 内核 Documentation/process/development-process.rst
- * 对齐 agentrt-linux OS-DEV-101 ~ OS-DEV-163
+ * 对齐 agent-linux OS-DEV-101 ~ OS-DEV-163
  */
 struct patch_stage {
     int          stage_id;        /* @field: PATCH_STAGE_* 枚举（DESIGN ~ LTS） */
@@ -742,7 +742,7 @@ struct patch_stage {
  * 由 patch_validate() 校验格式合规性。
  *
  * 对齐 Linux 6.6 内核 git format-patch + submitting-patches.rst 规范
- * 对齐 agentrt-linux OS-DEV-111 / OS-DEV-181
+ * 对齐 agent-linux OS-DEV-111 / OS-DEV-181
  */
 struct patch_metadata {
     const char *commit_sha;       /* @field: commit SHA（12 字符，避免碰撞，§8.3） */
@@ -800,7 +800,7 @@ struct patch_metadata {
  * 对应 GitHub PR 描述的结构化表示。
  * 对齐 §6.3 pull request 模板 + §3.3 RFC 模板。
  *
- * 对齐 agentrt-linux OS-DEV-101 / OS-DEV-131
+ * 对齐 agent-linux OS-DEV-101 / OS-DEV-131
  */
 struct pr_template {
     const char *title;            /* @field: PR 标题（含 [PATCH NNN/total] 前缀） */
@@ -847,7 +847,7 @@ struct pr_template {
  * 每项对应一个 OS-DEV 规则。
  *
  * 对齐 Linux 6.6 内核 reviewing 规范
- * 对齐 agentrt-linux OS-DEV-111 ~ OS-DEV-124
+ * 对齐 agent-linux OS-DEV-111 ~ OS-DEV-124
  */
 struct review_checklist {
     const char *patch_sha;       /* @field: 被审查的补丁 SHA */
@@ -883,7 +883,7 @@ struct review_checklist {
  * 由 stage_transition() 函数消费。
  *
  * 对齐 Linux 6.6 内核 development-process.rst 6 阶段模型
- * 对齐 agentrt-linux §9 转换条件矩阵
+ * 对齐 agent-linux §9 转换条件矩阵
  */
 struct stage_transition {
     int          from_stage;     /* @field: 源阶段（PATCH_STAGE_*） */
@@ -941,7 +941,7 @@ int patch_validate(const struct patch_metadata *metadata);
  * @return: PR 编号（>0 成功），<0 失败
  * @since 0.1.1
  *
- * 对齐 agentrt-linux GitHub PR 工作流（§11）
+ * 对齐 agent-linux GitHub PR 工作流（§11）
  */
 int pr_create(const struct pr_template *template,
               const struct patch_metadata *metadata,
@@ -966,7 +966,7 @@ int pr_create(const struct pr_template *template,
  * @return: 0 转换成功，<0 转换失败（见 PATCH_* 错误码）
  * @since 0.1.1
  *
- * 对齐 agentrt-linux §9 转换条件矩阵
+ * 对齐 agent-linux §9 转换条件矩阵
  */
 int stage_transition(const char *patch_sha,
                      const struct stage_transition *transition,
@@ -1058,7 +1058,7 @@ int stable_backport(const char *patch_sha,
  * PATCH_STAGE_* - 补丁生命周期 6 阶段枚举
  *
  * 对齐 Linux 6.6 内核 development-process.rst 6 阶段模型
- * 对齐 agentrt-linux §2 6 阶段生命周期
+ * 对齐 agent-linux §2 6 阶段生命周期
  */
 #define PATCH_STAGE_DESIGN          1  /* 阶段 1: Design（设计 RFC） */
 #define PATCH_STAGE_EARLY_REVIEW    2  /* 阶段 2: Early Review（早期审查） */
@@ -1074,7 +1074,7 @@ int stable_backport(const char *patch_sha,
 /**
  * PR_STATUS_* - Pull Request 状态枚举
  *
- * 对齐 GitHub PR 状态 + agentrt-linux 工作流
+ * 对齐 GitHub PR 状态 + agent-linux 工作流
  */
 #define PR_STATUS_OPEN         1  /* PR 已创建，等待审查 */
 #define PR_STATUS_REVIEW       2  /* 审查中（有审查意见但未完成） */
@@ -1092,7 +1092,7 @@ int stable_backport(const char *patch_sha,
  * REVIEW_LABEL_* - 审查标签类型枚举
  *
  * 对齐 Linux 6.6 内核 review 标签语义
- * 对齐 agentrt-linux §5.4 标签语义对照表
+ * 对齐 agent-linux §5.4 标签语义对照表
  */
 #define REVIEW_LABEL_REVIEWED   1  /* Reviewed-by:（完整技术审查，§6 四项声明） */
 #define REVIEW_LABEL_ACKED      2  /* Acked-by:（认可但未深入审查） */
@@ -1124,13 +1124,13 @@ int stable_backport(const char *patch_sha,
  * DCO_* - DCO（Developer Certificate of Origin）签名验证常量
  *
  * 对齐 Linux 6.6 内核 DCO 1.1 标准
- * 对齐 agentrt-linux OS-DEV-181 / OS-DEV-231
+ * 对齐 agent-linux OS-DEV-181 / OS-DEV-231
  */
 
 /**
  * DCO_VERSION - DCO 版本号
  *
- * agentrt-linux 继承 Linux 内核 DCO 1.1 标准。
+ * agent-linux 继承 Linux 内核 DCO 1.1 标准。
  * 所有 commit 必须用 git commit -s 添加 Signed-off-by 签名。
  */
 #define DCO_VERSION             "1.1"

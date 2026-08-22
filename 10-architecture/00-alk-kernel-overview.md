@@ -2,10 +2,10 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # ALK-6.6 内核总体架构（SSoT）
 
-> **文档定位**：agentrt-linux（AirymaxOS）ALK-6.6（AirymaxOS Linux Kernel 6.6）内核总体架构的唯一权威定义文档。本文件定义 ALK-6.6 的物理形态、内核基线、改造点清单、技术支柱、syscall 架构、子系统概要与微内核化改造路径。所有涉及 ALK-6.6 内核架构的文档必须以本文件为准\
+> **文档定位**：agent-linux（AirymaxOS）ALK-6.6（AirymaxOS Linux Kernel 6.6）内核总体架构的唯一权威定义文档。本文件定义 ALK-6.6 的物理形态、内核基线、改造点清单、技术支柱、syscall 架构、子系统概要与微内核化改造路径。所有涉及 ALK-6.6 内核架构的文档必须以本文件为准\
 > **文档版本**：v1.0.1（v3.1 重建）\
 > **最后更新**：2026-07-30\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：Linux 6.6 LTS 内核基线 + seL4 微内核工程思想（ADR-014）\
 > **编号权威**：[09-ssot-registry.md §3](../50-engineering-standards/09-ssot-registry.md)\
 > **SPDX-License-Identifier**：CC-BY-NC-4.0
@@ -83,7 +83,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 1. **LTS 长期支持**：Linux 6.6 是 LTS 版本，维护周期至 2026 年底+，适合生产就绪目标
 2. **io\_uring 成熟**：6.6 的 io\_uring 子系统已成熟，支持 `IORING_OP_URING_CMD` + registered buffer + SQPOLL
-3. **sched\_ext 不在 6.6 基线**：sched\_ext 于 Linux 6.12 合入主线，6.6 LTS 基线（vanilla）不含 sched\_ext。agentrt-linux 锁定 6.6 基线自然不依赖 sched\_ext；即便未来升级基线，仍坚持 sched\_tac 路线（H5 纯 C LSM 约束，sched\_ext 依赖 BPF\_SYSCALL/BPF\_JIT/DEBUG\_INFO\_BTF）
+3. **sched\_ext 不在 6.6 基线**：sched\_ext 于 Linux 6.12 合入主线，6.6 LTS 基线（vanilla）不含 sched\_ext。agent-linux 锁定 6.6 基线自然不依赖 sched\_ext；即便未来升级基线，仍坚持 sched\_tac 路线（H5 纯 C LSM 约束，sched\_ext 依赖 BPF\_SYSCALL/BPF\_JIT/DEBUG\_INFO\_BTF）
 4. **Landlock 纯 C 实现**：6.6 的 Landlock 是纯 C 实现，使用专用 syscall 而非 BPF 程序，符合 H5 约束
 5. **EEVDF 调度器**：6.6 引入 EEVDF（Earliest Eligible Virtual Deadline First）调度类，sched\_tac 可组合使用
 
@@ -107,7 +107,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ```
 ALK-6.6 = Linux 6.6 LTS (vanilla)                       [IRON-7 基线]
          + 国产硬件驱动层（LAYER，复用 openEuler 硬件适配）  [架构可选，非核心子系统]
-         + agentrt-linux 微内核化改造补丁（≤ 2 万行）        [核心子系统改造]
+         + agent-linux 微内核化改造补丁（≤ 2 万行）        [核心子系统改造]
          + [SC] 共享契约层（12 个头文件）
          + 4 核心 syscall（548-551）+ op-dispatch
          + io_uring 数据面（IORING_OP_URING_CMD）
@@ -120,7 +120,7 @@ ALK-6.6 = Linux 6.6 LTS (vanilla)                       [IRON-7 基线]
 
 ### 3.2 内核目录结构概要
 
-ALK-6.6 在 Linux 6.6 原生目录树基础上新增以下 agentrt-linux 专属目录：
+ALK-6.6 在 Linux 6.6 原生目录树基础上新增以下 agent-linux 专属目录：
 
 ```
 kernel/                          # Linux 6.6 内核源码树
@@ -332,9 +332,9 @@ IPC 数据传递完全由 io\_uring `IORING_OP_URING_CMD` + `cmd_op` 区分操�
 
 ### 5.1 模型选型
 
-agentrt-linux 选择 **seL4 风格 + POSIX 混合** capability 模型：
+agent-linux 选择 **seL4 风格 + POSIX 混合** capability 模型：
 
-| 维度    | ACL        | POSIX capability | seL4 capability | agentrt-linux       |
+| 维度    | ACL        | POSIX capability | seL4 capability | agent-linux       |
 | ----- | ---------- | ---------------- | --------------- | ------------------- |
 | 权限传递  | 通过组/用户     | 进程位图             | 不可伪造令牌          | seL4（Agent 间传递）     |
 | 权限撤销  | 困难（遍历 ACL） | 不支持运行时           | 递归级联撤销          | seL4 风格 MDB 级联 O(N)（K9-1 后；全局 Epoch 为补充机制） |
@@ -364,15 +364,15 @@ agentrt-linux 选择 **seL4 风格 + POSIX 混合** capability 模型：
 
 ### 5.4 Badge 撤销机制（三层互补）
 
-agentrt-linux 采用**三层互补**的 Badge/capability 撤销机制，覆盖不同粒度：
+agent-linux 采用**三层互补**的 Badge/capability 撤销机制，覆盖不同粒度：
 
 | 层级                     | 机制                                                                                   | 复杂度             | 触发场景                             | 代码位置                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------ | --------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ① REVOKE CNode 操作      | `airy_cap_revoke_subtree()` 沿 MDB 派生树（左孩子右兄弟）递归撤销子 cap                               | O(N)（典型深度 ≤3）   | 撤销某 cap 的所有派生子 cap               | [airy\_cap\_derive.c:92-117](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L92-L117)     |
+| ① REVOKE CNode 操作      | `airy_cap_revoke_subtree()` 沿 MDB 派生树（左孩子右兄弟）递归撤销子 cap                               | O(N)（典型深度 ≤3）   | 撤销某 cap 的所有派生子 cap               | [airy\_cap\_derive.c:92-117](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L92-L117)     |
 | ② per-agent epoch bump | `airy_cap_epoch_bump(agent_id)` 递增 slot\_epoch，该 Agent 旧 Badge 立即失效                  | O(1)            | 撤销某 Agent 的所有 Badge（K9-1 主要撤销机制） | `security/airy/airy_cap_array.c`                                                                      |
-| ③ cancelBadgedSends    | `airy_ipc_cancel_badged_sends(ring, badge)` 扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过 | O(N)（N=ring 深度） | 撤销指定 Badge 的待发送 IPC 消息           | [airy\_ipc\_ring.c:159-207](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207) |
+| ③ cancelBadgedSends    | `airy_ipc_cancel_badged_sends(ring, badge)` 扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过 | O(N)（N=ring 深度） | 撤销指定 Badge 的待发送 IPC 消息           | [airy\_ipc\_ring.c:159-207](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207) |
 
-**seL4 对比**：seL4 的 `cteRevoke` 需递归遍历 MDB 派生树，复杂度 O(N)；agentrt-linux 的 ②层将复杂度从撤销方的 O(N) 转移到被撤销方的重新申请（O(1)），①层保留 seL4 风格的递归撤销语义，③层补齐 seL4 `endpoint.c:476-489` 的 `cancelBadgedSends` 对等能力。
+**seL4 对比**：seL4 的 `cteRevoke` 需递归遍历 MDB 派生树，复杂度 O(N)；agent-linux 的 ②层将复杂度从撤销方的 O(N) 转移到被撤销方的重新申请（O(1)），①层保留 seL4 风格的递归撤销语义，③层补齐 seL4 `endpoint.c:476-489` 的 `cancelBadgedSends` 对等能力。
 
 > **详细设计**：详见 [03-capability-model.md](../110-security/03-capability-model.md) 与 [07-ipc-fastpath.md](../30-interfaces/07-ipc-fastpath.md)。
 
@@ -382,7 +382,7 @@ agentrt-linux 采用**三层互补**的 Badge/capability 撤销机制，覆盖�
 
 ### 6.1 架构
 
-| 维度       | seL4 实现                        | agentrt-linux 实现                     |
+| 维度       | seL4 实现                        | agent-linux 实现                     |
 | -------- | ------------------------------ | ------------------------------------ |
 | 通信模型     | Endpoint 三态状态机（Idle/Send/Recv） | io\_uring SQ/CQ ring 异步消息            |
 | 消息头      | MessageInfo 紧凑编码               | 128B 定长消息头（Layout C v4）              |
@@ -421,7 +421,7 @@ offset 56-127: reserved[72]
 
 ### 7.1 sched\_tac 框架
 
-sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是 agentrt-linux 的调度策略框架：
+sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是 agent-linux 的调度策略框架：
 
 | 维度           | 说明                                              |
 | ------------ | ----------------------------------------------- |
@@ -465,7 +465,7 @@ sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是
 
 ### 8.2 内存管理机制
 
-| 机制     | Linux 6.6 原生    | agentrt-linux 增强                                         |
+| 机制     | Linux 6.6 原生    | agent-linux 增强                                         |
 | ------ | --------------- | -------------------------------------------------------- |
 | 物理内存分配 | buddy allocator | 保留 + Retype 层（新增）                                        |
 | 页面回收   | LRU / MGLRU     | MGLRU 配置（`AIRY_ROVOL_MGLRU_CONFIG`）                      |
@@ -491,7 +491,7 @@ sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是
 
 ### 9.2 H5 纯 C LSM 硬约束
 
-**H5**：agentrt-linux 的 airy\_lsm 是**纯 C 实现**，禁止依赖 BPF：
+**H5**：agent-linux 的 airy\_lsm 是**纯 C 实现**，禁止依赖 BPF：
 
 | 禁止依赖             | 理由                   |
 | ---------------- | -------------------- |
@@ -548,7 +548,7 @@ sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是
 
 ### 11.1 体量控制策略
 
-| 代码区域                         | seL4 基线    | agentrt-linux 预算 | 控制策略                  |
+| 代码区域                         | seL4 基线    | agent-linux 预算 | 控制策略                  |
 | ---------------------------- | ---------- | ---------------- | --------------------- |
 | 内核核心（调度/IPC/capability/内存原语） | \~14,400 行 | 5-10 万行          | 每新增子系统需论证"无法在用户态安全实现" |
 | 微内核化改造补丁                     | —          | ≤ 2 万行           | VFS / 网络栈 / 驱动用户态化补丁  |
@@ -603,7 +603,7 @@ sched\_tac（sched\_tac = **sched**uling **t**hrough **a**gent **c**lasses）是
 
 | 文档                                                                                                                          | 关系                         |
 | --------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| [01-system-architecture.md](01-system-architecture.md)                                                                      | agentrt-linux 系统架构总览       |
+| [01-system-architecture.md](01-system-architecture.md)                                                                      | agent-linux 系统架构总览       |
 | [03-microkernel-strategy.md](03-microkernel-strategy.md)                                                                    | 微内核设计思想详解                  |
 | [06-iron9-shared-model.md](06-iron9-shared-model.md)                                                                        | IRON-9 v3 四层共享模型           |
 | [07-directory-structure.md](07-directory-structure.md)                                                                      | 整体目录结构设计                   |

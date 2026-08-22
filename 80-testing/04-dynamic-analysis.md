@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）动态分析
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 4 卷——运行时动态分析（Dynamic Analysis）。本卷规定 KASAN（内核地址 sanitizer）、KFENCE（采样式内存错误检测）、UBSAN（未定义行为 sanitizer）、KCSAN（并发 sanitizer）、lockdep（锁依赖分析）、kmemleak（内存泄漏检测）的启用模型、Kconfig 选项、报告格式，以及 agentrt-linux 专属动态分析（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）与 CI nightly workflow 集成。\
+# agent-linux（AirymaxOS）动态分析
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 4 卷——运行时动态分析（Dynamic Analysis）。本卷规定 KASAN（内核地址 sanitizer）、KFENCE（采样式内存错误检测）、UBSAN（未定义行为 sanitizer）、KCSAN（并发 sanitizer）、lockdep（锁依赖分析）、kmemleak（内存泄漏检测）的启用模型、Kconfig 选项、报告格式，以及 agent-linux 专属动态分析（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）与 CI nightly workflow 集成。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L4（动态分析）+ Linux 6.6 内核基线 `lib/kasan/`、`mm/kfence/`、`lib/ubsan/`、`kernel/kcsan/`、`kernel/locking/lockdep.c`\
 > **理论根基**：Linux 6.6 内核基线动态分析思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环 / A-4 完美主义）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——agentrt-linux 专属动态分析钩子以独立 `airy_dyn_*` 模块注入，禁止改写上游 sanitizer 核心代码；CI nightly workflow 强制运行动态分析。
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属动态分析钩子以独立 `airy_dyn_*` 模块注入，禁止改写上游 sanitizer 核心代码；CI nightly workflow 强制运行动态分析。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 4 卷，回答"运行时内存/并发错误怎么发现"。它在 03-kernel-selftests（启动时自检）与 05-static-analysis（编译时静态分析）之间形成运行时检测层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 4 卷，回答"运行时内存/并发错误怎么发现"。它在 03-kernel-selftests（启动时自检）与 05-static-analysis（编译时静态分析）之间形成运行时检测层：
 
 - **上游依赖**：README 定义"测试体系分层"——L4 动态分析由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 10 层（运行时检测层）。
 - **下游依赖**：05-static-analysis 定义"编译时静态错误怎么发现"；06-coverage-metrics 定义"代码覆盖率怎么测"——本卷的 KASAN/KCSAN/lockdep 检测结果影响覆盖率门槛评估。
@@ -30,7 +30,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | KCSAN | Kernel Concurrency SANitizer，检测数据竞争 |
 | lockdep | Lock Dependency Validator，运行时锁依赖图分析 |
 | kmemleak | Kernel Memory Leak Detector，扫描内核内存引用检测泄漏 |
-| `airy_dyn_*` | agentrt-linux 专属动态分析钩子模块（**规划，未实现**：`kernel/airymaxos/dyn/` 目录当前不存在） |
+| `airy_dyn_*` | agent-linux 专属动态分析钩子模块（**规划，未实现**：`kernel/airymaxos/dyn/` 目录当前不存在） |
 | `nightly-dynamic-analysis` workflow | CI 每日运行的动态分析流水线 |
 
 ---
@@ -41,7 +41,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 内核动态分析是 Linux 6.6 内核基线中"在内核运行时检测内存、并发、未定义行为错误"的机制。其设计目标有三：**运行时反馈**（捕获编译期无法发现的错误，如越界访问、数据竞争）、**低开销生产可用**（KFENCE 采样式开销 < 1%）、**自动化定位**（崩溃栈与变量名直接打印）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的动态分析框架（KASAN/KFENCE/UBSAN/KCSAN/lockdep/kmemleak），不修改任何上游源文件。agentrt-linux 专属动态分析以独立 `airy_dyn_*.c` 模块形式驻留于 `kernel/airymaxos/dyn/`，遵循 IRON-9 v3 [IND] 独立实现层原则（**规划，未实现**：`kernel/airymaxos/dyn/` 目录与 `airy_dyn_*` 模块当前均不存在，以下 §8 为设计规划）。
+agent-linux 完整继承 Linux 6.6 内核基线的动态分析框架（KASAN/KFENCE/UBSAN/KCSAN/lockdep/kmemleak），不修改任何上游源文件。agent-linux 专属动态分析以独立 `airy_dyn_*.c` 模块形式驻留于 `kernel/airymaxos/dyn/`，遵循 IRON-9 v3 [IND] 独立实现层原则（**规划，未实现**：`kernel/airymaxos/dyn/` 目录与 `airy_dyn_*` 模块当前均不存在，以下 §8 为设计规划）。
 
 ```mermaid
 flowchart TB
@@ -69,7 +69,7 @@ flowchart TB
     C4 --> D
     C5 --> D
     C6 --> D
-    subgraph "agentrt-linux 扩展层（[IND]）"
+    subgraph "agent-linux 扩展层（[IND]）"
         E["airy_dyn_token<br/>Token 预算溢出检测"]
         F["airy_dyn_agent_mem<br/>Agent 内存泄漏检测"]
         G["airy_dyn_ipc_ring<br/>IPC Ring 生命周期检测"]
@@ -172,7 +172,7 @@ KASAN 报告通过 `printk(KERN_ERR "BUG: KASAN: %s in %pS\n", ...)` 输出，�
 
 **OS-TEST-041**：CI nightly workflow 必须解析 `dmesg` 输出，正则 `BUG: KASAN: (\w+) in (\w+)` 提取错误类型与调用方；任一 KASAN 报告即标记 nightly 失败，自动创建 issue 并分配至对应模块维护者。
 
-**OS-KER-111**：agentrt-linux 专属模块（`kernel/airymaxos/`）的 KASAN 报告必须附 `airy_` 前缀的调用栈帧；缺失 `airy_` 前缀的报告视为上游代码缺陷，转交 Linux 6.6 内核基线维护流程。
+**OS-KER-111**：agent-linux 专属模块（`kernel/airymaxos/`）的 KASAN 报告必须附 `airy_` 前缀的调用栈帧；缺失 `airy_` 前缀的报告视为上游代码缺陷，转交 Linux 6.6 内核基线维护流程。
 
 ---
 
@@ -191,7 +191,7 @@ KFENCE（Kernel Electric Fence）通过采样式分配 guard page 检测内存�
 
 ### 3.2 KFENCE 在生产环境的部署
 
-KFENCE 是 agentrt-linux 生产环境**唯一**启用的动态分析工具（OS-KER-110），其开销 < 1%，可长期运行。典型场景：
+KFENCE 是 agent-linux 生产环境**唯一**启用的动态分析工具（OS-KER-110），其开销 < 1%，可长期运行。典型场景：
 
 - **生产 Agent 内存回归检测**：捕获 Agent 运行时偶发的 use-after-free（如 Agent 8 态生命周期切换中遗留的引用）。
 - **共享内存越界检测**：`alloc_pages + mmap` 路径的越界访问（对应 README §2 选型 4）。
@@ -240,7 +240,7 @@ UBSAN（Undefined Behavior SANitizer）通过编译时插桩（`-fsanitize=undef
 | `unreachable` | 不可达代码 | `CONFIG_UBSAN_UNREACHABLE` |
 | `object-size` | 对象大小检查 | `CONFIG_UBSAN_OBJECT_SIZE` |
 
-### 4.2 UBSAN 在 agentrt-linux 的应用
+### 4.2 UBSAN 在 agent-linux 的应用
 
 ```kconfig
 # 规划 fragment（开发期）：kernel/configs/airy_ubsan_debug.config
@@ -278,7 +278,7 @@ UBSAN 报告示例：
 
 **OS-TEST-043**：CI nightly workflow 必须解析 UBSAN 报告，正则 `UBSAN: (\w+) in (\S+):(\d+):(\d+)` 提取错误类型、文件、行号；任一 UBSAN 报告即标记 nightly 失败。
 
-**OS-KER-113**：agentrt-linux 专属模块的 UBSAN 报告必须立即修复，禁止使用 `__attribute__((no_sanitize("undefined")))` 抑制；若某 UBSAN 报告经评估为误报，必须在代码中以 `// UBSAN-FP: <reason>` 注释显式标注，并经维护者审批。
+**OS-KER-113**：agent-linux 专属模块的 UBSAN 报告必须立即修复，禁止使用 `__attribute__((no_sanitize("undefined")))` 抑制；若某 UBSAN 报告经评估为误报，必须在代码中以 `// UBSAN-FP: <reason>` 注释显式标注，并经维护者审批。
 
 ---
 
@@ -299,7 +299,7 @@ KCSAN（Kernel Concurrency SANitizer）通过编译时插桩（`-fsanitize=threa
 
 ### 5.2 KCSAN 在 Agent 并发场景的应用
 
-agentrt-linux 的 Agent 8 态生命周期状态机涉及多线程并发访问：
+agent-linux 的 Agent 8 态生命周期状态机涉及多线程并发访问：
 
 - `macro_d` daemon 遍历 Agent 状态表
 - `sched_d` daemon 调度 Agent 执行
@@ -327,7 +327,7 @@ agentrt-linux 的 Agent 8 态生命周期状态机涉及多线程并发访问：
 
 **OS-TEST-044**：CI nightly workflow 必须运行 KCSAN 至少 30 分钟（`CONFIG_KCSAN_STRICT=y`），覆盖 Agent 状态机切换、IPC Ring 操作、调度器切换三类并发场景；任一 data-race 报告即标记 nightly 失败。
 
-**OS-KER-114**：agentrt-linux 专属模块的 KCSAN 报告必须立即修复（添加 `READ_ONCE()`/`WRITE_ONCE()`/RCU/锁）；禁止使用 `ASSERT_EXCLUSIVE_ACCESS()` 抑制报告，除非在评审中证明访问为有意设计的无锁读。
+**OS-KER-114**：agent-linux 专属模块的 KCSAN 报告必须立即修复（添加 `READ_ONCE()`/`WRITE_ONCE()`/RCU/锁）；禁止使用 `ASSERT_EXCLUSIVE_ACCESS()` 抑制报告，除非在评审中证明访问为有意设计的无锁读。
 
 ---
 
@@ -345,7 +345,7 @@ lockdep（Lock Dependency Validator）运行时构建锁获取图，检测以下
 | IRQ 上下文错误 | 进程上下文锁在 IRQ 上下文获取 | `inconsistent lock context` |
 | 锁类未初始化 | 锁未 `INIT_LOCKDEP()` | `non-static lock` |
 
-### 6.2 lockdep 在 agentrt-linux 的应用
+### 6.2 lockdep 在 agent-linux 的应用
 
 ```kconfig
 # 规划 fragment（开发期 + CI PR）：kernel/configs/airy_lockdep_debug.config
@@ -359,7 +359,7 @@ CONFIG_DEBUG_ATOMIC_SLEEP=y   # 检测原子上下文睡眠
 # CONFIG_LOCKDEP is not set
 ```
 
-agentrt-linux 专属锁类必须在 `kernel/airymaxos/airy_lockdep.h` 注册：
+agent-linux 专属锁类必须在 `kernel/airymaxos/airy_lockdep.h` 注册：
 
 ```c
 /* kernel/airymaxos/airy_lockdep.h */
@@ -369,7 +369,7 @@ agentrt-linux 专属锁类必须在 `kernel/airymaxos/airy_lockdep.h` 注册：
 #include <linux/lockdep.h>
 #include <linux/spinlock.h>
 
-/* agentrt-linux 专属锁类（lockdep 分类） */
+/* agent-linux 专属锁类（lockdep 分类） */
 static struct lock_class_key airy_agent_state_lock_key;
 static struct lock_class_key airy_ipc_ring_lock_key;
 static struct lock_class_key airy_cap_cache_lock_key;
@@ -394,7 +394,7 @@ static struct lock_class_key airy_token_budget_lock_key;
 #endif /* _AIRY_LOCKDEP_H */
 ```
 
-**OS-TEST-045**：agentrt-linux 专属锁必须在 `airy_lockdep.h` 注册锁类，并通过 `lockdep_set_class()` 绑定；未注册锁类的自旋锁禁止合入主分支（CI 静态检查）。
+**OS-TEST-045**：agent-linux 专属锁必须在 `airy_lockdep.h` 注册锁类，并通过 `lockdep_set_class()` 绑定；未注册锁类的自旋锁禁止合入主分支（CI 静态检查）。
 
 **OS-KER-115**：lockdep 报告的"possible deadlock"必须立即修复，禁止使用 `lockdep_set_novalidate_class()` 或 `lock_acquire_flags(..., 0)` 抑制报告；例外：RCU 保护的读路径允许 `lockdep_set_class(... &rcu_lock_key)`。
 
@@ -406,9 +406,9 @@ static struct lock_class_key airy_token_budget_lock_key;
 
 kmemleak（Kernel Memory Leak Detector）周期性扫描内核内存，检测"已分配但无任何指针引用"的内存块。每 10 分钟扫描一次（默认），扫描期间 `printk` 报告疑似泄漏。
 
-### 7.2 kmemleak 在 agentrt-linux 的应用
+### 7.2 kmemleak 在 agent-linux 的应用
 
-agentrt-linux 的 Agent 生命周期涉及大量动态分配（Agent 状态、IPC Ring、Token 预算账本），是 kmemleak 检测的重点：
+agent-linux 的 Agent 生命周期涉及大量动态分配（Agent 状态、IPC Ring、Token 预算账本），是 kmemleak 检测的重点：
 
 ```kconfig
 # 规划 fragment（开发期）：kernel/configs/airy_kmemleak_debug.config
@@ -438,11 +438,11 @@ unreferenced object 0xffff88800a2c5000 (size 256):
 
 ---
 
-## 8. agentrt-linux 专属动态分析（规划，未实现）
+## 8. agent-linux 专属动态分析（规划，未实现）
 
 ### 8.1 Token 预算溢出检测（`airy_dyn_token`）
 
-agentrt-linux 为每个 Agent 分配 Token 预算（用于约束 Agent 资源消耗），由 `airy_token_budget_account` 跟踪。`airy_dyn_token` 模块通过 hook `airy_token_budget_account` 检测溢出（**规划，未实现**：模块与 `kernel/airymaxos/dyn/` 目录当前不存在）：
+agent-linux 为每个 Agent 分配 Token 预算（用于约束 Agent 资源消耗），由 `airy_token_budget_account` 跟踪。`airy_dyn_token` 模块通过 hook `airy_token_budget_account` 检测溢出（**规划，未实现**：模块与 `kernel/airymaxos/dyn/` 目录当前不存在）：
 
 ```c
 /* kernel/airymaxos/dyn/airy_dyn_token.c（规划，未实现） */
@@ -833,7 +833,7 @@ jobs:
 ### 11.2 v1.0.1 新增内容
 
 1. 6 大 Linux 6.6 基线动态分析工具的启用模型与 Kconfig 选项。
-2. agentrt-linux 专属动态分析 3 项（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）。
+2. agent-linux 专属动态分析 3 项（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）。
 3. `nightly-dynamic-analysis` workflow 完整定义。
 4. nightly 失败的自动响应与人工介入流程。
 
@@ -873,7 +873,7 @@ jobs:
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义 6 大 Linux 6.6 基线动态分析工具（KASAN/KFENCE/UBSAN/KCSAN/lockdep/kmemleak）的启用模型、Kconfig 选项与报告格式；新增 agentrt-linux 专属动态分析 3 项（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）；定义 `nightly-dynamic-analysis` workflow 与失败处理流程 |
+| v1.0.1 | 2026-07-18 | 初始版本：定义 6 大 Linux 6.6 基线动态分析工具（KASAN/KFENCE/UBSAN/KCSAN/lockdep/kmemleak）的启用模型、Kconfig 选项与报告格式；新增 agent-linux 专属动态分析 3 项（Token 预算溢出、Agent 内存泄漏、IPC Ring 生命周期）；定义 `nightly-dynamic-analysis` workflow 与失败处理流程 |
 
 ---
 
@@ -1241,4 +1241,4 @@ CI 集成规划至 `nightly-dynamic-analysis` workflow（§9.1，**该 workflow 
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 4 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 4 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

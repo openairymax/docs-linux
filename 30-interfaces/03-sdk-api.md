@@ -1,17 +1,17 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # SDK API
-> **文档定位**：agentrt-linux（AirymaxOS） SDK 的 4 语言矩阵、4 嵌套客户端、代码示例与错误处理策略\
+> **文档定位**：agent-linux（AirymaxOS） SDK 的 4 语言矩阵、4 嵌套客户端、代码示例与错误处理策略\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
 > **v3.5 修复说明**：P0-I12~I13——(1) 文档版本 `0.1.1` → `v1.0.1`（对齐 IRON-7）；(2) 错误码值修正：`AIRY_EPERM` -4 → -12、`AIRY_EAGAIN` -6 → -35（对齐 SSoT `error.h` L39/L43）；(3) `AIRY_ETIMEDOUT` → `AIRY_ESCHED_DEADLINE`（-123，A-ULS 子空间）；(4) "250 LSM 钩子" → "7 LSM 钩子"（对齐 SSoT `lsm_types.h` `AIRY_LSM_HOOK_IMPLEMENTED=7`）；(5) 移除对不存在文件 `00-requirements/03-non-functional-requirements.md` 的引用\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. SDK 4 语言矩阵
 
-agentrt-linux 提供 4 种语言的官方 SDK，统一封装 8 子仓能力，遵循同源 agentrt sdk 的"管理接口"语义，升级为 OS 级 SDK。
+agent-linux 提供 4 种语言的官方 SDK，统一封装 8 子仓能力，遵循同源 agentrt sdk 的"管理接口"语义，升级为 OS 级 SDK。
 
 | 语言 | 包名 | 仓库 | 同源 agentrt | 目标用户 |
 |------|------|------|--------------|---------|
@@ -106,7 +106,7 @@ permission = safety.check_capability(
 tool = client.tool
 result = tool.execute(
     name="web_search",
-    args={"query": "agentrt-linux 认知循环"}
+    args={"query": "agent-linux 认知循环"}
 )
 
 # ChatClient - 对话层
@@ -186,7 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ToolClient - 工具层
     let tool = client.tool();
     let result = tool
-        .execute("web_search", &[("query", "agentrt-linux 认知循环")])
+        .execute("web_search", &[("query", "agent-linux 认知循环")])
         .await?;
     println!("result={result:?}");
 
@@ -281,7 +281,7 @@ func main() {
     // ToolClient - 工具层
     tool := client.Tool()
     result, err := tool.Execute(ctx, "web_search", map[string]string{
-        "query": "agentrt-linux 认知循环",
+        "query": "agent-linux 认知循环",
     })
     if err != nil {
         log.Fatalf("execute failed: %v", err)
@@ -343,7 +343,7 @@ async function main(): Promise<void> {
     const tool = client.tool;
     const result = await tool.execute({
         name: "web_search",
-        args: { query: "agentrt-linux 认知循环" },
+        args: { query: "agent-linux 认知循环" },
     });
     console.log(`result=${JSON.stringify(result)}`);
 
@@ -516,8 +516,8 @@ client = AirymaxClient(
 | 层次 | 共享程度 | 本接口涉及内容 |
 |------|---------|---------------|
 | **[SC] 共享契约层** | 完全共享代码 | `syscalls.h`（4 核心（v1.0.1） syscall 编号）+ `sched.h`（TaskDesc 结构）+ `ipc.h`（消息头与 payload）+ `security_types.h`（capability 模型）+ `cognition_types.h`（CoreLoopThree 阶段）+ `memory_types.h`（记忆快照） |
-| **[SS] 语义同源层** | SDK 层签名同源（同一份源码两端编译，构建期条件编译切换传输层），其他层语义同源 | agentrt sdk（4 语言）↔ agentrt-linux SDK（4 语言）的 `AirymaxClient` + 4 嵌套客户端签名一致 |
-| **[IND] 完全独立层** | 完全独立 | agentrt SDK 用户态传输（libc/gRPC）↔ agentrt-linux SDK 内核加速路径（io_uring/syscall 直达） |
+| **[SS] 语义同源层** | SDK 层签名同源（同一份源码两端编译，构建期条件编译切换传输层），其他层语义同源 | agentrt sdk（4 语言）↔ agent-linux SDK（4 语言）的 `AirymaxClient` + 4 嵌套客户端签名一致 |
+| **[IND] 完全独立层** | 完全独立 | agentrt SDK 用户态传输（libc/gRPC）↔ agent-linux SDK 内核加速路径（io_uring/syscall 直达） |
 
 ### 9.2 [SC] 共享契约层——头文件在 SDK 中的角色
 
@@ -532,11 +532,11 @@ client = AirymaxClient(
 
 > **补充**：`bpf_struct_ops.h`（struct_ops 4 状态机 INIT/REGISTERED/ACTIVE/DRAINING）是 SDK 网关状态管理的共享结构，由 SDK 消费，但不属于上述 10 个核心 [SC] 共享契约层头文件（SSoT: `120-cross-project-code-sharing.md` §2.7，规则编号 SSoT: `09-ssot-registry.md` §2 OS-IRON-014）。
 
-### 9.3 [SS] 语义同源层——agentrt ↔ agentrt-linux SDK API 映射
+### 9.3 [SS] 语义同源层——agentrt ↔ agent-linux SDK API 映射
 
-| agentrt SDK（用户态） | agentrt-linux SDK（OS 级） | 同源签名 | 实现差异 |
+| agentrt SDK（用户态） | agent-linux SDK（OS 级） | 同源签名 | 实现差异 |
 |----------------------|---------------------------|---------|---------|
-| `AirymaxClient.connect()` | `AirymaxClient.connect()` | `(endpoint: str) -> Client` | agentrt gRPC vs agentrt-linux unix socket + io_uring |
+| `AirymaxClient.connect()` | `AirymaxClient.connect()` | `(endpoint: str) -> Client` | agentrt gRPC vs agent-linux unix socket + io_uring |
 | `CognitionClient.submit_task()` | `CognitionClient.submit_task()` | `(desc, priority, max_depth) -> task_id` | 用户态协程 vs 内核 SCHED_FIFO/SCHED_DEADLINE |
 | `SafetyClient.check_capability()` | `SafetyClient.check_capability()` | `(action, resource) -> Permission` | 用户态 Cupolas vs 内核 LSM + cap |
 | `ToolClient.execute()` | `ToolClient.execute()` | `(name, args) -> Result` | 用户态 dev_d 进程 vs 内核 daemon |
@@ -544,7 +544,7 @@ client = AirymaxClient(
 
 ### 9.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | 传输层 | gRPC over mTLS（本地 unix socket 备选） | unix socket + io_uring（本地）/ gRPC mTLS（远程） | 内核态加速 |
 | 错误处理 | `AIRY_E*` 用户态异常包装 | `AIRY_E*` 内核负值直达 | 语言绑定差异 |
@@ -559,7 +559,7 @@ graph TB
         RT_PY[Python/Rust/Go/TS<br/>AirymaxClient]
     end
 
-    subgraph "agentrt-linux SDK（4 语言）"
+    subgraph "agent-linux SDK（4 语言）"
         OS_PY[Python/Rust/Go/TS<br/>AirymaxClient]
     end
 
@@ -580,7 +580,7 @@ graph TB
     style OS_PY fill:#fff3e0,stroke:#e65100
 ```
 
-> **OS-IFACE-006**： 4 语言 SDK 的 `AirymaxClient` 及 4 嵌套客户端（CognitionClient/SafetyClient/ToolClient/ChatClient）API 签名在 agentrt 与 agentrt-linux 上一致——SDK 层签名同源（同一份 SDK 源码两端编译运行，底层传输由构建期条件编译切换）；此一致性仅限 SDK 层，系统调用层等签名因抽象层级不同而独立演进、仅概念操作语义同源。禁止运行时平台判定。
+> **OS-IFACE-006**： 4 语言 SDK 的 `AirymaxClient` 及 4 嵌套客户端（CognitionClient/SafetyClient/ToolClient/ChatClient）API 签名在 agentrt 与 agent-linux 上一致——SDK 层签名同源（同一份 SDK 源码两端编译运行，底层传输由构建期条件编译切换）；此一致性仅限 SDK 层，系统调用层等签名因抽象层级不同而独立演进、仅概念操作语义同源。禁止运行时平台判定。
 
 ---
 

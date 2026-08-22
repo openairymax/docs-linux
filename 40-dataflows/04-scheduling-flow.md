@@ -1,20 +1,20 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）调度数据流
-> **文档定位**：agentrt-linux（AirymaxOS）调度数据流的详细设计，刻画 EEVDF + sched_tac 三位一体调度体系\
+# agent-linux（AirymaxOS）调度数据流
+> **文档定位**：agent-linux（AirymaxOS）调度数据流的详细设计，刻画 EEVDF + sched_tac 三位一体调度体系\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——共享契约文件 sched.h（用户态调度器策略契约 + `airy_task_desc` + `airy_sched_ops` 回调表）落地于 include/uapi/linux/airymax/，[SS] EEVDF + sched_tac 调度策略语义同源，[IND] 用户态调度器 daemon 实现 + cgroup cpuset 隔离配置独立
 
 ---
 
 ## 1. 调度数据流概览
 
-调度数据流是 agentrt-linux 内核的核心数据流，落地于 `kernel` 子仓（同源 agentrt atoms/corekern Task 模块）。该数据流基于 Linux 6.6 内核基线的三大调度能力：
+调度数据流是 agent-linux 内核的核心数据流，落地于 `kernel` 子仓（同源 agentrt atoms/corekern Task 模块）。该数据流基于 Linux 6.6 内核基线的三大调度能力：
 
 1. **EEVDF 调度器**（FR-001, FR-008）：Linux 6.6 默认调度算法，替代传统 CFS。通过虚拟截止时间（virtual deadline）+ 资格判定（eligibility）实现更精确的延迟控制，抢占延迟 < 10μs。
-2. **sched_tac**（FR-001, FR-002）：标准 6.6 用户态调度器（替代 sched_ext，6.6 主线不含 sched_ext），基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射的可插拔调度方案。agentrt-linux 通过 sched_tac 实现调度策略，调度策略以用户态 .so 形式加载，支持运行时替换（FR-050）。
+2. **sched_tac**（FR-001, FR-002）：标准 6.6 用户态调度器（替代 sched_ext，6.6 主线不含 sched_ext），基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射的可插拔调度方案。agent-linux 通过 sched_tac 实现调度策略，调度策略以用户态 .so 形式加载，支持运行时替换（FR-050）。
 3. **sched_tac 调度策略**（FR-002）：基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF 的用户态调度策略（非内核调度类编号），专为 Agent 工作负载优化。优先级范围 0-139，支持抢占式调度与策略可插拔。
 
 **核心特征**：
@@ -210,7 +210,7 @@ cgroup cpuset 队列是sched_tac 的核心队列抽象，是用户态调度器�
 
 ### 5.1 队列类型与语义
 
-| 队列类型 | 标识 | 语义 | agentrt-linux sched_tac 使用 |
+| 队列类型 | 标识 | 语义 | agent-linux sched_tac 使用 |
 |---------|------|------|---------------------------|
 | `AIRY_Q_INVALID` | builtin 0 | 无效队列 | 未初始化状态 |
 | `AIRY_Q_GLOBAL` | builtin 1 | 全局 FIFO 队列 | 全局 Agent 调度队列（fallback） |
@@ -250,7 +250,7 @@ struct agent_dispatch_q {
 
 ### 5.4 队列操作 API
 
-| API | 语义 | 调用上下文 | agentrt-linux 使用 |
+| API | 语义 | 调用上下文 | agent-linux 使用 |
 |-------|------|----------|---------------|
 | `airy_q_insert` | 入队到队列（FIFO） | ops.enqueue / ops.select_cpu | Agent 任务入队 |
 | `airy_q_insert_vtime` | 入队到 vtime 优先队列 | ops.enqueue | vtime 排序入队 |
@@ -265,9 +265,9 @@ struct agent_dispatch_q {
 
 ## 6. sched_tac 调度策略
 
-sched_tac 调度策略是 agentrt-linux 基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF 实现的用户态调度策略（FR-002），专为 Agent 工作负载优化。同源 agentrt atoms/corekern 的 MicroCoreRT 调度器。
+sched_tac 调度策略是 agent-linux 基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF 实现的用户态调度策略（FR-002），专为 Agent 工作负载优化。同源 agentrt atoms/corekern 的 MicroCoreRT 调度器。
 
-> **设计约束**（BAN-361 + Linux 6.6 内核基线 验证）：标准 Linux 6.6 主线**不包含** sched_ext（6.12 才合入主线），agentrt-linux 不向前移植 sched_ext，而是采用sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）。**禁止定义 `SCHED_AGENT` 内核调度类编号宏**（避免与内核调度类编号冲突）。调度策略通过 stc_* 枚举标识（stc_realtime/stc_interactive/stc_agent/stc_batch），复用 Linux 6.6 原生 SCHED_DEADLINE/SCHED_FIFO/EEVDF 调度类。
+> **设计约束**（BAN-361 + Linux 6.6 内核基线 验证）：标准 Linux 6.6 主线**不包含** sched_ext（6.12 才合入主线），agent-linux 不向前移植 sched_ext，而是采用sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）。**禁止定义 `SCHED_AGENT` 内核调度类编号宏**（避免与内核调度类编号冲突）。调度策略通过 stc_* 枚举标识（stc_realtime/stc_interactive/stc_agent/stc_batch），复用 Linux 6.6 原生 SCHED_DEADLINE/SCHED_FIFO/EEVDF 调度类。
 
 ### 6.1 原生调度类与 sched_tac 策略定义
 
@@ -276,10 +276,10 @@ sched_tac 调度策略是 agentrt-linux 基于 SCHED_DEADLINE/SCHED_FIFO/EEVDF �
  * @brief 调度类——复用 Linux 6.6 原生 SCHED_DEADLINE/SCHED_FIFO/EEVDF
  * @note Linux 6.6 内核基线 原生支持 SCHED_DEADLINE/SCHED_FIFO/SCHED_RR/SCHED_NORMAL
  * @note 禁止定义 SCHED_AGENT 策略编号宏（BAN-361 + IRON-1）
- * @note IRON-9 v3 [SC] 共享契约层：agentrt 与 agentrt-linux 共享此约束
+ * @note IRON-9 v3 [SC] 共享契约层：agentrt 与 agent-linux 共享此约束
  * @see include/uapi/linux/sched.h（Linux 6.6 内核基线）
  */
-/* SCHED_DEADLINE/SCHED_FIFO/SCHED_NORMAL 已由内核定义，agentrt-linux 直接复用 */
+/* SCHED_DEADLINE/SCHED_FIFO/SCHED_NORMAL 已由内核定义，agent-linux 直接复用 */
 
 /**
  * @brief sched_tac 策略名称（sched_tac 用户态策略标识，非调度类编号）
@@ -553,7 +553,7 @@ stateDiagram-v2
     DISABLED --> [*]: 系统关闭
 ```
 
-| 状态 | agentrt-linux 对应 | 触发 |
+| 状态 | agent-linux 对应 | 触发 |
 |------|---------------|------|
 | `DISABLED` | 未加载策略 | 系统启动/策略卸载完成 |
 | `ENABLING` | 策略加载中 | `airy_sched_enable()` 调用 |
@@ -574,7 +574,7 @@ stateDiagram-v2
     ENABLED --> [*]: task exit + ops.exit_task()
 ```
 
-| 状态 | 语义 | agentrt-linux 对应 |
+| 状态 | 语义 | agent-linux 对应 |
 |------|------|---------------|
 | `NONE` | init_task 未调用 | Agent 任务未注册 |
 | `INIT` | init_task 成功，可取消 | Agent 注册中 |
@@ -593,13 +593,13 @@ stateDiagram-v2
     QUEUED --> NONE: 出队
 ```
 
-`atomic_long_t ops_state` 让调度核心随时可靠判定任务是否可被派发，从而放宽对用户态调度器的要求（用户态可尝试派发任意状态的任务，调度核心拒绝无效派发）。agentrt-linux sched_tac 同源采用此机制实现**软可靠性**。
+`atomic_long_t ops_state` 让调度核心随时可靠判定任务是否可被派发，从而放宽对用户态调度器的要求（用户态可尝试派发任意状态的任务，调度核心拒绝无效派发）。agent-linux sched_tac 同源采用此机制实现**软可靠性**。
 
 ---
 
 ## 8. fallback 自动回退机制
 
-agentrt-linux sched_tac 的核心安全网，确保用户态调度器失败时系统完整性不破坏。
+agent-linux sched_tac 的核心安全网，确保用户态调度器失败时系统完整性不破坏。
 
 ### 8.1 触发条件
 
@@ -631,7 +631,7 @@ sequenceDiagram
 
 ### 8.3 分级超时保护
 
-agentrt-linux sched_tac 增强超时机制 的单一 30s 超时为分级超时：
+agent-linux sched_tac 增强超时机制 的单一 30s 超时为分级超时：
 
 | 优先级范围 | 超时阈值 | 适用场景 |
 |-----------|---------|---------|
@@ -643,7 +643,7 @@ agentrt-linux sched_tac 增强超时机制 的单一 30s 超时为分级超时�
 
 ## 9. 超节点间任务迁移数据流
 
-agentrt-linux 超节点 OS（FR-048）支持跨节点任务迁移，基于 CXL + RDMA 实现迁移延迟 < 100ms。同源 agentrt atoms/corekern 的超节点扩展。
+agent-linux 超节点 OS（FR-048）支持跨节点任务迁移，基于 CXL + RDMA 实现迁移延迟 < 100ms。同源 agentrt atoms/corekern 的超节点扩展。
 
 ### 9.1 任务迁移触发条件
 
@@ -672,7 +672,7 @@ agentrt-linux 超节点 OS（FR-048）支持跨节点任务迁移，基于 CXL +
 
 ## 10. 调度策略可插拔数据流
 
-调度策略可插拔（FR-050）是 agentrt-linux 的核心特征，基于sched_tac 实现运行时策略替换，不影响运行任务。同源 agentrt coreloopthree 的策略可插拔机制。
+调度策略可插拔（FR-050）是 agent-linux 的核心特征，基于sched_tac 实现运行时策略替换，不影响运行任务。同源 agentrt coreloopthree 的策略可插拔机制。
 
 ### 10.1 策略可插拔回退
 
@@ -755,7 +755,7 @@ AIRY_API int airy_sched_list_policies(char (*policies)[64],
 
 sched_tac 通过 `kf_mask` 限制不同回调上下文可调用的 API 集合，避免用户态调度器在不安全上下文中调用需锁的 API：
 
-| 掩码 | 上下文 | agentrt-linux sched_tac 使用 |
+| 掩码 | 上下文 | agent-linux sched_tac 使用 |
 |------|-------|---------------------------|
 | `AIRY_KF_UNLOCKED` | 无锁上下文 | agent_init / agent_exit |
 | `AIRY_KF_CPU_RELEASE` | `cpu_release()` 回调内 | Agent CPU 释放 |
@@ -764,7 +764,7 @@ sched_tac 通过 `kf_mask` 限制不同回调上下文可调用的 API 集合，
 | `AIRY_KF_SELECT_CPU` | `select_cpu()` 回调内 | Agent CPU 选择 |
 | `AIRY_KF_REST` | 其他需锁操作 | Agent 其他回调 |
 
-**agentrt-linux 决策**：完全同源采用 kf_mask 机制，严格按回调上下文调用 API。
+**agent-linux 决策**：完全同源采用 kf_mask 机制，严格按回调上下文调用 API。
 
 ---
 
@@ -776,13 +776,13 @@ sched_tac 用户态调度器位于 EEVDF（SCHED_NORMAL）之上、原生实时�
 
 ### 11.2 策略标志位
 
-| 标志位 | 值 | 语义 | agentrt-linux sched_tac 使用 |
+| 标志位 | 值 | 语义 | agent-linux sched_tac 使用 |
 |--------|-----|------|---------------------------|
 | `AIRY_OPS_KEEP_BUILTIN_IDLE` | 1<<0 | 保留内核内置 idle 追踪 | Agent 调度器依赖内置 idle |
 | `AIRY_OPS_ENQ_LAST` | 1<<1 | enqueue 最后一个任务时通知 | Agent 独占 CPU 模式 |
 | `AIRY_OPS_SWITCH_PARTIAL` | 1<<3 | 仅部分任务走策略 | Agent 混合部署模式 |
 
-**关键决策**：agentrt-linux sched_tac 默认**不设置** `AIRY_OPS_SWITCH_PARTIAL`，即策略加载后所有 SCHED_NORMAL/SCHED_BATCH/SCHED_IDLE 任务均走 sched_tac 调度，最大化 Agent 调度优先级。
+**关键决策**：agent-linux sched_tac 默认**不设置** `AIRY_OPS_SWITCH_PARTIAL`，即策略加载后所有 SCHED_NORMAL/SCHED_BATCH/SCHED_IDLE 任务均走 sched_tac 调度，最大化 Agent 调度优先级。
 
 ### 11.3 fallback 回退机制
 
@@ -792,7 +792,7 @@ sched_tac 内置 `AIRY_Q_BYPASS` 队列，当用户态调度器卸载或失败�
 2. CFS（EEVDF）重新接管调度
 3. 触发 `AIRY_OPS_DISABLING` → `AIRY_OPS_DISABLED` 状态迁移
 
-agentrt-linux sched_tac 同源实现 fallback 机制，确保用户态调度器失败时回退到 EEVDF 默认调度。
+agent-linux sched_tac 同源实现 fallback 机制，确保用户态调度器失败时回退到 EEVDF 默认调度。
 
 ---
 
@@ -911,7 +911,7 @@ airy_sched_airy_task_state{state="enabled"} 380
 
 ### 14.1 [SC] 共享契约层（`include/uapi/linux/airymax/sched.h`）
 
-agentrt 与 agentrt-linux 完全共享的契约定义：
+agentrt 与 agent-linux 完全共享的契约定义：
 
 | 契约 | 内容 | 落地位置 |
 |------|------|---------|
@@ -927,7 +927,7 @@ agentrt 与 agentrt-linux 完全共享的契约定义：
 
 ### 14.2 [SS] 语义同源层（高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进）
 
-agentrt-linux sched_tac 用户态调度器实现以下回调（签名与 `struct airy_sched_ops` 同源，但实现独立于 agentrt）：
+agent-linux sched_tac 用户态调度器实现以下回调（签名与 `struct airy_sched_ops` 同源，但实现独立于 agentrt）：
 
 - 队列管理：`agent_select_cpu` / `agent_enqueue` / `agent_dequeue` / `agent_dispatch`
 - 状态通知：`agent_runnable` / `agent_running` / `agent_stopping` / `agent_quiescent`
@@ -939,7 +939,7 @@ agentrt 的 MicroCoreRT 不实现这些回调（用户态无内核调度类）�
 
 ### 14.3 [IND] 完全独立层
 
-agentrt-linux 专属（agentrt 不涉及）：
+agent-linux 专属（agentrt 不涉及）：
 - 用户态调度器 daemon 注册（`airy-sched-daemon`）
 - `airy_sched_enable` / `airy_sched_disable` 实现（用户态 .so 加载）
 - kf_mask 上下文追踪（用户态机制）
@@ -949,7 +949,7 @@ agentrt-linux 专属（agentrt 不涉及）：
 - debug dump（`dump` / `dump_cpu` / `dump_task`）
 - Kbuild 集成（`Makefile` + `Kconfig`）
 
-agentrt 专属（agentrt-linux 不涉及）：
+agentrt 专属（agent-linux 不涉及）：
 - Python/Go/Rust/TS SDK 绑定
 - 跨平台抽象层（Linux/macOS/Windows）
 - CLI / TUI 工具
@@ -958,9 +958,9 @@ agentrt 专属（agentrt-linux 不涉及）：
 
 ## 15. 同源红利示例
 
-agentrt 用户态 MicroCoreRT 调度语义与 agentrt-linux sched_tac 调度策略、AgentsIPC 与内核原生 IPC 均共享 [SC] 契约层，运行于 agentrt-linux 上天然契合无需适配层：
+agentrt 用户态 MicroCoreRT 调度语义与 agent-linux sched_tac 调度策略、AgentsIPC 与内核原生 IPC 均共享 [SC] 契约层，运行于 agent-linux 上天然契合无需适配层：
 
-| 维度 | agentrt（用户态） | agentrt-linux（内核态） | 同源标注 |
+| 维度 | agentrt（用户态） | agent-linux（内核态） | 同源标注 |
 |------|------------------|----------------------|----------|
 | 优先级范围 | 0-139 | sched_tac 0-139 | [SC] |
 | 任务描述符 | `struct airy_task_desc` | 同源结构 + magic `0x41475453 'AGTS'` | [SC] |
@@ -970,7 +970,7 @@ agentrt 用户态 MicroCoreRT 调度语义与 agentrt-linux sched_tac 调度策�
 | IPC 消息头 | 128 字节定长 + magic `0x41524531 'ARE1'` | 内核原生支持同源 | [SC] |
 | 调度 payload | `struct airy_task_desc` 直接承载 | 直接作为内核调度描述符 | [SC] |
 
-**同源红利**：agentrt 作为普通用户态应用（libc/POSIX）在 agentrt-linux 上天然更稳健；可选 `sched_setscheduler(p, SCHED_FIFO, &param)` 享受内核原生调度优先级（sched_tac 复用 Linux 6.6 原生 SCHED_FIFO/SCHED_DEADLINE），无需任何转换/适配层。
+**同源红利**：agentrt 作为普通用户态应用（libc/POSIX）在 agent-linux 上天然更稳健；可选 `sched_setscheduler(p, SCHED_FIFO, &param)` 享受内核原生调度优先级（sched_tac 复用 Linux 6.6 原生 SCHED_FIFO/SCHED_DEADLINE），无需任何转换/适配层。
 
 ---
 
@@ -978,7 +978,7 @@ agentrt 用户态 MicroCoreRT 调度语义与 agentrt-linux sched_tac 调度策�
 
 agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理则提出修改意见"三段式方法。本节列出调度数据流与 agentrt 用户态 atoms/corekern（MicroCoreRT）模块的一致性验证结果。
 
-| # | 检查项 | agentrt（用户态） | agentrt-linux（内核态） | 一致性结论 |
+| # | 检查项 | agentrt（用户态） | agent-linux（内核态） | 一致性结论 |
 |---|--------|------------------|---------------------|-----------|
 | 1 | [SC] 调度类 | 不涉及（用户态无调度类编号） | 复用 Linux 6.6 原生 SCHED_DEADLINE/SCHED_FIFO/EEVDF | PASS 完全共享（复用内核原生调度类，禁止 SCHED_AGENT 宏） |
 | 2 | [SC] 任务描述符 magic | `0x41475453 'AGTS'` | 同源 `0x41475453` | PASS 完全共享 |
@@ -988,15 +988,15 @@ agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理�
 | 6 | [SC] vtime 类型 | `airy_vtime_t (__s32)`（Q16.16 定点） | 同源 | PASS 完全共享 |
 | 7 | [SC] vtime 衰减公式 | `airy_vtime_decay()` | 同源 | PASS 完全共享 |
 | 8 | [SS] ops 回调签名 | 不实现（用户态无内核调度类） | 签名与 `struct airy_sched_ops` 同源 | PASS 语义同源 |
-| 9 | [SS] 消费契约 | agentrt 消费 `struct airy_task_desc` | agentrt-linux 同时消费同源契约 | PASS 语义同源 |
+| 9 | [SS] 消费契约 | agentrt 消费 `struct airy_task_desc` | agent-linux 同时消费同源契约 | PASS 语义同源 |
 | 10 | [SS] 调度语义 | MicroCoreRT 调度语义一致 | sched_tac 调度语义同源 | PASS 语义同源 |
 | 11 | [IND] 用户态调度器 daemon | 不涉及（agentrt 不加载调度器） | 用户态独立注册 | PASS 独立正确 |
 | 12 | [IND] .so 加载机制 | 不涉及（agentrt 无策略加载） | `airy_sched_enable` 独立 | PASS 独立正确 |
 | 13 | [IND] fallback | 不涉及 | 用户态独立回退机制 | PASS 独立正确 |
 | 14 | [IND] cgroup 集成 | 不涉及（用户态抽象） | `CONFIG_CGROUP_SCHED`/`CONFIG_CGROUP_CPUSET` 独立 | PASS 独立正确 |
-| 15 | 跨平台兼容性 | 跨 Linux/macOS/Windows | 仅 Linux（agentrt-linux 专属） | PASS agentrt 保持跨平台，agentrt-linux 仅 Linux |
+| 15 | 跨平台兼容性 | 跨 Linux/macOS/Windows | 仅 Linux（agent-linux 专属） | PASS agentrt 保持跨平台，agent-linux 仅 Linux |
 
-**结论**：15 项检查全部 PASS。调度数据流与 agentrt atoms/corekern 在 [SC] 共享契约层完全一致（调度类/magic/描述符/时间片/权重/vtime 7 项），[SS] 语义同源层语义等价，[IND] 独立层正确分离（用户态专属机制不污染 agentrt）。agentrt 设计无需修改，保持跨平台用户态；agentrt-linux 在 [IND] 独立层正确引入sched_tac 用户态调度器路径，遵循 IRON-9 v3 同源且部分代码共享原则。
+**结论**：15 项检查全部 PASS。调度数据流与 agentrt atoms/corekern 在 [SC] 共享契约层完全一致（调度类/magic/描述符/时间片/权重/vtime 7 项），[SS] 语义同源层语义等价，[IND] 独立层正确分离（用户态专属机制不污染 agentrt）。agentrt 设计无需修改，保持跨平台用户态；agent-linux 在 [IND] 独立层正确引入sched_tac 用户态调度器路径，遵循 IRON-9 v3 同源且部分代码共享原则。
 
 ---
 

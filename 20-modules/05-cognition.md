@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 认知设计文档
+# agent-linux 认知设计文档
 
-> **文档定位**：agentrt-linux（AirymaxOS）认知设计文档（cognition，极境认知）\
+> **文档定位**：agent-linux（AirymaxOS）认知设计文档（cognition，极境认知）\
 > **文档版本**：v1.0.1\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 coreloopthree 通过 \[SC] 共享契约层 + \[SS] 语义同源层协作，\[IND] 内核态 kthread 加速、Wasm runtime、GPU/NPU 驱动实现独立\
 > **子仓编号**：05\
 > **子仓代号**：极境认知（Airymax Cognition）\
@@ -22,7 +22,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [4. 核心特性](#4-核心特性)
 - [5. 微内核思想体现](#5-微内核思想体现)
 - [6. IRON-9 v3 四层共享模型落地](#6-iron-9-v3-四层共享模型落地)
-- [7. agentrt-linux 工程基线](#7-agentrt-linux-工程基线)
+- [7. agent-linux 工程基线](#7-agent-linux-工程基线)
 - [8. 前沿理论参考](#8-前沿理论参考)
 - [9. 与其他子仓的协作](#9-与其他子仓的协作)
 - [10. 里程碑（M0-M8）](#10-里程碑m0-m8)
@@ -35,20 +35,20 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 子仓职责
 
-`cognition` 是 agentrt-linux（AirymaxOS）的认知与 AI 推理子仓，承担以下核心职责：
+`cognition` 是 agent-linux（AirymaxOS）的认知与 AI 推理子仓，承担以下核心职责：
 
 1. **CoreLoopThree kthread 实现 \[SS]**：将 agentrt 的 CoreLoopThree（三阶段认知循环）升级为 OS 级 kthread 实现，提供 Agent 认知循环的内核态加速。阶段枚举与配置结构 \[SC] 与 agentrt 共享。
 2. **Thinkdual 双思考系统内核态加速 \[SS]**：将 agentrt 的 Thinkdual（双思考系统）通过内核态加速提升响应速度。模式枚举 \[SC] 与 agentrt 共享。
 3. **Wasm runtime 3.0 \[IND]**：集成 Wasm 3.0 runtime，提供安全沙箱执行环境。
-4. **LLM 推理感知调度 \[SS]**：基于 agentrt-linux 认知循环，实现 LLM 推理任务的感知调度。
+4. **LLM 推理感知调度 \[SS]**：基于 agent-linux 认知循环，实现 LLM 推理任务的感知调度。
 5. **GPU/NPU 调度与池化 \[IND]**：统一调度 GPU/NPU 异构算力，基于 Linux 6.6 加速器框架（`drivers/accel/`）与 DRM 调度器（`drivers/gpu/drm/scheduler/`）。
 6. **Token 能效优化 \[IND]**：参考 KVC-Gateway + LMCache + Bifrost 优化 Token 能效。
-7. **超节点沙箱 \[IND]**：基于 agentrt-linux 超节点 OS，实现软硬协同优化镜像快照。
-8. **具身智能支持 \[IND]**：基于 agentrt-linux Claw 提供具身智能运行时支持。
+7. **超节点沙箱 \[IND]**：基于 agent-linux 超节点 OS，实现软硬协同优化镜像快照。
+8. **具身智能支持 \[IND]**：基于 agent-linux Claw 提供具身智能运行时支持。
 
 ### 1.1 横切关注点声明
 
-认知循环贯穿 agentrt-linux 全部 4 大数据流：
+认知循环贯穿 agent-linux 全部 4 大数据流：
 
 | 数据流      | 认知切入点                                              | 同源标注   |
 | -------- | -------------------------------------------------- | ------ |
@@ -61,7 +61,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 同源关系（IRON-9 v3 四层共享模型）
 
-依据 IRON-9 v3 决策，agentrt（用户态 coreloopthree）与 agentrt-linux（内核态 cognition）通过四层共享模型协作（\[SC] 共享契约 + \[SS] 语义同源 + \[IND] 完全独立 + \[DSL] 降级生存）：
+依据 IRON-9 v3 决策，agentrt（用户态 coreloopthree）与 agent-linux（内核态 cognition）通过四层共享模型协作（\[SC] 共享契约 + \[SS] 语义同源 + \[IND] 完全独立 + \[DSL] 降级生存）：
 
 | 层次               | 共享程度                               | 认知子系统内容                                                                                                                                                                                                              | 组织方式                                |
 | ---------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
@@ -72,7 +72,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 维度对比
 
-| 维度   | agentrt（coreloopthree + frameworks） | agentrt-linux（cognition）   | 同源标注   |
+| 维度   | agentrt（coreloopthree + frameworks） | agent-linux（cognition）   | 同源标注   |
 | ---- | ----------------------------------- | -------------------------- | ------ |
 | 认知循环 | CoreLoopThree（用户态）                  | CoreLoopThree kthread（内核态） | \[SS]  |
 | 双思考  | Thinkdual（用户态）                      | Thinkdual 内核态加速            | \[SS]  |
@@ -140,7 +140,7 @@ cognition/
 
 ### 3.4 llm-scheduler/（LLM 推理感知调度）\[SS]
 
-基于 **agentrt-linux 认知循环**，推理阶段枚举 \[SC] 共享：
+基于 **agent-linux 认知循环**，推理阶段枚举 \[SC] 共享：
 
 - `inference-aware`：推理感知调度器（识别 LLM 推理阶段）——说明性示例，非 \[SC] SSoT 定义（`cognition_types.h` 不含 LLM 推理阶段枚举）。
 - `kv-cache-aware`：KV Cache 感知调度。
@@ -172,7 +172,7 @@ cognition/
 
 ### 3.7 super-node-sandbox/（超节点沙箱）\[IND]
 
-基于 **agentrt-linux 超节点 OS**：
+基于 **agent-linux 超节点 OS**：
 
 - `snapshot`：镜像快照（软硬协同优化，基于 userfaultfd）。
 - `restore`：快照恢复（基于 userfaultfd）。
@@ -182,7 +182,7 @@ cognition/
 
 ### 3.8 embodied-ai/（具身智能支持）\[IND]
 
-基于 **agentrt-linux Claw**：
+基于 **agent-linux Claw**：
 
 - `sensor-hub`：传感器数据汇聚。
 - `motor-control`：运动控制接口。
@@ -323,7 +323,7 @@ enum airy_think_mode {
 - 资源限制（fuel metering）。
 - 与 `security/sandbox` 协作。
 
-### 4.4 LLM 推理感知调度（基于 agentrt-linux 认知循环）\[SS]
+### 4.4 LLM 推理感知调度（基于 agent-linux 认知循环）\[SS]
 
 > **说明**：`cognition_types.h` 中**不包含** LLM 推理阶段枚举。PREFILL/DECODE/SPECULATIVE 等推理阶段概念在 cogn\_d 与 sched\_d 之间通过实现私有协议传递，非 \[SC] 共享契约。如需 \[SC] 化，需另立头文件（如 `llm_types.h`）并经 IRON-9 v3 评审。
 
@@ -363,7 +363,7 @@ enum airy_think_mode {
 
 ### OLK XSched 异构计算调度借鉴
 
-OLK 6.6 提供 XSched（`kernel/xsched/`）异构计算单元（XPU）调度框架，与 cgroup 集成。agentrt-linux 的 GPU/NPU 调度可借鉴：
+OLK 6.6 提供 XSched（`kernel/xsched/`）异构计算单元（XPU）调度框架，与 cgroup 集成。agent-linux 的 GPU/NPU 调度可借鉴：
 
 - **统一调度接口**：`struct xsched_attr` → `XSCHED_TYPE_RT/CFS` 映射
 - **cgroup 集成**：XPU 预算通过 cgroup 控制
@@ -387,16 +387,16 @@ OLK 6.6 提供 XSched（`kernel/xsched/`）异构计算单元（XPU）调度框�
 
 ### 4.7 超节点沙箱（软硬协同优化镜像快照）\[IND]
 
-基于 **agentrt-linux 超节点 OS**：
+基于 **agent-linux 超节点 OS**：
 
 - 镜像快照：基于 userfaultfd 与 CXL 实现快速快照。
 - 快速克隆：COW 共享内存，秒级克隆。
 - 跨节点迁移：基于 MemoryRovol 迁移。
 - NUMA 感知调度：优先本地节点调度。
 
-### 4.8 具身智能支持（基于 agentrt-linux Claw）\[IND]
+### 4.8 具身智能支持（基于 agent-linux Claw）\[IND]
 
-基于 **agentrt-linux Claw** 具身智能框架：
+基于 **agent-linux Claw** 具身智能框架：
 
 - 传感器数据汇聚：多模态传感器接入。
 - 运动控制接口：标准化的运动控制 API。
@@ -566,7 +566,7 @@ cognition 子仓的 CoreLoopThree kthread + io\_uring IPC 实现严格遵循 OLK
 
 ### 6.1 \[SC] 共享契约层——`include/uapi/linux/airymax/cognition_types.h`
 
-本头文件完全共享代码，agentrt 用户态与 agentrt-linux 内核态两端直接 include。内容清单：
+本头文件完全共享代码，agentrt 用户态与 agent-linux 内核态两端直接 include。内容清单：
 
 | 内容                                  | 说明                                                                                                                        |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -580,7 +580,7 @@ cognition 子仓的 CoreLoopThree kthread + io\_uring IPC 实现严格遵循 OLK
 
 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进：
 
-| 序号 | API                            | 语义            | agentrt 实现   | agentrt-linux 实现               |
+| 序号 | API                            | 语义            | agentrt 实现   | agent-linux 实现               |
 | -- | ------------------------------ | ------------- | ------------ | ------------------------------ |
 | 1  | `coreloopthree_run()`          | 运行一个认知循环      | 用户态循环        | 内核 kthread 循环                  |
 | 2  | `coreloopthree_notify_phase()` | 阶段通知          | 用户态回调        | sched\_tac 接口                  |
@@ -597,10 +597,10 @@ cognition 子仓的 CoreLoopThree kthread + io\_uring IPC 实现严格遵循 OLK
 | -- | ------------------------------ | ---------------------------------------- |
 | 1  | Wasm runtime 完整实现              | wasmtime（用户态）vs WAMR（内核态），运行时差异大         |
 | 2  | GPU/NPU 驱动实现                   | 厂商驱动各平台独立（habanalabs/ivpu/qaic）          |
-| 3  | 超节点沙箱实现                        | 依赖 userfaultfd + CXL，仅 agentrt-linux 内核态 |
-| 4  | 具身智能框架（Claw）                   | 依赖硬件传感器，仅 agentrt-linux                  |
-| 5  | KVC-Gateway/LMCache/Bifrost 集成 | 用户态库集成，agentrt 与 agentrt-linux 各自集成      |
-| 6  | CoreLoopThree kthread 内核态实现    | `kthread_run()` 机制仅 agentrt-linux 内核态    |
+| 3  | 超节点沙箱实现                        | 依赖 userfaultfd + CXL，仅 agent-linux 内核态 |
+| 4  | 具身智能框架（Claw）                   | 依赖硬件传感器，仅 agent-linux                  |
+| 5  | KVC-Gateway/LMCache/Bifrost 集成 | 用户态库集成，agentrt 与 agent-linux 各自集成      |
+| 6  | CoreLoopThree kthread 内核态实现    | `kthread_run()` 机制仅 agent-linux 内核态    |
 
 ### 6.4 跨态协作流
 
@@ -609,7 +609,7 @@ sequenceDiagram
     participant AGENT as Agent 进程
     participant CLT_U as agentrt CoreLoopThree (用户态)
     participant IPC as io_uring / AgentsIPC
-    participant CLT_K as agentrt-linux CoreLoopThree kthread (内核态)
+    participant CLT_K as agent-linux CoreLoopThree kthread (内核态)
     participant SCHED as sched_tac 用户态调度器
     participant GPU as GPU/NPU 设备
 
@@ -630,12 +630,12 @@ sequenceDiagram
 
 ***
 
-## 7. agentrt-linux 工程基线
+## 7. agent-linux 工程基线
 
-- **agentrt-linux 认知循环**：AI 原生调度框架基线。
-- **agentrt-linux 超节点 OS**：超节点沙箱基线。
-- **agentrt-linux 具身智能（Claw）**：具身智能运行时基线。
-- **agentrt-linux AI 原生**：AI 原生 OS 设计哲学基线。
+- **agent-linux 认知循环**：AI 原生调度框架基线。
+- **agent-linux 超节点 OS**：超节点沙箱基线。
+- **agent-linux 具身智能（Claw）**：具身智能运行时基线。
+- **agent-linux AI 原生**：AI 原生 OS 设计哲学基线。
 - **Linux 6.6 kthread 机制**：`kernel/kthread.c`（1562 行）kthread 创建/停止/绑定。
 - **Linux 6.6 加速器框架**：`drivers/accel/`（含 habanalabs/ivpu/qaic）。
 - **Linux 6.6 DRM 调度器**：`drivers/gpu/drm/scheduler/`（`drm_sched` 通用 GPU 调度）。
@@ -733,7 +733,7 @@ cogn_d 作为 12 daemon 之一，与其他 11 daemon 形成"通知原语 + 数�
 
 对 agentrt coreloopthree + frameworks 设计进行一致性检查，确认两端在 IRON-9 v3 四层共享模型下无冲突：
 
-| 序号 | 检查项                                  | agentrt 状态                        | agentrt-linux 状态            | 结论          |
+| 序号 | 检查项                                  | agentrt 状态                        | agent-linux 状态            | 结论          |
 | -- | ------------------------------------ | --------------------------------- | --------------------------- | ----------- |
 | 1  | CoreLoopThree 阶段枚举一致性                | 3 阶段（PERCEPT/THINK/ACT）           | 3 阶段（同）                     | PASS \[SC]  |
 | 2  | Thinkdual 模式枚举一致性                    | 2 模式（FAST/SLOW）                   | 2 模式（同）                     | PASS \[SC]  |
@@ -766,9 +766,9 @@ cogn_d 作为 12 daemon 之一，与其他 11 daemon 形成"通知原语 + 数�
 
 ## 13. 参考
 
-- agentrt-linux 认知循环文档
-- agentrt-linux 超节点 OS 文档
-- agentrt-linux Claw 具身智能文档
+- agent-linux 认知循环文档
+- agent-linux 超节点 OS 文档
+- agent-linux Claw 具身智能文档
 - Linux 6.6 `kernel/kthread.c`（kthread 机制，1562 行）
 - Linux 6.6 `include/linux/kthread.h`（kthread API，227 行）
 - Linux 6.6 `drivers/accel/`（加速器框架，含 habanalabs/ivpu/qaic）

@@ -1,15 +1,15 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # AgentsIPC 版本协商实现方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系核心子文档，定义 AgentsIPC 协议的版本化演进与运行时协商机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系核心子文档，定义 AgentsIPC 协议的版本化演进与运行时协商机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
 > **v4.3 锁定说明**：IRON-7 要求 0.1.1 → 1.0.1 直接过渡，禁止双轨制。IPC 协议锁定 **v1.0.1 为唯一基线**，v1.0 从未发布无遗留用户，版本协商机制降级为 v2.0+ 预留（M0 阶段不实现）。7 个 opcode 自 v1.0.1 起稳定，永不重定义、永不复用。\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：Linux 6.6 系统调用兼容性（IRON-9 v3 [SC] 共享契约层，IPC 消息头与 agentrt 共享）\
 > **理论根基**：Linux 6.6 UABI 永不破坏哲学 + seL4 接口契约 XML 思想 + Airymax K-2 接口契约化 + C-2 增量演化\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[SC] 共享契约层（IPC 消息头 `struct airy_ipc_msg_hdr` 与 agentrt 共享）+ [IND] 完全独立层（版本协商逻辑为 agentrt-linux 专属）
+> **IRON-9 v3 层次**：[SC] 共享契约层（IPC 消息头 `struct airy_ipc_msg_hdr` 与 agentrt 共享）+ [IND] 完全独立层（版本协商逻辑为 agent-linux 专属）
 
 ---
 
@@ -43,7 +43,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-AgentsIPC 是 agentrt-linux 内核与用户态 Agent 之间的核心通信协议，承载所有 Agent 系统调用、事件通知、记忆卷载访问等关键数据流。协议版本化与运行时协商机制的设计达成以下工程目标：
+AgentsIPC 是 agent-linux 内核与用户态 Agent 之间的核心通信协议，承载所有 Agent 系统调用、事件通知、记忆卷载访问等关键数据流。协议版本化与运行时协商机制的设计达成以下工程目标：
 
 1. **协议永不破坏（OS-IRON-001）**：已发布的 IPC 协议版本必须永久支持，新版本只能新增字段，不得删除或重排已有字段
 2. **运行时协商**：通信双方在建立连接时自动协商最低共同支持版本，无需人工配置
@@ -53,7 +53,7 @@ AgentsIPC 是 agentrt-linux 内核与用户态 Agent 之间的核心通信协议
 
 ### 1.2 背景与挑战
 
-AgentsIPC 协议采用 128B 定长消息头（magic 0x41524531 'ARE1'），通过 io_uring SQE/CQE 通道在用户态与内核态之间传输。随着 agentrt-linux 从 1.0.1 演进至 5.0 LTS，IPC 协议必然需要扩展（新增操作码、新增 payload 类型、新增标志位）。如果不建立版本化机制，将出现以下问题：
+AgentsIPC 协议采用 128B 定长消息头（magic 0x41524531 'ARE1'），通过 io_uring SQE/CQE 通道在用户态与内核态之间传输。随着 agent-linux 从 1.0.1 演进至 5.0 LTS，IPC 协议必然需要扩展（新增操作码、新增 payload 类型、新增标志位）。如果不建立版本化机制，将出现以下问题：
 
 - 旧版本 Agent 应用在新内核上运行时，可能因新字段语义变化而崩溃
 - 新版本 Agent 应用在旧内核上运行时，可能因使用未实现操作码而失败
@@ -77,7 +77,7 @@ AgentsIPC 协议遵循语义化版本（Semantic Versioning）：
 
 ### 2.2 主版本演进约束
 
-主版本变更（如 v1 → v2）是破坏性变更，agentrt-linux 承诺：
+主版本变更（如 v1 → v2）是破坏性变更，agent-linux 承诺：
 
 1. **永不强制迁移**：v1 协议永久支持，新版本只能作为可选并行协议
 2. **双版本并存期**：主版本变更后，旧版本至少维护 2 个 LTS 周期（10 年）
@@ -122,7 +122,7 @@ AgentsIPC 协议遵循语义化版本（Semantic Versioning）：
 
 ### 3.2 版本兼容范围
 
-agentrt-linux 各版本通过运行时握手协议（§4）协商支持的特性集。内核版本与特性集映射：
+agent-linux 各版本通过运行时握手协议（§4）协商支持的特性集。内核版本与特性集映射：
 
 | 内核版本 | 支持的特性集 | 默认协商特性集 |
 |---------|------------|--------------|
@@ -376,9 +376,9 @@ payload 版本化遵循"只追加不修改"原则：
 | 0x0005 | AIRY_IPC_OP_FREEZE | [SC] SSoT | v1.0.1+ 稳定 |
 | 0x0010 | AIRY_IPC_OP_CAP_REQUEST | [SC] SSoT | v1.0.1+ 稳定 |
 | 0x0011 | AIRY_IPC_OP_CAP_RESPONSE | [SC] SSoT | v1.0.1+ 稳定 |
-| >= 0x100 | [IND] 独立扩展 | [IND] agentrt-linux 专属 | 版本协商中按需引入 |
+| >= 0x100 | [IND] 独立扩展 | [IND] agent-linux 专属 | 版本协商中按需引入 |
 
-> **SSoT 约束**：操作码（0x0001-0x0011）由 SSoT 权威定义，本文档不重定义。agentrt-linux 专属扩展操作码（如 Agent 生命周期管理等）必须使用 >= 0x100 的值并标注 [IND] 独立扩展，避免与 SSoT 基础值（0x0001-0x0011）冲突。
+> **SSoT 约束**：操作码（0x0001-0x0011）由 SSoT 权威定义，本文档不重定义。agent-linux 专属扩展操作码（如 Agent 生命周期管理等）必须使用 >= 0x100 的值并标注 [IND] 独立扩展，避免与 SSoT 基础值（0x0001-0x0011）冲突。
 
 ### 8.2 未识别操作码处理
 
@@ -394,7 +394,7 @@ case AIRY_IPC_OP_SEND_BATCH:
     return handle_send_batch(sqes, cqe);
 case AIRY_IPC_OP_CANCEL:
     return handle_cancel(sqes, cqe);
-/* [IND] 独立扩展 opcode >= 0x100 由 agentrt-linux 专属处理 */
+/* [IND] 独立扩展 opcode >= 0x100 由 agent-linux 专属处理 */
 default:
     /* 未识别操作码 */
     cqe->res = -ENOSYS;
@@ -409,7 +409,7 @@ default:
 
 ### 9.1 gateway_d 与 agentrt gateway 协商
 
-gateway_d（agentrt-linux OS 级网关）与 agentrt gateway（用户态网关）通过 [SS] 语义同源层保持网关语义一致，IPC 通道通过 [SC] 共享契约层共享 128B 消息头。两端建立连接时执行版本协商：
+gateway_d（agent-linux OS 级网关）与 agentrt gateway（用户态网关）通过 [SS] 语义同源层保持网关语义一致，IPC 通道通过 [SC] 共享契约层共享 128B 消息头。两端建立连接时执行版本协商：
 
 ```mermaid
 sequenceDiagram
@@ -743,7 +743,7 @@ int airy_ipc_set_min_version(uint16_t min_ver)
 |------|---------|-----------|
 | [SC] 共享契约层 | `include/uapi/linux/airymax/ipc.h` 128B 消息头 + magic 字段 | 消息头布局与 agentrt 共享 |
 | [SS] 语义同源层 | 网关协议协商语义 | gateway_d 与 agentrt gateway 协商语义同源 |
-| [IND] 完全独立层 | 版本协商逻辑 + 注册表 + sysfs | agentrt-linux 专属实现 |
+| [IND] 完全独立层 | 版本协商逻辑 + 注册表 + sysfs | agent-linux 专属实现 |
 
 ---
 

@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）维护者层级制度
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 2 卷——维护者层级制度（Lieutenant System）。本文档详述从普通贡献者到总维护者的信任链、MAINTAINERS 文件格式、8 子仓维护者分配、DCO 签名链条、6 级贡献者成熟度模型与维护者接班机制，是补丁生命周期（01 卷）在治理维度的展开。\
+# agent-linux（AirymaxOS）维护者层级制度
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 2 卷——维护者层级制度（Lieutenant System）。本文档详述从普通贡献者到总维护者的信任链、MAINTAINERS 文件格式、8 子仓维护者分配、DCO 签名链条、6 级贡献者成熟度模型与维护者接班机制，是补丁生命周期（01 卷）在治理维度的展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 维护者层级 + Linux 6.6 内核 MAINTAINERS 文件与 Lieutenant System\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + S-3 总体设计部 + A-3 人文关怀\
-> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 用户态维护者层级与 agentrt-linux 内核发行版维护者层级并行，通过同源 API 变更评审保持协同）
+> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 用户态维护者层级与 agent-linux 内核发行版维护者层级并行，通过同源 API 变更评审保持协同）
 
 ---
 
 ## 1. 模块定位与 Lieutenant System 概述
 
-本文档是 120-development-process 模块的第 2 卷，回答"谁有权合并什么、信任如何传递、维护者如何接班"。它继承 Linux 6.6 内核基线的 Lieutenant System（副手系统）——一条从普通贡献者到总维护者的信任链，并将其适配到 agentrt-linux 的 8 子仓 GitHub 治理结构。
+本文档是 120-development-process 模块的第 2 卷，回答"谁有权合并什么、信任如何传递、维护者如何接班"。它继承 Linux 6.6 内核基线的 Lieutenant System（副手系统）——一条从普通贡献者到总维护者的信任链，并将其适配到 agent-linux 的 8 子仓 GitHub 治理结构。
 
 ### 1.1 与工程标准层的关系
 
@@ -21,14 +21,14 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 Lieutenant System 核心理念
 
-Linux 内核的 Lieutenant System 核心理念：每层 maintainer 信任下层 maintainer 的选择，但**信任不等于免责**。上层保留对下层补丁的最终否决权（NACK），且必须执行 CI 门禁验证。agentrt-linux 完全继承此理念。
+Linux 内核的 Lieutenant System 核心理念：每层 maintainer 信任下层 maintainer 的选择，但**信任不等于免责**。上层保留对下层补丁的最终否决权（NACK），且必须执行 CI 门禁验证。agent-linux 完全继承此理念。
 
 ### 1.3 关键术语
 
 | 术语 | 定义 |
 |------|------|
 | Lieutenant System | 副手系统，从贡献者到总维护者的多级信任链 |
-| MAINTAINERS.md | agentrt-linux 维护者清单文件，等价 Linux `MAINTAINERS` |
+| MAINTAINERS.md | agent-linux 维护者清单文件，等价 Linux `MAINTAINERS` |
 | DCO | Developer Certificate of Origin，开发者来源证明 v1.1 |
 | Signed-off-by 链 | 补丁签名链，溯源补丁经过的每一层维护者 |
 | emeritus | 荣誉维护者，已卸任但保留咨询身份 |
@@ -39,7 +39,7 @@ Linux 内核的 Lieutenant System 核心理念：每层 maintainer 信任下层 
 
 ## 2. 信任链层级（4 级 Chain of Trust）
 
-agentrt-linux 信任链分为 4 级，对应 Linux 内核的 Contributor → Subsystem Maintainer → Top-level Maintainer → Chief Maintainer（Linus 角色等价物）。
+agent-linux 信任链分为 4 级，对应 Linux 内核的 Contributor → Subsystem Maintainer → Top-level Maintainer → Chief Maintainer（Linus 角色等价物）。
 
 ### 2.1 信任链结构图
 
@@ -67,7 +67,7 @@ flowchart TD
 ### 2.2 信任链长度约束
 
 - **链可任意长，但很少超过 2-3 级**——超过 3 级通常意味着子系统拆分不合理。
-- agentrt-linux 的 8 子仓各设 1 名顶级子系统维护者（Level 5），其下可有 2-3 层子系统维护者（Level 3-4）。
+- agent-linux 的 8 子仓各设 1 名顶级子系统维护者（Level 5），其下可有 2-3 层子系统维护者（Level 3-4）。
 
 ### 2.3 信任传递规则
 
@@ -80,11 +80,11 @@ flowchart TD
 
 ## 3. MAINTAINERS 文件 14 字段格式
 
-agentrt-linux 继承 Linux 6.6 内核 `MAINTAINERS` 文件的 14 字段格式，适配为 `MAINTAINERS.md`（每个子仓一份）。
+agent-linux 继承 Linux 6.6 内核 `MAINTAINERS` 文件的 14 字段格式，适配为 `MAINTAINERS.md`（每个子仓一份）。
 
 ### 3.1 14 字段定义
 
-| 字段 | 含义 | agentrt-linux 适配 |
+| 字段 | 含义 | agent-linux 适配 |
 |------|------|---------------|
 | `M:` | Mail patches to（维护者邮箱） | 子系统维护者 GitHub handle + 邮箱 |
 | `R:` | Designated Reviewer（指定审查者） | 必须在 PR 中 CC 的审查者 |
@@ -107,14 +107,14 @@ agentrt-linux 继承 Linux 6.6 内核 `MAINTAINERS` 文件的 14 字段格式，
 AIRY_IPC PROTOCOL
 M:	Alice Chen <alice@airymaxos.org>
 R:	Bob Li <bob@airymaxos.org>
-L:	https://github.com/agentrt-linux/system/issues
+L:	https://github.com/agent-linux/system/issues
 S:	Maintained
 W:	docs/AirymaxOS/30-interfaces/
-Q:	https://github.com/orgs/agentrt-linux/projects/airy_ipc
-B:	https://github.com/agentrt-linux/system/issues/new?template=bug.md
+Q:	https://github.com/orgs/agent-linux/projects/airy_ipc
+B:	https://github.com/agent-linux/system/issues/new?template=bug.md
 C:	matrix:#airy_ipc
 P:	120-development-process/01-patch-lifecycle.md
-T:	git https://github.com/agentrt-linux/system.git develop
+T:	git https://github.com/agent-linux/system.git develop
 F:	include/uapi/airy_ipc/
 F:	kernel/corekern/ipc/airy_ipc_fastpath.c
 X:	kernel/ipc/airy_ipc/test/
@@ -124,9 +124,9 @@ K:	\b(airy_ipc_send|airy_ipc_recv)\b
 MICROCORERT KERNEL ADAPTATION
 M:	Carol Wang <carol@airymaxos.org>
 R:	Dave Zhang <dave@airymaxos.org>
-L:	https://github.com/agentrt-linux/kernel/issues
+L:	https://github.com/agent-linux/kernel/issues
 S:	Supported
-T:	git https://github.com/agentrt-linux/kernel.git develop
+T:	git https://github.com/agent-linux/kernel.git develop
 F:	kernel/microcorert/
 K:	\b(microcorert_init|microcorert_dispatch)\b
 ```
@@ -140,7 +140,7 @@ K:	\b(microcorert_init|microcorert_dispatch)\b
 
 ---
 
-## 4. agentrt-linux 8 子仓维护者分配
+## 4. agent-linux 8 子仓维护者分配
 
 8 子仓各设 1 名顶级子系统维护者（Level 5），负责该子仓的 `develop` 分支与跨仓协同。
 
@@ -200,7 +200,7 @@ flowchart LR
 
 ## 5. DCO 1.1 + Signed-off-by 链条
 
-agentrt-linux 继承 Linux 内核的 Developer Certificate of Origin v1.1，并将其适配为 GitHub DCO bot 自动验证。
+agent-linux 继承 Linux 内核的 Developer Certificate of Origin v1.1，并将其适配为 GitHub DCO bot 自动验证。
 
 ### 5.1 DCO 1.1 文本（摘要）
 
@@ -243,7 +243,7 @@ Signed-off-by: Top-level Maintainer <tsm@airymaxos.org>  # 顶级维护者背书
 
 ## 6. Reviewer's Statement of Oversight（审查者声明）
 
-agentrt-linux 沿用 Linux 内核的 `Reviewed-by:` 标签语义——给出 `Reviewed-by:` 即声明以下四项承诺：
+agent-linux 沿用 Linux 内核的 `Reviewed-by:` 标签语义——给出 `Reviewed-by:` 即声明以下四项承诺：
 
 ### 6.1 四项声明
 
@@ -270,7 +270,7 @@ agentrt-linux 沿用 Linux 内核的 `Reviewed-by:` 标签语义——给出 `Re
 
 ## 7. 6 级贡献者成熟度模型（Level 0-5）
 
-agentrt-linux 采用与 agentrt 同源的 6 级贡献者成熟度模型，Level 0 起步至 Level 5 顶级子系统维护者，Level 6 为总维护者（BDFL，特殊场景）。
+agent-linux 采用与 agentrt 同源的 6 级贡献者成熟度模型，Level 0 起步至 Level 5 顶级子系统维护者，Level 6 为总维护者（BDFL，特殊场景）。
 
 ### 7.1 6 级成熟度矩阵
 
@@ -427,7 +427,7 @@ emeritus（荣誉维护者）是已卸任但仍保留咨询身份的维护者：
 
 本文档的维护者层级与 agentrt 用户态运行时维护者层级同源且部分代码共享（IRON-9 v3 同源且部分代码共享）：
 
-| 维度 | agentrt（用户态） | agentrt-linux（内核发行版） |
+| 维度 | agentrt（用户态） | agent-linux（内核发行版） |
 |------|------------------|----------------------|
 | 维护者文件 | `MAINTAINERS.md` | `MAINTAINERS.md`（同源格式） |
 | 信任链层级 | 4 级 | 4 级（同源） |
@@ -439,11 +439,11 @@ emeritus（荣誉维护者）是已卸任但仍保留咨询身份的维护者：
 
 ### 10.1 同源 API 维护者协同
 
-MicroCoreRT 与 AgentsIPC 同源 API 的维护者变更必须双向通知：agentrt 端维护者离职需通知 agentrt-linux 端对应维护者，反之亦然；继任者任命需经两端共同 ACK，确保同源 API 的一致性不因单端维护者变更而漂移。
+MicroCoreRT 与 AgentsIPC 同源 API 的维护者变更必须双向通知：agentrt 端维护者离职需通知 agent-linux 端对应维护者，反之亦然；继任者任命需经两端共同 ACK，确保同源 API 的一致性不因单端维护者变更而漂移。
 
 ### 10.2 IRON-9 v3 四层共享模型
 
-IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux（内核发行版）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦维护者层级的三层映射。
+IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agent-linux（内核发行版）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦维护者层级的三层映射。
 
 #### 10.2.1 三层模型概览
 
@@ -451,7 +451,7 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 |------|---------|-------------|
 | **[SC] 共享契约层** | 无——维护者层级为治理规范层，不涉及代码共享 | 无 [SC] 层头文件；维护者体系属治理规范层，两端无头文件级代码共享 |
 | **[SS] 语义同源层** | 语义两端一致，实现独立 | MAINTAINERS 文件格式（M:/S:/F:/T:）、子系统归属、维护者晋升路径、代码审查责任 |
-| **[IND] 完全独立层** | agentrt-linux 独有 | 8 子仓维护者层级矩阵、umbrella repo 总协调、子仓独立 release manager、SIG 治理 |
+| **[IND] 完全独立层** | agent-linux 独有 | 8 子仓维护者层级矩阵、umbrella repo 总协调、子仓独立 release manager、SIG 治理 |
 
 #### 10.2.2 [SC] 共享契约层
 
@@ -459,9 +459,9 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 
 #### 10.2.3 [SS] 语义同源层
 
-[SS] 层的维护者治理语义两端一致，但仓库结构与治理范围独立：agentrt 用户态使用单一 MAINTAINERS.md 管理全部模块，agentrt-linux 使用 8 子仓各自独立的 MAINTAINERS.md + umbrella repo 总协调。两端语义映射如下：
+[SS] 层的维护者治理语义两端一致，但仓库结构与治理范围独立：agentrt 用户态使用单一 MAINTAINERS.md 管理全部模块，agent-linux 使用 8 子仓各自独立的 MAINTAINERS.md + umbrella repo 总协调。两端语义映射如下：
 
-| 语义维度 | agentrt（用户态运行时） | agentrt-linux（内核发行版） |
+| 语义维度 | agentrt（用户态运行时） | agent-linux（内核发行版） |
 |------|------------------------|------------------------|
 | MAINTAINERS 文件格式 | M:/S:/F:/T: 14 字段（同源） | M:/S:/F:/T: 14 字段（同源，字段级一致） |
 | 子系统归属 | 模块级 ownership（如 MicroCoreRT 模块） | 子仓级 ownership（如 kernel 子仓含 MicroCoreRT） |
@@ -471,11 +471,11 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 | 成熟度模型 | 6 级（Level 0-5） | 6 级（Level 0-5，同源） |
 | 接班机制 | 6 个月缓冲 + emeritus | 6 个月缓冲 + emeritus（同源） |
 
-两端在维护者治理语义上完全同源——MAINTAINERS 文件 14 字段格式、4 级晋升路径、6 级成熟度模型、接班缓冲机制的概念模型一致——但 agentrt-linux 将治理语义落地为 8 子仓的分布式维护者矩阵（每仓独立 MAINTAINERS.md + 总协调），而 agentrt 用户态运行时保持单一 MAINTAINERS.md 的集中式治理。这种语义同源使得维护者从 agentrt 迁移到 agentrt-linux 时，MAINTAINERS 文件格式与晋升路径无需重新学习，仅需适应多仓治理结构。
+两端在维护者治理语义上完全同源——MAINTAINERS 文件 14 字段格式、4 级晋升路径、6 级成熟度模型、接班缓冲机制的概念模型一致——但 agent-linux 将治理语义落地为 8 子仓的分布式维护者矩阵（每仓独立 MAINTAINERS.md + 总协调），而 agentrt 用户态运行时保持单一 MAINTAINERS.md 的集中式治理。这种语义同源使得维护者从 agentrt 迁移到 agent-linux 时，MAINTAINERS 文件格式与晋升路径无需重新学习，仅需适应多仓治理结构。
 
 #### 10.2.4 [IND] 完全独立层
 
-[IND] 层是 agentrt-linux 8 子仓治理架构的固有责任，agentrt 用户态运行时不涉及：
+[IND] 层是 agent-linux 8 子仓治理架构的固有责任，agentrt 用户态运行时不涉及：
 
 | 独立实现项 | 说明 | agentrt 是否涉及 |
 |------|------|------|
@@ -496,7 +496,7 @@ graph LR
         T2["4 级晋升路径<br/>contributor→lead"]
         T3["6 级成熟度模型<br/>Level 0-5"]
     end
-    SS -->|"语义约束"| D["agentrt-linux<br/>8 子仓维护者矩阵"]
+    SS -->|"语义约束"| D["agent-linux<br/>8 子仓维护者矩阵"]
     D -->|"各自独立治理"| E["kernel / services / security<br/>memory / cognition / cloudnative<br/>system / tests-linux<br/>每仓 3 层 + umbrella 协调"]
     style SS fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style A fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
@@ -504,7 +504,7 @@ graph LR
     style E fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
-维护者协作流：agentrt 用户态使用单一 MAINTAINERS.md 管理全部模块的维护者层级，MAINTAINERS 文件格式（M:/S:/F:/T: 14 字段）、晋升路径（contributor→reviewer→maintainer→subsystem lead 4 级）、成熟度模型（Level 0-5 6 级）由 [SS] 语义同源层两端共享。agentrt-linux 将这些语义落地为 8 子仓的分布式维护者矩阵（[IND] 完全独立——kernel/services/security/memory/cognition/cloudnative/system/tests-linux 每仓 3 层维护者 + umbrella repo 总协调 + 子仓独立 release manager + SIG 治理），每仓独立 MAINTAINERS.md 但遵循同源格式。两端通过 [SS] 层的 MAINTAINERS 格式同源实现维护者经验的平滑迁移，同源 API 维护者变更（MicroCoreRT/AgentsIPC）通过 §10.1 的双向通知机制确保两端一致性。
+维护者协作流：agentrt 用户态使用单一 MAINTAINERS.md 管理全部模块的维护者层级，MAINTAINERS 文件格式（M:/S:/F:/T: 14 字段）、晋升路径（contributor→reviewer→maintainer→subsystem lead 4 级）、成熟度模型（Level 0-5 6 级）由 [SS] 语义同源层两端共享。agent-linux 将这些语义落地为 8 子仓的分布式维护者矩阵（[IND] 完全独立——kernel/services/security/memory/cognition/cloudnative/system/tests-linux 每仓 3 层维护者 + umbrella repo 总协调 + 子仓独立 release manager + SIG 治理），每仓独立 MAINTAINERS.md 但遵循同源格式。两端通过 [SS] 层的 MAINTAINERS 格式同源实现维护者经验的平滑迁移，同源 API 维护者变更（MicroCoreRT/AgentsIPC）通过 §10.1 的双向通知机制确保两端一致性。
 
 ---
 
@@ -533,7 +533,7 @@ graph LR
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集维护者层级制度所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核 `MAINTAINERS` 文件格式（14 字段）、Lieutenant System 信任链模型、DCO 1.1 标准，以及 agentrt-linux 8 子仓维护者分配专属契约（`include/airymax/maintainer_types.h`，agentrt-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。
+> **附录定位**： 本附录汇集维护者层级制度所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核 `MAINTAINERS` 文件格式（14 字段）、Lieutenant System 信任链模型、DCO 1.1 标准，以及 agent-linux 8 子仓维护者分配专属契约（`include/airymax/maintainer_types.h`，agent-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。
 
 ### A.1 核心数据结构
 
@@ -547,7 +547,7 @@ graph LR
  * 由 maintainers_parse() 解析填充，maintainers_lookup() 查询。
  *
  * 对齐 Linux 6.6 内核 MAINTAINERS 文件 14 字段格式
- * 对齐 agentrt-linux §3 MAINTAINERS 文件 + OS-DEV-211 ~ OS-DEV-214
+ * 对齐 agent-linux §3 MAINTAINERS 文件 + OS-DEV-211 ~ OS-DEV-214
  */
 struct maintainer_entry {
     const char *subsystem_name;   /* @field: 子系统名（首行标题，如 "AIRY_IPC PROTOCOL"） */
@@ -612,7 +612,7 @@ struct maintainer_entry {
  * 描述 Level 0-5 六级成熟度模型中单个等级的能力与晋升条件。
  * 由 level_promote() 消费进行晋升评估。
  *
- * 对齐 agentrt-linux §7 6 级贡献者成熟度模型
+ * 对齐 agent-linux §7 6 级贡献者成熟度模型
  * 对齐 OS-DEV-251 ~ OS-DEV-254
  */
 struct contributor_level {
@@ -644,7 +644,7 @@ struct contributor_level {
  * 由 dco_validate() 校验签名合法性。
  *
  * 对齐 Linux 6.6 内核 DCO 1.1 标准
- * 对齐 agentrt-linux §5 DCO + OS-DEV-231 ~ OS-DEV-234
+ * 对齐 agent-linux §5 DCO + OS-DEV-231 ~ OS-DEV-234
  */
 struct dco_signoff {
     const char *signer_name;      /* @field: 签名者姓名 */
@@ -669,7 +669,7 @@ struct dco_signoff {
  * 对应 §6.1 四项声明。
  *
  * 对齐 Linux 6.6 内核 Reviewed-by 语义
- * 对齐 agentrt-linux §6 Reviewer's Statement
+ * 对齐 agent-linux §6 Reviewer's Statement
  */
 struct reviewer_statement {
     const char *reviewer_name;    /* @field: 审查者姓名 */
@@ -707,7 +707,7 @@ struct reviewer_statement {
  * 对应 §2 信任链结构图。
  *
  * 对齐 Linux 6.6 内核 Lieutenant System
- * 对齐 agentrt-linux §2 + OS-DEV-201 ~ OS-DEV-203
+ * 对齐 agent-linux §2 + OS-DEV-201 ~ OS-DEV-203
  */
 struct trust_chain {
     int          chain_level;     /* @field: 信任链层级（0-3，对应 Level 0-2/3-4/5/6） */
@@ -738,7 +738,7 @@ struct trust_chain {
  * 描述单个子仓的顶级维护者及其核心职责。
  * 由 reviewer_assign() 消费进行跨仓会签路由。
  *
- * 对齐 agentrt-linux §4 8 子仓维护者分配
+ * 对齐 agent-linux §4 8 子仓维护者分配
  * 对齐 OS-DEV-221 ~ OS-DEV-223 / OS-KER-211
  */
 struct subrepo_maintainer {
@@ -841,7 +841,7 @@ int maintainers_lookup(const struct maintainer_entry *entries,
  * @return: 0 晋升成功，<0 晋升失败（见 MAINTAINERS_* 错误码）
  * @since 0.1.1
  *
- * agentrt-linux 专属（对齐 §7 6 级成熟度模型）
+ * agent-linux 专属（对齐 §7 6 级成熟度模型）
  */
 int level_promote(const char *contributor_name,
                   const char *contributor_email,
@@ -900,7 +900,7 @@ int dco_validate(const char *commit_sha,
  * @return: 0 成功，<0 失败
  * @since 0.1.1
  *
- * 对齐 agentrt-linux CODEOWNERS + MAINTAINERS 自动路由
+ * 对齐 agent-linux CODEOWNERS + MAINTAINERS 自动路由
  */
 int reviewer_assign(const char *patch_sha,
                     const struct maintainer_entry *entries,
@@ -931,7 +931,7 @@ int reviewer_assign(const char *patch_sha,
  * @return: 0 成功，<0 失败
  * @since 0.1.1
  *
- * 对齐 agentrt-linux §8 维护者接班机制
+ * 对齐 agent-linux §8 维护者接班机制
  */
 int emeritus_mark(const char *maintainer_name,
                   const char *maintainer_email,
@@ -949,7 +949,7 @@ int emeritus_mark(const char *maintainer_name,
  * MAINTAINERS_* - MAINTAINERS 文件 14 字段定义
  *
  * 对齐 Linux 6.6 内核 MAINTAINERS 文件格式
- * 对齐 agentrt-linux §3.1 14 字段定义
+ * 对齐 agent-linux §3.1 14 字段定义
  */
 #define MAINTAINERS_FIELD_M   "M:"  /* Mail patches to — 维护者邮箱 */
 #define MAINTAINERS_FIELD_R   "R:"  /* Designated Reviewer — 指定审查者 */
@@ -973,7 +973,7 @@ int emeritus_mark(const char *maintainer_name,
 /**
  * LEVEL_0 ~ LEVEL_5 - 贡献者成熟度等级枚举
  *
- * 对齐 agentrt-linux §7.1 6 级成熟度矩阵
+ * 对齐 agent-linux §7.1 6 级成熟度矩阵
  * Level 6 为总维护者（BDFL，特殊场景）
  */
 #define LEVEL_0    0  /* Newcomer（新人）— 提交首个 PR，需 mentor 指导 */
@@ -992,7 +992,7 @@ int emeritus_mark(const char *maintainer_name,
  * S_* - MAINTAINERS 文件 S: 字段状态枚举
  *
  * 对齐 Linux 6.6 内核 MAINTAINERS S: 字段取值
- * 对齐 agentrt-linux §3.1 + OS-DEV-213
+ * 对齐 agent-linux §3.1 + OS-DEV-213
  */
 #define S_SUPPORTED    1  /* Supported — 有人支持，响应及时 */
 #define S_MAINTAINED   2  /* Maintained — 有维护者，常规维护 */
@@ -1007,15 +1007,15 @@ int emeritus_mark(const char *maintainer_name,
 /**
  * DCO_VERSION - DCO 版本号
  *
- * agentrt-linux 继承 Linux 内核 DCO 1.1 标准（§5.1）。
+ * agent-linux 继承 Linux 内核 DCO 1.1 标准（§5.1）。
  * 所有 commit 必须用 git commit -s 添加 Signed-off-by 签名（OS-DEV-231）。
  */
 #define DCO_VERSION             "1.1"
 
 /**
- * SUBREPO_* - agentrt-linux 8 子仓名称常量
+ * SUBREPO_* - agent-linux 8 子仓名称常量
  *
- * 对齐 agentrt-linux §4.1 8 子仓维护者矩阵
+ * 对齐 agent-linux §4.1 8 子仓维护者矩阵
  * 对齐 01-patch-lifecycle.md §10.1 8 子仓依赖关系
  */
 #define SUBREPO_KERNEL          "kernel"          /* kernel 子仓 — MicroCoreRT 内核适配 */
@@ -1047,7 +1047,7 @@ int emeritus_mark(const char *maintainer_name,
 /**
  * MAINTAINER_* - 维护者管理错误码
  *
- * agentrt-linux 专属，对齐维护者层级管理场景
+ * agent-linux 专属，对齐维护者层级管理场景
  * 对齐 errno 语义（负值表示失败）
  */
 #define MAINTAINER_OK                  0     /* 操作成功 */

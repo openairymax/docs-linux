@@ -1,17 +1,17 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）认知循环数据流
-> **文档定位**：agentrt-linux（AirymaxOS）认知循环数据流的详细设计，刻画 System 1/2 双系统协同与 CoreLoopThree kthread 实现\
+# agent-linux（AirymaxOS）认知循环数据流
+> **文档定位**：agent-linux（AirymaxOS）认知循环数据流的详细设计，刻画 System 1/2 双系统协同与 CoreLoopThree kthread 实现\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——[SC] cognition_types.h 落地于 include/uapi/linux/airymax/（CoreLoopThree 阶段枚举 + Thinkdual 模式枚举 + LLM 推理阶段枚举 + 上下文结构 + Token 能效指标 + GPU/NPU 描述符），[SS] CoreLoopThree/Thinkdual/LLM 推理 API 语义同源，[IND] kthread 内核态/Wasm runtime/GPU-NPU 驱动独立实现
 
 ---
 
 ## 1. 认知循环数据流概览
 
-认知循环数据流是 agentrt-linux 区别于通用操作系统的核心特征，落地于 `cognition` 子仓（同源 agentrt coreloopthree 模块）。该数据流借鉴 Kahneman 双系统思维理论：
+认知循环数据流是 agent-linux 区别于通用操作系统的核心特征，落地于 `cognition` 子仓（同源 agentrt coreloopthree 模块）。该数据流借鉴 Kahneman 双系统思维理论：
 
 - **System 1（快思考）**：处理简单、低风险、模板化任务，直接走「快速响应」路径，避免 LLM 调度开销，延迟 < 10ms（满足 NFR-P-001 实时反馈场景）。
 - **System 2（慢思考）**：处理复杂、高风险、需要规划的任务，走「认知层 → 增量规划 → 执行层 → 记忆卷载 → 反馈」完整闭环，延迟 < 100ms（满足 NFR-P-001 标准场景）。
@@ -347,7 +347,7 @@ airy_cognition_dag_depth_avg 4.2
 
 ### 9.1 [SC] 共享契约层（`include/uapi/linux/airymax/cognition_types.h`）
 
-agentrt 与 agentrt-linux 完全共享的契约定义：
+agentrt 与 agent-linux 完全共享的契约定义：
 
 | 契约 | 内容 | 落地位置 |
 |------|------|---------|
@@ -360,7 +360,7 @@ agentrt 与 agentrt-linux 完全共享的契约定义：
 
 ### 9.2 [SS] 语义同源层（高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进）
 
-| API | agentrt（用户态） | agentrt-linux（内核态） | 同源语义 |
+| API | agentrt（用户态） | agent-linux（内核态） | 同源语义 |
 |-----|------------------|---------------------|---------|
 | `airy_clt_run()` | 用户态事件循环 | 内核 kthread 主循环 | 三阶段循环 |
 | `airy_clt_notify_phase()` | 同步通知 | 内核 `wake_up_process()` | 阶段切换通知 |
@@ -373,14 +373,14 @@ agentrt 与 agentrt-linux 完全共享的契约定义：
 
 ### 9.3 [IND] 完全独立层
 
-| 机制 | agentrt-linux 独立设计 | 独立原因 |
+| 机制 | agent-linux 独立设计 | 独立原因 |
 |------|-------------------|---------|
 | kthread 创建 | `kthread_run()`（内核原生） | 用户态无 kthread |
 | GPU/NPU 驱动 | `drivers/accel/`（habanalabs/ivpu/qaic） | 用户态无硬件驱动 |
 | drm_sched 调度 | `drm_gpu_scheduler`（DRM 框架） | 用户态无 DRM |
-| 超节点沙箱 | 内核 capability + cgroup | agentrt-linux 专属 |
-| 具身智能 | 内核 sensorio + 工业总线 | agentrt-linux 专属 |
-| KVC-Gateway | 内核 LLMCache + Bifrost | agentrt-linux 专属 |
+| 超节点沙箱 | 内核 capability + cgroup | agent-linux 专属 |
+| 具身智能 | 内核 sensorio + 工业总线 | agent-linux 专属 |
+| KVC-Gateway | 内核 LLMCache + Bifrost | agent-linux 专属 |
 
 ### 9.4 同源红利示例
 
@@ -391,7 +391,7 @@ agentrt CoreLoopThree（用户态，跨平台）
    ├── 上下文: airy_clt_ctx_t（同源 [SC]）
    └── API: airy_clt_run / notify_phase / thinkdual_switch（同源 [SS]）
        │
-       └── 在 agentrt-linux 上:
+       └── 在 agent-linux 上:
            ├── 作为用户态进程运行（标准 libc/POSIX）
            │   └── 天然更高效 ← 同源契约一致
            │
@@ -407,7 +407,7 @@ agentrt CoreLoopThree（用户态，跨平台）
 
 agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理则提出修改意见"三段式方法。本节列出认知循环数据流与 agentrt 用户态 coreloopthree 模块的一致性验证结果。
 
-| # | 检查项 | agentrt（用户态） | agentrt-linux（内核态） | 一致性结论 |
+| # | 检查项 | agentrt（用户态） | agent-linux（内核态） | 一致性结论 |
 |---|--------|------------------|---------------------|-----------|
 | 1 | [SC] 阶段枚举 | `AIRY_COG_PERCEPT/THINK/ACT` | 同源 `CLT_PHASE_*` | PASS 完全共享 |
 | 2 | [SC] 模式枚举 | `AIRY_THINK_FAST/AIRY_THINK_SLOW` | 同源 `THINKDUAL_*` | PASS 完全共享 |
@@ -423,9 +423,9 @@ agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理�
 | 12 | [IND] GPU/NPU 驱动 | 不涉及（用户态无驱动） | `drivers/accel/` 独立 | PASS 独立正确 |
 | 13 | [IND] drm_sched 实现 | 不涉及（用户态无 DRM） | `drm_gpu_scheduler` 独立 | PASS 独立正确 |
 | 14 | [IND] Wasm runtime | 用户态 Wasm 3.0（wasmtime） | 内核 eBPF 验证器风格独立实现 | PASS 独立正确 |
-| 15 | 跨平台兼容性 | 跨 Linux/macOS/Windows | 仅 Linux（agentrt-linux 专属） | PASS agentrt 保持跨平台，agentrt-linux 仅 Linux |
+| 15 | 跨平台兼容性 | 跨 Linux/macOS/Windows | 仅 Linux（agent-linux 专属） | PASS agentrt 保持跨平台，agent-linux 仅 Linux |
 
-**结论**：15 项检查全部 PASS。认知循环数据流与 agentrt coreloopthree 模块在 [SC] 共享契约层完全一致（阶段/模式/上下文/能效/GPU-NPU 5 项），[SS] 语义同源层 API 语义等价（5 项核心 API），[IND] 独立层正确分离（kthread/GPU-NPU 驱动/drm_sched/Wasm 内核态专属机制不污染 agentrt）。agentrt 设计无需修改，保持跨平台用户态；agentrt-linux 在 [IND] 独立层正确引入 kthread + GPU/NPU + drm_sched 内核加速路径，遵循 IRON-9 v3 同源且部分代码共享原则。
+**结论**：15 项检查全部 PASS。认知循环数据流与 agentrt coreloopthree 模块在 [SC] 共享契约层完全一致（阶段/模式/上下文/能效/GPU-NPU 5 项），[SS] 语义同源层 API 语义等价（5 项核心 API），[IND] 独立层正确分离（kthread/GPU-NPU 驱动/drm_sched/Wasm 内核态专属机制不污染 agentrt）。agentrt 设计无需修改，保持跨平台用户态；agent-linux 在 [IND] 独立层正确引入 kthread + GPU/NPU + drm_sched 内核加速路径，遵循 IRON-9 v3 同源且部分代码共享原则。
 
 ---
 

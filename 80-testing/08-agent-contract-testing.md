@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Agent 行为契约测试
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 8 卷——Agent 行为契约测试（Agent Contract Testing）。本卷是 agentrt-linux 专属 L8 层测试，规定 Agent 8 态生命周期状态机契约、Token 预算契约、记忆配额契约、CoreLoopThree 三阶段认知循环时序契约、与 cogn_d / mem_d daemon 的契约测试框架。\
+# agent-linux（AirymaxOS）Agent 行为契约测试
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 8 卷——Agent 行为契约测试（Agent Contract Testing）。本卷是 agent-linux 专属 L8 层测试，规定 Agent 8 态生命周期状态机契约、Token 预算契约、记忆配额契约、CoreLoopThree 三阶段认知循环时序契约、与 cogn_d / mem_d daemon 的契约测试框架。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
-> **同源映射**：agentrt 7 层验证 L8（Agent 契约测试，agentrt-linux 专属）+ Linux 6.6 内核基线 KUnit / kselftest 载体\
+> **同源映射**：agentrt 7 层验证 L8（Agent 契约测试，agent-linux 专属）+ Linux 6.6 内核基线 KUnit / kselftest 载体\
 > **理论根基**：Airymax 五维正交 24 原则（E-8 可测试性 / A-4 完美主义 / S-1 反馈闭环 / IRON-9 v3 [IND] 独立实现层）\
 > **核心约束**：Agent 行为契约是不可妥协的工程基线——CI 在 PR 阶段强制校验所有契约，任一契约违反即阻断合入；8 态生命周期契约定义源（SSoT）位于 [SC] `include/uapi/linux/airymax/sched.h`（`enum airy_agent_state`），Token 预算 / 记忆配额 / CoreLoop 契约为测试层内部契约（定义于 `kernel/airymaxos/contract/`），本卷测试用例验证这些契约。
 
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 8 卷，回答"Agent 行为契约怎么测"。它在 07-ftrace-selftest（ftrace 自检）与 09-fuzz-testing（模糊测试）之间形成 agentrt-linux 专属契约测试层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 8 卷，回答"Agent 行为契约怎么测"。它在 07-ftrace-selftest（ftrace 自检）与 09-fuzz-testing（模糊测试）之间形成 agent-linux 专属契约测试层：
 
 - **上游依赖**：README 定义"测试体系分层"——L8 Agent 契约测试由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 14 层（Agent 契约层）。
 - **下游依赖**：09-fuzz-testing 定义"模糊测试怎么跑"；10-formal-verification 定义"形式化验证怎么做"——本卷的契约定义是形式化验证的输入。
@@ -39,9 +39,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 起源与定位
 
-Agent 行为契约测试是 agentrt-linux **专属**的 L8 层测试，无对应的上游 Linux 内核基线机制。其设计目标有三：**契约显式化**（将 Agent 行为约束从隐式约定提升为可验证契约）、**契约守护**（CI 强制校验，任一违反即阻断）、**契约文档化**（契约定义即测试用例，文档与代码同步）。
+Agent 行为契约测试是 agent-linux **专属**的 L8 层测试，无对应的上游 Linux 内核基线机制。其设计目标有三：**契约显式化**（将 Agent 行为约束从隐式约定提升为可验证契约）、**契约守护**（CI 强制校验，任一违反即阻断）、**契约文档化**（契约定义即测试用例，文档与代码同步）。
 
-agentrt-linux 的 Agent 行为契约以独立 `airy_agent_contract_*` 模块形式驻留于 `kernel/airymaxos/contract/`，遵循 IRON-9 v3 [IND] 独立实现层原则——不依赖上游 Linux 内核机制，仅在 KUnit / kselftest 载体上构建专属测试框架。
+agent-linux 的 Agent 行为契约以独立 `airy_agent_contract_*` 模块形式驻留于 `kernel/airymaxos/contract/`，遵循 IRON-9 v3 [IND] 独立实现层原则——不依赖上游 Linux 内核机制，仅在 KUnit / kselftest 载体上构建专属测试框架。
 
 ```mermaid
 flowchart TB
@@ -650,7 +650,7 @@ KUNIT_DEFINE_TEST(airy_contract_cogn_phase_latency_sla)
 
 ### 7.1 daemon 契约定义
 
-agentrt-linux 的 12 daemon 中，`cogn_d` 与 `mem_d` 与 Agent 行为紧密耦合：
+agent-linux 的 12 daemon 中，`cogn_d` 与 `mem_d` 与 Agent 行为紧密耦合：
 
 | daemon | 职责 | 与 Agent 的契约 |
 |--------|------|---------------|
@@ -847,7 +847,7 @@ agent_contract_violation: agent=1234 contract=14 (cogn_d_loop_timeout) state=STO
 
 ### 9.1 契约注册表
 
-agentrt-linux 维护一个全局契约注册表 `scripts/airy_agent_contracts.json`：
+agent-linux 维护一个全局契约注册表 `scripts/airy_agent_contracts.json`：
 
 ```json
 {
@@ -1163,4 +1163,4 @@ if any(not r["slo_met"] or r["consistency_failures"] for r in results.values()):
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 8 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 8 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

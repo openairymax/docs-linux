@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）记忆卷载数据流
-> **文档定位**：agentrt-linux（AirymaxOS）记忆卷载数据流的详细设计，刻画 L1→L4 四层递进与 CXL/PMEM/MGLRU 硬件协同\
+# agent-linux（AirymaxOS）记忆卷载数据流
+> **文档定位**：agent-linux（AirymaxOS）记忆卷载数据流的详细设计，刻画 L1→L4 四层递进与 CXL/PMEM/MGLRU 硬件协同\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线 mm 子系统 + Airymax 五维正交 24 原则\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 memoryrovol/heapstore 通过 [SC] 共享契约层 + [SS] 语义同源层协作，[IND] 内核态 CXL/PMEM/MGLRU 实现独立
 
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 记忆卷载数据流概览
 
-记忆卷载数据流是 agentrt-linux 区别于通用操作系统的核心特征之一，落地于 `memory` 子仓（同源 agentrt memoryrovol + heapstore 模块）。该数据流借鉴认知科学的记忆分层理论，将记忆从原始感知到抽象模式分为四层递进：
+记忆卷载数据流是 agent-linux 区别于通用操作系统的核心特征之一，落地于 `memory` 子仓（同源 agentrt memoryrovol + heapstore 模块）。该数据流借鉴认知科学的记忆分层理论，将记忆从原始感知到抽象模式分为四层递进：
 
 - **L1 原始卷（Raw Volume）**：仅追加（append-only），不可变，存储原始执行记录与感知数据。同源 memoryrovol L1。
 - **L2 特征层（Feature Layer）**：从 L1 提取语义向量，支持相似度检索。同源 memoryrovol L2。
@@ -29,8 +29,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 **IRON-9 v3 四层共享模型在记忆卷载的落地**：
 
-- **[SC] 共享契约层**（`include/uapi/linux/airymax/memory_types.h`）：内存分层级别（`enum airy_mem_level`，L1-L4 tier）、GFP 掩码语义（`AIRY_GFP_HOT/WARM/COLD/PMEM`）、页面分类宏（`AIRY_PAGE_CLASS_*`）、`[DSL]` 退化生存层 Fallback 块——agentrt 用户态与 agentrt-linux 内核态**完全共享代码**。§3.1-3.4 中的 L1-L4 数据结构为说明性示例，非 SSoT 定义
-- **[SS] 语义同源层**：MGLRU aging/eviction API、`memory.reclaim` 主动回收、userfaultfd 记忆迁移——agentrt 用户态与 agentrt-linux 内核态**高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进**
+- **[SC] 共享契约层**（`include/uapi/linux/airymax/memory_types.h`）：内存分层级别（`enum airy_mem_level`，L1-L4 tier）、GFP 掩码语义（`AIRY_GFP_HOT/WARM/COLD/PMEM`）、页面分类宏（`AIRY_PAGE_CLASS_*`）、`[DSL]` 退化生存层 Fallback 块——agentrt 用户态与 agent-linux 内核态**完全共享代码**。§3.1-3.4 中的 L1-L4 数据结构为说明性示例，非 SSoT 定义
+- **[SS] 语义同源层**：MGLRU aging/eviction API、`memory.reclaim` 主动回收、userfaultfd 记忆迁移——agentrt 用户态与 agent-linux 内核态**高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进**
 - **[IND] 完全独立层**：CXL 驱动、PMEM nvdimm 驱动、Kbuild、内核 ABI 预留机制移除——**各自独立实现**
 
 ---
@@ -85,7 +85,7 @@ flowchart LR
 >
 > **⚠️ 说明性示例，非 SSoT 定义**：以下 Q16.16/Q32.32 定点数类型是文档为说明"内核态禁用 float 后如何用定点数替代浮点"的**说明性示例**，**SSoT 头文件 `include/uapi/linux/airymax/memory_types.h` 中并未定义** `airy_q16_t`、`airy_q32_t` 及相关宏。SSoT 实际定义见 §10.2。本节示例仅用于为后续 §3.1-3.4 字段类型（如 L2 weight）提供概念铺垫，**不应被引用为 SSoT 契约**。
 >
-> **物理宿主标注**：§3.0-3.4 中的所有数据结构（`airy_q16_t`/`airy_l1_record_t`/`airy_l2_feature_t`/`airy_l3_node_t`/`airy_l3_edge_t`/`airy_l4_barcode_t`）的**实际实现定义位于 memory 子仓**（`memory/` 目录），非 [SC] 共享契约层内容。agentrt 用户态与 agentrt-linux 内核态各自独立定义这些数据结构。
+> **物理宿主标注**：§3.0-3.4 中的所有数据结构（`airy_q16_t`/`airy_l1_record_t`/`airy_l2_feature_t`/`airy_l3_node_t`/`airy_l3_edge_t`/`airy_l4_barcode_t`）的**实际实现定义位于 memory 子仓**（`memory/` 目录），非 [SC] 共享契约层内容。agentrt 用户态与 agent-linux 内核态各自独立定义这些数据结构。
 
 ```c
 /* ── 说明性示例：非 SSoT 定义，不来自 include/uapi/linux/airymax/memory_types.h ──
@@ -206,7 +206,7 @@ typedef struct airy_l4_barcode {
 
 ## 4. CXL 内存池化数据流
 
-CXL（Compute Express Link）内存池化（FR-035）是 agentrt-linux 超节点 OS 的核心能力，支持跨节点内存共享。同源 agentrt atoms/corekern 的 CXL 池化扩展。
+CXL（Compute Express Link）内存池化（FR-035）是 agent-linux 超节点 OS 的核心能力，支持跨节点内存共享。同源 agentrt atoms/corekern 的 CXL 池化扩展。
 
 ### 4.1 CXL 池化架构
 
@@ -273,11 +273,11 @@ AIRY_API void airy_cxl_free(void *ptr);
 
 ## 5. MGLRU 多代 LRU 回收数据流 [SS]
 
-MGLRU（Multi-Gen LRU）是 Linux 6.6 内核基线的原生能力（FR-037），相比传统 LRU 内存回收效率提升 > 20%（NFR-P-006）。agentrt-linux 利用 MGLRU 实现 L2/L3 内存的分级回收——MGLRU 的代际模型（aging/eviction）与 MemoryRovol 遗忘机制语义同源（[SS] 语义同源层）。
+MGLRU（Multi-Gen LRU）是 Linux 6.6 内核基线的原生能力（FR-037），相比传统 LRU 内存回收效率提升 > 20%（NFR-P-006）。agent-linux 利用 MGLRU 实现 L2/L3 内存的分级回收——MGLRU 的代际模型（aging/eviction）与 MemoryRovol 遗忘机制语义同源（[SS] 语义同源层）。
 
 ### 5.1 MGLRU 核心数据结构（Linux 6.6 内核基线）
 
-Linux 6.6 内核基线在 `include/linux/mmzone.h` 定义了 MGLRU 的核心数据结构 `struct lru_gen_folio`。agentrt-linux MemoryRovol L2/L3 遗忘机制与此语义同源：
+Linux 6.6 内核基线在 `include/linux/mmzone.h` 定义了 MGLRU 的核心数据结构 `struct lru_gen_folio`。agent-linux MemoryRovol L2/L3 遗忘机制与此语义同源：
 
 | lru_gen_folio 字段 | 类型 | MemoryRovol 对应 | 同源标注 |
 |---------------------|------|------------------|----------|
@@ -399,7 +399,7 @@ Linux 6.6 内核基线在每代内进一步划分 tier——tier 基于"通过�
 
 ### 5.7 per-agent 主动回收 [SS]
 
-Linux 6.6 内核基线提供 `memory.reclaim` cgroup v2 接口，允许用户态主动触发指定 memcg 的内存回收。agentrt-linux 利用此机制实现 per-agent 主动回收——当 agent 实例 token 配额告警时，daemon 写入 `memory.reclaim` 触发该 agent 的 memcg 回收。
+Linux 6.6 内核基线提供 `memory.reclaim` cgroup v2 接口，允许用户态主动触发指定 memcg 的内存回收。agent-linux 利用此机制实现 per-agent 主动回收——当 agent 实例 token 配额告警时，daemon 写入 `memory.reclaim` 触发该 agent 的 memcg 回收。
 
 ```bash
 # 主动回收指定 agent 的 1GB 内存
@@ -615,12 +615,12 @@ trace_id: mem_abc123
 | 层次 | 共享程度 | 内容 | 组织方式 |
 |------|---------|------|---------|
 | **[SC] 共享契约层** | 完全共享代码 | 内存分层级别（`enum airy_mem_level`，L1-L4 tier）、GFP 掩码语义（`AIRY_GFP_*`）、页面分类宏（`AIRY_PAGE_CLASS_*`）、`[DSL]` 退化生存层 Fallback 块 | `include/uapi/linux/airymax/memory_types.h` 独立头文件 |
-| **[SS] 语义同源层** | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | MGLRU aging/eviction、`memory.reclaim`、userfaultfd | agentrt 用户态实现 + agentrt-linux 内核态实现 |
+| **[SS] 语义同源层** | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | MGLRU aging/eviction、`memory.reclaim`、userfaultfd | agentrt 用户态实现 + agent-linux 内核态实现 |
 | **[IND] 完全独立层** | 完全独立 | CXL 驱动、PMEM nvdimm 驱动、Kbuild、内核 ABI 预留机制移除 | 各自独立仓库 |
 
 ### 10.2 [SC] 共享契约层 `include/uapi/linux/airymax/memory_types.h`
 
-[SC] 共享契约层定义 agentrt 用户态与 agentrt-linux 内核态**完全共享的代码**——内存分层级别（L1-L4 tier）、GFP 掩码语义、页面分类宏、`[DSL]` 退化生存层 Fallback。这避免双份定义导致不一致。
+[SC] 共享契约层定义 agentrt 用户态与 agent-linux 内核态**完全共享的代码**——内存分层级别（L1-L4 tier）、GFP 掩码语义、页面分类宏、`[DSL]` 退化生存层 Fallback。这避免双份定义导致不一致。
 
 > **⚠️ SSoT 实际定义**：以下代码块为 `include/uapi/linux/airymax/memory_types.h` 的**完整实际内容**，与 SSoT 头文件逐字一致。**注意**：SSoT 仅定义 tier 级别枚举、GFP/页面分类宏与 `[DSL]` Fallback 块——**不**包含 L1-L4 数据结构（如 `airy_l1_record_t`）、**不**包含 `airy_gfp_t` typedef、**不**包含 `airy_pmem_flush_fn`。§3.1-3.4 中的数据结构为说明性示例，非 SSoT 定义。
 
@@ -690,13 +690,13 @@ enum airy_mem_level {
 #endif /* _UAPI_AIRYMAX_MEMORY_TYPES_H */
 ```
 
-> **OS-MM-001**： `include/uapi/linux/airymax/memory_types.h` 是 MemoryRoVol 类型的 [SC] 共享契约层——agentrt 用户态与 agentrt-linux 内核态通过此头文件共享：内存分层级别（`enum airy_mem_level`，L1-L4 tier）、GFP 掩码语义（`AIRY_GFP_HOT/WARM/COLD/PMEM`）、页面分类宏（`AIRY_PAGE_CLASS_*`）、`[DSL]` 退化生存层 Fallback 块，避免双份定义导致不一致。**SSoT 头文件不包含 L1-L4 数据结构定义、不包含 `airy_gfp_t` typedef、不包含 `airy_pmem_flush_fn`——后者均为文档历史版本的虚构内容，已在 v1.0.1-fix 移除（详见 §3.1-3.4 与 §14 变更记录）。**
+> **OS-MM-001**： `include/uapi/linux/airymax/memory_types.h` 是 MemoryRoVol 类型的 [SC] 共享契约层——agentrt 用户态与 agent-linux 内核态通过此头文件共享：内存分层级别（`enum airy_mem_level`，L1-L4 tier）、GFP 掩码语义（`AIRY_GFP_HOT/WARM/COLD/PMEM`）、页面分类宏（`AIRY_PAGE_CLASS_*`）、`[DSL]` 退化生存层 Fallback 块，避免双份定义导致不一致。**SSoT 头文件不包含 L1-L4 数据结构定义、不包含 `airy_gfp_t` typedef、不包含 `airy_pmem_flush_fn`——后者均为文档历史版本的虚构内容，已在 v1.0.1-fix 移除（详见 §3.1-3.4 与 §14 变更记录）。**
 
 ### 10.3 [SS] 语义同源层
 
-[SS] 语义同源层定义 agentrt 用户态与 agentrt-linux 内核态**高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进**的接口——MGLRU aging/eviction 语义、`memory.reclaim` 主动回收、userfaultfd 记忆迁移。
+[SS] 语义同源层定义 agentrt 用户态与 agent-linux 内核态**高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进**的接口——MGLRU aging/eviction 语义、`memory.reclaim` 主动回收、userfaultfd 记忆迁移。
 
-| Linux 6.6 内核基线 API | agentrt-linux 对应 | agentrt 用户态对应 | 同源说明 |
+| Linux 6.6 内核基线 API | agent-linux 对应 | agentrt 用户态对应 | 同源说明 |
 |------------------------|----------------|-------------------|----------|
 | MGLRU `try_to_inc_max_seq()` | 内核态调用 | `airy_l2_extract()` | aging 语义：新数据进入 youngest gen |
 | MGLRU `evict_folios()` | 内核态调用 | `airy_l2_forget()` | eviction 语义：老数据被驱逐 |
@@ -708,9 +708,9 @@ enum airy_mem_level {
 
 ### 10.4 [IND] 完全独立层
 
-[IND] 完全独立层定义 agentrt-linux 内核态独有、agentrt 用户态不实现的设计——CXL 驱动、PMEM nvdimm 驱动、Kbuild、内核 ABI 预留机制移除。
+[IND] 完全独立层定义 agent-linux 内核态独有、agentrt 用户态不实现的设计——CXL 驱动、PMEM nvdimm 驱动、Kbuild、内核 ABI 预留机制移除。
 
-| agentrt-linux 内核态特性 | 独立原因 |
+| agent-linux 内核态特性 | 独立原因 |
 |---------------------|----------|
 | CXL 驱动（`drivers/cxl/`） | 硬件驱动层，agentrt 用户态不涉及 |
 | PMEM nvdimm 驱动（`drivers/nvdimm/`） | 硬件驱动层，agentrt 用户态不涉及 |
@@ -721,14 +721,14 @@ enum airy_mem_level {
 
 ### 10.5 跨态协作流
 
-MemoryRovol 数据流涉及 agentrt 用户态与 agentrt-linux 内核态的协作：
+MemoryRovol 数据流涉及 agentrt 用户态与 agent-linux 内核态的协作：
 
 ```mermaid
 sequenceDiagram
     participant AR as agentrt 用户态
     participant SC as [SC] include/uapi/linux/airymax/memory_types.h
     participant IPC as AgentsIPC（[SS]）
-    participant KR as agentrt-linux 内核态
+    participant KR as agent-linux 内核态
     participant PMEM as PMEM 持久内存
     participant MGLRU as MGLRU 回收
     
@@ -782,13 +782,13 @@ agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理�
 
 ### 12.2 检查结果
 
-| 检查项 | agentrt 状态 | agentrt-linux 状态 | 一致性 | 备注 |
+| 检查项 | agentrt 状态 | agent-linux 状态 | 一致性 | 备注 |
 |--------|--------------|----------------|--------|------|
 | 内存分层级别 | 用户态引用 | [SC] 共享 | 一致 | `enum airy_mem_level`（`AIRY_MEM_HOT/WARM/COLD/PMEM`），见 §10.2 |
 | GFP 掩码语义 | 用户态引用 | [SC] 共享 | 一致 | `AIRY_GFP_HOT/WARM/COLD/PMEM` 宏（SSoT 实际定义，**非** `airy_gfp_t` typedef），见 §10.2 |
 | 页面分类宏 | 用户态引用 | [SC] 共享 | 一致 | `AIRY_PAGE_CLASS_ANON/FILE/SHMEM/AGENT`，见 §10.2 |
 | [DSL] Fallback 块 | 用户态引用 | [SC] 共享 | 一致 | `AIRY_SC_FALLBACK` 条件下的 `AIRY_DSL_*` 宏，见 §10.2 |
-| L1-L4 数据结构 | 用户态独立定义 | 用户态独立（非 [SC] 共享） | 说明性示例 | §3.1-3.4 中的 `airy_l1_record_t` 等为说明性示例，**非 SSoT 定义**，agentrt 用户态与 agentrt-linux 内核态各自独立定义 |
+| L1-L4 数据结构 | 用户态独立定义 | 用户态独立（非 [SC] 共享） | 说明性示例 | §3.1-3.4 中的 `airy_l1_record_t` 等为说明性示例，**非 SSoT 定义**，agentrt 用户态与 agent-linux 内核态各自独立定义 |
 | PMEM 持久化 | 用户态 memcpy + clwb | [SS] 语义同源 | 一致 | `airy_pmem_flush()`（[SS] 语义同源 API，**非** SSoT `airy_pmem_flush_fn` typedef——后者为历史版本虚构内容，已在 v1.0.1-fix 移除） |
 | MGLRU aging | 用户态 weight 衰减 | [SS] 语义同源 | 一致 | aging 增 max_seq |
 | MGLRU eviction | 用户态遗忘扫描 | [SS] 语义同源 | 一致 | eviction 增 min_seq |
@@ -801,9 +801,9 @@ agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理�
 
 ### 12.3 agentrt 合理性验证结论
 
-经过全面推理与系统验证，**agentrt memoryrovol/heapstore 的设计在 [SC]/[SS] 层与 agentrt-linux 内核态保持一致**，未发现不合理之处：
+经过全面推理与系统验证，**agentrt memoryrovol/heapstore 的设计在 [SC]/[SS] 层与 agent-linux 内核态保持一致**，未发现不合理之处：
 
-1. **类型定义一致**：内存分层级别（`enum airy_mem_level`）、GFP 掩码（`AIRY_GFP_*`）、页面分类（`AIRY_PAGE_CLASS_*`）、`[DSL]` Fallback 块通过 [SC] 共享契约层完全共享；§3.1-3.4 中的 L1-L4 数据结构为说明性示例（非 SSoT 定义），由 agentrt 用户态与 agentrt-linux 内核态各自独立定义
+1. **类型定义一致**：内存分层级别（`enum airy_mem_level`）、GFP 掩码（`AIRY_GFP_*`）、页面分类（`AIRY_PAGE_CLASS_*`）、`[DSL]` Fallback 块通过 [SC] 共享契约层完全共享；§3.1-3.4 中的 L1-L4 数据结构为说明性示例（非 SSoT 定义），由 agentrt 用户态与 agent-linux 内核态各自独立定义
 2. **API 语义一致**：MGLRU aging/eviction、`memory.reclaim`、userfaultfd 等通过 [SS] 语义同源
 3. **独立层合理**：CXL/PMEM 驱动、Kbuild 等 [IND] 层独立实现符合微内核解耦哲学
 4. **无修改意见**：agentrt memoryrovol/heapstore 设计无需修改

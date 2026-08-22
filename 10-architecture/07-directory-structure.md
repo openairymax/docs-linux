@@ -1,12 +1,12 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 "From data intelligence emerges."
 
-# agentrt-linux（AirymaxOS）整体目录结构设计 v1.0.1
+# agent-linux（AirymaxOS）整体目录结构设计 v1.0.1
 
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）整体目录结构的唯一权威设计文档。本文件定义 1 个管理仓 + 8 个子仓的目录拓扑、文件级职责、跨子仓依赖关系、[SC] 共享契约头文件物理宿主、IRON-9 v3 四层模型落地路径、12 daemon 命名统一规范、ALK 6.6 内核子仓内部结构。所有 agentrt-linux 子仓的目录规划、文件创建、构建配置必须以本文件为唯一权威源。\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）整体目录结构的唯一权威设计文档。本文件定义 1 个管理仓 + 8 个子仓的目录拓扑、文件级职责、跨子仓依赖关系、[SC] 共享契约头文件物理宿主、IRON-9 v3 四层模型落地路径、12 daemon 命名统一规范、ALK 6.6 内核子仓内部结构。所有 agent-linux 子仓的目录规划、文件创建、构建配置必须以本文件为唯一权威源。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档总纲](README.md)\
+> **上级文档**：[agent-linux 设计文档总纲](README.md)\
 > **作者**：开源极境工程与规范委员会（OpenAirymax Engineering and Standardization Committee）\
 > **理论根基**：乔布斯/艾夫"简约就是美"设计哲学 + seL4 Liedtke minimality principle + Linux 6.6 内核基线工程思想\
 > **编号权威**：[09-ssot-registry.md §3](../50-engineering-standards/09-ssot-registry.md)\
@@ -75,7 +75,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.3 与 seL4 Liedtke minimality 的对应
 
-| seL4 原则 | agentrt-linux 目录映射 |
+| seL4 原则 | agent-linux 目录映射 |
 |----------|----------------------|
 | 微内核只保留原子机制 | kernel/kernel/superv/ 只放 Micro-Supervisor（4 个 .c） |
 | 服务用户态化 | services/daemons/ 放 12 个 daemon |
@@ -109,7 +109,7 @@ airymaxhub/                          # 伞仓（OpenAirymax 总入口）
 │   ├── gateway/                    # 子仓：网关
 │   ├── protocols/                  # 子仓：协议
 │   └── heapstore/                  # 子仓：堆存储
-├── agentrt-linux/                   # 管理仓 2：AirymaxOS（本文档对象）
+├── agent-linux/                   # 管理仓 2：AirymaxOS（本文档对象）
 │   ├── kernel/                      # 子仓 1：ALK 6.6 内核
 │   ├── services/                    # 子仓 2：用户态服务
 │   ├── security/                    # 子仓 3：安全子系统
@@ -123,10 +123,10 @@ airymaxhub/                          # 伞仓（OpenAirymax 总入口）
 └── products/                        # 管理仓 5：产品
 ```
 
-### 2.2 agentrt-linux 管理仓结构
+### 2.2 agent-linux 管理仓结构
 
 ```
-agentrt-linux/                       # 管理仓（独立 git repo，内含 8 个 submodule）
+agent-linux/                       # 管理仓（独立 git repo，内含 8 个 submodule）
 ├── .gitmodules                      # 8 个 submodule 登记
 ├── README.md                        # 管理仓说明（含双许可证描述）
 ├── README_zh.md                     # 中文说明
@@ -265,10 +265,10 @@ agentrt-linux/                       # 管理仓（独立 git repo，内含 8 �
 
 ### 3.4 决策 D：daemon 与 agentrt 重叠率仅 16.7%（问题 4）
 
-**问题陈述**：agentrt 有 7 子仓（atoms/commons/cupolas/daemons/gateway/protocols/heapstore），agentrt-linux 有 12 daemon，仅 gateway_d 一项与 agentrt gateway 直接对应（重叠 1/6 ≈ 16.7%），关系不清。
+**问题陈述**：agentrt 有 7 子仓（atoms/commons/cupolas/daemons/gateway/protocols/heapstore），agent-linux 有 12 daemon，仅 gateway_d 一项与 agentrt gateway 直接对应（重叠 1/6 ≈ 16.7%），关系不清。
 
 **备选方案**：
-- D1（[SS] 语义同源 + [IND] 完全独立）：3 个 daemon 为 [SS]（agentrt 同源 OS 升级），9 个为 [IND]（agentrt-linux 专属）
+- D1（[SS] 语义同源 + [IND] 完全独立）：3 个 daemon 为 [SS]（agentrt 同源 OS 升级），9 个为 [IND]（agent-linux 专属）
 - D2（全部 [IND]）：12 daemon 完全独立，与 agentrt 无关
 - D3（全部 [SS]）：12 daemon 全部为 agentrt 同源
 
@@ -282,7 +282,7 @@ agentrt-linux/                       # 管理仓（独立 git repo，内含 8 �
 
 **落地约束**：
 - [SS] 3 daemon：gateway_d / sched_d / cogn_d（与 agentrt 同源 OS 升级）
-- [IND] 9 daemon：macro_d / logger_d / config_d / vfs_d / net_d / mem_d / sec_d / audit_d / dev_d（agentrt-linux 专属）
+- [IND] 9 daemon：macro_d / logger_d / config_d / vfs_d / net_d / mem_d / sec_d / audit_d / dev_d（agent-linux 专属）
 
 ### 3.5 决策 E：8/10 [SC] 头文件缺失（问题 5）
 
@@ -433,7 +433,7 @@ agentrt-linux/                       # 管理仓（独立 git repo，内含 8 �
 
 **落地约束**：
 1. **[SC] 共享层**：12 头文件物理宿主 kernel/include/uapi/linux/airymax/，各子仓 -I 引用
-2. **[SS] 语义同源层**：各子仓独立实现同名 API，签名可独立演进（如 agentrt `airy_ipc_send()` 与 agentrt-linux `airy_ipc_send()` 签名不同但语义同源）
+2. **[SS] 语义同源层**：各子仓独立实现同名 API，签名可独立演进（如 agentrt `airy_ipc_send()` 与 agent-linux `airy_ipc_send()` 签名不同但语义同源）
 3. **[IND] 完全独立层**：各子仓自有代码，无任何共享
 4. **禁止**：
    - 禁止创建 libairymax/ 或类似共享库子仓
@@ -766,7 +766,7 @@ services/
 ### 4.3 子仓 3：security（安全子系统）
 
 > **职责**：纯 C LSM（DEFINE_LSM(airy)）+ Capability 系统（41 ID + seL4 派生模型）+ Cupolas 安全穹顶 + Integrity + Keys。
-> **IRON-9 主层**：[IND]（agentrt-linux 专属安全实现）
+> **IRON-9 主层**：[IND]（agent-linux 专属安全实现）
 > **许可证**：AGPL-3.0-or-later OR Apache-2.0
 
 ```
@@ -840,7 +840,7 @@ security/
 ### 4.4 子仓 4：memory（记忆子系统）
 
 > **职责**：MemoryRovol L1-L4 四层记忆 + CXL 内存池化 + PMEM 持久化 + MGLRU 多代 LRU + VFS 持久化 + rovol-kmod。
-> **IRON-9 主层**：[IND]（agentrt-linux 专属）
+> **IRON-9 主层**：[IND]（agent-linux 专属）
 > **许可证**：SPHARX Commercial EULA v1.0（MemoryRovol 闭源商业，特例）
 
 ```
@@ -919,7 +919,7 @@ memory/
 ### 4.5 子仓 5：cognition（认知子系统）
 
 > **职责**：CoreLoopThree 三阶段 + Thinkdual 双模式 + LLM 调度 + Wasm 沙箱 + GPU/NPU 调度 + kthread 实现。
-> **IRON-9 主层**：[IND]（agentrt-linux 专属）
+> **IRON-9 主层**：[IND]（agent-linux 专属）
 > **许可证**：AGPL-3.0-or-later OR Apache-2.0
 
 ```
@@ -997,7 +997,7 @@ cognition/
 ### 4.6 子仓 6：cloudnative（云原生）
 
 > **职责**：K8s CRD + containerd-shim + CNI + OCI + agentctl + DPU/IPU + super-node OS + OpenTelemetry。
-> **IRON-9 主层**：[IND]（agentrt-linux 专属）
+> **IRON-9 主层**：[IND]（agent-linux 专属）
 > **许可证**：AGPL-3.0-or-later OR Apache-2.0
 
 ```
@@ -1090,7 +1090,7 @@ cloudnative/
 ### 4.7 子仓 7：system（系统基础）
 
 > **职责**：RPM/dnf 包管理 + 配置工具 + shell + 基础库 + 监控（airymaxmon）+ DevStation + packaging。
-> **IRON-9 主层**：[IND]（agentrt-linux 专属）
+> **IRON-9 主层**：[IND]（agent-linux 专属）
 > **许可证**：AGPL-3.0-or-later OR Apache-2.0
 
 ```
@@ -1184,7 +1184,7 @@ system/
 ### 4.8 子仓 8：tests-linux（测试）
 
 > **职责**：单元测试 + 集成测试 + 形式化验证（seL4 Isabelle/HOL + Coq）+ soak + chaos + benchmark + eBPF 验证。
-> **IRON-9 主层**：[SS]（与 agentrt tests 语义同源）+ [IND]（agentrt-linux 专属测试）
+> **IRON-9 主层**：[SS]（与 agentrt tests 语义同源）+ [IND]（agent-linux 专属测试）
 > **许可证**：AGPL-3.0-or-later OR Apache-2.0
 
 ```
@@ -1366,7 +1366,7 @@ sc-dual-ci:
 |------|------|---------|------------|------|
 | **共享契约层** | [SC] | 完全共享代码 | `kernel/include/uapi/linux/airymax/`（12 头文件） | 12 个头文件，逐字节相同，两端共同依赖 |
 | **语义同源层** | [SS] | 高层 API 语义同源，签名独立演进 | 各子仓独立实现（如 services/daemons/gateway_d/） | 调度语义、安全模型、IPC 传输、记忆模型 |
-| **完全独立层** | [IND] | 完全独立 | 各子仓独立仓库 | 内核驱动/Kbuild（agentrt-linux）；跨平台用户态/SDK 4 语言（agentrt） |
+| **完全独立层** | [IND] | 完全独立 | 各子仓独立仓库 | 内核驱动/Kbuild（agent-linux）；跨平台用户态/SDK 4 语言（agentrt） |
 | **降级生存层** | [DSL] | 自包含降级块 | [SC] 头文件内 `#ifdef AIRY_SC_FALLBACK` | [SC] 损坏时的最小可运行子集 |
 
 ### 6.2 [SC] 共享契约层落地
@@ -1374,8 +1374,8 @@ sc-dual-ci:
 **物理宿主**：`kernel/include/uapi/linux/airymax/`（12 头文件，详见 §5）
 
 **两端引用方式**：
-- agentrt-linux 子仓：`-I../kernel/include`（决策 G1）
-- agentrt 子仓：`-I../agentrt-linux/kernel/include`（通过 git submodule 引用）
+- agent-linux 子仓：`-I../kernel/include`（决策 G1）
+- agentrt 子仓：`-I../agent-linux/kernel/include`（通过 git submodule 引用）
 
 **禁止**：
 - 物理复制头文件
@@ -1386,7 +1386,7 @@ sc-dual-ci:
 
 各子仓独立实现同名 API，签名可独立演进：
 
-| [SS] API | agentrt-linux 物理路径 | agentrt 物理路径 | 语义同源点 |
+| [SS] API | agent-linux 物理路径 | agentrt 物理路径 | 语义同源点 |
 |----------|---------------------|----------------|----------|
 | `airy_ipc_send()` | `services/userland/ipc/airy_ipc_client.c` | `atoms/ipc/airy_ipc.c` | [SC] ipc.h（magic 0x41524531） |
 | `airy_sched_enqueue()` | `kernel/corekern/sched/stc_dispatch.c` | `atoms/sched/airy_sched.c` | [SC] sched.h（magic 0x41475453） |
@@ -1402,7 +1402,7 @@ sc-dual-ci:
 
 ### 6.4 [IND] 完全独立层落地
 
-**agentrt-linux [IND]（与 agentrt 完全不共享）**：
+**agent-linux [IND]（与 agentrt 完全不共享）**：
 - `kernel/`（除 include/uapi/linux/airymax/ 外）：内核驱动、Kbuild、内核 API、systemd、纯 C LSM（airy_lsm）、eBPF 可观测性探针（非核心，H5）、IORING_OP_URING_CMD、alloc_pages+mmap
 - `security/airy_lsm/`：DEFINE_LSM(airy) 纯 C LSM
 - `security/airy/`：v1.0.1 `agent_caps[1024]` 静态数组（`__airymax_cap_table`，定义宿主 kernel/ipc/airy_ipc_capability.c，sec_d 唯一写者）+ Badge 64-bit Native Word（替代 v1.0 radix_tree 派生模型）
@@ -1412,7 +1412,7 @@ sc-dual-ci:
 - `cloudnative/`：K8s/containerd/CNI
 - `system/`：RPM/dnf/DevStation
 
-**agentrt [IND]（与 agentrt-linux 完全不共享）**：
+**agentrt [IND]（与 agent-linux 完全不共享）**：
 - `atoms/`：跨平台用户态原语
 - `commons/`：公共库
 - `daemons/`：用户态 daemon 共享
@@ -1486,7 +1486,7 @@ typedef int32_t airy_err_t;
 
 ### 7.3 [SS] 与 agentrt 的对应（决策 D1）
 
-| agentrt-linux daemon | agentrt 对应 | 关系 | [SS] 同源点 |
+| agent-linux daemon | agentrt 对应 | 关系 | [SS] 同源点 |
 |---------------------|------------|------|-----------|
 | `gateway_d` | `gateway/` | OS 级升级 | JSON-RPC 2.0 协议 + [SC] ipc.h |
 | `sched_d` | `atoms/sched/` | OS 级升级 | [SC] sched.h（magic 0x41475453） |
@@ -1523,7 +1523,7 @@ typedef int32_t airy_err_t;
 
 ```mermaid
 graph TD
-    subgraph "管理仓 agentrt-linux"
+    subgraph "管理仓 agent-linux"
         K[kernel<br/>ALK 6.6 + [SC] 宿主]
         S[services<br/>12 daemon + userland]
         SE[security<br/>纯 C LSM + Capability]
@@ -1619,7 +1619,7 @@ graph TD
 
 ### 9.2 kernel/ 目录详解（Model A）
 
-> **D-8 OLK 6.6 UAPI 路径对齐说明**：OLK 6.6 内核 UAPI 头文件标准路径为 `include/uapi/linux/`（参考 `include/uapi/linux/io_uring.h`、`include/uapi/linux/sched.h`）。Airymax 12 个 [SC] 共享契约头文件属用户态可见的 UAPI（agentrt 用户态与 agentrt-linux 内核双端共享），故物理宿主为 `include/uapi/linux/airymax/`。Airymax 内核内部头文件（`maintainer_types.h`/`build_types.h`/`kconfig_types.h` 等，[IND] 独立层）保留在 `include/airymax/`（非 UAPI）。
+> **D-8 OLK 6.6 UAPI 路径对齐说明**：OLK 6.6 内核 UAPI 头文件标准路径为 `include/uapi/linux/`（参考 `include/uapi/linux/io_uring.h`、`include/uapi/linux/sched.h`）。Airymax 12 个 [SC] 共享契约头文件属用户态可见的 UAPI（agentrt 用户态与 agent-linux 内核双端共享），故物理宿主为 `include/uapi/linux/airymax/`。Airymax 内核内部头文件（`maintainer_types.h`/`build_types.h`/`kconfig_types.h` 等，[IND] 独立层）保留在 `include/airymax/`（非 UAPI）。
 
 | 目录 | 来源 | 说明 |
 |------|------|------|
@@ -1662,8 +1662,8 @@ graph TD
 
 | 路径 | 定位 | 内容 | 共享范围 |
 |------|------|------|---------|
-| `include/uapi/linux/airymax/` | [SC] 共享契约层 | 12 个 UAPI 头文件 | agentrt + agentrt-linux 双端共享 |
-| `include/airymax/` | 内核内部类型 | build_types.h / kconfig_types.h | 仅 agentrt-linux 内核使用 |
+| `include/uapi/linux/airymax/` | [SC] 共享契约层 | 12 个 UAPI 头文件 | agentrt + agent-linux 双端共享 |
+| `include/airymax/` | 内核内部类型 | build_types.h / kconfig_types.h | 仅 agent-linux 内核使用 |
 
 `include/airymax/` 中的文件不属于 [SC] 共享契约层，不参与 IRON-9 v3 的 CI 逐字节校验。
 
@@ -1734,7 +1734,7 @@ static struct security_hook_list airy_hooks[] __lsm_ro_after_init = {
 
 ### 10.1 顶层结构对比
 
-| 维度 | agentrt（用户态微核心） | agentrt-linux（AirymaxOS） |
+| 维度 | agentrt（用户态微核心） | agent-linux（AirymaxOS） |
 |------|----------------------|--------------------------|
 | 定位 | AI Agent 运行时平台工程（跨平台） | 极境智能体操作系统（Linux 发行版） |
 | 子仓数 | 7（atoms/commons/cupolas/daemons/gateway/protocols/heapstore） | 8（kernel/services/security/memory/cognition/cloudnative/system/tests-linux） |
@@ -1747,13 +1747,13 @@ static struct security_hook_list airy_hooks[] __lsm_ro_after_init = {
 ### 10.2 [SC] 头文件宿主关系
 
 ```
-agentrt-linux/kernel/include/uapi/linux/airymax/    ← 唯一物理宿主（12 头文件）
+agent-linux/kernel/include/uapi/linux/airymax/    ← 唯一物理宿主（12 头文件）
             ↑
             | -I 引用（禁止物理副本）
             |
    +--------+--------+
    |                 |
-agentrt/          agentrt-linux/
+agentrt/          agent-linux/
 (引用方)          (各子仓引用)
 ```
 
@@ -1763,7 +1763,7 @@ agentrt/          agentrt-linux/
 
 ### 10.3 daemon 对比
 
-| 维度 | agentrt | agentrt-linux |
+| 维度 | agentrt | agent-linux |
 |------|---------|--------------|
 | daemon 数 | 7 子仓含 daemon 共享代码 | 12 daemon（独立进程） |
 | 运行方式 | 库形式（链接到应用） | systemd 服务（独立进程） |
@@ -1773,7 +1773,7 @@ agentrt/          agentrt-linux/
 
 ### 10.4 许可证对比
 
-| 维度 | agentrt | agentrt-linux |
+| 维度 | agentrt | agent-linux |
 |------|---------|--------------|
 | 开源核心 | AGPL-3.0-or-later OR Apache-2.0 | AGPL-3.0-or-later OR Apache-2.0 |
 | 内核 | — | GPL-2.0-only（kernel 子仓） |
@@ -1828,9 +1828,9 @@ agentrt/          agentrt-linux/
 
 | 登记项 | 登记值 | 权威源 | 说明 |
 |--------|--------|--------|------|
-| 文档编号 | DIR-007 | 本文件 | agentrt-linux 整体目录结构 |
+| 文档编号 | DIR-007 | 本文件 | agent-linux 整体目录结构 |
 | SSoT 类别 | 架构设计 | [09-ssot-registry.md §3](../50-engineering-standards/09-ssot-registry.md) | 架构设计类 |
-| 权威源 | 本文件 | — | agentrt-linux 目录结构唯一权威 |
+| 权威源 | 本文件 | — | agent-linux 目录结构唯一权威 |
 | 引用文档 | [06-iron9-shared-model.md](06-iron9-shared-model.md) | IRON-9 v3 四层模型 | 权威源 |
 | 引用文档 | [10-unify-design.md](10-unify-design.md) | Unify Design 5 模块 | 权威源 |
 | 引用文档 | [120-cross-project-code-sharing.md](../50-engineering-standards/120-cross-project-code-sharing.md) | [SC] 12 头文件物理宿主 | 权威源 |
@@ -1941,6 +1941,6 @@ agentrt/          agentrt-linux/
 
 **文档结束**
 
-> 本文件是 agentrt-linux（AirymaxOS）整体目录结构的唯一权威源。任何目录规划、文件创建、构建配置必须以本文件为准。变更需经架构委员会审核并登记于 §12.3 变更日志。
+> 本文件是 agent-linux（AirymaxOS）整体目录结构的唯一权威源。任何目录规划、文件创建、构建配置必须以本文件为准。变更需经架构委员会审核并登记于 §12.3 变更日志。
 >
 > **设计哲学声明**：本目录结构遵循乔布斯/艾夫"简约就是美"哲学——深入理解产品本质后实现的真正简约，而非表面极简。每个目录、每个文件都有清晰的职责说明，体现"看不见的部分应如外观一样精致"的工程美学。

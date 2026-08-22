@@ -1,16 +1,16 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 非功能需求分析
-> **文档定位**：agentrt-linux（AirymaxOS） 非功能需求（Non-Functional Requirements）的详细分析，回答"agentrt-linux 的能力要做到多好（质量属性约束）"。\
+> **文档定位**：agent-linux（AirymaxOS） 非功能需求（Non-Functional Requirements）的详细分析，回答"agent-linux 的能力要做到多好（质量属性约束）"。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. 概述
 
-本文档定义 agentrt-linux 的非功能需求（NFR，Non-Functional Requirements），覆盖五大质量属性维度：
+本文档定义 agent-linux 的非功能需求（NFR，Non-Functional Requirements），覆盖五大质量属性维度：
 
 1. **性能需求（NFR-P）**：延迟、吞吐、Token 能效、启动时间、内存占用
 2. **安全需求（NFR-S）**：capability、国密、机密计算、LSM、审计
@@ -24,7 +24,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 性能需求（NFR-P）
 
-性能需求关注 agentrt-linux 在 Agent 工作负载下的延迟、吞吐与资源效率。
+性能需求关注 agent-linux 在 Agent 工作负载下的延迟、吞吐与资源效率。
 
 ### 2.1 NFR-P-001：调度延迟
 
@@ -94,7 +94,7 @@ echo 1 > /sys/kernel/debug/tracing/events/sched/sched_switch/enable
 | 项 | 内容 |
 |---|---|
 | 指标 | Token 生成吞吐与能效 |
-| 目标 | 吞吐 +30%，能效 +25%（参考 agentrt-linux Token 能效框架） |
+| 目标 | 吞吐 +30%，能效 +25%（参考 agent-linux Token 能效框架） |
 | 验证方法 | Token 基准测试 + 能耗测量 |
 | 约束功能 | FR-047 LLM 调度 |
 | 业务来源 | BR-005 AI 原生 |
@@ -322,7 +322,7 @@ airymaxos-audit-check --tamper-detect
 
 ## 4. 可靠性需求（NFR-R）
 
-可靠性需求关注 agentrt-linux 在长时间运行下的稳定性与故障恢复能力。
+可靠性需求关注 agent-linux 在长时间运行下的稳定性与故障恢复能力。
 
 ### 4.1 NFR-R-001：Soak Test
 
@@ -448,7 +448,7 @@ airymaxos-monitor --resources --interval 60s --duration 7d
 
 ## 5. 兼容性需求（NFR-C）
 
-兼容性需求确保 agentrt-linux 与企业级 Linux 生态的兼容性。
+兼容性需求确保 agent-linux 与企业级 Linux 生态的兼容性。
 
 ### 5.1 NFR-C-001：Linux 企业级生态 RPM 包格式兼容
 
@@ -456,7 +456,7 @@ airymaxos-monitor --resources --interval 60s --duration 7d
 |---|---|
 | 指标 | RPM 包格式兼容性 |
 | 目标 | RPM 4.x 100% 兼容 |
-| 验证方法 | agentrt-linux 集成测试框架测试 |
+| 验证方法 | agent-linux 集成测试框架测试 |
 | 约束功能 | FR-061 RPM 包格式 |
 | 业务来源 | BR-007 Linux 企业级生态对齐 |
 
@@ -773,8 +773,8 @@ airy_active_sessions 1500
 |---|---|---|---|
 | NFR-P 性能 | 性能基准测试 | Locust + k6 + perf + ftrace | tests-linux |
 | NFR-S 安全 | 渗透测试 + 形式化验证 | seL4 风格验证 + 静态分析 | tests-linux + security |
-| NFR-R 可靠性 | Soak Test + 混沌工程 | Chaos Mesh + agentrt-linux 系统级测试套件 + ASan/TSan | tests-linux |
-| NFR-C 兼容性 | 兼容性测试矩阵 | agentrt-linux 集成测试框架 + K8s conformance | tests-linux + system |
+| NFR-R 可靠性 | Soak Test + 混沌工程 | Chaos Mesh + agent-linux 系统级测试套件 + ASan/TSan | tests-linux |
+| NFR-C 兼容性 | 兼容性测试矩阵 | agent-linux 集成测试框架 + K8s conformance | tests-linux + system |
 | NFR-O 可观测性 | 可观测性覆盖检查 | Prometheus + OpenTelemetry + 日志检查 | tests-linux |
 
 ---
@@ -817,7 +817,7 @@ airy_active_sessions 1500
 - [需求分析概览](README.md)：需求分层模型与追溯框架
 - [业务需求分析](01-business-requirements.md)：Agent 工作负载与生态对齐
 - [功能需求分析](02-functional-requirements.md)：8 子仓功能矩阵与能力清单
-- [agentrt-linux 总览](../README.md)：agentrt-linux 整体设计
+- [agent-linux 总览](../README.md)：agent-linux 整体设计
 - [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---

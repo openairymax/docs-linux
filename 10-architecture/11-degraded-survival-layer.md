@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 内核开发者、可靠性工程师、构建系统维护者
+- **目标读者**：agent-linux 内核开发者、可靠性工程师、构建系统维护者
 - **前置知识**：理解 [10-unify-design.md](10-unify-design.md) Unify Design 总纲、[06-iron9-shared-model.md](06-iron9-shared-model.md) IRON-9 v3 四层模型
 - **预计阅读时间**：25 分钟
 - **核心概念**：[DSL]、AIRY_SC_FALLBACK、最小可运行子集、Panic 回退、printk_safe
@@ -33,7 +33,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 问题背景
 
-Airymax Unify Design 的 [SC] 共享契约层（物理宿主 `kernel/include/uapi/linux/airymax/`，共 12 个头文件）是 agentrt 与 agentrt-linux 双端逐字节共享的权威源。但在以下极端场景下，[SC] 头文件可能不可用或损坏：
+Airymax Unify Design 的 [SC] 共享契约层（物理宿主 `kernel/include/uapi/linux/airymax/`，共 12 个头文件）是 agentrt 与 agent-linux 双端逐字节共享的权威源。但在以下极端场景下，[SC] 头文件可能不可用或损坏：
 
 | 场景 | 触发原因 | 影响 |
 |------|---------|------|
@@ -391,7 +391,7 @@ cap_pass:
 | 层面 | 机制 | 触发条件 | 行为 | 代码位置 |
 |------|------|---------|------|---------|
 | 编译时 [DSL] 契约 | `#ifdef AIRY_SC_FALLBACK` 降级块 | 构建系统注入 `AIRY_SC_FALLBACK` 宏 | [SC] 头文件中 `capability_badge=0`，跳过 C-S9 Badge 校验 | 12 个 [SC] 头文件底部降级块（§2） |
-| 运行时 fail-closed | `phase3_dsl_degradation()` | Agent 处于 STOPPED 状态时进入 slowpath phase 3 | 返回 `-AIRY_EIPC_FROZEN`（-53），拒绝操作 | [airy_cap_check.c:111-116](../../agentrt-linux/kernel/security/airy/airy_cap_check.c#L111-L116) |
+| 运行时 fail-closed | `phase3_dsl_degradation()` | Agent 处于 STOPPED 状态时进入 slowpath phase 3 | 返回 `-AIRY_EIPC_FROZEN`（-53），拒绝操作 | [airy_cap_check.c:111-116](../../agent-linux/kernel/security/airy/airy_cap_check.c#L111-L116) |
 
 **设计原则**：编译时 [DSL] 契约（`AIRY_SC_FALLBACK`）是 [SC] 头文件损坏时的最后防线，允许 IPC 以降级模式继续运行；但**运行时** Agent STOPPED 状态下的 slowpath **不继承 [DSL] 的 fail-open 语义**——而是采用 **fail-closed** 策略，返回 `-AIRY_EIPC_FROZEN`，将操作视为 ring 冻结并拒绝。
 

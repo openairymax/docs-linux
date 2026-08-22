@@ -19,7 +19,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 内核开发者、Logger Daemon 开发者、性能工程师
+- **目标读者**：agent-linux 内核开发者、Logger Daemon 开发者、性能工程师
 - **前置知识**：理解 [10-unify-design.md](../10-architecture/10-unify-design.md) A-ULP 模块、[09-sc-log-types-contract.md](../30-interfaces/09-sc-log-types-contract.md) 128B 记录格式
 - **预计阅读时间**：30 分钟
 - **核心概念**：alloc_pages + mmap、无锁 Ring Buffer、reserve/commit 两阶段、Fastpath、eventfd、Logger Daemon、Panic 回退

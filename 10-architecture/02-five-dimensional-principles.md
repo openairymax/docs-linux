@@ -1,23 +1,23 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 五维正交24原则与落地映射
-> **文档定位**：agentrt-linux（AirymaxOS）架构设计原则的完整定义与落地映射\
+# agent-linux 五维正交24原则与落地映射
+> **文档定位**：agent-linux（AirymaxOS）架构设计原则的完整定义与落地映射\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **原则来源**：[00-architectural-principles.md](../../AirymaxRT/10-architecture/00-architectural-principles.md)
 
 ---
 
 ## 1. 五维正交 24 原则概览
 
-agentrt-linux 架构设计基于体系并行论（Multibody Cybernetic Intelligent System），具体实例化为五维正交系统。每个维度对应一类核心设计原则，共 24 条原则覆盖 agentrt-linux 设计的所有关键方面。
+agent-linux 架构设计基于体系并行论（Multibody Cybernetic Intelligent System），具体实例化为五维正交系统。每个维度对应一类核心设计原则，共 24 条原则覆盖 agent-linux 设计的所有关键方面。
 
 ### 1.1 五维正交 24 原则概览表
 
 | 维度 | 核心问题 | 原则数量 | 核心思想 |
 |------|----------|----------|----------|
-| 系统观 (System) | agentrt-linux 作为复杂自适应系统，如何维持动态平衡？ | 4 项 (S-1~S-4) | 反馈闭环、层次分解、总体设计部、涌现性管理 |
+| 系统观 (System) | agent-linux 作为复杂自适应系统，如何维持动态平衡？ | 4 项 (S-1~S-4) | 反馈闭环、层次分解、总体设计部、涌现性管理 |
 | 内核观 (Kernel) | 内核应该做什么，不应该做什么？ | 4 项 (K-1~K-4) | 内核极简、接口契约化、服务隔离、可插拔策略 |
 | 认知观 (Cognition) | 智能体如何高效、可靠地进行认知决策？ | 4 项 (C-1~C-4) | 认知层双思考功能、增量演化、记忆卷载、遗忘机制 |
 | 工程观 (Engineering) | 如何构建可维护、可测试、可演进的工程系统？ | 8 项 (E-1~E-8) | 安全内生、可观测性、资源确定性、跨平台一致性、命名语义化、错误可追溯、文档即代码、可测试性 |
@@ -44,9 +44,9 @@ agentrt-linux 架构设计基于体系并行论（Multibody Cybernetic Intellige
 
 ---
 
-## 2. 系统观 S-1~S-4 + agentrt-linux 落地映射
+## 2. 系统观 S-1~S-4 + agent-linux 落地映射
 
-> 维度一回答：agentrt-linux 作为复杂自适应系统，如何维持动态平衡？
+> 维度一回答：agent-linux 作为复杂自适应系统，如何维持动态平衡？
 
 ### 2.1 S-1 反馈闭环原则
 
@@ -59,7 +59,7 @@ agentrt-linux 架构设计基于体系并行论（Multibody Cybernetic Intellige
 - 安全反馈：审计日志 → 权限规则动态更新
 - 健康反馈：指标采集 → 自动伸缩
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 反馈类型 | 实现机制 |
 |---------------|----------|----------|
@@ -73,7 +73,7 @@ agentrt-linux 架构设计基于体系并行论（Multibody Cybernetic Intellige
 
 **核心要点**：复杂系统必须按层次分解，每层只依赖其直接下层的抽象接口，从不越级访问。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 层次 | 依赖关系 |
 |---------------|------|----------|
@@ -93,7 +93,7 @@ agentrt-linux 架构设计基于体系并行论（Multibody Cybernetic Intellige
 
 **核心要点**：存在一个只做协调、不做执行的全局决策层。它分解任务但不执行任务，选择策略但不实现策略。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 角色 | 职责边界 |
 |---------------|------|----------|
@@ -110,7 +110,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：通过良好的模块交互设计，使系统整体产生超越部分之和的涌现行为，同时抑制负面涌现（如级联故障、资源饥饿）。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 涌现类型 | 管理机制 |
 |---------------|----------|----------|
@@ -123,7 +123,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 ---
 
-## 3. 内核观 K-1~K-4 + agentrt-linux 落地映射
+## 3. 内核观 K-1~K-4 + agent-linux 落地映射
 
 > 维度二回答：内核应该做什么，不应该做什么？
 
@@ -131,7 +131,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：内核只保留不可再分的原子机制。一切可以在用户态实现的功能，都必须在用户态实现。遵循 Liedtke minimality principle。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 极简边界 | 不负责 |
 |---------------|----------|--------|
@@ -150,7 +150,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：所有跨模块交互必须通过明确定义的接口进行。接口是模块间的法律契约：签名、语义、所有权、线程安全性、错误处理，缺一不可。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 契约载体 | 契约内容 |
 |---------------|----------|----------|
@@ -172,7 +172,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：所有用户态服务作为独立守护进程运行，通过系统调用与内核交互。服务之间不直接通信，必须经过内核路由。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 守护进程 | 隔离机制 |
 |---------------|----------|----------|
@@ -191,7 +191,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：所有算法选择（规划、协同、调度、遗忘、检索、净化）都设计为可运行时替换的策略接口。策略是系统的"可调参数"。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 策略维度 | 可选实现 |
 |---------------|----------|----------|
@@ -205,7 +205,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 ---
 
-## 4. 认知观 C-1~C-4 + agentrt-linux 落地映射
+## 4. 认知观 C-1~C-4 + agent-linux 落地映射
 
 > 维度三回答：如何让智能体既高效又可靠？
 
@@ -213,7 +213,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：系统的每个认知环节都设计快慢两条路径。System 1 处理高频低复杂度任务，System 2 处理低频高复杂度任务。两者协同而非互斥。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | System 1（快） | System 2（慢） |
 |---------------|-----------------|-----------------|
@@ -235,7 +235,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：智能体不应一次性规划全部步骤，而应分阶段规划、根据执行反馈动态调整。这避免了长序列任务中的错误累积。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 增量演化机制 | 实现要点 |
 |---------------|--------------|----------|
@@ -248,7 +248,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：记忆不是简单的存储与检索，而是从原始经验中逐层提炼出可复用的知识模式。这一过程类比 CNN 的层级特征提取。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 层级 | 输入 | 输出 | 神经科学对应 |
 |---------------|------|------|------|--------------|
@@ -265,7 +265,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：遗忘不是缺陷，而是记忆系统的核心功能。它裁剪冗余、抑制噪声、保留精华。好的遗忘机制使系统保持高效和可维护。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 遗忘策略 | 公式 | 适用场景 |
 |---------------|----------|------|----------|
@@ -282,7 +282,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 ---
 
-## 5. 工程观 E-1~E-8 + agentrt-linux 落地映射
+## 5. 工程观 E-1~E-8 + agent-linux 落地映射
 
 > 维度四回答：如何构建可维护、可测试、可演进的工程系统？
 
@@ -290,13 +290,13 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：安全不是附加层，而是内嵌于系统设计的每一个环节。从内核到服务层，从编译时到运行时，安全机制无处不在。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 安全机制 | 实现要点 |
 |---------------|----------|----------|
 | security capability（seL4 风格） | 不可伪造令牌 | capability 系统控制资源访问，无 capability 即无访问 |
 | security LSM | Linux Security Module | SELinux + capability 双重保护 |
-| security 国密算法 | SM2/SM3/SM4 | 兼容 agentrt-linux 国密规范 |
+| security 国密算法 | SM2/SM3/SM4 | 兼容 agent-linux 国密规范 |
 | security 机密计算 | TEE / SGX | 敏感计算在可信执行环境 |
 | security 审计哈希链 | SHA-256 哈希链 | 不可篡改审计日志 |
 | security Seccomp + CFI | 运行时保护 | 系统调用过滤 + 控制流完整性 |
@@ -306,7 +306,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：系统必须提供完整的可观测性：指标（Metrics）、追踪（Traces）、日志（Logs）、健康检查（Health）。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 可观测性类型 | 实现机制 |
 |---------------|--------------|----------|
@@ -321,7 +321,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：每块内存的分配者必须明确其释放者。每个文件句柄的打开者必须明确其关闭者。每个线程的创建者必须明确其销毁者。资源的生命周期必须是确定性的。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 资源类型 | 确定性机制 |
 |---------------|----------|------------|
@@ -335,21 +335,21 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：核心业务逻辑与平台无关。平台差异通过抽象层屏蔽，业务代码永远不直接调用平台 API。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
-| 维度 | agentrt | agentrt-linux |
+| 维度 | agentrt | agent-linux |
 |------|---------|-----------|
 | 平台支持 | Linux / macOS / Windows 跨平台 | 仅 Linux 6.6 内核基线 |
 | 一致性方向 | 跨平台用户态运行时 | Linux 专属优化 |
-| 关系 | agentrt-linux 是 agentrt 的最佳载体 | 同源天然适配，无适配层 |
+| 关系 | agent-linux 是 agentrt 的最佳载体 | 同源天然适配，无适配层 |
 
-**说明**：agentrt 是跨平台用户态运行时，承担跨平台一致性责任；agentrt-linux 是 Linux 专属优化发行版，专注于 Linux 6.6 内核基线的极致性能。两者同源，agentrt 在 agentrt-linux 上运行天然契合。
+**说明**：agentrt 是跨平台用户态运行时，承担跨平台一致性责任；agent-linux 是 Linux 专属优化发行版，专注于 Linux 6.6 内核基线的极致性能。两者同源，agentrt 在 agent-linux 上运行天然契合。
 
 ### 5.5 E-5 命名语义化原则
 
 **核心要点**：名称即文档。函数名、类型名、变量名必须精确表达其语义。好的命名让代码自解释，减少对注释的依赖。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 命名空间 | 用途 | 示例 |
 |----------|------|------|
@@ -363,7 +363,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：每个错误必须可追溯到其根源。错误码、错误消息、调用栈、上下文信息，缺一不可。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 错误追溯机制 | 实现要点 |
 |---------------|--------------|----------|
@@ -377,11 +377,11 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：文档与代码同步更新。过时的文档比没有文档更糟糕。文档必须作为代码的一部分进行版本控制和审查。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 文档体系 | 位置 | 内容 |
 |----------|------|------|
-| docs/AirymaxOS/ | agentrt-linux 设计文档 | 19 模块三层体系（核心设计层 + 工程标准与实施层 + 延伸层，~85 文档） |
+| docs/AirymaxOS/ | agent-linux 设计文档 | 19 模块三层体系（核心设计层 + 工程标准与实施层 + 延伸层，~85 文档） |
 | docs/AirymaxRT/10-architecture/00-architectural-principles.md | 架构原则 | 五维正交 24 原则 |
 | 50-engineering-standards/10-coding-style/ | 编码规范 | C / Rust / 安全编码规范文件 |
 | Doxygen 注释 | 代码内文档 | 每个公共 API 的契约注释 |
@@ -391,7 +391,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 **核心要点**：测试不是事后补充，而是设计的首要考量。每个组件在设计时就必须考虑其可测试性，通过测试驱动设计确保代码的正确性和可维护性。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 测试类型 | 工具 | 覆盖率目标 |
 |---------------|----------|------|------------|
@@ -405,7 +405,7 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 ---
 
-## 6. 设计美学 A-1~A-4 + agentrt-linux 落地映射
+## 6. 设计美学 A-1~A-4 + agent-linux 落地映射
 
 > 维度五回答：如何让工程本身成为艺术？
 
@@ -432,7 +432,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 **核心约束**：简约不是"少做"，而是"深入后做对"。Airymax 的每一个设计决策都必须经过深度挖掘——理解本质后去除非必要，保留精髓。这与 seL4 的 Liedtke minimality principle 形成"东西方简约哲学"的双重根基：Liedtke 从形式化验证角度论证最小化，乔布斯从人文体验角度论证简约美。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 简约维度 | 体现 |
 |---------------|----------|------|
@@ -446,7 +446,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 **核心要点**：细节决定成败。错误消息、日志格式、API 命名，每个细节都反映工程品质。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 细节维度 | 体现 |
 |---------------|----------|------|
@@ -461,7 +461,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 **核心要点**：技术服务于人。开发者体验与用户体验同等重要。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 人文维度 | 体现 |
 |---------------|----------|------|
@@ -475,7 +475,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 **核心要点**：不接受"足够好"。代码质量、测试覆盖、文档完整性，每个方面都追求完美。
 
-**agentrt-linux 落地映射**：
+**agent-linux 落地映射**：
 
 | 落地子仓/模块 | 完美维度 | 体现 |
 |---------------|----------|------|
@@ -568,9 +568,9 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 ## 8. 相关文档
 
 - [架构设计 README](README.md)：架构设计层总览
-- [系统架构](01-system-architecture.md)：agentrt-linux 系统架构总览
+- [系统架构](01-system-architecture.md)：agent-linux 系统架构总览
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
-- [工程基线](04-engineering-baseline.md)：agentrt-linux 工程基线
+- [工程基线](04-engineering-baseline.md)：agent-linux 工程基线
 - [架构决策记录](05-adrs.md)：18 个核心 ADR
 - [架构原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
 
@@ -580,21 +580,21 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| 0.1.1 | 2026-07-06 | 初始版本（含 24 原则 + agentrt-linux 落地映射） |
+| 0.1.1 | 2026-07-06 | 初始版本（含 24 原则 + agent-linux 落地映射） |
 | 1.0.1 | 2026-Q4 | 首个开发版本（与代码实现同步验证，0.1.1 奠基后直接过渡，IRON-7 硬约束） |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 
 ## 10. IRON-9 v3 四层共享模型
 
-> **OS-ARCH-003**： 五维正交 24 原则在 agentrt（用户态）与 agentrt-linux（内核态）间遵循 IRON-9 v3 四层共享模型——S 系统观 / K 内核观 / C 认知观 / E 工程观 / A 设计美学跨态同源，认知观契约经 [SC] 共享，内核观实现经 [IND] 各自独立，禁止为五维原则引入双端适配别名层。
+> **OS-ARCH-003**： 五维正交 24 原则在 agentrt（用户态）与 agent-linux（内核态）间遵循 IRON-9 v3 四层共享模型——S 系统观 / K 内核观 / C 认知观 / E 工程观 / A 设计美学跨态同源，认知观契约经 [SC] 共享，内核观实现经 [IND] 各自独立，禁止为五维原则引入双端适配别名层。
 
 ### 10.1 四层模型概览
 
 | 层次 | 共享程度 | 五维原则映射 |
 |------|---------|-------------|
 | **[SC] 共享契约层** | 完全共享代码 | C 认知观（`cognition_types.h` 三阶段）+ E 工程观编码契约经 12 头文件共享，物理宿主 `kernel/include/uapi/linux/airymax/`，子仓经 `-I` 引用 |
-| **[SS] 语义同源层** | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | S 系统观 + A 设计美学在 agentrt 5 维模块 ↔ agentrt-linux 8 子仓的同源映射 |
-| **[IND] 完全独立层** | 完全独立 | K 内核观（agentrt-linux sched_tac 独有）+ E 工程观实现（CMake vs Kbuild） |
+| **[SS] 语义同源层** | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | S 系统观 + A 设计美学在 agentrt 5 维模块 ↔ agent-linux 8 子仓的同源映射 |
+| **[IND] 完全独立层** | 完全独立 | K 内核观（agent-linux sched_tac 独有）+ E 工程观实现（CMake vs Kbuild） |
 | **[DSL] 降级生存层** | [SC] 损坏时最小可运行子集 | 每个 [SC] 头文件底部 `#ifdef AIRY_SC_FALLBACK` 降级块（38 POSIX 错误码 + printk + 最小 128B IPC + EEVDF 默认 + POSIX capability + 统一 Panic），详见 [11-degraded-survival-layer.md](11-degraded-survival-layer.md) |
 
 ### 10.2 [SC] 共享契约层——12 个头文件在五维原则中的角色
@@ -614,9 +614,9 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 | `lsm_types.h` | E 工程观 | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架（E-1 安全内生） | kernel / security |
 | `bpf_struct_ops.h` | E 工程观 | struct_ops 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局 | kernel / cognition |
 
-### 10.3 [SS] 语义同源层——五维原则 agentrt ↔ agentrt-linux 映射
+### 10.3 [SS] 语义同源层——五维原则 agentrt ↔ agent-linux 映射
 
-| 维度 | agentrt 实现（用户态） | agentrt-linux 实现（内核态） | 同源 API |
+| 维度 | agentrt 实现（用户态） | agent-linux 实现（内核态） | 同源 API |
 |------|----------------------|---------------------------|---------|
 | S 系统观 | MicroCoreRT atoms + AgentsIPC | kernel + services | sched_tac 17 项 + io_uring 8 项 |
 | K 内核观 | 用户态 priority queue | sched_tac 用户态函数表 | 复用 Linux 6.6 原生调度类 |
@@ -626,7 +626,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 
 ### 10.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | 调度原语 | 用户态协程 + event loop | sched_tac 用户态调度策略 | 跨平台约束（macOS/Windows 无 Linux 6.6 原生调度类组合） |
 | IPC 传输 | POSIX MQ + mmap | io_uring + SQPOLL（用户态-内核态）；kfifo + wait_event_interruptible（kthread 间） | 内核态性能与 kthread 通信约束 |
@@ -644,7 +644,7 @@ graph TB
         RT_E[E 工程观<br/>CMake + libc]
     end
 
-    subgraph "agentrt-linux 内核态（五维原则落地）"
+    subgraph "agent-linux 内核态（五维原则落地）"
         OS_S[S 系统观<br/>kernel + services]
         OS_K[K 内核观<br/>sched_tac + io_uring]
         OS_C[C 认知观<br/>cognition kthread]

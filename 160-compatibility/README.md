@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 兼容性设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系主索引——ABI 稳定性、POSIX 兼容、上游跟踪与跨发行版兼容\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）兼容性工程体系主索引——ABI 稳定性、POSIX 兼容、上游跟踪与跨发行版兼容\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)
@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有兼容性设计必须以本声明为基线——兼容性承诺不得引入 sched_ext / page flipping / BPF LSM / DMA 一致性内存的兼容支持，这些被弃用方案不在兼容矩阵内。
+agent-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有兼容性设计必须以本声明为基线——兼容性承诺不得引入 sched_ext / page flipping / BPF LSM / DMA 一致性内存的兼容支持，这些被弃用方案不在兼容矩阵内。
 
 | # | 技术维度 | 选定方案 | 明确不采用 | 选定理由 |
 |---|---------|---------|-----------|---------|
@@ -38,7 +38,7 @@ agentrt-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配�
 
 ### 2.1 内核基线兼容声明（本模块专属）
 
-> **标准 Linux 6.6 为唯一原生基线**：agentrt-linux v1.0.1 以 Linux 6.6 LTS 为唯一原生开发与兼容基线，sched_tac / IORING_OP_URING_CMD / 纯 C LSM / alloc_pages + mmap 全部基于 Linux 6.6 主线能力。
+> **标准 Linux 6.6 为唯一原生基线**：agent-linux v1.0.1 以 Linux 6.6 LTS 为唯一原生开发与兼容基线，sched_tac / IORING_OP_URING_CMD / 纯 C LSM / alloc_pages + mmap 全部基于 Linux 6.6 主线能力。
 >
 > **其余内核版本仅作 DKMS 兼容目标**：对 Linux 6.1 / 6.12 等其他版本，仅通过 DKMS（Dynamic Kernel Module Support）提供有限兼容，不承诺完整功能与性能 SLO。sched_ext / page flipping / BPF LSM / DMA 一致性内存等被弃用方案**不在任何版本的兼容目标内**。
 
@@ -123,9 +123,9 @@ Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）在兼容性体
 
 ### 4.2 IRON-9 v3 [IND] 独有兼容层
 
-agentrt 与 agentrt-linux 的兼容性差异落在 **[IND] 独立实现层**：
+agentrt 与 agent-linux 的兼容性差异落在 **[IND] 独立实现层**：
 
-| 维度 | agentrt（[IND]） | agentrt-linux（[IND]） |
+| 维度 | agentrt（[IND]） | agent-linux（[IND]） |
 |------|-----------------|---------------------|
 | ABI 机制 | 用户态库 ABI（`airy_*` API） | OS 级 ABI（`AIRY_SYS_*` 系统调用 + KABI） |
 | IPC 兼容 | POSIX MQ + mmap 跨平台抽象 | io_uring + IORING_OP_URING_CMD |

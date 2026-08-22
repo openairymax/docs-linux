@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 集成标准总览
-> **文档定位**：agentrt-linux（AirymaxOS）集成标准的顶层入口，定义内核层→服务层→应用层的集成层次、与 agentrt 的集成规范、与 主流 Linux 发行版标准的兼容性集成、生态合作规范与第三方模块集成标准\
+# agent-linux 集成标准总览
+> **文档定位**：agent-linux（AirymaxOS）集成标准的顶层入口，定义内核层→服务层→应用层的集成层次、与 agentrt 的集成规范、与 主流 Linux 发行版标准的兼容性集成、生态合作规范与第三方模块集成标准\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[工程标准规范手册](../00-engineering-standards-handbook.md)\
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 三层集成架构
 
-agentrt-linux（AirymaxOS）的集成遵循严格的三层架构（S-2 层次分解原则）：
+agent-linux（AirymaxOS）的集成遵循严格的三层架构（S-2 层次分解原则）：
 
 ```mermaid
 graph TD
@@ -102,15 +102,15 @@ graph TD
 
 ### 3.1 集成原则
 
-agentrt-linux（AirymaxOS）与 agentrt 的集成是基于 IRON-9 v3 工程铁律的同源深度集成。核心原则：
+agent-linux（AirymaxOS）与 agentrt 的集成是基于 IRON-9 v3 工程铁律的同源深度集成。核心原则：
 
 | 原则 | 说明 |
 |------|------|
-| **无适配层** | agentrt 在 agentrt-linux 上运行时无需任何适配层，天然契合 |
+| **无适配层** | agentrt 在 agent-linux 上运行时无需任何适配层，天然契合 |
 | **同源优先** | 优先使用同源语义的特性（如 sched_tac 调度策略），但可选使用 |
 | **契约共享** | [SC] 层代码完全共享，通过 `include/uapi/linux/airymax/` 头文件库同步 |
 | **独立演进** | 两者独立演进，通过契约层保持兼容 |
-| **双向验证** | 契约层变更须经 agentrt + agentrt-linux 两端 CI 双向校验 |
+| **双向验证** | 契约层变更须经 agentrt + agent-linux 两端 CI 双向校验 |
 
 ### 3.2 集成架构
 
@@ -130,7 +130,7 @@ graph TD
         IND["[IND] 完全独立层<br/>各自独立<br/>无共享代码"]
     end
 
-    subgraph "agentrt-linux（AirymaxOS）"
+    subgraph "agent-linux（AirymaxOS）"
         OS1["sched_tac<br/>调度类"]
         OS2["128B IPC<br/>io_uring 子系统"]
         OS3["capability<br/>+ LSM 安全"]
@@ -189,7 +189,7 @@ graph TD
 
 ### 4.1 兼容性策略
 
-agentrt-linux（AirymaxOS）与 主流 Linux 发行版标准保持兼容性集成，确保在企业级 Linux 生态中的互操作性。兼容性集成涵盖四个层面：
+agent-linux（AirymaxOS）与 主流 Linux 发行版标准保持兼容性集成，确保在企业级 Linux 生态中的互操作性。兼容性集成涵盖四个层面：
 
 | 兼容层面 | 说明 | 兼容方式 |
 |----------|------|----------|
@@ -245,7 +245,7 @@ agentrt-linux（AirymaxOS）与 主流 Linux 发行版标准保持兼容性集�
 
 ### 5.1 生态合作框架
 
-agentrt-linux（AirymaxOS）建立开放的生态合作框架，支持以下合作类型：
+agent-linux（AirymaxOS）建立开放的生态合作框架，支持以下合作类型：
 
 | 合作类型 | 说明 | 合作层级 |
 |----------|------|----------|
@@ -344,7 +344,7 @@ graph TD
 | 进程隔离 | 独立地址空间 | 不与其他守护进程共享内存 |
 | 通信方式 | io_uring IPC | 通过 io_uring IPC 子系统通信 |
 | 日志输出 | journald + 结构化 | 使用 journald 输出结构化日志 |
-| 错误处理 | 统一错误码 | 使用 agentrt-linux 统一错误码 |
+| 错误处理 | 统一错误码 | 使用 agent-linux 统一错误码 |
 | 健康检查 | 提供健康检查端点 | 支持 systemd watchdog |
 | 优雅关闭 | 支持 SIGTERM | 收到信号后优雅关闭 |
 | 资源限制 | Linux cgroup | 通过 cgroup 限制资源使用 |
@@ -356,7 +356,7 @@ graph TD
 | ABI 稳定性 | 遵循符号版本管理 | 使用 .symver 管理符号版本 |
 | 线程安全 | 标注线程安全性 | 文档中明确说明线程安全性 |
 | 内存管理 | 明确所有权 | 文档中明确谁分配谁释放 |
-| 错误处理 | 统一错误码 | 返回 agentrt-linux 统一错误码 |
+| 错误处理 | 统一错误码 | 返回 agent-linux 统一错误码 |
 | 编译选项 | -fPIC -Wall -Wextra -Werror | 零警告编译 |
 | 测试覆盖 | 提供单元测试 | 覆盖率 ≥ 80% |
 
@@ -365,7 +365,7 @@ graph TD
 | 标准项 | 要求 | 说明 |
 |--------|------|------|
 | 镜像格式 | OCI | 符合 OCI 镜像规范 |
-| 基础镜像 | agentrt-linux 基础镜像 | 基于官方基础镜像构建 |
+| 基础镜像 | agent-linux 基础镜像 | 基于官方基础镜像构建 |
 | 安全扫描 | 通过漏洞扫描 | 无 CRITICAL/HIGH 漏洞 |
 | 资源限制 | 声明资源需求 | Dockerfile 中声明 CPU/内存限制 |
 | 健康检查 | 提供 HEALTHCHECK | 容器健康检查指令 |

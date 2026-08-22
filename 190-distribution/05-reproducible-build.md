@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）可重现构建设计详细规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）可重现构建（Reproducible Builds）详细设计，确保从源码到二进制的端到端可验证性\
+# agent-linux（AirymaxOS）可重现构建设计详细规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）可重现构建（Reproducible Builds）详细设计，确保从源码到二进制的端到端可验证性\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
-> **同源映射**：agentrt 构建基线（IRON-9 v3 [IND] 完全独立层，构建工具链为 agentrt-linux 专属）\
+> **上级文档**：[agent-linux 设计文档](README.md)\
+> **同源映射**：agentrt 构建基线（IRON-9 v3 [IND] 完全独立层，构建工具链为 agent-linux 专属）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[IND] 完全独立层（可重现构建为 agentrt-linux 发行版专属）
+> **IRON-9 v3 层次**：[IND] 完全独立层（可重现构建为 agent-linux 发行版专属）
 
 ---
 
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）可重现构建设计旨在确保：**任何人在任何时间、任何地点、使用任何符合规范的构建环境，从同一份源码构建出的二进制产物逐字节完全一致**。这是"可追溯、可验证"发行版哲学的终极体现，也是供应链安全的工程基石。
+agent-linux（AirymaxOS）可重现构建设计旨在确保：**任何人在任何时间、任何地点、使用任何符合规范的构建环境，从同一份源码构建出的二进制产物逐字节完全一致**。这是"可追溯、可验证"发行版哲学的终极体现，也是供应链安全的工程基石。
 
 本设计达成以下核心目标：
 
@@ -36,7 +36,7 @@ agentrt-linux（AirymaxOS）可重现构建设计旨在确保：**任何人在�
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。可重现构建与 agentrt 构建之间属于 IRON-9 v3 [IND] 完全独立层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。可重现构建与 agentrt 构建之间属于 IRON-9 v3 [IND] 完全独立层。
 
 ### 1.4 可重现构建场景矩阵
 
@@ -77,7 +77,7 @@ build(source, spec) → deterministic_binary
 
 ### 2.3 设计哲学
 
-agentrt-linux 可重现构建遵循三大设计哲学：
+agent-linux 可重现构建遵循三大设计哲学：
 
 1. **零信任供应链（Zero-Trust Supply Chain）**：不信任任何构建中间产物，所有产物必须可从源码独立验证
 2. **确定性优先（Determinism First）**：在性能与确定性冲突时，优先保证确定性（如禁用 `-ffast-math`）
@@ -94,7 +94,7 @@ agentrt-linux 可重现构建遵循三大设计哲学：
 ### 3.2 SOURCE_DATE_EPOCH 设定规则
 
 ```bash
-# /etc/agentrt/build/env.sh（agentrt-linux 构建环境标准）
+# /etc/agentrt/build/env.sh（agent-linux 构建环境标准）
 # SOURCE_DATE_EPOCH 设定为最后一次 git commit 的时间戳
 export SOURCE_DATE_EPOCH=$(git -C "$SRC_DIR" log -1 --pretty=%ct)
 
@@ -468,7 +468,7 @@ xorriso -as mkisofs \
     -appid "AirymaxOS 1.0.1" \
     -publisher "SPHARX Ltd." \
     -sysid "AirymaxOS" \
-    -preparer "agentrt-linux Reproducible Build" \
+    -preparer "agent-linux Reproducible Build" \
     -b isolinux/isolinux.bin \
     -c isolinux/boot.cat \
     -sort-weight 0 / \
@@ -896,7 +896,7 @@ sha256sum build-env-fingerprint.json
 
 ```dockerfile
 # airymaxos-build/oci/Containerfile.build-base
-# agentrt-linux 可重现构建基础镜像
+# agent-linux 可重现构建基础镜像
 
 FROM registry.fedoraproject.org/fedora:39
 
@@ -1489,8 +1489,8 @@ impl BuildManifest {
 
 ```bash
 # 1. 准备源码
-git clone https://github.com/OpenAirymax/agentrt-linux.git
-cd agentrt-linux
+git clone https://github.com/OpenAirymax/agent-linux.git
+cd agent-linux
 
 # 2. 设置构建环境
 source /etc/agentrt/build/env.sh
@@ -1519,7 +1519,7 @@ python3 tests/reproducible/verify_matrix.py build-a build-b
 # 验证已安装系统的可重现性
 agentctl reproducible verify \
     --product airymaxos-kernel-1.0.1-1.x86_64.rpm \
-    --source ./agentrt-linux
+    --source ./agent-linux
 
 # 对比两个构建环境
 agentctl reproducible compare \
@@ -1572,7 +1572,7 @@ agentctl reproducible manifest \
 - **Linux 6.6 内核基线**：使用 GCC/Clang 原生 SOURCE_DATE_EPOCH 支持
 - **RPM 打包规范**：遵循 RPM 可重现构建最佳实践
 - **OCI 镜像规范**：遵循 OCI 镜像可重现构建最佳实践
-- **IRON-9 v3**：[IND] 完全独立层，构建工具链为 agentrt-linux 专属
+- **IRON-9 v3**：[IND] 完全独立层，构建工具链为 agent-linux 专属
 - **E-7 文档即代码**：本文档与代码同步演进
 - **A-4 完美主义**：追求位级可重现，不接受"近似可重现"
 

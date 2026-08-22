@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Pull Request 流程规范
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 3 卷——Pull Request 流程规范。本文档详述从 fork 到 PR 合并的完整链路，是补丁生命周期（01 卷）在 GitHub PR 工作流维度的展开，规定 PR 创建、PR 模板、PR 审查、合并策略、自动关闭策略等具体操作。\
+# agent-linux（AirymaxOS）Pull Request 流程规范
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 3 卷——Pull Request 流程规范。本文档详述从 fork 到 PR 合并的完整链路，是补丁生命周期（01 卷）在 GitHub PR 工作流维度的展开，规定 PR 创建、PR 模板、PR 审查、合并策略、自动关闭策略等具体操作。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 3 卷，回答"一个 Pull Request 如何从 fork 到合并的完整流程是什么"。它继承 Linux 6.6 内核 `submitting-patches.rst` 的补丁提交哲学，并将其适配到 agentrt-linux 的 GitHub PR 工作流。
+本文档是 120-development-process 模块的第 3 卷，回答"一个 Pull Request 如何从 fork 到合并的完整流程是什么"。它继承 Linux 6.6 内核 `submitting-patches.rst` 的补丁提交哲学，并将其适配到 agent-linux 的 GitHub PR 工作流。
 
 ### 1.1 与补丁生命周期的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 全部 8 子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux）以及管理仓库 `agentrt-linux-mgmt` 上的跨仓协调 PR。涉及 [SC] 头文件变更的 PR 必须额外满足第 5 节的强制要求。
+本文档适用于 agent-linux 全部 8 子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux）以及管理仓库 `agent-linux-mgmt` 上的跨仓协调 PR。涉及 [SC] 头文件变更的 PR 必须额外满足第 5 节的强制要求。
 
 ### 1.3 关键术语
 
@@ -40,7 +40,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. PR 创建流程总览
 
-agentrt-linux 的 PR 创建遵循标准的 fork-based 工作流，禁止直接推送到主仓库。完整流程分为 5 步：fork → branch → commit → push → PR。
+agent-linux 的 PR 创建遵循标准的 fork-based 工作流，禁止直接推送到主仓库。完整流程分为 5 步：fork → branch → commit → push → PR。
 
 ```mermaid
 flowchart LR
@@ -61,7 +61,7 @@ flowchart LR
 
 ### 2.1 步骤 1：Fork
 
-- **仓库选择**：在 AtomGit 上 fork `spharx/agentrt-linux`（或对应子仓）到个人命名空间。
+- **仓库选择**：在 AtomGit 上 fork `spharx/agent-linux`（或对应子仓）到个人命名空间。
 - **同步策略**：fork 后必须执行 `git remote add upstream <官方仓库>` 并定期 `git fetch upstream` 保持同步。
 - **私有 fork**：贡献者可使用私有 fork 进行早期实验，但 PR 必须从公开 fork 发起以保证 DCO 可验证。
 
@@ -183,7 +183,7 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 | 普通 PR | 2 | 2 名 maintainer | CI 全绿 |
 | 子系统 PR | 2 | 子系统维护者 + 顶级子系统维护者 | CI 全绿 |
 | 跨仓 PR | 3 | 2 子仓维护者 + 总维护者 | CI 全绿 + 跨仓协调 |
-| [SC] 头文件 PR | 3 | agentrt 端 + agentrt-linux 端 + 总维护者 | CI 全绿 + sc-dual-ci 全绿 |
+| [SC] 头文件 PR | 3 | agentrt 端 + agent-linux 端 + 总维护者 | CI 全绿 + sc-dual-ci 全绿 |
 | SSoT 变更 PR | 3 | SSoT 注册表维护者 + 子系统维护者 + 总维护者 | CI 全绿 + ssot-validate 全绿 |
 | 五大选型变更 PR | 4 | 5 名顶级子系统维护者中至少 4 名 + 总维护者 | CI 全绿 + SSoT 委员会签字 |
 
@@ -215,11 +215,11 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 
 ## 5. [SC] 头文件变更 PR 专项流程
 
-[SC] 头文件是 IRON-9 v3 四层模型中的共享契约层，agentrt 与 agentrt-linux 双端必须逐字节一致。任何 [SC] 头文件变更 PR 必须额外满足以下要求。
+[SC] 头文件是 IRON-9 v3 四层模型中的共享契约层，agentrt 与 agent-linux 双端必须逐字节一致。任何 [SC] 头文件变更 PR 必须额外满足以下要求。
 
 ### 5.1 双端同步要求
 
-- **同时提交**：[SC] 变更必须在 agentrt 与 agentrt-linux 同时发起 PR，PR 描述中互相引用对方 PR 链接。
+- **同时提交**：[SC] 变更必须在 agentrt 与 agent-linux 同时发起 PR，PR 描述中互相引用对方 PR 链接。
 - **同时合并**：双端 PR 必须在同一合并窗口内合并，禁止单端合并（会导致双端逐字节不一致）。
 - **OS-DEV-306**：任何单端合并 [SC] PR 的尝试会被 `sc-dual-ci.yml` 阻断。
 
@@ -227,7 +227,7 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 
 `sc-dual-ci.yml` 在 [SC] PR 上执行以下校验：
 
-1. **拉取双端 PR 分支**：从 agentrt 与 agentrt-linux 分别拉取对应 PR 的分支。
+1. **拉取双端 PR 分支**：从 agentrt 与 agent-linux 分别拉取对应 PR 的分支。
 2. **提取 12 个 [SC] 头文件**：从 `kernel/include/uapi/linux/airymax/*.h` 提取 12 个 [SC] 文件。
 3. **逐字节比对**：使用 `diff -u` 比对双端文件，任何字节差异阻断合并。
 4. **编译器无关性校验**：运行 `check-uapi-compiler-agnostic.sh`，验证头文件不含编译器扩展（GCC `__attribute__` / Clang `__builtin__` / MSVC `__declspec` 等）。
@@ -346,7 +346,7 @@ SSoT v2 单一权威源模型要求每个技术点只有一个权威源。任何
 
 ## 10. 跨仓 PR 协调
 
-agentrt-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必须通过管理仓库 `agentrt-linux-mgmt` 协调。
+agent-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必须通过管理仓库 `agent-linux-mgmt` 协调。
 
 ### 10.1 跨仓 PR 类型
 
@@ -356,7 +356,7 @@ agentrt-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必�
 
 ### 10.2 跨仓 PR 流程
 
-1. 在 `agentrt-linux-mgmt` 创建协调 issue，列出所有涉及的子仓 PR。
+1. 在 `agent-linux-mgmt` 创建协调 issue，列出所有涉及的子仓 PR。
 2. 在每个子仓创建独立 PR，PR 描述引用协调 issue。
 3. `mgmt-orchestrator.yml` 自动校验所有子仓 PR 状态，全部 ready 后才允许合并。
 4. 合并顺序由协调 issue 中的依赖图决定。
@@ -381,7 +381,7 @@ agentrt-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必�
 | 无意义 commit | "fix typo"、"wip" 等无信息 commit | 强制 squash |
 | 强推主仓库 | 直接 push 到 upstream main | 分支保护阻断 |
 | 自合并 | 合并自己的 PR | 分支保护阻断 |
-| [SC] 单端合并 | 仅 agentrt 或仅 agentrt-linux 端合并 | sc-dual-ci 阻断 |
+| [SC] 单端合并 | 仅 agentrt 或仅 agent-linux 端合并 | sc-dual-ci 阻断 |
 | 绕过 SSoT | 未通过 SSoT 评审即修改权威源 | ssot-validate 阻断 |
 | 隐藏破坏性变更 | 破坏性变更未在 PR 描述中声明 | NACK + 关闭 |
 | 假审查 | 审查者未实际审查即 `Reviewed-by` | 撤销审查权限 |
@@ -421,4 +421,4 @@ agentrt-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必�
 
 ---
 
-> **文档结束** | agentrt-linux Pull Request 流程规范 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux Pull Request 流程规范 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

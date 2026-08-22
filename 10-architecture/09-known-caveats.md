@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 已知限制与设计边界
+# agent-linux 已知限制与设计边界
 
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）已知限制集中登记文档——参照 seL4 `CAVEATS.md` 工程实践，集中文档化所有已知设计限制、平台验证覆盖、形式化验证边界、兼容性降级策略与已延期设计项。各子模块文档中已有的"已知问题"章节仅作为子模块内部记录，**本文档为跨子仓的集中索引与权威登记**。\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）已知限制集中登记文档——参照 seL4 `CAVEATS.md` 工程实践，集中文档化所有已知设计限制、平台验证覆盖、形式化验证边界、兼容性降级策略与已延期设计项。各子模块文档中已有的"已知问题"章节仅作为子模块内部记录，**本文档为跨子仓的集中索引与权威登记**。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-28\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **保密级别**：开源公开\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **参照基准**：seL4 `CAVEATS.md`（258 行，2014, General Dynamics C4 Systems, GPL-2.0-only）
@@ -32,7 +32,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 形式化验证路径
 
-agentrt-linux 1.0.1 阶段的形式化验证路径如下：
+agent-linux 1.0.1 阶段的形式化验证路径如下：
 
 | 验证路径             | 工具                               | 覆盖范围                          | 阶段     | 状态              |
 | ---------------- | -------------------------------- | ----------------------------- | ------ | --------------- |
@@ -43,11 +43,11 @@ agentrt-linux 1.0.1 阶段的形式化验证路径如下：
 
 ### 1.2 不使用的验证路径
 
-**不引入 C parser 形式化验证路径**：seL4 的 `unverified_compile_assert` 宏是为 C parser 兼容性而存在的工程妥协（参见 [C\_Cpp\_coding\_style.md §6.5](../50-engineering-standards/10-coding-style/C_Cpp_coding_style.md) OS-KER-229 反向声明）。agentrt-linux 的形式化验证路径不经过 C parser，因此不引入此宏。
+**不引入 C parser 形式化验证路径**：seL4 的 `unverified_compile_assert` 宏是为 C parser 兼容性而存在的工程妥协（参见 [C\_Cpp\_coding\_style.md §6.5](../50-engineering-standards/10-coding-style/C_Cpp_coding_style.md) OS-KER-229 反向声明）。agent-linux 的形式化验证路径不经过 C parser，因此不引入此宏。
 
 ### 1.3 验证不覆盖的范围
 
-参照 seL4 `CAVEATS.md` 的"Implementation Correctness"章节声明，agentrt-linux 的形式化验证**不覆盖**以下内容：
+参照 seL4 `CAVEATS.md` 的"Implementation Correctness"章节声明，agent-linux 的形式化验证**不覆盖**以下内容：
 
 - 机器码生成（依赖 GCC/Clang 编译器正确性）
 - 链接器行为
@@ -73,7 +73,7 @@ agentrt-linux 1.0.1 阶段的形式化验证路径如下：
 ### 2.2 不支持的架构
 
 - 32 位架构（x86 / ARMv7）—— 不在 1.0.1 目标范围
-- MIPS / PowerPC —— 不在 agentrt-linux 目标范围
+- MIPS / PowerPC —— 不在 agent-linux 目标范围
 
 ### 2.3 CI 编译验证矩阵
 
@@ -100,11 +100,11 @@ agentrt-linux 1.0.1 阶段的形式化验证路径如下：
 
 ## 3. 实时性限制
 
-参照 seL4 `CAVEATS.md` 的"Real Time"章节声明，agentrt-linux 的实时性限制如下：
+参照 seL4 `CAVEATS.md` 的"Real Time"章节声明，agent-linux 的实时性限制如下：
 
 ### 3.1 不可抢占操作
 
-agentrt-linux 内核存在少量不可抢占操作（与 Linux 6.6 基线一致）：
+agent-linux 内核存在少量不可抢占操作（与 Linux 6.6 基线一致）：
 
 - RCU 宽限期同步（`synchronize_rcu()`）
 - 大页拆分与合并
@@ -115,9 +115,9 @@ agentrt-linux 内核存在少量不可抢占操作（与 Linux 6.6 基线一致�
 
 ### 3.2 sched\_ext 不可用约束与sched_tac 替代
 
-**约束声明**：标准 Linux 6.6 主线**不包含** sched\_ext（SCHED\_EXT BPF 调度器框架于 Linux 6.12 才合入主线）。agentrt-linux 锁定 Linux 6.6 内核基线（ADR-016），因此**不可使用** sched\_ext 及其 `CONFIG_SCHED_CLASS_EXT`/`CONFIG_BPF_SCHED` 配置，亦无法依赖 `struct sched_ext_ops`、`scx_bpf_*`、`SCX_DSQ_*` 等 sched\_ext BPF API。
+**约束声明**：标准 Linux 6.6 主线**不包含** sched\_ext（SCHED\_EXT BPF 调度器框架于 Linux 6.12 才合入主线）。agent-linux 锁定 Linux 6.6 内核基线（ADR-016），因此**不可使用** sched\_ext 及其 `CONFIG_SCHED_CLASS_EXT`/`CONFIG_BPF_SCHED` 配置，亦无法依赖 `struct sched_ext_ops`、`scx_bpf_*`、`SCX_DSQ_*` 等 sched\_ext BPF API。
 
-**sched_tac 替代**：agentrt-linux 采用**sched_tac**（SCHED\_DEADLINE/SCHED\_FIFO/EEVDF + seL4 MCS 映射）作为用户态调度器，替代 sched\_ext：
+**sched_tac 替代**：agent-linux 采用**sched_tac**（SCHED\_DEADLINE/SCHED\_FIFO/EEVDF + seL4 MCS 映射）作为用户态调度器，替代 sched\_ext：
 
 - **策略名**：sched_tac（用户态调度器策略名，非内核调度类编号）；**禁止**定义 `SCHED_AGENT` 内核调度类宏（避免与内核调度类编号冲突）。
 - **基于原生策略**：复用 Linux 6.6 内核原生 SCHED\_DEADLINE/SCHED\_FIFO/EEVDF + cgroup v2 cpuset，无需向前移植 sched\_ext。
@@ -127,7 +127,7 @@ agentrt-linux 内核存在少量不可抢占操作（与 Linux 6.6 基线一致�
 
 ### 3.3 WCET 配置
 
-agentrt-linux 内核默认 WCET 配置值仅作为参考默认值，生产部署时需根据具体使用场景重新评估：
+agent-linux 内核默认 WCET 配置值仅作为参考默认值，生产部署时需根据具体使用场景重新评估：
 
 - 静态系统（已知代码集）：可设置低 WCET 值
 - 动态系统（含不可信代码）：需设置较高 WCET 值
@@ -136,7 +136,7 @@ agentrt-linux 内核默认 WCET 配置值仅作为参考默认值，生产部署
 
 ## 4. SMP 对称多处理器支持
 
-参照 seL4 `CAVEATS.md` 的"SMP"章节声明，agentrt-linux 的 SMP 支持状态如下：
+参照 seL4 `CAVEATS.md` 的"SMP"章节声明，agent-linux 的 SMP 支持状态如下：
 
 ### 4.1 SMP 支持状态
 
@@ -157,7 +157,7 @@ capability 模型在 SMP 配置下不支持强非干扰性（strong intransitive
 
 ### 4.3 SMP + MCS
 
-agentrt-linux 不引入 MCS（Mixed Criticality Systems）配置——此为 seL4 特有机制，agentrt-linux 通过 sched_tac + token budget 实现等价能力（seL4 MCS 语义映射到 SCHED\_DEADLINE 带宽配额，详见 [§3.2](#32-sched_ext-不可用约束与sched_tac-替代)）。
+agent-linux 不引入 MCS（Mixed Criticality Systems）配置——此为 seL4 特有机制，agent-linux 通过 sched_tac + token budget 实现等价能力（seL4 MCS 语义映射到 SCHED\_DEADLINE 带宽配额，详见 [§3.2](#32-sched_ext-不可用约束与sched_tac-替代)）。
 
 ***
 
@@ -224,7 +224,7 @@ void airy_notify_fallback(const char *feature, const char *reason)
 
 ### 7.1 capability + LSM 融合模型
 
-agentrt-linux 同时使用 capability（seL4 借鉴）和 LSM（Linux 6.6 原生）两层安全模型：
+agent-linux 同时使用 capability（seL4 借鉴）和 LSM（Linux 6.6 原生）两层安全模型：
 
 - **capability 层**：细粒度权限控制（agent spawn / GPU sched / NPU access）
 - **LSM 层**：系统级安全策略（7 钩子实现 + 250 框架总槽位，参见 [110-security/01-lsm-framework.md](../110-security/01-lsm-framework.md)）
@@ -281,12 +281,12 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 
 | 编号 | 严重程度 | 缺陷简述 | 修复文件 | seL4 对照 | Linux 6.6 对照 |
 |------|---------|---------|---------|----------|---------------|
-| CAP-FIX-01 | P0 致命 | REVOKE 跳过 `airy_cap_lookup()` 导致 `src` 空指针解引用 | [airy_cap_derive.c:55-62](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) | `cteRevoke` 直接用 slot | `key_revoke` 直接访问 key |
-| CAP-FIX-02 | P0 致命 | COPY/MINT/MOVE 新 slot 未继承 source 的 `epoch` 字段 | [airy_cap_derive.c:83,108,129](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L83) | `cteInsert` 完整复制 | `prepare_creds` memcpy 全字段 |
-| CAP-FIX-03 | P1 高危 | DELETE/MOVE 源失效未清除 `epoch`，存在信息泄漏 | [airy_cap_derive.c:137,175](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L137) | `cteMove`/`emptySlot` 清除所有字段 | `key_invalidate` 清零 |
-| CAP-FIX-04 | P0 致命 | `airy_cap_register` 未从 badge 提取初始化 `epoch` | [airy_cap_array.c:64](../../agentrt-linux/kernel/security/airy/airy_cap_array.c#L64) | `insertNewCap` 初始化所有字段 | `prepare_creds` 确定值 |
-| CAP-FIX-05 | P0 致命 | `airy_cap_rotate` 无锁保护，与 `airy_cap_derive_lock` 竞态 | [airy_cap_rotate.c:32-35](../../agentrt-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) | `preemptionPoint` 串行化 | `key_revoke` `down_write` 串行化 |
-| IPC-FIX-01 | P0 致命 | SPSC ring buffer ARM64 内存序：memcpy+head 重排致消费者读旧数据 | [airy_ipc_ring.c](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) | — | io_uring `smp_store_release/smp_load_acquire` 配对 |
+| CAP-FIX-01 | P0 致命 | REVOKE 跳过 `airy_cap_lookup()` 导致 `src` 空指针解引用 | [airy_cap_derive.c:55-62](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) | `cteRevoke` 直接用 slot | `key_revoke` 直接访问 key |
+| CAP-FIX-02 | P0 致命 | COPY/MINT/MOVE 新 slot 未继承 source 的 `epoch` 字段 | [airy_cap_derive.c:83,108,129](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L83) | `cteInsert` 完整复制 | `prepare_creds` memcpy 全字段 |
+| CAP-FIX-03 | P1 高危 | DELETE/MOVE 源失效未清除 `epoch`，存在信息泄漏 | [airy_cap_derive.c:137,175](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) | `cteMove`/`emptySlot` 清除所有字段 | `key_invalidate` 清零 |
+| CAP-FIX-04 | P0 致命 | `airy_cap_register` 未从 badge 提取初始化 `epoch` | [airy_cap_array.c:64](../../agent-linux/kernel/security/airy/airy_cap_array.c#L64) | `insertNewCap` 初始化所有字段 | `prepare_creds` 确定值 |
+| CAP-FIX-05 | P0 致命 | `airy_cap_rotate` 无锁保护，与 `airy_cap_derive_lock` 竞态 | [airy_cap_rotate.c:32-35](../../agent-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) | `preemptionPoint` 串行化 | `key_revoke` `down_write` 串行化 |
+| IPC-FIX-01 | P0 致命 | SPSC ring buffer ARM64 内存序：memcpy+head 重排致消费者读旧数据 | [airy_ipc_ring.c](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) | — | io_uring `smp_store_release/smp_load_acquire` 配对 |
 
 ### 8.2 修复完整性结论
 
@@ -305,9 +305,9 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 
 | 编号 | 观察 | 影响 | 处置建议 |
 |------|------|------|---------|
-| OBS-01 | ✅ 已修复：双锁不一致已消除，register 与 derive 共享 per-bucket 锁数组 | 原register 与 derive 间存在微小 TOCTOU 窗口 | **已修复**（v1.0.1 P1-11 fix）：commits `92026271464a` + `a417b129fdc8` 引入 `airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR]` per-bucket hashed lock array，register（[airy_cap_array.c:85](../../agentrt-linux/kernel/security/airy/airy_cap_array.c#L85)）与 derive（[airy_cap_derive.c:77](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L77)）共享同一锁数组，TOCTOU 窗口已关闭。详见 §8.4 P1-11 |
-| OBS-02 | ✅ 已修复：REVOKE 现沿 MDB 派生树递归级联撤销 | 原与 seL4 `cteRevoke` 递归撤销语义不同 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_revoke_subtree()` 沿左孩子右兄弟树递归撤销，O(N) 复杂度，典型深度 ≤3。详见 [airy_cap_derive.c:92-117](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L92-L117) |
-| OBS-03 | ✅ 已修复：MDB 派生树已实现 | 原无法支持 OBS-02 的递归撤销 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_slot` 新增 `parent_agent`/`first_child`/`next_sibling`/`generation`/`revocable` 字段（[lsm_types.h:59-73](../../agentrt-linux/kernel/include/uapi/linux/airymax/lsm_types.h#L59-L73)），COPY/MINT/MOVE 维护派生关系 |
+| OBS-01 | ✅ 已修复：双锁不一致已消除，register 与 derive 共享 per-bucket 锁数组 | 原register 与 derive 间存在微小 TOCTOU 窗口 | **已修复**（v1.0.1 P1-11 fix）：commits `92026271464a` + `a417b129fdc8` 引入 `airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR]` per-bucket hashed lock array，register（[airy_cap_array.c:85](../../agent-linux/kernel/security/airy/airy_cap_array.c#L85)）与 derive（[airy_cap_derive.c:77](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L77)）共享同一锁数组，TOCTOU 窗口已关闭。详见 §8.4 P1-11 |
+| OBS-02 | ✅ 已修复：REVOKE 现沿 MDB 派生树递归级联撤销 | 原与 seL4 `cteRevoke` 递归撤销语义不同 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_revoke_subtree()` 沿左孩子右兄弟树递归撤销，O(N) 复杂度，典型深度 ≤3。详见 [airy_cap_derive.c:92-117](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L92-L117) |
+| OBS-03 | ✅ 已修复：MDB 派生树已实现 | 原无法支持 OBS-02 的递归撤销 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_slot` 新增 `parent_agent`/`first_child`/`next_sibling`/`generation`/`revocable` 字段（[lsm_types.h:59-73](../../agent-linux/kernel/include/uapi/linux/airymax/lsm_types.h#L59-L73)），COPY/MINT/MOVE 维护派生关系 |
 | OBS-04 | freeze 状态分离：`airy_ipc_ring_freeze_state` 与 `airy_cap_slot` 分离存储 | freeze 与 cap 状态需双查询 | M1 评估是否合并到 `airy_cap_slot` |
 | OBS-05 | 零拷贝 TOCTOU：用户态 mmap ring buffer 后，badge 字段可被用户态修改 | 用户态可在 fastpath 校验后篡改 badge | M1 评估是否引入 immutable badge region 或 copy-on-validate |
 | OBS-06 | epoch 回绕：`__u16 epoch` 在 65535 次撤销后回绕到 0 | 理论上可能与未撤销 badge epoch 重合 | 实际影响极小（单 agent 65535 次撤销）；M3 评估是否扩展为 `__u32` |
@@ -315,24 +315,24 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 
 ### 8.4 v3.6 评审发现登记（2026-07-30 对照代码验证，2026-07-31 二轮验证）
 
-> **验证方法**：逐项对照 `agentrt-linux/kernel/` 实际源代码确认真实性。
+> **验证方法**：逐项对照 `agent-linux/kernel/` 实际源代码确认真实性。
 > **结论**：12 项发现已全部在代码中修复（文档同步）。
 > **v3.6 二轮修复（2026-07-31）**：本轮 15 commits 一次性闭环 P0-1、P1-1、P1-2、P1-5、P1-6、P1-7、P1-8、P1-11，连同前序已修复的 P1-3、P1-4、P1-9、P1-10，12 项发现已全部修复。其中 P1-3（`airy_vtime_decay` 注释）由 commit `0d5b4b05ce68` 重写为"user-space vtime 近似（NOT 内核 EEVDF 内部算法）"，结束"待评估"状态。
 
 | 编号 | 严重程度 | 发现简述 | 真实性 | 当前状态 | 处置 |
 |------|---------|---------|--------|---------|------|
-| P0-1 | P0 阻塞 | `syscall_64.tbl` 552-571 预留槽未登记 `sys_ni_syscall` | ✅ 已修复 | **✅ 已修复** | commit `de7e4c12a945` 将 552-571 显式登记为 `sys_ni_syscall`（命名 `airy_reserved_4`~`airy_reserved_23`），见 [syscall_64.tbl:395-414](../../agentrt-linux/kernel/arch/x86/entry/syscalls/syscall_64.tbl#L395-L414) |
-| P1-1 | P1 | `stc_dispatch.c` 用 `pr_info` 记录调度映射日志 | ✅ 已修复 | **✅ 已修复** | commit `6d06e2163767` 将 `pr_info` 改为 `pr_debug_ratelimited`（[stc_dispatch.c:152](../../agentrt-linux/kernel/kernel/corekern/sched/stc_dispatch.c#L152)）；注：采用 `pr_debug_ratelimited` 而非 tracepoint，避免高频调度路径日志洪泛且保留可动态调试入口 |
-| P1-2 | P1 | `stc_stats` 统计未暴露 debugfs | ✅ 已修复 | **✅ 已修复** | commit `8a288369a6ef` 新增 `debugfs_create_dir("airy_stc")` 及 per-policy 计数文件，见 [stc_stats.c:79](../../agentrt-linux/kernel/kernel/corekern/sched/stc_stats.c#L79) |
-| P1-3 | P1 | `airy_vtime_decay` 注释声称 EEVDF 实为旧 CFS | ✅ 已修复 | **✅ 已修复** | commit `0d5b4b05ce68` ("airy/sched: fix vtime_decay comment and _reserved naming") 重写注释，明确此为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），并指出内核 EEVDF 在 `kernel/sched/fair.c` 使用 `vruntime += delta_exec * NICE_0_LOAD / load_weight` 与实际执行时间，本 UAPI helper 仅供静态估算的预计算表消费者使用。见 [sched.h:42-52](../../agentrt-linux/kernel/include/uapi/linux/airymax/sched.h#L42-L52) |
-| P1-4 | P1 | `task_kill`/`file_open` 仅检查 agent_state 缺 Badge 校验 | ✅ 已修复 | **✅ 已修复** | 代码已新增 Phase 2 Badge 校验（`airy_cap_badge_ok()`），见 [airy_lsm.c:66-129](../../agentrt-linux/kernel/security/airy/airy_lsm.c#L66-L129) |
-| P1-5 | P1 | `airy_ipc_capability.c` 用 `__aligned(64)` 违反 OS-IRON-016 | ✅ 已修复 | **✅ 已修复** | commit `a045bf7f0b21` 将 `__aligned(64)` 改为 `AIRY_ALIGNED(64)`，见 [airy_ipc_capability.c:30](../../agentrt-linux/kernel/kernel/ipc/airy_ipc_capability.c#L30) |
-| P1-6 | P1 | `airy_inode_sec` 未接线 VFS | ✅ 已修复 | **✅ 已修复** | commit `9b7429802898` 将 `.lbs_inode = sizeof(struct airy_inode_sec)` 接入 `airy_blob_sizes`，并注册 `inode_alloc_security`/`inode_free_security` 钩子（[airy_lsm.c:37,133-149,170-171](../../agentrt-linux/kernel/security/airy/airy_lsm.c#L37)） |
-| P1-7 | P1 | `fastpath_send` Badge 决策逻辑未文档化 | ✅ 已修复 | **✅ 已修复** | commit `9bd88dc11769` 在 [airy_ipc_fastpath.c:11-41](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c#L11-L41) 顶部添加"Badge Decision Path (P1-7)"注释块，明确 fastpath 不做 Badge 校验、由调用方经 C-S9 内联校验（`airy_cap_badge_ok()`）的决策路径 |
-| P1-8 | P1 | 缺 `cancelBadgedSends` 实现 | ✅ 已修复 | **✅ 已修复** | commit `2990cec35394` 实现 `airy_ipc_cancel_badged_sends()`（[airy_ipc_ring.c:159-207](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207)）：扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过，对齐 seL4 `endpoint.c:476-489` 语义 |
+| P0-1 | P0 阻塞 | `syscall_64.tbl` 552-571 预留槽未登记 `sys_ni_syscall` | ✅ 已修复 | **✅ 已修复** | commit `de7e4c12a945` 将 552-571 显式登记为 `sys_ni_syscall`（命名 `airy_reserved_4`~`airy_reserved_23`），见 [syscall_64.tbl:395-414](../../agent-linux/kernel/arch/x86/entry/syscalls/syscall_64.tbl#L395-L414) |
+| P1-1 | P1 | `stc_dispatch.c` 用 `pr_info` 记录调度映射日志 | ✅ 已修复 | **✅ 已修复** | commit `6d06e2163767` 将 `pr_info` 改为 `pr_debug_ratelimited`（[stc_dispatch.c:152](../../agent-linux/kernel/kernel/corekern/sched/stc_dispatch.c#L152)）；注：采用 `pr_debug_ratelimited` 而非 tracepoint，避免高频调度路径日志洪泛且保留可动态调试入口 |
+| P1-2 | P1 | `stc_stats` 统计未暴露 debugfs | ✅ 已修复 | **✅ 已修复** | commit `8a288369a6ef` 新增 `debugfs_create_dir("airy_stc")` 及 per-policy 计数文件，见 [stc_stats.c:79](../../agent-linux/kernel/kernel/corekern/sched/stc_stats.c#L79) |
+| P1-3 | P1 | `airy_vtime_decay` 注释声称 EEVDF 实为旧 CFS | ✅ 已修复 | **✅ 已修复** | commit `0d5b4b05ce68` ("airy/sched: fix vtime_decay comment and _reserved naming") 重写注释，明确此为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），并指出内核 EEVDF 在 `kernel/sched/fair.c` 使用 `vruntime += delta_exec * NICE_0_LOAD / load_weight` 与实际执行时间，本 UAPI helper 仅供静态估算的预计算表消费者使用。见 [sched.h:42-52](../../agent-linux/kernel/include/uapi/linux/airymax/sched.h#L42-L52) |
+| P1-4 | P1 | `task_kill`/`file_open` 仅检查 agent_state 缺 Badge 校验 | ✅ 已修复 | **✅ 已修复** | 代码已新增 Phase 2 Badge 校验（`airy_cap_badge_ok()`），见 [airy_lsm.c:66-129](../../agent-linux/kernel/security/airy/airy_lsm.c#L66-L129) |
+| P1-5 | P1 | `airy_ipc_capability.c` 用 `__aligned(64)` 违反 OS-IRON-016 | ✅ 已修复 | **✅ 已修复** | commit `a045bf7f0b21` 将 `__aligned(64)` 改为 `AIRY_ALIGNED(64)`，见 [airy_ipc_capability.c:30](../../agent-linux/kernel/kernel/ipc/airy_ipc_capability.c#L30) |
+| P1-6 | P1 | `airy_inode_sec` 未接线 VFS | ✅ 已修复 | **✅ 已修复** | commit `9b7429802898` 将 `.lbs_inode = sizeof(struct airy_inode_sec)` 接入 `airy_blob_sizes`，并注册 `inode_alloc_security`/`inode_free_security` 钩子（[airy_lsm.c:37,133-149,170-171](../../agent-linux/kernel/security/airy/airy_lsm.c#L37)） |
+| P1-7 | P1 | `fastpath_send` Badge 决策逻辑未文档化 | ✅ 已修复 | **✅ 已修复** | commit `9bd88dc11769` 在 [airy_ipc_fastpath.c:11-41](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c#L11-L41) 顶部添加"Badge Decision Path (P1-7)"注释块，明确 fastpath 不做 Badge 校验、由调用方经 C-S9 内联校验（`airy_cap_badge_ok()`）的决策路径 |
+| P1-8 | P1 | 缺 `cancelBadgedSends` 实现 | ✅ 已修复 | **✅ 已修复** | commit `2990cec35394` 实现 `airy_ipc_cancel_badged_sends()`（[airy_ipc_ring.c:159-207](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207)）：扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过，对齐 seL4 `endpoint.c:476-489` 语义 |
 | P1-9 | P1 | REVOKE 无级联撤销 | ✅ 已修复 | **✅ 已修复** | `airy_cap_revoke_subtree()` 沿 MDB 树递归级联（见 §8.3 OBS-02 修复），代码注释标注 "K9-1 fix" |
-| P1-10 | P1 | COPY 不支持权限降级 | ✅ 已修复 | **✅ 已修复** | COPY 新增 `new_perms != 0` 时取 `new_perms & src->perms` 交集（权限子集降级），代码注释标注 "P1-10 fix"，见 [airy_cap_derive.c:184-187](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L184-L187) |
-| P1-11 | P1 | `airy_cap_derive` 全局 spinlock 瓶颈 | ✅ 已修复 | **✅ 已修复** | commits `92026271464a` + `a417b129fdc8` 引入 `airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR]` per-bucket hashed lock array（[airy_cap_array.c:27](../../agentrt-linux/kernel/security/airy/airy_cap_array.c#L27)），register（[airy_cap_array.c:85](../../agentrt-linux/kernel/security/airy/airy_cap_array.c#L85)）与 derive（[airy_cap_derive.c:77](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c#L77)）共享同一锁数组，关闭 register/derive TOCTOU 窗口；锁数组经 [airy_cap.h:56](../../agentrt-linux/kernel/security/airy/airy_cap.h#L56) 暴露 |
+| P1-10 | P1 | COPY 不支持权限降级 | ✅ 已修复 | **✅ 已修复** | COPY 新增 `new_perms != 0` 时取 `new_perms & src->perms` 交集（权限子集降级），代码注释标注 "P1-10 fix"，见 [airy_cap_derive.c:184-187](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L184-L187) |
+| P1-11 | P1 | `airy_cap_derive` 全局 spinlock 瓶颈 | ✅ 已修复 | **✅ 已修复** | commits `92026271464a` + `a417b129fdc8` 引入 `airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR]` per-bucket hashed lock array（[airy_cap_array.c:27](../../agent-linux/kernel/security/airy/airy_cap_array.c#L27)），register（[airy_cap_array.c:85](../../agent-linux/kernel/security/airy/airy_cap_array.c#L85)）与 derive（[airy_cap_derive.c:77](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L77)）共享同一锁数组，关闭 register/derive TOCTOU 窗口；锁数组经 [airy_cap.h:56](../../agent-linux/kernel/security/airy/airy_cap.h#L56) 暴露 |
 
 ***
 
@@ -340,12 +340,12 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 
 **任务**：创建 openEuler 驱动复用层（LAYER 方案），导入 sw_64 架构 + openEuler defconfig 底座 + IRON-7 覆盖 + 构建链产物。
 
-**落地产物**（详见 [12-build-and-flash-strategy.md §11](../../docs-closed/agentrt-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)）：
+**落地产物**（详见 [12-build-and-flash-strategy.md §11](../../docs-closed/agent-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)）：
 
 | 仓库 | commit | 内容 |
 |------|--------|------|
 | kernel (ALK-6.6-dev) | `airy/arch: import sw_64 and add LAYER config fragments` | arch/sw_64/（367 文件）+ openeuler_defconfig 底座（x86/arm64）+ euler_hw 硬件碎片 + defconfig-agent IRON-7 覆盖 + Kconfig stale source 修复 |
-| agentrt-linux (main) | `airy/build: add LAYER build artifacts for openEuler toolchain reuse` | build/airy-kernel.spec + meta-airymax/ + custom/cfg_airymax/ + ks-airymax.cfg |
+| agent-linux (main) | `airy/build: add LAYER build artifacts for openEuler toolchain reuse` | build/airy-kernel.spec + meta-airymax/ + custom/cfg_airymax/ + ks-airymax.cfg |
 | docs-closed (main) | `airy/docs: register LAYER implementation progress in build strategy` | 12-build-and-flash-strategy.md §11 实施进度章节 |
 
 **验证**：三架构 `make ARCH={sw_64,x86,arm64} airy_defconfig` 均生成有效 .config（CONFIG_SECURITY_AIRY=y）；x86 `make -j$(nproc)` 编译通过（bzImage ready）；arch/sw_64/ 无 `__KABI`/`Makefile.oever`/`kernel/sched`/`security` 引用。
@@ -466,7 +466,7 @@ ES-SEL4-3（服务用户态化）的落地风险待 1.0.1 阶段评估：
 
 ***
 
-> **文档结束** | agentrt-linux（AirymaxOS）已知限制与设计边界
+> **文档结束** | agent-linux（AirymaxOS）已知限制与设计边界
 > **参照基准**： seL4 `CAVEATS.md`（258 行，2014, General Dynamics C4 Systems）
 > **维护原则**： 本文档为跨子仓集中索引；各子模块内部"已知问题"章节仍作为子模块内部记录保留，本文档不替代子模块记录，仅作为跨子仓权威登记。
 

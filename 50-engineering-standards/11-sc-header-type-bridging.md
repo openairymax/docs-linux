@@ -33,7 +33,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 问题背景
 
-[SC] 共享契约头文件（物理宿主 `kernel/include/uapi/linux/airymax/`，共 12 个文件：10 个 [SC] 核心 + bpf_struct_ops.h 补充 + syscall.h codegen 产物）由 agentrt（用户态 SDK）与 agentrt-linux（内核态实现）双端逐字节共享。但两端运行在不同编译环境：
+[SC] 共享契约头文件（物理宿主 `kernel/include/uapi/linux/airymax/`，共 12 个文件：10 个 [SC] 核心 + bpf_struct_ops.h 补充 + syscall.h codegen 产物）由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享。但两端运行在不同编译环境：
 
 | 环境 | 编译器 | 类型系统 | 头文件依赖 |
 |------|--------|---------|-----------|
@@ -371,7 +371,7 @@ error: conflicting types for '__u64'
 
 ### 4.3 双端共享机制
 
-`uapi_compat.h` 与其他 [SC] 头文件一样，由 agentrt（用户态 SDK）与 agentrt-linux（内核态）双端逐字节共享。CI 通过 `sc-dual-ci.yml` 验证两端一致性：
+`uapi_compat.h` 与其他 [SC] 头文件一样，由 agentrt（用户态 SDK）与 agent-linux（内核态）双端逐字节共享。CI 通过 `sc-dual-ci.yml` 验证两端一致性：
 
 | 校验项 | CI 脚本 | 频率 |
 |--------|---------|------|
@@ -477,7 +477,7 @@ jobs:
 | 三路编译通过 | 内核态 + Linux 用户态 + 第三方均无编译错误 | 阻止 PR 合并 |
 | 类型大小一致 | `__u32/__u64` 三路环境大小相同 | 阻止 PR 合并 |
 | 字段偏移一致 | 结构体字段偏移三路环境相同 | 阻止 PR 合并 |
-| 逐字节对比 | agentrt 与 agentrt-linux 一致 | 阻止 PR 合并 |
+| 逐字节对比 | agentrt 与 agent-linux 一致 | 阻止 PR 合并 |
 
 ---
 

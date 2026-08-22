@@ -1,20 +1,20 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）CI/CD 管道完整设计
-> **文档定位**：agentrt-linux（AirymaxOS）CI/CD 管道完整设计——覆盖 7 层自动化验证体系（OS-STD-TOOL-001~161）的工程实现，定义 8 子仓 + 管理仓的全量 CI 覆盖矩阵、编译验证矩阵、代码质量门禁、测试覆盖矩阵、SSoT 校验流水线、[SC] 共享契约层双向 CI、发布流水线、CI 基础设施与失败回滚策略。本卷是 1.0.1 开发阶段的设计基线，所有设计必须在本阶段完成。\
+# agent-linux（AirymaxOS）CI/CD 管道完整设计
+> **文档定位**：agent-linux（AirymaxOS）CI/CD 管道完整设计——覆盖 7 层自动化验证体系（OS-STD-TOOL-001~161）的工程实现，定义 8 子仓 + 管理仓的全量 CI 覆盖矩阵、编译验证矩阵、代码质量门禁、测试覆盖矩阵、SSoT 校验流水线、[SC] 共享契约层双向 CI、发布流水线、CI 基础设施与失败回滚策略。本卷是 1.0.1 开发阶段的设计基线，所有设计必须在本阶段完成。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-22\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `cmake/` + `.github/workflows/`（伞仓 CI）+ Linux 6.6 内核 CI 思想（KUnit/kselftest/checkpatch/sparse/Coccinelle）\
 > **理论根基**：Linux 6.6 内核基线 CI 工程 + Airymax 五维正交 24 原则（S/K/C/E/A 五维）+ 7 层自动化验证体系（OS-STD-TOOL-001~161）\
-> **核心约束**：IRON-9 v3 同源且部分代码共享——agentrt-linux CI 沿用 Linux 内核 CI 思想但与上游独立演进；[SC] 共享契约层双向 CI 由 OS-IRON-008 强制\
-> **SSoT 依赖声明**：本文档引用的全部规则编号（`OS-STD-TOOL-*` / `OS-IRON-*` / `OS-STD-FMT-*` / `OS-TEST-*` / `OS-STD-TEST-*`）的权威定义与登记状态以 [`50-engineering-standards/09-ssot-registry.md`](../50-engineering-standards/09-ssot-registry.md)（Markdown 权威源，文档体系）与 [`agentrt-linux/ssot-registry.yaml`](../../../agentrt-linux/ssot-registry.yaml)（机器可读 Schema，管理仓根）为唯一来源（SSoT）。本文档仅引用已登记编号，不私自定义新编号。当本文档与 SSoT 注册表冲突时，以注册表为准。
+> **核心约束**：IRON-9 v3 同源且部分代码共享——agent-linux CI 沿用 Linux 内核 CI 思想但与上游独立演进；[SC] 共享契约层双向 CI 由 OS-IRON-008 强制\
+> **SSoT 依赖声明**：本文档引用的全部规则编号（`OS-STD-TOOL-*` / `OS-IRON-*` / `OS-STD-FMT-*` / `OS-TEST-*` / `OS-STD-TEST-*`）的权威定义与登记状态以 [`50-engineering-standards/09-ssot-registry.md`](../50-engineering-standards/09-ssot-registry.md)（Markdown 权威源，文档体系）与 [`agent-linux/ssot-registry.yaml`](../../../agent-linux/ssot-registry.yaml)（机器可读 Schema，管理仓根）为唯一来源（SSoT）。本文档仅引用已登记编号，不私自定义新编号。当本文档与 SSoT 注册表冲突时，以注册表为准。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 构建系统在 1.0.1 开发阶段的 CI/CD 管道设计基线。它在 `70-build-system/README.md`（构建系统主索引）与 `80-testing/`（测试工程卷）之间形成自动化验证执行层：
+本卷是 agent-linux 构建系统在 1.0.1 开发阶段的 CI/CD 管道设计基线。它在 `70-build-system/README.md`（构建系统主索引）与 `80-testing/`（测试工程卷）之间形成自动化验证执行层：
 
 - **上游依赖**：README 定义构建系统的机制总览；`01-kbuild-system.md`/`02-kconfig-system.md` 定义"代码如何被编译、配置如何驱动构建"；本卷定义"编译与配置产物如何被自动化验证拦截/放行"。
 - **下游依赖**：`80-testing/01-kunit-framework.md`（OS-TEST-001~012）与 `80-testing/02-kselftest.md`（OS-TEST-013~022）定义测试套件编写规范；本卷定义这些测试如何在 CI 矩阵中被调度执行并形成门禁。
@@ -27,7 +27,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 |------|------|
 | 7 层自动化验证体系 | OS-STD-TOOL-001~161 定义的端到端验证链：L1 编译期检查 / L2 静态分析 / L3 预提交 / L4 CI 门禁 / L5 连接验证 / L6 协议验证 / L7 发布验证 |
 | CI 矩阵 | 配置 × 架构 × 编译器的笛卡尔积构建矩阵（4×4×2−1=31，loongarch+clang 组合暂不支持） |
-| [SC] 共享契约层 | agentrt ↔ agentrt-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014），物理宿主 `kernel/include/uapi/linux/airymax/` |
+| [SC] 共享契约层 | agentrt ↔ agent-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014），物理宿主 `kernel/include/uapi/linux/airymax/` |
 | 双向 CI | kernel CI 通过 → 触发 agentrt 镜像 PR → agentrt CI 通过 → L1 审查 → L3 审批（OS-IRON-008） |
 | SSoT | Single Source of Truth，规则编号唯一权威来源（`09-ssot-registry.md`/`.yaml`） |
 | 门禁（Gate） | CI 中阻断 PR 合并的硬性检查点，失败即禁止合并 |
@@ -37,11 +37,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 设计目标
 
-agentrt-linux CI/CD 管道的设计目标是把"代码进入主线"的工程契约（OS-STD-PROD 系列）转化为可机器执行、可审计、可回滚的自动化验证流水线。核心承载是 **7 层自动化验证体系（OS-STD-TOOL-001~161）**。
+agent-linux CI/CD 管道的设计目标是把"代码进入主线"的工程契约（OS-STD-PROD 系列）转化为可机器执行、可审计、可回滚的自动化验证流水线。核心承载是 **7 层自动化验证体系（OS-STD-TOOL-001~161）**。
 
 ### 1.1 7 层自动化验证体系
 
-7 层验证覆盖编号区间 **OS-STD-TOOL-001~161**。SSoT 注册表（[`ssot-registry.yaml`](../../../agentrt-linux/ssot-registry.yaml) Ch 4.6）将编号区间划分为两大段：`OS-STD-TOOL-001~099`（L1-3 段）与 `OS-STD-TOOL-101~161`（L4-7 段）。具体规则到层级的归属由各规则在权威定义文档中的语义决定，而非单纯按编号段机械切分。下表给出层级的执行时机、阻断语义与已登记的代表规则：
+7 层验证覆盖编号区间 **OS-STD-TOOL-001~161**。SSoT 注册表（[`ssot-registry.yaml`](../../../agent-linux/ssot-registry.yaml) Ch 4.6）将编号区间划分为两大段：`OS-STD-TOOL-001~099`（L1-3 段）与 `OS-STD-TOOL-101~161`（L4-7 段）。具体规则到层级的归属由各规则在权威定义文档中的语义决定，而非单纯按编号段机械切分。下表给出层级的执行时机、阻断语义与已登记的代表规则：
 
 | 层级 | 名称 | 编号归属 | 代表规则（已登记） | 执行时机 | 阻断合并 |
 |------|------|---------|------------------|---------|---------|
@@ -88,10 +88,10 @@ CI 覆盖范围遵循 OS-IRON-013（8 子仓独立 git 仓库 + submodule 管理
 
 ### 2.1 workflow 文件布局
 
-所有 GitHub Actions workflow 文件位于 `agentrt-linux/.github/workflows/`：
+所有 GitHub Actions workflow 文件位于 `agent-linux/.github/workflows/`：
 
 ```
-agentrt-linux/.github/workflows/
+agent-linux/.github/workflows/
 ├── ci-kernel.yml            # kernel 子仓 CI（31 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
 ├── ci-airy.yml              # Airymax 专属代码 CI（airy_defconfig 4 架构构建 + checkpatch + SPDX + 符号完整性）
 ├── ssot-validate.yml        # SSoT 规则 ID 校验（全仓）
@@ -113,7 +113,7 @@ agentrt-linux/.github/workflows/
 > **职责划分**：SSoT 规则 ID 校验不在此 workflow 内，由独立的 `ssot-validate.yml` 承担（§6）。本 workflow 通过 `needs: file-integrity` 保证 job 2 串行等待 job 1。
 
 ```yaml
-# agentrt-linux/.github/workflows/mgmt-orchestrator.yml
+# agent-linux/.github/workflows/mgmt-orchestrator.yml
 name: mgmt-orchestrator
 on:
   pull_request:
@@ -167,11 +167,11 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Aggregate 8 subrepo CI status
-        run: python3 agentrt-linux/tools/aggregate-subrepo-ci.py --fail-on-red
+        run: python3 agent-linux/tools/aggregate-subrepo-ci.py --fail-on-red
       - name: markdownlint (docs only)
         run: markdownlint-cli2 'docs/**/*.md'
       - name: Verify copyright header (line 1)
-        run: python3 agentrt-linux/tools/check-copyright.py --root docs
+        run: python3 agent-linux/tools/check-copyright.py --root docs
 ```
 
 ### 2.3 kernel 子仓 CI（ci-kernel.yml）
@@ -190,7 +190,7 @@ kernel 子仓 CI 是全仓最重的管道，承载 Linux 内核基线全套验�
 > **job 结构**：ci-kernel.yml 实际重组为 **2 个 job**——`kernel-build`（31 格 Kbuild 编译矩阵）+ `kernel-verify`（静态分析 + 运行时测试，含 checkpatch/sparse/Coccinelle/KUnit/kselftest/ABI/codegen 校验），`kernel-verify` 通过 `needs: kernel-build` 串行等待编译矩阵全绿。
 
 ```yaml
-# agentrt-linux/.github/workflows/ci-kernel.yml（节选）
+# agent-linux/.github/workflows/ci-kernel.yml（节选）
 name: ci-kernel
 on:
   pull_request:
@@ -261,7 +261,7 @@ jobs:
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
 
-> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agentrt-linux/.github/workflows/` 的 7 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-orchestrator.yml` 聚合各子仓 CI 状态（§2.2）。
+> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 7 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-orchestrator.yml` 聚合各子仓 CI 状态（§2.2）。
 
 非 kernel 子仓按构建系统分类，每类一个 workflow 模板，子仓按自身归属选用：
 
@@ -289,7 +289,7 @@ jobs:
 
 ### 2.5 [SC] 共享契约层双向 CI（OS-IRON-008）
 
-[SC] 层是 agentrt ↔ agentrt-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014）。任一端的 [SC] 头文件变更必须触发对端的镜像 PR 并通过其 CI，详见 §7。
+[SC] 层是 agentrt ↔ agent-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014）。任一端的 [SC] 头文件变更必须触发对端的镜像 PR 并通过其 CI，详见 §7。
 
 ---
 
@@ -309,7 +309,7 @@ jobs:
 ### 3.2 矩阵生成与调度
 
 ```yaml
-# agentrt-linux/.github/workflows/ci-kernel.yml（矩阵段）
+# agent-linux/.github/workflows/ci-kernel.yml（矩阵段）
 strategy:
   fail-fast: false          # 单格失败不取消其他格，便于一次性收集全部错误
   max-parallel: 8           # 31 格分批运行，避免超出 GitHub Actions 并发上限
@@ -360,7 +360,7 @@ fi
 
 ### 4.1 checkpatch.pl --strict（OS-STD-TOOL-160）
 
-每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`，无 ERROR / WARNING。checkpatch 检查 Linux 6.6 内核基线规则 + agentrt-linux 扩展规则。
+每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`，无 ERROR / WARNING。checkpatch 检查 Linux 6.6 内核基线规则 + agent-linux 扩展规则。
 
 ```bash
 # 对 PR 改动的每个 .c/.h 文件单独检查
@@ -413,7 +413,7 @@ Coccinelle（`make coccicheck`）使用语义补丁（`.cocci`）检测常见错
   run: make ARCH=x86_64 coccicheck MODE=report V=1
 ```
 
-agentrt-linux 在 `scripts/coccinelle/` 下维护自定义语义补丁，覆盖 agentrt-linux 扩展规则（如 AgentsIPC ring buffer 越界、share_pool 引用计数）。
+agent-linux 在 `scripts/coccinelle/` 下维护自定义语义补丁，覆盖 agent-linux 扩展规则（如 AgentsIPC ring buffer 越界、share_pool 引用计数）。
 
 ### 4.4 clang-analyzer 静态分析
 
@@ -421,7 +421,7 @@ agentrt-linux 在 `scripts/coccinelle/` 下维护自定义语义补丁，覆盖 
 
 | 语言 | 工具 | 配置 |
 |------|------|------|
-| C/C++ | clang-tidy | `.clang-tidy`（继承 Linux 6.6 检查集 + agentrt-linux 扩展） |
+| C/C++ | clang-tidy | `.clang-tidy`（继承 Linux 6.6 检查集 + agent-linux 扩展） |
 | Rust | clippy | `clippy.toml`，`--deny warnings` |
 | Go | golangci-lint | `.golangci.yml` |
 | TypeScript | eslint | `.eslintrc.json` |
@@ -458,11 +458,11 @@ C/C++ 代码必须通过 `.clang-format`（同源 Linux 6.6 内核基线 689 行
 
 ### 5.2 KUnit 单元测试（OS-TEST-001~012）
 
-KUnit 是 agentrt-linux 内核态白盒单元测试框架，默认在 UML（User Mode Linux）上运行，毫秒级反馈：
+KUnit 是 agent-linux 内核态白盒单元测试框架，默认在 UML（User Mode Linux）上运行，毫秒级反馈：
 
-- **OS-TEST-001**：所有 agentrt-linux 内核模块必须提供至少一个 KUnit 测试套件；无 KUnit 测试的模块禁止合入 `kernel` 主分支。
+- **OS-TEST-001**：所有 agent-linux 内核模块必须提供至少一个 KUnit 测试套件；无 KUnit 测试的模块禁止合入 `kernel` 主分支。
 - **OS-TEST-010**：CI 必须解析 TAP 输出并上传至测试报告系统；`not ok` 与 `# SKIP` 必须分别计数。
-- **OS-TEST-011**：所有 agentrt-linux Agent SDK 接口必须有 KUnit 契约测试（正常路径 + ≥1 异常路径 + ≥1 边界路径）。
+- **OS-TEST-011**：所有 agent-linux Agent SDK 接口必须有 KUnit 契约测试（正常路径 + ≥1 异常路径 + ≥1 边界路径）。
 - **OS-TEST-012**：PR 引入新 KUnit 套件时，CI 必须对比 PR 前后 TAP 用例数，总用例数必须单调递增。
 
 ```yaml
@@ -470,16 +470,16 @@ KUnit 是 agentrt-linux 内核态白盒单元测试框架，默认在 UML（User
   run: |
     make ARCH=um defconfig
     ./tools/testing/kunit/kunit.py run --arch=um --raw_output=TAP > kunit.tap
-    python3 agentrt-linux/tools/parse-tap.py --input kunit.tap --fail-on-not-ok
+    python3 agent-linux/tools/parse-tap.py --input kunit.tap --fail-on-not-ok
 - name: TAP case count monotonic (OS-TEST-012)
-  run: python3 agentrt-linux/tools/kunit-tap-diff.py --baseline origin/develop --current kunit.tap
+  run: python3 agent-linux/tools/kunit-tap-diff.py --baseline origin/develop --current kunit.tap
 ```
 
 ### 5.3 kselftest 系统测试（OS-TEST-013~022）
 
-kselftest 是 agentrt-linux 系统级测试框架，默认在 QEMU 上运行（CI 容器无真实硬件）：
+kselftest 是 agent-linux 系统级测试框架，默认在 QEMU 上运行（CI 容器无真实硬件）：
 
-- **OS-TEST-013**：所有 agentrt-linux 内核特性必须有对应的 kselftest 子系统测试；无覆盖时 PR 评审必须显式标注"kselftest 豁免理由"。
+- **OS-TEST-013**：所有 agent-linux 内核特性必须有对应的 kselftest 子系统测试；无覆盖时 PR 评审必须显式标注"kselftest 豁免理由"。
 - **OS-TEST-014**：kselftest 默认在 QEMU 运行；依赖真实硬件的测试必须用 `ksft_test_result_skip()` 显式跳过并标注原因。
 - **OS-TEST-022**：flaky 测试必须在 `airy_flaky_baseline.md` 登记并限期修复；未修复的 flaky 测试由 CI 标记为 `KSFT_XFAIL`。
 
@@ -488,7 +488,7 @@ kselftest 是 agentrt-linux 系统级测试框架，默认在 QEMU 上运行（C
   run: |
     make ARCH=x86_64 airy_defconfig
     ./tools/testing/kselftest/run_kselftest.sh --tap > kselftest.tap
-    python3 agentrt-linux/tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
+    python3 agent-linux/tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
 ```
 
 ### 5.4 形式化验证（seL4 风格）
@@ -498,7 +498,7 @@ kselftest 是 agentrt-linux 系统级测试框架，默认在 QEMU 上运行（C
 > **未实现标注**：`formal-verify.py` 目前**不存在**（`tools/` 下未提供），`nightly.yml` 已降级为 `SKIP` 分支——脚本存在时执行并仅告警，不存在时打印 `SKIP: formal-verify.py not yet implemented (1.0.1+ verification path)`。本小节为规划描述，不构成已落地能力。
 
 ```yaml
-# agentrt-linux/.github/workflows/nightly.yml（节选，实际结构）
+# agent-linux/.github/workflows/nightly.yml（节选，实际结构）
 nightly-test-suite:
   runs-on: ubuntu-latest
   timeout-minutes: 4320   # 72h max
@@ -507,8 +507,8 @@ nightly-test-suite:
         with: { submodules: recursive }
     - name: Formal verification (seL4-style)
       run: |
-        if [ -f agentrt-linux/tools/formal-verify.py ]; then
-          python3 agentrt-linux/tools/formal-verify.py --target kernel/sched/core.c || \
+        if [ -f agent-linux/tools/formal-verify.py ]; then
+          python3 agent-linux/tools/formal-verify.py --target kernel/sched/core.c || \
             echo "WARN: formal verification incomplete"
         else
           echo "SKIP: formal-verify.py not yet implemented (1.0.1+ verification path)"
@@ -517,25 +517,25 @@ nightly-test-suite:
 
 ### 5.5 Soak 与 Chaos 测试
 
-- **Soak 测试**：规划 72 小时持续运行 agentrt-linux 工作负载，检测内存泄漏、引用计数漂移、timer 累积误差。
-- **Chaos 测试**：规划在 QEMU 中注入故障（CPU 热插拔、内存 hotremove、磁盘 I/O 错误、网络分区），验证 agentrt-linux 的故障恢复路径。
+- **Soak 测试**：规划 72 小时持续运行 agent-linux 工作负载，检测内存泄漏、引用计数漂移、timer 累积误差。
+- **Chaos 测试**：规划在 QEMU 中注入故障（CPU 热插拔、内存 hotremove、磁盘 I/O 错误、网络分区），验证 agent-linux 的故障恢复路径。
 
 > **未实现标注**：`soak-runner.py` / `chaos-runner.py` 目前**均不存在**，`nightly.yml` 已将 formal/soak/chaos 合并为单一 `nightly-test-suite` job 并降级为 `SKIP`（脚本不存在时打印 SKIP，存在时仅告警不阻断）。
 
 ```yaml
-# agentrt-linux/.github/workflows/nightly.yml（节选，实际结构）
+# agent-linux/.github/workflows/nightly.yml（节选，实际结构）
     - name: 72h soak test (memory leak / refcount drift)
       run: |
-        if [ -f agentrt-linux/tools/soak-runner.py ]; then
-          python3 agentrt-linux/tools/soak-runner.py --duration 72h --workload agent-busy-loop
+        if [ -f agent-linux/tools/soak-runner.py ]; then
+          python3 agent-linux/tools/soak-runner.py --duration 72h --workload agent-busy-loop
         else
           echo "SKIP: soak-runner.py not yet implemented"
         fi
 
     - name: Chaos injection (CPU hotplug / mem hotremove / I/O error / net partition)
       run: |
-        if [ -f agentrt-linux/tools/chaos-runner.py ]; then
-          python3 agentrt-linux/tools/chaos-runner.py --profile full
+        if [ -f agent-linux/tools/chaos-runner.py ]; then
+          python3 agent-linux/tools/chaos-runner.py --profile full
         else
           echo "SKIP: chaos-runner.py not yet implemented"
         fi
@@ -551,7 +551,7 @@ nightly-test-suite:
 | **OS-STD-TOOL-122** | Agent SDK / security 层 | 行覆盖率 ≥95% |
 | **OS-STD-TOOL-124** | 关键路径（fastpath 等 4 项） | 覆盖率 100% |
 
-> **未实现标注**：`agentrt-linux/tools/coverage-gate.py` 与 `critical-paths.txt` 目前**均不存在**，覆盖率门禁尚未在 CI 落地；落地时按 06 卷 `airy_coverage_gate.sh` 方案执行（夜间/PR 门槛校验，任一模块跌破门槛即阻断）。以下为规划命令，非已运行流水线：
+> **未实现标注**：`agent-linux/tools/coverage-gate.py` 与 `critical-paths.txt` 目前**均不存在**，覆盖率门禁尚未在 CI 落地；落地时按 06 卷 `airy_coverage_gate.sh` 方案执行（夜间/PR 门槛校验，任一模块跌破门槛即阻断）。以下为规划命令，非已运行流水线：
 
 ```yaml
 - name: Coverage gate (OS-STD-TOOL-121/122/124)
@@ -559,14 +559,14 @@ nightly-test-suite:
     make ARCH=x86_64 defconfig
     ./tools/testing/kunit/kunit.py run --arch=um --make_options=GCOV=1
     lcov --capture --directory . --output-file coverage.info
-    python3 agentrt-linux/tools/coverage-gate.py \
+    python3 agent-linux/tools/coverage-gate.py \
       --info coverage.info \
       --kernel-subsystem 90 \
       --agent-sdk 95 \
-      --critical-paths agentrt-linux/tools/critical-paths.txt:100
+      --critical-paths agent-linux/tools/critical-paths.txt:100
 ```
 
-"关键路径"清单由维护者维护（规划路径 `agentrt-linux/tools/critical-paths.txt`），覆盖：调度器上下文切换、IPC 消息拷贝、share_pool 引用计数增减、LSM 钩子决策、capability 检查。
+"关键路径"清单由维护者维护（规划路径 `agent-linux/tools/critical-paths.txt`），覆盖：调度器上下文切换、IPC 消息拷贝、share_pool 引用计数增减、LSM 钩子决策、capability 检查。
 
 ---
 
@@ -578,9 +578,9 @@ SSoT 校验流水线确保全仓 `.md` 文档引用的规则编号与 SSoT 注�
 
 | 组件 | 路径 | 职责 |
 |------|------|------|
-| YAML Schema | `agentrt-linux/ssot-registry.yaml`（管理仓根） | 机器可读注册表（全部已登记编号） |
-| Python 校验脚本 | `agentrt-linux/tools/validate-ssot.py` | 扫描 .md + 比对 YAML |
-| CI workflow | `agentrt-linux/.github/workflows/ssot-validate.yml` | 每 PR + 每 push 触发 |
+| YAML Schema | `agent-linux/ssot-registry.yaml`（管理仓根） | 机器可读注册表（全部已登记编号） |
+| Python 校验脚本 | `agent-linux/tools/validate-ssot.py` | 扫描 .md + 比对 YAML |
+| CI workflow | `agent-linux/.github/workflows/ssot-validate.yml` | 每 PR + 每 push 触发 |
 
 ### 6.2 校验逻辑
 
@@ -594,14 +594,14 @@ SSoT 校验流水线确保全仓 `.md` 文档引用的规则编号与 SSoT 注�
    - **格式错误**：不符合 `OS-<前缀>(-<子域>)-<NNN>` 格式的编号 → P1 级违规。
 
 ```yaml
-# agentrt-linux/.github/workflows/ssot-validate.yml
+# agent-linux/.github/workflows/ssot-validate.yml
 name: ssot-validate
 on:
   pull_request:
     paths:
       - '**/*.md'
       - 'ssot-registry.yaml'
-      - 'agentrt-linux/tools/validate-ssot.py'
+      - 'agent-linux/tools/validate-ssot.py'
   push:
     branches: [main, develop]
 
@@ -616,7 +616,7 @@ jobs:
         run: pip install pyyaml
       - name: Validate rule IDs against SSoT registry
         run: |
-          python3 agentrt-linux/tools/validate-ssot.py \
+          python3 agent-linux/tools/validate-ssot.py \
             --md-root . \
             --yaml ssot-registry.yaml \
             --strict
@@ -625,7 +625,7 @@ jobs:
 ### 6.3 校验脚本核心实现（伪代码）
 
 ```python
-# agentrt-linux/tools/validate-ssot.py（核心逻辑节选）
+# agent-linux/tools/validate-ssot.py（核心逻辑节选）
 import re, sys, yaml
 from pathlib import Path
 
@@ -679,7 +679,7 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 
 ### 7.1 触发条件
 
-[SC] 共享契约层是 agentrt ↔ agentrt-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-dual-ci 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 14 个文件：12 个 `.h`（11 个 [SC] 校验头 + `syscall_gen.h` codegen 产物）+ `syscall.xml`（syscall 编号 SSoT）+ `Kbuild`。
+[SC] 共享契约层是 agentrt ↔ agent-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-dual-ci 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 14 个文件：12 个 `.h`（11 个 [SC] 校验头 + `syscall_gen.h` codegen 产物）+ `syscall.xml`（syscall 编号 SSoT）+ `Kbuild`。
 
 当以下 11 个 [SC] 头文件中任一发生变更时，触发双向 CI（`bpf_struct_ops.h` 为补充共享文件，与 10 个核心头同等强制字节校验）：
 
@@ -700,7 +700,7 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 > 注：`syscall_gen.h`（内核侧 codegen 产物，`__NR_airy_sys_*` 548-551）由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成，不参与镜像复制，不在 sc-dual-ci 触发清单内。
 
 ```yaml
-# agentrt-linux/.github/workflows/sc-dual-ci.yml（触发段）
+# agent-linux/.github/workflows/sc-dual-ci.yml（触发段）
 on:
   pull_request:
     paths:
@@ -743,14 +743,14 @@ flowchart LR
 6. **kernel PR 允许合并**：两端 CI 全绿 + L1/L3 审批通过后，kernel PR 方可合并。
 
 ```yaml
-# agentrt-linux/.github/workflows/sc-dual-ci.yml（核心 job）
+# agent-linux/.github/workflows/sc-dual-ci.yml（核心 job）
 jobs:
   kernel-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: kernel CI (18 matrix + checkpatch + sparse + KUnit + kselftest)
-        run: ./agentrt-linux/tools/run-kernel-ci.sh
+        run: ./agent-linux/tools/run-kernel-ci.sh
 
   trigger-agentrt-mirror-pr:
     runs-on: ubuntu-latest
@@ -766,7 +766,7 @@ jobs:
           git format-patch origin/${{ github.base_ref }} HEAD -- \
             kernel/include/uapi/linux/airymax/ -o /tmp/patches
           # 在 agentrt 仓创建镜像 PR
-          python3 agentrt-linux/tools/create-agentrt-mirror-pr.py \
+          python3 agent-linux/tools/create-agentrt-mirror-pr.py \
             --patches /tmp/patches \
             --source-pr ${{ github.event.pull_request.number }} \
             --token "$AGENTRT_TOKEN"
@@ -780,7 +780,7 @@ jobs:
         env:
           AGENTRT_TOKEN: ${{ secrets.AGENTRT_CI_TOKEN }}
         run: |
-          python3 agentrt-linux/tools/await-agentrt-ci.py \
+          python3 agent-linux/tools/await-agentrt-ci.py \
             --source-pr ${{ github.event.pull_request.number }} \
             --timeout 30m \
             --token "$AGENTRT_TOKEN"
@@ -819,7 +819,7 @@ agentrt CI 失败时自动阻止 kernel PR 合并：
 ### 8.2 触发条件
 
 ```yaml
-# agentrt-linux/.github/workflows/release.yml
+# agent-linux/.github/workflows/release.yml
 on:
   push:
     tags:
@@ -849,7 +849,7 @@ sbom:
           syft "$repo/" -o spdx-json > "sbom-${repo}.spdx.json"
         done
         # 合并为统一 SBOM
-        python3 agentrt-linux/tools/merge-sbom.py \
+        python3 agent-linux/tools/merge-sbom.py \
           --output sbom-airymaxos-${{ github.ref_name }}.spdx.json \
           sbom-*.spdx.json
     - name: Upload SBOM artifact
@@ -1030,9 +1030,9 @@ auto-revert-on-regression:
   steps:
     - uses: actions/checkout@v4
     - name: Identify regressing commit (git bisect)
-      run: python3 agentrt-linux/tools/auto-bisect.py --baseline last-green
+      run: python3 agent-linux/tools/auto-bisect.py --baseline last-green
     - name: Create revert PR
-      run: python3 agentrt-linux/tools/create-revert-pr.py --regression-commit $COMMIT
+      run: python3 agent-linux/tools/create-revert-pr.py --regression-commit $COMMIT
 ```
 
 ### 10.3 通知机制
@@ -1085,7 +1085,7 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 - [`70-build-system/01-kbuild-system.md`](01-kbuild-system.md)（Kbuild 递归构建）
 - [`70-build-system/02-kconfig-system.md`](02-kconfig-system.md)（Kconfig 配置系统）
 - [`50-engineering-standards/09-ssot-registry.md`](../50-engineering-standards/09-ssot-registry.md)（SSoT 规则编号权威注册表，文档体系 Markdown 源）
-- [`agentrt-linux/ssot-registry.yaml`](../../../agentrt-linux/ssot-registry.yaml)（SSoT 机器可读 Schema，管理仓根）
+- [`agent-linux/ssot-registry.yaml`](../../../agent-linux/ssot-registry.yaml)（SSoT 机器可读 Schema，管理仓根）
 - [`50-engineering-standards/05-development-process.md`](../50-engineering-standards/05-development-process.md)（补丁生命周期 + 7 层验证前 4 层强制）
 - [`50-engineering-standards/120-cross-project-code-sharing.md`](../50-engineering-standards/120-cross-project-code-sharing.md)（[SC] 共享契约层 12 个头文件，OS-IRON-014）
 - [`80-testing/01-kunit-framework.md`](../80-testing/01-kunit-framework.md)（KUnit，OS-TEST-001~012）
@@ -1107,4 +1107,4 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 
 ---
 
-> **文档结束** | agentrt-linux CI/CD 管道完整设计 v1.0.1 | 1.0.1 开发阶段基线
+> **文档结束** | agent-linux CI/CD 管道完整设计 v1.0.1 | 1.0.1 开发阶段基线

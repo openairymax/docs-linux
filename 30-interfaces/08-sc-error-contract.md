@@ -11,7 +11,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## SSoT 声明
 
-> **单一权威源声明**：本文件是 **Airymax 错误码与故障码体系** 的唯一权威源。Error 码空间分配、Fault 码空间分配、`AIRY_E*` 命名风格、`AIRY_FAULT_*` 命名风格、[DSL] 降级块均以本文件为唯一权威定义。物理宿主为 `kernel/include/uapi/linux/airymax/error.h`，agentrt 与 agentrt-linux 物理共享同一份头文件，逐字节相同。
+> **单一权威源声明**：本文件是 **Airymax 错误码与故障码体系** 的唯一权威源。Error 码空间分配、Fault 码空间分配、`AIRY_E*` 命名风格、`AIRY_FAULT_*` 命名风格、[DSL] 降级块均以本文件为唯一权威定义。物理宿主为 `kernel/include/uapi/linux/airymax/error.h`，agentrt 与 agent-linux 物理共享同一份头文件，逐字节相同。
 >
 > **Capability Folding 工程定义**（v1.0.1 新增）：A-IPC 采用 Capability Folding 设计模式——将 capability check（能力校验）从独立的控制面操作"折叠"到 IPC 数据面消息传递 fastpath 中。其物理载体是 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段（64-bit Native Word：Epoch + Random Tag + Perms）；其执行点是 fastpath C-S9 内联校验（`airy_cap_badge_ok()`，~10ns，3 个 READ_ONCE + 位运算 + 比较）。本契约新增的 Capability Badge 错误码（幅值 78-84）与 `0x1001-0x1003` Fault 码是 Capability Folding 的错误语义 SSoT。
 >
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 内核开发者、agentrt 用户态开发者、CI 维护者
+- **目标读者**：agent-linux 内核开发者、agentrt 用户态开发者、CI 维护者
 - **前置知识**：理解 [10-unify-design.md](../10-architecture/10-unify-design.md) A-UEF 模块定位、[06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md) [SC] 层概念、[02-ipc-protocol.md](02-ipc-protocol.md) Layout C v4 消息头定义
 - **预计阅读时间**：30 分钟
 - **核心概念**：Error（负数可恢复）、Fault（正数 0x1000+ 不可恢复）、[SC] 契约、CI 逐字节校验、Capability Folding Badge 校验
@@ -35,7 +35,7 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 
 ### 1.1 契约范围
 
-本契约定义以下内容，agentrt 与 agentrt-linux 双端必须逐字节一致：
+本契约定义以下内容，agentrt 与 agent-linux 双端必须逐字节一致：
 
 1. `airy_err_t` 类型定义（错误码类型）
 2. `AIRY_E*` 错误码宏（Error 码，正数幅值，调用方返回 `-AIRY_E*`）
@@ -73,7 +73,7 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 | [IND] 完全独立层 | agentrt 用户态：`capability_badge` 始终为 0，不触发 `-78~-82` | [01-syscalls.md](01-syscalls.md) §1.4 |
 | [DSL] 降级生存层 | `capability_badge=0`，跳过 C-S9，使用 `-76/-77` 兜底 | [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md) §2.2 |
 
-**关键不变量**：[SC] 层共享的是错误码**数据定义**（值与名称），不是**触发语义**。两端对同一错误码的触发条件可能不同（agentrt-linux 内核由 C-S9 触发，agentrt 用户态不触发），这属于 [SS] 语义同源层范畴，不违反 [SC] 逐字节相同原则。
+**关键不变量**：[SC] 层共享的是错误码**数据定义**（值与名称），不是**触发语义**。两端对同一错误码的触发条件可能不同（agent-linux 内核由 C-S9 触发，agentrt 用户态不触发），这属于 [SS] 语义同源层范畴，不违反 [SC] 逐字节相同原则。
 
 ---
 
@@ -404,15 +404,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: spharx/agentrt-linux
-          path: agentrt-linux
+          repository: spharx/agent-linux
+          path: agent-linux
       - uses: actions/checkout@v4
         with:
           repository: spharx/agentrt
           path: agentrt
       - name: Verify error.h byte-for-byte identical
         run: |
-          diff agentrt-linux/kernel/include/uapi/linux/airymax/error.h \
+          diff agent-linux/kernel/include/uapi/linux/airymax/error.h \
                agentrt/commons/include/uapi/linux/airymax/error.h
           if [ $? -ne 0 ]; then
             echo "::error::error.h dual-end mismatch detected"
@@ -421,7 +421,7 @@ jobs:
       - name: Verify [DSL] fallback block hash
         run: |
           scripts/airymax/check-uapi-compiler-agnostic.sh \
-            agentrt-linux/kernel/include/uapi/linux/airymax/error.h
+            agent-linux/kernel/include/uapi/linux/airymax/error.h
 ```
 
 ### 4.2 校验失败的处理
@@ -534,9 +534,9 @@ jobs:
 
 | 属性 | 值 |
 |------|-----|
-| 内核侧路径 | `agentrt-linux/kernel/include/uapi/linux/airymax/error.h` |
+| 内核侧路径 | `agent-linux/kernel/include/uapi/linux/airymax/error.h` |
 | agentrt 侧路径 | `agentrt/commons/include/uapi/linux/airymax/error.h`（符号链接或 git submodule 引用内核侧物理文件） |
-| 实际物理文件 | 仅一份，位于 `agentrt-linux/kernel/include/uapi/linux/airymax/error.h` |
+| 实际物理文件 | 仅一份，位于 `agent-linux/kernel/include/uapi/linux/airymax/error.h` |
 | 文件编码 | UTF-8 without BOM |
 | 换行符 | LF（Unix） |
 
@@ -570,7 +570,7 @@ jobs:
 `error.h` 的任何变更必须遵循 [SC] 共享契约变更流程：
 
 1. 在本文件（`08-sc-error-contract.md`）提出变更提案
-2. agentrt 与 agentrt-linux 双方维护者评审
+2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/error.h` 物理头文件
 4. `sc-dual-ci.yml` 双端校验通过
 5. 更新本契约文档版本号

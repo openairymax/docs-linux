@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 微内核设计思想详解
+# agent-linux 微内核设计思想详解
 
-> **文档定位**：agentrt-linux（AirymaxOS）微内核设计思想的深度解析，阐述基于 seL4 工程思想的 Linux 6.6 微内核化改造策略\
+> **文档定位**：agent-linux（AirymaxOS）微内核设计思想的深度解析，阐述基于 seL4 工程思想的 Linux 6.6 微内核化改造策略\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论基础**：seL4（唯一来源，ADR-014）\
 > **技术路线**：基于 Linux 内核微内核化改造，非从零开发微内核（ADR-012）\
 > **版本基线**：1.x.x 锁定 Linux 6.6 LTS / 2.x.x 锁定 Linux 7.1（ADR-016）\
@@ -32,7 +32,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 设计哲学基石
 
-### 1.1 Liedtke 极简原则的 agentrt-linux 诠释
+### 1.1 Liedtke 极简原则的 agent-linux 诠释
 
 **Jochen Liedtke**（L4 微内核创始人）提出微内核设计的核心原则（ES-SEL4-01）：
 
@@ -52,9 +52,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 用户态库（libsel4）                                                  | 18,037 行   | 与内核完全解耦的 ABI                       |
 | 工具链（codegen）                                                   | 7,316 行    | bitfield / syscall / invocation 生成 |
 
-**agentrt-linux 的诠释**：agentrt-linux 不是从零开发微内核（ADR-012），而是基于 Linux 6.6 内核进行微内核化改造。因此"极简"不意味着将 Linux 缩减到 1.44 万行，而是遵循以下体量控制策略：
+**agent-linux 的诠释**：agent-linux 不是从零开发微内核（ADR-012），而是基于 Linux 6.6 内核进行微内核化改造。因此"极简"不意味着将 Linux 缩减到 1.44 万行，而是遵循以下体量控制策略：
 
-| 维度          | seL4 基线   | agentrt-linux 预算      | 控制策略                  |
+| 维度          | seL4 基线   | agent-linux 预算      | 控制策略                  |
 | ----------- | --------- | --------------------- | --------------------- |
 | 内核核心代码      | \~1.44 万行 | 5-10 万行（含 agent 调度原语） | 每新增子系统需论证"无法在用户态安全实现" |
 | 微内核化改造补丁    | —         | 控制在 2 万行以内            | VFS / 网络栈 / 驱动用户态化补丁  |
@@ -72,11 +72,11 @@ seL4 的核心设计决策是 **capability 单一安全模型**（ES-SEL4-05 至
 | cap 存储  | CTE（Capability Table Entry）= cap + mdb\_node                 | `include/object/structures.h`                   |
 | cap 寻址  | CNode 树形寻址（guard + radix）                                    | `src/kernel/cspace.c:resolveAddressBits`（193 行） |
 | cap 派生  | MDB（Memory Disclosure Base）双向链表派生树                           | `src/object/cnode.c:410-443`（934 行）             |
-| cap 操作  | 7 种原语：Copy / Mint / Move / Mutate / Revoke / Delete / Rotate | `src/object/cnode.c`（agentrt-linux 落地，对齐 [SC] security_types.h `enum airy_cap_op`，无 Insert；seL4 原始 7 操作为 cteInsert/cteMove/cteCopy/cteMint/cteMutate/cteRevoke/cteDelete，agentrt 以 Rotate 取代 Insert） |
+| cap 操作  | 7 种原语：Copy / Mint / Move / Mutate / Revoke / Delete / Rotate | `src/object/cnode.c`（agent-linux 落地，对齐 [SC] security_types.h `enum airy_cap_op`，无 Insert；seL4 原始 7 操作为 cteInsert/cteMove/cteCopy/cteMint/cteMutate/cteRevoke/cteDelete，agentrt 以 Rotate 取代 Insert） |
 | cap 身份  | 64 bit Badge 标识来源                                            | `src/object/cnode.c:798-819`                    |
 | cap 即内存 | CTE 直接内嵌在 TCB 中，cap 本身就是内存                                   | `include/object/structures.h`                   |
 
-**agentrt-linux 落地**：security 子仓实现 capability 系统（ADR-004），与 agentrt Cupolas 同源。通过 \[SC] 共享契约层 `include/uapi/linux/airymax/security_types.h` 定义 capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，定义于 `lsm_types.h`）+ capability 派生模型（mint / mintcopy / derive / revoke）。
+**agent-linux 落地**：security 子仓实现 capability 系统（ADR-004），与 agentrt Cupolas 同源。通过 \[SC] 共享契约层 `include/uapi/linux/airymax/security_types.h` 定义 capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，定义于 `lsm_types.h`）+ capability 派生模型（mint / mintcopy / derive / revoke）。
 
 ### 1.3 形式化可验证性预留
 
@@ -96,9 +96,9 @@ seL4 是首个通过完整形式化验证的微内核（ES-SEL4-16 至 20）。�
 | RISC-V 64           | 部分验证                          |
 | x86\_64             | 未验证                           |
 
-**agentrt-linux 落地**：agentrt-linux 不追求全量形式化验证（基于 Linux 改造的复杂度不允许），但预留验证接口（ES-SEL4-19）：
+**agent-linux 落地**：agent-linux 不追求全量形式化验证（基于 Linux 改造的复杂度不允许），但预留验证接口（ES-SEL4-19）：
 
-| 预留机制                       | seL4 实现        | agentrt-linux 适配   |
+| 预留机制                       | seL4 实现        | agent-linux 适配   |
 | -------------------------- | -------------- | ------------------ |
 | `/** MODIFIES */` 注解       | 标注函数副作用范围      | 1.0.1 阶段引入（决策项）    |
 | `/** FNSPEC */` 注解         | 标注函数契约规范       | 1.0.1 阶段引入（决策项）    |
@@ -110,7 +110,7 @@ seL4 是首个通过完整形式化验证的微内核（ES-SEL4-16 至 20）。�
 
 seL4 严格遵循"机制而非策略"原则（ES-SEL4-04）：内核只提供机制（capability / IPC / 调度原语），不包含策略（具体调度算法 / 具体安全策略 / 具体资源分配策略）。
 
-**agentrt-linux 的机制-策略分离**：
+**agent-linux 的机制-策略分离**：
 
 | 机制（内核态）           | 策略（用户态）           | 落地方式              |
 | ----------------- | ----------------- | ----------------- |
@@ -127,7 +127,7 @@ seL4 严格遵循"机制而非策略"原则（ES-SEL4-04）：内核只提供机
 
 seL4 明确内核只保留 6 类职责（ES-SEL4-29）：
 
-| 职责            | seL4 实现                            | agentrt-linux 实现                   | 代码预估      |
+| 职责            | seL4 实现                            | agent-linux 实现                   | 代码预估      |
 | ------------- | ---------------------------------- | ---------------------------------- | --------- |
 | Capability 管理 | CNode + MDB 派生树                    | 纯 C LSM + agent_caps[1024] 静态数组（`__airymax_cap_table`，sec_d 唯一写者）（H5） | \~3,000 行 |
 | IPC（消息传递）     | Endpoint + Notification + Fastpath | io\_uring 零拷贝 + MSG\_RING          | \~5,000 行 |
@@ -138,7 +138,7 @@ seL4 明确内核只保留 6 类职责（ES-SEL4-29）：
 
 ### 2.2 下沉到用户态的 Linux 子系统
 
-agentrt-linux 将以下 Linux 子系统逐步下沉到用户态（ES-SEL4-30），参考 seL4 的 root task 模型：
+agent-linux 将以下 Linux 子系统逐步下沉到用户态（ES-SEL4-30），参考 seL4 的 root task 模型：
 
 | Linux 子系统   | 下沉策略                    | 用户态服务                               | 迁移阶段   |
 | ----------- | ----------------------- | ----------------------------------- | ------ |
@@ -172,9 +172,9 @@ seL4 采用 bootinfo 机制（ES-SEL4-31）：内核启动后将初始 capabilit
          → root task 初始化用户态服务
 ```
 
-**agentrt-linux 适配**：agentrt-linux 保留 Linux 的 initramfs / systemd 启动模型，但在 capability 层引入等效机制：
+**agent-linux 适配**：agent-linux 保留 Linux 的 initramfs / systemd 启动模型，但在 capability 层引入等效机制：
 
-| 边界契约         | seL4                  | agentrt-linux                     |
+| 边界契约         | seL4                  | agent-linux                     |
 | ------------ | --------------------- | --------------------------------- |
 | 初始资源传递       | bootinfo 结构           | systemd unit + capability 初始化守护进程 |
 | ABI 稳定性      | syscall.xml + codegen | \[SC] 共享契约层 12 头文件                |
@@ -185,7 +185,7 @@ seL4 采用 bootinfo 机制（ES-SEL4-31）：内核启动后将初始 capabilit
 
 ## 3. Capability 安全模型
 
-> **设计决策**（ADR-004）：agentrt-linux 在 security 子仓实现 capability-based security 模型（seL4 风格），与 SELinux 共存形成纵深防御。capability 优先于 SELinux 检查。
+> **设计决策**（ADR-004）：agent-linux 在 security 子仓实现 capability-based security 模型（seL4 风格），与 SELinux 共存形成纵深防御。capability 优先于 SELinux 检查。
 
 ### 3.1 CTE 与 CSpace 设计
 
@@ -205,7 +205,7 @@ CSpace = CNode 树
   寻址 = guard 匹配 + radix 逐级查找
 ```
 
-**agentrt-linux 落地**：通过纯 C LSM 钩子 + `agent_caps[1024]` 静态数组（`__airymax_cap_table`，定义宿主 `kernel/ipc/airy_ipc_capability.c`，sec_d 唯一写者）实现 capability 检查（H5 硬约束，禁止依赖 BPF）。`airy_cap_slot` 结构定义在 \[SC] `include/uapi/linux/airymax/lsm_types.h` 中（80B，AIRY_ALIGNED(64)，含 MDB 五字段），与 agentrt Cupolas 同源。
+**agent-linux 落地**：通过纯 C LSM 钩子 + `agent_caps[1024]` 静态数组（`__airymax_cap_table`，定义宿主 `kernel/ipc/airy_ipc_capability.c`，sec_d 唯一写者）实现 capability 检查（H5 硬约束，禁止依赖 BPF）。`airy_cap_slot` 结构定义在 \[SC] `include/uapi/linux/airymax/lsm_types.h` 中（80B，AIRY_ALIGNED(64)，含 MDB 五字段），与 agentrt Cupolas 同源。
 
 ### 3.2 Capability 派生树
 
@@ -231,13 +231,13 @@ seL4 的 capability 派生通过 MDB（Memory Disclosure Base）双向链表实�
 | Delete | 删除单个 cap              | 不可逆      |
 | Rotate | 轮换 cap（Badge 刷新）      | 不可逆      |
 
-**agentrt-linux 的 Agent 沙箱应用**：当一个 Agent 被终止时，通过 Revoke 一键撤销该 Agent 持有的所有 capability 派生，确保资源不泄漏。
+**agent-linux 的 Agent 沙箱应用**：当一个 Agent 被终止时，通过 Revoke 一键撤销该 Agent 持有的所有 capability 派生，确保资源不泄漏。
 
 ### 3.3 Badge 机制与 Agent 身份
 
 seL4 的 Badge 机制（ES-SEL4-09）：64 bit badge 标识 capability 的来源 Agent，使多个 Agent 可以共享同一个 Endpoint（server 模式）。
 
-| Badge 语义            | seL4 实现                           | agentrt-linux 适配       | <br />               |
+| Badge 语义            | seL4 实现                           | agent-linux 适配       | <br />               |
 | ------------------- | --------------------------------- | ---------------------- | :------------------- |
 | 身份标识                | 64 bit badge 字段                   | agent\_id 映射           | <br />               |
 | 多 Agent 共享 Endpoint | server 模式（多 client 共享一个 endpoint） | 12 daemons 的多 Agent 并发 | <br />               |
@@ -248,7 +248,7 @@ seL4 的 Badge 机制（ES-SEL4-09）：64 bit badge 标识 capability 的来源
 
 ## 4. IPC 消息传递
 
-> **设计决策**（ADR-005）：agentrt-linux 在 kernel + services 实现基于 io\_uring 的 IPC 子系统，采用与 agentrt AgentsIPC 同源的 128B 定长消息头。
+> **设计决策**（ADR-005）：agent-linux 在 kernel + services 实现基于 io\_uring 的 IPC 子系统，采用与 agentrt AgentsIPC 同源的 128B 定长消息头。
 
 ### 4.1 Endpoint 状态机
 
@@ -274,13 +274,13 @@ receiveIPC:
   if (endpoint Recv): 接收方加入接收队列
 ```
 
-**agentrt-linux 适配**：io\_uring 的 SQ / CQ ring 提供等效的异步消息传递语义。IPC magic `0x41524531`（'ARE1'）通过 \[SC] `include/uapi/linux/airymax/ipc.h` 与 agentrt 共享。
+**agent-linux 适配**：io\_uring 的 SQ / CQ ring 提供等效的异步消息传递语义。IPC magic `0x41524531`（'ARE1'）通过 \[SC] `include/uapi/linux/airymax/ipc.h` 与 agentrt 共享。
 
 ### 4.2 Message Register + IPC Buffer
 
 seL4 的消息传递采用寄存器优先策略（ES-SEL4-11, 12）：
 
-| 概念                   | seL4 实现                                          | agentrt-linux 适配               |
+| 概念                   | seL4 实现                                          | agent-linux 适配               |
 | -------------------- | ------------------------------------------------ | ------------------------------ |
 | MessageInfo          | 紧凑编码（length + extraCaps + capsUnwrapped + label） | 128B 消息头中的 type + payload\_len |
 | Message Register（MR） | 物理寄存器（数量因架构不同：ARM 4-8 个，x86 1-6 个）               | io\_uring SQE 字段               |
@@ -307,7 +307,7 @@ Fastpath 流程:
 | signal      | 异步信号发送         | Notification 发送       |
 | vm\_fault   | 页异常处理          | Fault IPC 传递给 handler |
 
-**agentrt-linux 适配**：在 Airymax IPC magic `0x41524531`（'ARE1'）的 128B 消息头之上，实现 fastpath 短路。当消息类型为 call / reply\_recv 时，跳过完整的 io\_uring 提交流程，直接在 SQ ring 中完成消息传递。
+**agent-linux 适配**：在 Airymax IPC magic `0x41524531`（'ARE1'）的 128B 消息头之上，实现 fastpath 短路。当消息类型为 call / reply\_recv 时，跳过完整的 io\_uring 提交流程，直接在 SQ ring 中完成消息传递。
 
 ### 4.4 Notification 异步信号
 
@@ -320,7 +320,7 @@ seL4 的 Notification 对象（ES-SEL4-14）替代 Linux 的 eventfd / signalfd�
 | word 传递 | 64 bit word                                  | 64 bit counter           |
 | TCB 绑定  | Bound notification（一个 TCB 绑定一个 notification） | 无绑定                      |
 
-**agentrt-linux 适配**：io_uring 的 `IORING_OP_URING_CMD` 子命令提供等效的跨 ring 异步消息语义。[SC] `include/uapi/linux/airymax/ipc.h` 仅定义 7 个 opcode（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），与 agentrt 共享；MSG_RING 语义由 io_uring 原生 `IORING_OP_MSG_RING` 承载，不在 Airymax IPC opcode 命名空间内重复定义，避免 SSoT 漂移。
+**agent-linux 适配**：io_uring 的 `IORING_OP_URING_CMD` 子命令提供等效的跨 ring 异步消息语义。[SC] `include/uapi/linux/airymax/ipc.h` 仅定义 7 个 opcode（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），与 agentrt 共享；MSG_RING 语义由 io_uring 原生 `IORING_OP_MSG_RING` 承载，不在 Airymax IPC opcode 命名空间内重复定义，避免 SSoT 漂移。
 
 ### 4.5 Reply Cap 自动管理
 
@@ -331,7 +331,7 @@ seL4 MCS（Mixed-Criticality Systems）模式引入 SchedContext 捐赠机制（
 | 非 MCS | Reply cap 自动生成（call 时）                   | 无带宽保证 |
 | MCS   | SchedContext 捐赠（server 用 client 的调度预算执行） | 带宽保证  |
 
-**agentrt-linux 适配**：通过 sched\_tac 的优先级继承机制实现等效的调度优先级传递。当 Agent A 调用 Agent B 的服务时，Agent B 获得 Agent A 的调度优先级提升（优先级继承）。sched\_tac 基于 Linux 6.6 原生 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF 调度类组合，零内核调度器修改，非 sched\_ext BPF 框架。
+**agent-linux 适配**：通过 sched\_tac 的优先级继承机制实现等效的调度优先级传递。当 Agent A 调用 Agent B 的服务时，Agent B 获得 Agent A 的调度优先级提升（优先级继承）。sched\_tac 基于 Linux 6.6 原生 SCHED\_DEADLINE / SCHED\_FIFO / EEVDF 调度类组合，零内核调度器修改，非 sched\_ext BPF 框架。
 
 ***
 
@@ -351,7 +351,7 @@ seL4 的所有系统调用通过 `syscall.xml` 单一定义（ES-SEL4-21），�
 
 **seL4 syscall 数量**：非 MCS 模式 7 个，MCS 模式 11 个（ES-SEL4-02）。
 
-**agentrt-linux 目标（v1.0.1 Capability Folding 后）**：4 核心 + 20 预留 = 24 槽位（`airy_sys_call` sec_d 专属管理入口 + `airy_sys_rovol_ctl` + `airy_sys_sched_ctl` + `airy_sys_clt_notify` 共 4 核心；IPC 数据面完全由 io_uring `IORING_OP_URING_CMD` 承载，零 syscall；原 8 个 seL4 风格 IPC 原语已全部移除）。新增 syscall 需 TSC（Technical Steering Committee）评审。
+**agent-linux 目标（v1.0.1 Capability Folding 后）**：4 核心 + 20 预留 = 24 槽位（`airy_sys_call` sec_d 专属管理入口 + `airy_sys_rovol_ctl` + `airy_sys_sched_ctl` + `airy_sys_clt_notify` 共 4 核心；IPC 数据面完全由 io_uring `IORING_OP_URING_CMD` 承载，零 syscall；原 8 个 seL4 风格 IPC 原语已全部移除）。新增 syscall 需 TSC（Technical Steering Committee）评审。
 
 ### 5.2 三层 API 契约
 
@@ -376,13 +376,13 @@ seL4 使用 `.bf`（BitField）文件声明位域结构体（ES-SEL4-25, 26）�
 | Prune 机制（ES-SEL4-27） | 生成时自动剪除未使用字段，减小代码体积                   |
 | 单文件编译（ES-SEL4-28）    | 每个 `.bf` 生成独立 `.c` 文件，支持单文件编译         |
 
-**agentrt-linux 适配**（R-02）：为 \[SC] 共享契约层 12 个头文件引入 structures.bf 式 bitfield codegen，自动生成位域结构体与访问函数。
+**agent-linux 适配**（R-02）：为 \[SC] 共享契约层 12 个头文件引入 structures.bf 式 bitfield codegen，自动生成位域结构体与访问函数。
 
 ### 5.4 多语言绑定
 
 seL4 的 libsel4 独立于内核（ES-SEL4-44 至 47），提供 C / Rust / Python 绑定：
 
-| 特性         | seL4 libsel4                     | agentrt-linux SDK                       |
+| 特性         | seL4 libsel4                     | agent-linux SDK                       |
 | ---------- | -------------------------------- | --------------------------------------- |
 | 独立性        | 独立仓库，与内核解耦                       | 独立于内核，提供 C / Rust / Python / Go / TS 绑定 |
 | codegen 稳定 | syscall\_stub\_gen.py 生成用户态 stub | R-01 codegen 生成                         |
@@ -404,7 +404,7 @@ config KernelVerificationBuild
     default n
 ```
 
-**agentrt-linux 适配**：完全采纳 Linux 6.6 内核基线的 Kconfig + Kbuild 体系（ES-LNX-1 至 6），这是 seL4 与 Linux 的共同点。
+**agent-linux 适配**：完全采纳 Linux 6.6 内核基线的 Kconfig + Kbuild 体系（ES-LNX-1 至 6），这是 seL4 与 Linux 的共同点。
 
 ### 6.2 多架构支持
 
@@ -429,13 +429,13 @@ src/
     └── 64/          # 64-bit 模式
 ```
 
-**agentrt-linux 适配**：kernel 子仓采 arch / machine / plat 三层架构（借鉴 seL4 而非 Linux 6.6 内核基线的单 arch/ 目录），已在 v0.2.1 目录结构设计中确定。
+**agent-linux 适配**：kernel 子仓采 arch / machine / plat 三层架构（借鉴 seL4 而非 Linux 6.6 内核基线的单 arch/ 目录），已在 v0.2.1 目录结构设计中确定。
 
 ### 6.3 Freestanding 编译
 
 seL4 采用 Freestanding 编译模式（ES-SEL4-34）：不依赖标准库，严格警告（`-Werror -Wstrict-prototypes`），可复现构建（`--build-id=none`）。
 
-**agentrt-linux 适配**：内核态代码遵循 Freestanding 模式，用户态代码可使用标准库。
+**agent-linux 适配**：内核态代码遵循 Freestanding 模式，用户态代码可使用标准库。
 
 ### 6.4 代码生成工具链集成
 
@@ -467,7 +467,7 @@ seL4 在 CAVEATS.md 中显式声明验证范围（ES-SEL4-17, 20）：
 | Cache 一致性     | 未验证 | CAVEATS.md 声明 |
 | 多核排序（SMP）     | 未验证 | CAVEATS.md 声明 |
 
-**agentrt-linux 适配**：基于 Linux 改造的复杂度不允许全量形式化验证，但采用以下策略：
+**agent-linux 适配**：基于 Linux 改造的复杂度不允许全量形式化验证，但采用以下策略：
 
 1. **部分验证**：对 capability 模块、IPC fastpath 等关键路径引入验证注解
 2. **诚实声明**：在文档中明确标注哪些模块验证、哪些未验证
@@ -501,7 +501,7 @@ seL4 提供 `KernelVerificationBuild` / `KernelBinaryVerificationBuild` 配置�
 
 > **双源融合裁决**（基于"Linux 6.6 为基、seL4 为鉴"工程取向）：编码风格层完全采纳 Linux 6.6 内核基线，seL4 编码约定因与 Linux 6.6 基线冲突被整体拒绝。seL4 影响仅在架构层被选择性借鉴。
 
-| 维度      | seL4 风格             | Linux 6.6 内核基线 风格 | agentrt-linux 决策                    |
+| 维度      | seL4 风格             | Linux 6.6 内核基线 风格 | agent-linux 决策                    |
 | ------- | ------------------- | ----------------- | ----------------------------------- |
 | 缩进      | 4 空格                | Tab（8 列宽）         | **采纳 Linux 6.6 内核基线**（Tab 8）        |
 | 命名      | camelCase           | snake\_case       | **采纳 Linux 6.6 内核基线**（snake\_case）  |
@@ -513,11 +513,11 @@ seL4 提供 `KernelVerificationBuild` / `KernelBinaryVerificationBuild` 配置�
 
 ### 8.2 编译期断言
 
-seL4 广泛使用 `compile_assert` 进行编译期不变量检查（ES-SEL4-39），等效于 Linux 的 `BUILD_BUG_ON`。agentrt-linux 采纳 `BUILD_BUG_ON`（Linux 6.6 内核基线 原生）。
+seL4 广泛使用 `compile_assert` 进行编译期不变量检查（ES-SEL4-39），等效于 Linux 的 `BUILD_BUG_ON`。agent-linux 采纳 `BUILD_BUG_ON`（Linux 6.6 内核基线 原生）。
 
 ### 8.3 性能注解
 
-seL4 使用 `likely` / `unlikely` + `FORCE_INLINE` + `NORETURN` / `PURE` / `CONST` 等属性标注 fastpath 热路径（ES-SEL4-40）。这些与 Linux 的 `likely` / `unlikely` 一致，agentrt-linux 直接采纳。
+seL4 使用 `likely` / `unlikely` + `FORCE_INLINE` + `NORETURN` / `PURE` / `CONST` 等属性标注 fastpath 热路径（ES-SEL4-40）。这些与 Linux 的 `likely` / `unlikely` 一致，agent-linux 直接采纳。
 
 ### 8.4 Haskell error 注释传统
 
@@ -527,7 +527,7 @@ seL4 的代码注释关联到 Haskell 形式规范（ES-SEL4-38），实现规�
 /* Haskell error: "Attempt to move cap to occupied slot" */
 ```
 
-**agentrt-linux 适配**：不引入 Haskell 形式规范，但保留"注释关联设计文档"的传统（kernel-doc 即等效机制）。
+**agent-linux 适配**：不引入 Haskell 形式规范，但保留"注释关联设计文档"的传统（kernel-doc 即等效机制）。
 
 ***
 
@@ -535,7 +535,7 @@ seL4 的代码注释关联到 Haskell 形式规范（ES-SEL4-38），实现规�
 
 ### 9.1 从 Linux 6.6 单体到微内核化改造
 
-agentrt-linux 不从零开发微内核（ADR-012），而是基于 Linux 6.6 进行渐进式微内核化改造：
+agent-linux 不从零开发微内核（ADR-012），而是基于 Linux 6.6 进行渐进式微内核化改造：
 
 | 阶段   | 版本     | 改造内容                                                             | seL4 借鉴                         |
 | ---- | ------ | ---------------------------------------------------------------- | ------------------------------- |
@@ -557,15 +557,15 @@ agentrt-linux 不从零开发微内核（ADR-012），而是基于 Linux 6.6 进
 
 seL4 采用 TSC（Technical Steering Committee）集中治理模式（ES-SEL4-36），不使用 MAINTAINERS 文件：
 
-| 治理维度        | seL4                         | agentrt-linux                       |
+| 治理维度        | seL4                         | agent-linux                       |
 | ----------- | ---------------------------- | ----------------------------------- |
 | 治理主体        | Technical Steering Committee | 工程规范委员会                             |
 | 贡献协议        | DCO sign-off（与 Linux 一致）     | DCO sign-off                        |
-| 安全披露        | SECURITY.md 负责任披露            | agentrt-linux-SA                    |
+| 安全披露        | SECURITY.md 负责任披露            | agent-linux-SA                    |
 | 贡献指南        | CONTRIBUTING.md              | CONTRIBUTING.md                     |
 | MAINTAINERS | 无（TSC 集中治理）                  | 有（ES-LNX-8，8 子仓各含 MAINTAINERS，R-03） |
 
-> **差异说明**：seL4 无 MAINTAINERS 文件因其仓库规模小、TSC 可集中管理。agentrt-linux 8 子仓规模较大，采纳 Linux 6.6 内核基线的 MAINTAINERS 文件模式（ES-LNX-8，R-03 增强建议），同时保留 TSC 架构决策权。
+> **差异说明**：seL4 无 MAINTAINERS 文件因其仓库规模小、TSC 可集中管理。agent-linux 8 子仓规模较大，采纳 Linux 6.6 内核基线的 MAINTAINERS 文件模式（ES-LNX-8，R-03 增强建议），同时保留 TSC 架构决策权。
 
 ***
 
@@ -586,14 +586,14 @@ seL4 采用 TSC（Technical Steering Committee）集中治理模式（ES-SEL4-36
 
 ## 10.1 IRON-9 v3 四层共享模型
 
-> **OS-ARCH-005**： seL4 微内核设计思想在 agentrt-linux 四层模型中分布落地——capability 模型经 \[SC] `security_types.h` 共享契约，IPC 消息传递经 \[SC] `ipc.h` + \[SS] 同源 API 双层落地，形式化验证经 \[IND] 各自独立实现，[SC] 损坏时由 \[DSL] 降级生存层保证最小可运行子集，禁止将 seL4 验证代码混入共享契约层。
+> **OS-ARCH-005**： seL4 微内核设计思想在 agent-linux 四层模型中分布落地——capability 模型经 \[SC] `security_types.h` 共享契约，IPC 消息传递经 \[SC] `ipc.h` + \[SS] 同源 API 双层落地，形式化验证经 \[IND] 各自独立实现，[SC] 损坏时由 \[DSL] 降级生存层保证最小可运行子集，禁止将 seL4 验证代码混入共享契约层。
 
 ### 四层模型概览
 
 | 层次               | 共享程度                                   | seL4 思想分布                                                                                            |
 | ---------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | **\[SC] 共享契约层**  | 完全共享代码                                 | capability 模型（`security_types.h` 44 cap + 7 钩子实现 + 250 框架总槽位）+ IPC 契约（`ipc.h` magic 0x41524531 'ARE1' + 128B 头） |
-| **\[SS] 语义同源层**  | 操作模式同源（注册/匹配/生命周期等概念一致），函数签名因抽象层级不同而独立 | IPC 消息传递 API（agentrt POSIX MQ ↔ agentrt-linux io\_uring）+ capability 4 项 API 同源                      |
+| **\[SS] 语义同源层**  | 操作模式同源（注册/匹配/生命周期等概念一致），函数签名因抽象层级不同而独立 | IPC 消息传递 API（agentrt POSIX MQ ↔ agent-linux io\_uring）+ capability 4 项 API 同源                      |
 | **\[IND] 完全独立层** | 完全独立                                   | 形式化验证框架（tests-linux seL4 风格）+ 内核态调度（sched\_tac）+ 纯 C LSM（airy\_lsm，H5）                                              |
 | **\[DSL] 降级生存层** | [SC] 损坏时最小可运行子集                          | 每个 [SC] 头文件底部 `#ifdef AIRY_SC_FALLBACK` 降级块（38 POSIX 错误码 + printk + 最小 128B IPC + EEVDF 默认 + POSIX capability + 统一 Panic），详见 [11-degraded-survival-layer.md](11-degraded-survival-layer.md) |
 
@@ -614,9 +614,9 @@ seL4 采用 TSC（Technical Steering Committee）集中治理模式（ES-SEL4-36
 | `lsm_types.h`       | 安全钩子契约            | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架 | kernel / security  |
 | `bpf_struct_ops.h`  | struct_ops 状态机      | 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局        | kernel / cognition |
 
-### \[SS] 语义同源层——seL4 概念 agentrt ↔ agentrt-linux 映射
+### \[SS] 语义同源层——seL4 概念 agentrt ↔ agent-linux 映射
 
-| seL4 概念      | agentrt 实现（用户态）    | agentrt-linux 实现（内核态）                                                     | 同源 API                  |
+| seL4 概念      | agentrt 实现（用户态）    | agent-linux 实现（内核态）                                                     | 同源 API                  |
 | ------------ | ------------------ | ------------------------------------------------------------------------- | ----------------------- |
 | Capability   | Cupolas 用户态 CNode  | LSM + Landlock + capability                                               | mint/revoke/derive/copy |
 | IPC Endpoint | POSIX MQ + mmap    | io\_uring + SQPOLL（用户态-内核态）；kfifo + wait\_event\_interruptible（kthread 间） | 8 项 io\_uring 同源        |
@@ -625,7 +625,7 @@ seL4 采用 TSC（Technical Steering Committee）集中治理模式（ES-SEL4-36
 
 ### \[IND] 完全独立层
 
-| 独立项    | agentrt 实现      | agentrt-linux 实现             | 独立原因     |
+| 独立项    | agentrt 实现      | agent-linux 实现             | 独立原因     |
 | ------ | --------------- | ---------------------------- | -------- |
 | 形式化验证  | 无（用户态运行时）       | tests-linux seL4 风格框架        | 验证目标为内核态 |
 | 调度原语   | 用户态协程           | sched\_tac（Linux 6.6 原生调度类组合 SCHED\_DEADLINE/SCHED\_FIFO/EEVDF） | 跨平台约束    |
@@ -641,7 +641,7 @@ graph TB
         RT_DAEMON[Daemons<br/>systemd]
     end
 
-    subgraph "agentrt-linux 内核态（Linux 6.6）"
+    subgraph "agent-linux 内核态（Linux 6.6）"
         OS_CAP[security<br/>LSM + cap]
         OS_IPC[kernel<br/>io_uring + kfifo]
         OS_FV[tests-linux<br/>seL4 验证]
@@ -677,7 +677,7 @@ graph TB
 
 ## 11. 相关文档
 
-- [系统架构](01-system-architecture.md)：agentrt-linux 架构设计总览
+- [系统架构](01-system-architecture.md)：agent-linux 架构设计总览
 - [工程基线](04-engineering-baseline.md)：Linux 6.6 / 7.1 双基线锁定（ADR-016）+ Linux 7.1 前瞻性预留设计（§8.4）
 - [架构决策记录](05-adrs.md)：16 个核心 ADR（含 ADR-011\~016 新增决策）
 - [内核模块设计](../20-modules/01-kernel.md)：kernel 子仓详细设计
@@ -709,7 +709,7 @@ graph TB
 - Documentation/bpf/：eBPF 设计文档
 - Documentation/core-api/wrappers/parallelism.rst：percpu\_ref
 
-### 12.3 agentrt-linux 内部参考文献
+### 12.3 agent-linux 内部参考文献
 
 - IRON-9 v3 四层共享模型：`50-engineering-standards/README.md`
 - \[SC] 共享契约层 12 头文件：`include/uapi/linux/airymax/{error,log_types,ipc,sched,memory_types,security_types,cognition_types,syscalls,syscall,uapi_compat,lsm_types,bpf_struct_ops}.h`
@@ -758,7 +758,7 @@ v0.1.1 §2.2 已提及"VFS 用户态化决策（A-ULS 统一）"，v1.0.1 进一
 
 ***
 
-> **文档结束** | agentrt-linux（AirymaxOS）微内核设计思想详解 v1.0.1 | 2026-07-22
+> **文档结束** | agent-linux（AirymaxOS）微内核设计思想详解 v1.0.1 | 2026-07-22
 > 微内核思想来源：seL4（唯一来源，ADR-014）| 技术路线：基于 Linux 改造（ADR-012）| 已融入 Airymax Unify Design 5 模块
 
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — 驱动测试框架
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第七篇——驱动测试策略与测试矩阵\
+# agent-linux（AirymaxOS）驱动模型 — 驱动测试框架
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第七篇——驱动测试策略与测试矩阵\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[60-driver-model README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 概述
 
-agentrt-linux v1.0.1 驱动测试框架采用三层测试策略：**KUnit 单元测试** + **kselftest 集成测试** + **Agent 契约测试**。这一策略对齐 Linux 6.6 内核主流测试实践，并扩展智能体工作负载专属的契约测试层。
+agent-linux v1.0.1 驱动测试框架采用三层测试策略：**KUnit 单元测试** + **kselftest 集成测试** + **Agent 契约测试**。这一策略对齐 Linux 6.6 内核主流测试实践，并扩展智能体工作负载专属的契约测试层。
 
 | 测试层 | 工具 | 运行环境 | 覆盖目标 | 在 CI 中的位置 |
 |--------|------|---------|---------|---------------|
@@ -639,11 +639,11 @@ echo "PASS: Coverage ${COVERAGE}% ≥ 90%"
 
 ### 9.1 80-testing 总览
 
-agentrt-linux 测试体系由 `80-testing/` 目录统一组织，60-driver-model 的测试是其子集：
+agent-linux 测试体系由 `80-testing/` 目录统一组织，60-driver-model 的测试是其子集：
 
 | 测试目录 | 覆盖范围 | 关系 |
 |---------|---------|------|
-| `80-testing/` | agentrt-linux 全局测试策略 | 总纲 |
+| `80-testing/` | agent-linux 全局测试策略 | 总纲 |
 | `80-testing/kunit/` | KUnit 框架使用指南 | 60 驱动测试引用 |
 | `80-testing/kselftest/` | kselftest 框架使用指南 | 60 驱动测试引用 |
 | `80-testing/perf/` | 性能基准框架 | 60 驱动性能测试引用 |
@@ -760,11 +760,11 @@ VFIO 直通的测试覆盖本文档 §6（VFIO 直通测试），包括 IOMMU �
 - [04-misc-framework.md](04-misc-framework.md) §4（file_operations 测试）
 - [05-agent-driver.md](05-agent-driver.md) §3 §7 §8（驱动注册 + io_uring fastpath + [DSL] 降级）
 - [06-vfio-passthrough.md](06-vfio-passthrough.md) §3 §5 §6（VFIO 直通 + IOMMU 隔离 + DMA 映射）
-- [../80-testing/README.md](../80-testing/README.md)（agentrt-linux 全局测试策略）
+- [../80-testing/README.md](../80-testing/README.md)（agent-linux 全局测试策略）
 - [../80-testing/kunit/](../80-testing/kunit/)（KUnit 框架使用指南）
 - [../80-testing/kselftest/](../80-testing/kselftest/)（kselftest 框架使用指南）
 - [../80-testing/perf/](../80-testing/perf/)（性能基准框架）
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 — 驱动测试框架 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型 — 驱动测试框架 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

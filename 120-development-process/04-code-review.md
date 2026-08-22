@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）代码审查标准
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 4 卷——代码审查标准。本文档详述代码审查清单、内核代码规范、[SC] 头文件审查、安全代码形式化审查、Agent 契约一致性校验、审查工具链与审查 SLA，是 Pull Request 流程（03 卷）在审查维度的展开。\
+# agent-linux（AirymaxOS）代码审查标准
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 4 卷——代码审查标准。本文档详述代码审查清单、内核代码规范、[SC] 头文件审查、安全代码形式化审查、Agent 契约一致性校验、审查工具链与审查 SLA，是 Pull Request 流程（03 卷）在审查维度的展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 4 卷，回答"代码审查查什么、用什么工具、达到什么标准、由谁审查、多久响应"。它继承 Linux 6.6 内核 `submitting-patches.rst` 第 4-6 节的审查规范，并将其适配到 agentrt-linux 的五大技术选型与 IRON-9 v3 四层模型。
+本文档是 120-development-process 模块的第 4 卷，回答"代码审查查什么、用什么工具、达到什么标准、由谁审查、多久响应"。它继承 Linux 6.6 内核 `submitting-patches.rst` 第 4-6 节的审查规范，并将其适配到 agent-linux 的五大技术选型与 IRON-9 v3 四层模型。
 
 ### 1.1 与 Pull Request 流程的关系
 
@@ -21,7 +21,7 @@ Pull Request 流程（03 卷）定义 PR 的创建、合并、关闭流程，本
 
 ### 1.2 适用范围
 
-本文档适用于 agentrt-linux 全部 8 子仓以及 12 daemon（macro_d / logger_d / config_d / gateway_d / sched_d / vfs_d / net_d / mem_d / cogn_d / sec_d / audit_d / dev_d）。涉及 [SC] 头文件的审查必须额外满足第 4 节的强制要求。
+本文档适用于 agent-linux 全部 8 子仓以及 12 daemon（macro_d / logger_d / config_d / gateway_d / sched_d / vfs_d / net_d / mem_d / cogn_d / sec_d / audit_d / dev_d）。涉及 [SC] 头文件的审查必须额外满足第 4 节的强制要求。
 
 ### 1.3 关键术语
 
@@ -142,7 +142,7 @@ flowchart TD
 
 ## 4. [SC] 头文件审查
 
-[SC] 头文件是 IRON-9 v3 四层模型中的共享契约层，agentrt 与 agentrt-linux 双端必须逐字节一致。[SC] 头文件审查标准比普通头文件更严格。
+[SC] 头文件是 IRON-9 v3 四层模型中的共享契约层，agentrt 与 agent-linux 双端必须逐字节一致。[SC] 头文件审查标准比普通头文件更严格。
 
 ### 4.1 编译器无关性校验
 
@@ -202,7 +202,7 @@ flowchart TD
 
 ### 5.1 纯 C LSM 形式化审查
 
-纯 C LSM（`airy_lsm`）是 agentrt-linux 的安全核心，其代码必须通过形式化审查。
+纯 C LSM（`airy_lsm`）是 agent-linux 的安全核心，其代码必须通过形式化审查。
 
 - **形式化工具**：使用 CBMC（C Bounded Model Checker）+ Frama-C 进行形式化验证。
 - **验证范围**：
@@ -451,4 +451,4 @@ flowchart LR
 
 ---
 
-> **文档结束** | agentrt-linux 代码审查标准 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 代码审查标准 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

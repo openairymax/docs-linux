@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）工程思想
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）工程标准规范的第 4 主题文档——工程体系的思想核心。\
+# agent-linux（AirymaxOS）工程思想
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范的第 4 主题文档——工程体系的思想核心。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：`docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ agentrt 17 类规则编号体系（IRON-9 v3 同源且部分代码共享）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
 > **SSoT 声明**：OS-IRON 铁律编号的唯一权威来源为 [09-ssot-registry.md §2](./09-ssot-registry.md)（16 条铁律，含 OS-IRON-015 编号管理元规则 2026-07-15 提升、OS-IRON-016 UAPI 编译器无关原则 2026-07-29 登记）。本文档第 5-10 章中标注的历史 OS-IRON-003~006 编号与 SSoT 存在语义偏移（详见下方 §0 对齐映射表）。正文中保留的历史编号仅作章节内引用，**规则定义以 SSoT 为准**；本文档与 SSoT 的任何冲突，以 SSoT 为准。
@@ -66,13 +66,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 为什么需要工程思想层
 
-规范告诉开发者"怎么做"，工程思想告诉开发者"为什么这么做"。一份没有思想支撑的规范，要么沦为机械遵守的清单，要么在边界情况下被任意解释。agentrt-linux 的工程标准之所以单独设立工程思想文档，是因为内核工程具有不同于普通用户态软件的根本特征：**它的错误代价是不可逆的**。一次错误的内核 ABI 导出可能锁死整个生态十年；一次轻率的内部 API 冻结可能让主线维护成本指数级上升；一次未审查的"为多数人 benefit 而牺牲少数人"的 regression 可能让关键工作负载在生产环境悄无声息地崩溃。
+规范告诉开发者"怎么做"，工程思想告诉开发者"为什么这么做"。一份没有思想支撑的规范，要么沦为机械遵守的清单，要么在边界情况下被任意解释。agent-linux 的工程标准之所以单独设立工程思想文档，是因为内核工程具有不同于普通用户态软件的根本特征：**它的错误代价是不可逆的**。一次错误的内核 ABI 导出可能锁死整个生态十年；一次轻率的内部 API 冻结可能让主线维护成本指数级上升；一次未审查的"为多数人 benefit 而牺牲少数人"的 regression 可能让关键工作负载在生产环境悄无声息地崩溃。
 
 工程思想层存在的意义，是在规范之上提供**判断的元规则**：当规范条文中没有覆盖某种新型边界情况时，开发者可以回到工程思想层，依据底层哲学自行推导出正确答案。这正是 Linux 内核 30+ 年工程传统中"no stable internal API"看似反直觉却历久弥新的原因——它不是一条规则，而是一个深思熟虑的设计决策（deliberate design decision），是从无数次"维护稳定接口的代价远超收益"的痛苦经验中提炼出的哲学结论。
 
 ### 1.2 三大支柱
 
-agentrt-linux 工程思想建立在三大支柱之上，缺一不可：
+agent-linux 工程思想建立在三大支柱之上，缺一不可：
 
 | 支柱 | 来源 | 在本文档中的体现 |
 |------|------|------------------|
@@ -84,11 +84,11 @@ Linux 内核工程思想提供严肃性基底，五维正交 24 原则提供 Air
 
 ### 1.3 IRON-9 v3 同源且部分代码共享在工程思想层的体现
 
-agentrt-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部分代码共享原则。在工程思想层，这一原则表现为：
+agent-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部分代码共享原则。在工程思想层，这一原则表现为：
 
-- **同源**：双层稳定性哲学源自 Airymax K-2 接口契约化原则，在 agentrt（用户态运行时）与 agentrt-linux（OS 发行版）两端共享同一思想根源；审查优先文化源自 A-3 人文关怀原则，两端共同尊崇"审查是 thankless 工作但不可或缺"的价值。
-- **独立**：agentrt-linux 必须独立处理 agentrt 不涉及的内核态专属哲学——用户空间 ABI 永不破坏的内核严肃性、内核内部 API 不保证稳定的"you broke it, you fix it"机制、补丁生命周期的 Merge Window + RC 周期模型、维护者层级制度（Lieutenant System）。这些都是 OS 发行版的固有责任，不能委托给用户态运行时。
-- **互操作**：agentrt 在 agentrt-linux 上运行时，两端工程思想形成天然互补——agentrt 遵循其用户态运行时规范（如 `airy_log_write` 日志契约），agentrt-linux 遵循其内核发行版规范（如 `printk` 等级与 dmesg 速率限制），两端通过同源语义（如 AgentsIPC 128B 消息头、MicroCoreRT 极简内核契约）实现无适配层互操作。
+- **同源**：双层稳定性哲学源自 Airymax K-2 接口契约化原则，在 agentrt（用户态运行时）与 agent-linux（OS 发行版）两端共享同一思想根源；审查优先文化源自 A-3 人文关怀原则，两端共同尊崇"审查是 thankless 工作但不可或缺"的价值。
+- **独立**：agent-linux 必须独立处理 agentrt 不涉及的内核态专属哲学——用户空间 ABI 永不破坏的内核严肃性、内核内部 API 不保证稳定的"you broke it, you fix it"机制、补丁生命周期的 Merge Window + RC 周期模型、维护者层级制度（Lieutenant System）。这些都是 OS 发行版的固有责任，不能委托给用户态运行时。
+- **互操作**：agentrt 在 agent-linux 上运行时，两端工程思想形成天然互补——agentrt 遵循其用户态运行时规范（如 `airy_log_write` 日志契约），agent-linux 遵循其内核发行版规范（如 `printk` 等级与 dmesg 速率限制），两端通过同源语义（如 AgentsIPC 128B 消息头、MicroCoreRT 极简内核契约）实现无适配层互操作。
 
 ---
 
@@ -101,9 +101,9 @@ agentrt-linux 工程标准与 agentrt 工程标准遵循 IRON-9 v3 同源且部�
 
 **OS-IRON-001: 一旦接口导出至用户空间，必须永久支持。**
 
-这是 agentrt-linux 工程思想的第一铁律，也是与内核内部 API 不稳定原则共同构成的双层稳定性的上层。其内涵是：当一条系统调用、一个 ioctl 命令码、一个 `/proc` 条目、一个 `/sys` 属性、一个 AgentsIPC 消息类型从内核态被导出至用户空间后，它就构成了用户与系统之间的契约——这份契约的有效期不是"下一个版本"，不是"下一个 LTS"，而是**永久**。
+这是 agent-linux 工程思想的第一铁律，也是与内核内部 API 不稳定原则共同构成的双层稳定性的上层。其内涵是：当一条系统调用、一个 ioctl 命令码、一个 `/proc` 条目、一个 `/sys` 属性、一个 AgentsIPC 消息类型从内核态被导出至用户空间后，它就构成了用户与系统之间的契约——这份契约的有效期不是"下一个版本"，不是"下一个 LTS"，而是**永久**。
 
-Linux 6.6 内核基线继承了 Linux 30+ 年的 ABI 稳定传统：在 pre-0.9 内核上编译的老程序，至今仍能在最新内核上正常运行。这不是巧合，而是工程哲学的刻意设计。agentrt-linux 作为智能体操作系统发行版，必须延续这一传统——一个为智能体工作负载编写的 Agent 应用，其 ABI 契约必须跨越 agentrt-linux 的所有未来版本。
+Linux 6.6 内核基线继承了 Linux 30+ 年的 ABI 稳定传统：在 pre-0.9 内核上编译的老程序，至今仍能在最新内核上正常运行。这不是巧合，而是工程哲学的刻意设计。agent-linux 作为智能体操作系统发行版，必须延续这一传统——一个为智能体工作负载编写的 Agent 应用，其 ABI 契约必须跨越 agent-linux 的所有未来版本。
 
 这要求用户空间接口的设计必须做到三件事：
 
@@ -119,7 +119,7 @@ Linux 6.6 内核基线继承了 Linux 30+ 年的 ABI 稳定传统：在 pre-0.9 
 
 内核开发是连续的、快速的、永不停歇的。开发者会发现接口中的 bug，会想到更好的实现方式，会需要为安全漏洞重构数据结构。如果内核内部 API 必须保持稳定，那么每一次改进都必须创建新接口、维护旧接口，最终结果是接口爆炸、维护成本指数级上升、安全漏洞无法彻底根除。Linux 内核 USB 子系统在其生命周期内至少经历过三次大规模重构——从同步模型到异步模型、从简单分配到带元数据分配——每一次重构都修复了真实问题，提升了性能。如果旧接口必须永久保留，这些改进都不可能发生。
 
-agentrt-linux 将这一哲学编码为可执行的工程规则：
+agent-linux 将这一哲学编码为可执行的工程规则：
 
 - **OS-IRON-002**：内核内部 API（包括 `corekern/` 各子系统的内部函数、`coreloopthree/` 的内部接口、`memoryrovol/` 层间接口）可以在任何补丁中变更，无需版本协商。
 - **OS-KER-060**：API 改动者必须同时修复所有受影响代码——这是 "you broke it, you fix it" 规则。改动者不能只改 API 定义而留下调用点，所有调用点必须在同一补丁序列中修复。
@@ -127,9 +127,9 @@ agentrt-linux 将这一哲学编码为可执行的工程规则：
 
 这一机制降低主线维护成本的核心原理是：它将"接口稳定性"的负担从所有调用者转移到了"改动者"——只有想改动接口的人才承担修复所有调用点的成本，而绝大多数只想使用接口的开发者无需为"可能的未来变更"付出任何心智成本。
 
-### 2.3 agentrt-linux 4 层接口稳定性分级
+### 2.3 agent-linux 4 层接口稳定性分级
 
-agentrt-linux 在 Linux 双层稳定性（用户 ABI 稳定 / 内部 API 可变）基础上，结合智能体操作系统的多语言、多层级特征，扩展为 4 层接口稳定性分级：
+agent-linux 在 Linux 双层稳定性（用户 ABI 稳定 / 内部 API 可变）基础上，结合智能体操作系统的多语言、多层级特征，扩展为 4 层接口稳定性分级：
 
 | 层级 | 接口类型 | 稳定性承诺 | 变更流程 | 五维映射 | 规则编号 |
 |------|----------|-----------|---------|---------|---------|
@@ -158,7 +158,7 @@ agentrt-linux 在 Linux 双层稳定性（用户 ABI 稳定 / 内部 API 可变�
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-这一分级是 K-2 接口契约化原则在 agentrt-linux 中的具体实例化——"契约"不是非黑即白，而是按层级递减的稳定性承诺。
+这一分级是 K-2 接口契约化原则在 agent-linux 中的具体实例化——"契约"不是非黑即白，而是按层级递减的稳定性承诺。
 
 ### 2.4 UAPI 头文件编译器无关原则
 
@@ -168,7 +168,7 @@ agentrt-linux 在 Linux 双层稳定性（用户 ABI 稳定 / 内部 API 可变�
 
 > "The kernel user API headers aims to be compiler agnostic and stick to the standard(s). As `_Static_assert()` is a c11 feature, the c99 used for kernel compilation would use a helper macro."
 
-agentrt-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Clang 扩展（`__attribute__`、`__builtin_*`、`__asm__` 等）是合理的——内核绑定特定编译器。但 UAPI 头文件不同——它们是用户态程序消费的契约，不能假设用户态开发者使用特定编译器。
+agent-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Clang 扩展（`__attribute__`、`__builtin_*`、`__asm__` 等）是合理的——内核绑定特定编译器。但 UAPI 头文件不同——它们是用户态程序消费的契约，不能假设用户态开发者使用特定编译器。
 
 **具体要求**：
 
@@ -211,7 +211,7 @@ agentrt-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Cl
 
 ### 3.1 机制留在内核
 
-机制（mechanism）是"提供什么能力"，策略（policy）是"如何使用这个能力"。agentrt-linux 遵循经典的 Unix 工程哲学：机制留在内核，策略外移至用户空间或可插拔模块。
+机制（mechanism）是"提供什么能力"，策略（policy）是"如何使用这个能力"。agent-linux 遵循经典的 Unix 工程哲学：机制留在内核，策略外移至用户空间或可插拔模块。
 
 内核态的职责是提供能力——调度器提供"选择下一个运行的进程"的能力，内存管理提供"分配与回收物理页"的能力，IPC 提供进程间消息传递的能力。内核**不**规定"哪个进程应该被调度"、"哪个进程应该获得更多内存"、"消息应该如何被路由"——这些是策略问题，应由用户空间的策略守护进程、可加载模块或 BPF 程序决定。
 
@@ -221,25 +221,25 @@ agentrt-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Cl
 
 **OS-KER-061: 内核不内置策略；所有算法选择必须通过可插拔接口暴露。**
 
-agentrt-linux 在内核态提供三类策略可插拔机制：
+agent-linux 在内核态提供三类策略可插拔机制：
 
 - **sched_tac 用户态调度器（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）**（§3.3）：CPU 调度策略完全可由用户态调度器定义。
 - **LSM 钩子机制**（§3.4）：安全策略通过 LSM 钩子链加载，运行时增删。
-- **Cupolas 安全策略可插拔**（§3.5）：agentrt-linux 专属的安全策略可插拔框架。
+- **Cupolas 安全策略可插拔**（§3.5）：agent-linux 专属的安全策略可插拔框架。
 
 ### 3.3 sched_tac 用户态调度器作为极端范式
 
-sched_tac 是 agentrt-linux 基于 Linux 6.6 原生调度类（SCHED_DEADLINE/SCHED_FIFO/EEVDF）+ seL4 MCS 映射构建的用户态调度器框架，它代表了策略与机制分离的极端形态：**整个 CPU 调度策略可以在用户空间定义**，而无需修改内核任何代码。
+sched_tac 是 agent-linux 基于 Linux 6.6 原生调度类（SCHED_DEADLINE/SCHED_FIFO/EEVDF）+ seL4 MCS 映射构建的用户态调度器框架，它代表了策略与机制分离的极端形态：**整个 CPU 调度策略可以在用户空间定义**，而无需修改内核任何代码。
 
-agentrt-linux 将sched_tac 视为策略可插拔的范式案例。在智能体工作负载场景下，不同智能体任务对调度的需求差异巨大——批处理任务需要吞吐优先，交互式任务需要延迟优先，长链推理任务需要公平性优先。这些策略差异不应锁死在内核 C 代码中，而应由用户空间的调度器动态决定。agentrt-linux 默认提供一个 `airy_agent_sched` 用户态调度器，针对智能体工作负载优化（认知任务优先、IO 等待让步、长推理任务保护），但任何用户都可以加载自己的用户态调度器替代它。
+agent-linux 将sched_tac 视为策略可插拔的范式案例。在智能体工作负载场景下，不同智能体任务对调度的需求差异巨大——批处理任务需要吞吐优先，交互式任务需要延迟优先，长链推理任务需要公平性优先。这些策略差异不应锁死在内核 C 代码中，而应由用户空间的调度器动态决定。agent-linux 默认提供一个 `airy_agent_sched` 用户态调度器，针对智能体工作负载优化（认知任务优先、IO 等待让步、长推理任务保护），但任何用户都可以加载自己的用户态调度器替代它。
 
 ### 3.4 LSM 钩子机制
 
-Linux Security Module（LSM）框架是策略与机制分离在安全领域的体现。内核提供钩子点（hook points），安全策略作为可加载模块挂载到这些钩子上。agentrt-linux 默认启用若干 LSM 模块（capability、landlock、tomoyo 等），但策略本身（哪些操作被允许、哪些被拒绝）由各 LSM 模块独立定义，内核不预设。
+Linux Security Module（LSM）框架是策略与机制分离在安全领域的体现。内核提供钩子点（hook points），安全策略作为可加载模块挂载到这些钩子上。agent-linux 默认启用若干 LSM 模块（capability、landlock、tomoyo 等），但策略本身（哪些操作被允许、哪些被拒绝）由各 LSM 模块独立定义，内核不预设。
 
-### 3.5 agentrt-linux 专属：Cupolas 安全策略可插拔
+### 3.5 agent-linux 专属：Cupolas 安全策略可插拔
 
-agentrt-linux 在传统 LSM 之上引入 Cupolas 安全策略可插拔框架，这是 Airymax 安全穹顶（cupolas）在 OS 发行版上的延伸。Cupolas 将安全策略分为四层：
+agent-linux 在传统 LSM 之上引入 Cupolas 安全策略可插拔框架，这是 Airymax 安全穹顶（cupolas）在 OS 发行版上的延伸。Cupolas 将安全策略分为四层：
 
 | 层级 | 机制 | 可插拔性 | 示例 |
 |------|------|---------|------|
@@ -248,7 +248,7 @@ agentrt-linux 在传统 LSM 之上引入 Cupolas 安全策略可插拔框架，�
 | **L3 净化层** | 输入净化与输出脱敏 | 可加载模块 | Prompt 注入防护 |
 | **L4 审计层** | 行为审计与回放 | 不可插拔（强制） | 全量操作日志 |
 
-L1-L3 可插拔，L4 不可插拔——审计是 agentrt-linux 的不可妥协底线，对应 E-1 安全内生原则。
+L1-L3 可插拔，L4 不可插拔——审计是 agent-linux 的不可妥协底线，对应 E-1 安全内生原则。
 
 ---
 
@@ -259,7 +259,7 @@ L1-L3 可插拔，L4 不可插拔——审计是 agentrt-linux 的不可妥协�
 
 ### 4.1 滚动开发模型
 
-agentrt-linux 采用 Linux 内核的滚动开发模型：每 2-3 个月发布一个主版本，主版本之间没有"大版本间隔"。这与"每 1-2 年发布一个大版本"的传统模型形成鲜明对比。
+agent-linux 采用 Linux 内核的滚动开发模型：每 2-3 个月发布一个主版本，主版本之间没有"大版本间隔"。这与"每 1-2 年发布一个大版本"的传统模型形成鲜明对比。
 
 滚动模型的工程价值在于：**它将大爆炸变成小步快跑**。一个 13000 个补丁的大版本意味着 13000 次潜在 regression 同时落地；而 13 个 1000 补丁的小版本意味着每次只面对 1000 次潜在 regression。涌现性管理（S-4）的核心就是控制单次变更的规模——小变更产生小涌现，大变更产生不可预测的大涌现。
 
@@ -271,7 +271,7 @@ agentrt-linux 采用 Linux 内核的滚动开发模型：每 2-3 个月发布一
 - **RC 周期（约 6-10 周，rc1-rc9）**：只接受 bug 修复，不接受新特性。每个 RC 大约每周发布一次。
 
 ```c
-/* agentrt-linux 版本周期示例（伪代码） */
+/* agent-linux 版本周期示例（伪代码） */
 release_cycle = {
     .merge_window_weeks = 2,
     .rc_min = 6,
@@ -297,13 +297,13 @@ release_cycle = {
 
 ### 4.4 -next 树等价物
 
-agentrt-linux 维护一个 `develop` 分支，作为 Linux 内核 `linux-next` 树的等价物。`develop` 分支汇集各子系统维护者树（subsystem trees）的待合并补丁，提供"下一周期将合并什么"的预览。
+agent-linux 维护一个 `develop` 分支，作为 Linux 内核 `linux-next` 树的等价物。`develop` 分支汇集各子系统维护者树（subsystem trees）的待合并补丁，提供"下一周期将合并什么"的预览。
 
 `develop` 分支的设计目标是：**让集成冲突在 Merge Window 之前暴露，而非在 Merge Window 中爆发**。两个子系统同时修改同一个文件，如果在 Merge Window 中才被发现，将导致紧急返工；而在 `develop` 中提前暴露，则有充足时间协商解决。
 
 ### 4.5 例外：之前不支持的硬件驱动可随时加入
 
-agentrt-linux 继承 Linux 的一个例外规则：**为之前不支持的硬件编写的新驱动，可以在 RC 阶段加入**。理由是：如果驱动不触及任何既有代码（in-tree code），它不可能引入 regression——它是纯新增的，最坏情况只是新驱动本身不工作，不影响既有功能。
+agent-linux 继承 Linux 的一个例外规则：**为之前不支持的硬件编写的新驱动，可以在 RC 阶段加入**。理由是：如果驱动不触及任何既有代码（in-tree code），它不可能引入 regression——它是纯新增的，最坏情况只是新驱动本身不工作，不影响既有功能。
 
 这一例外体现了工程哲学的务实性：原则是死的，场景是活的。新硬件支持的延迟意味着用户无法使用新硬件，这是真实的损失；而 RC 阶段合并新驱动的风险是可控的。
 
@@ -320,7 +320,7 @@ Linux 内核工程思想中有一句名言（出自 `2.Process.rst`）：
 
 > "No bugs are welcome, but those which break systems which worked in the past are considered to be especially serious."
 
-agentrt-linux 完全继承这一判断。Bug 都是坏的，但 regression 是**特别坏的**——因为它打破了用户对系统的既有信任。一个在 v1.0 上正常运行的智能体工作负载，升级到 v1.1 后崩溃，这是不可接受的；一个新功能引入的新 bug，影响范围限于使用该新功能的用户，可以容忍；而一个 regression 影响的是所有升级用户，包括那些根本不需要新功能的用户。
+agent-linux 完全继承这一判断。Bug 都是坏的，但 regression 是**特别坏的**——因为它打破了用户对系统的既有信任。一个在 v1.0 上正常运行的智能体工作负载，升级到 v1.1 后崩溃，这是不可接受的；一个新功能引入的新 bug，影响范围限于使用该新功能的用户，可以容忍；而一个 regression 影响的是所有升级用户，包括那些根本不需要新功能的用户。
 
 ### 5.2 regression 必须尽快修复
 
@@ -341,7 +341,7 @@ agentrt-linux 完全继承这一判断。Bug 都是坏的，但 regression 是**
 
 Linus Torvalds 在 2007-07 提出的这句名言，是 regression 不可接受原则的精髓。它否定了"为了修一个 bug 而引入另一个 bug"的工程取向——bug 修复必须是局部的、可控的、不引入新风险的。当一个 bug 修复补丁被发现引入了新的 regression，正确的做法不是"权衡两个 bug 哪个更严重"，而是**回退修复补丁，重新设计**。
 
-agentrt-linux 将这一原则编码为：
+agent-linux 将这一原则编码为：
 
 - **OS-KER-065**：任何 bug 修复补丁必须附带回归测试（kselftest 或 KUnit），证明修复不引入新问题。
 - **OS-KER-066**：bug 修复补丁的复杂度必须与 bug 严重性匹配——简单 bug 用简单修复，禁止"借修 bug 之名行重构之实"。
@@ -357,11 +357,11 @@ agentrt-linux 将这一原则编码为：
 
 Linux 内核工程思想的另一个核心论断：**out-of-tree 代码是低质量代码**。这不是对 out-of-tree 开发者的侮辱，而是工程事实——out-of-tree 代码无法享受主线审查、无法被其他开发者持续修复、无法跟随内部 API 演进、无法被自动化测试覆盖。一个驱动如果不在主线中，它必然在每次内核版本升级时面临兼容性噩梦。
 
-agentrt-linux 完全继承这一立场。任何长期维护的内核代码、驱动、模块，最终目标都必须是进入主线。短期 out-of-tree 可以接受（开发期、实验期），但长期 out-of-tree 是工程上的失败状态。
+agent-linux 完全继承这一立场。任何长期维护的内核代码、驱动、模块，最终目标都必须是进入主线。短期 out-of-tree 可以接受（开发期、实验期），但长期 out-of-tree 是工程上的失败状态。
 
 ### 6.2 Reviewer's Statement of Oversight 等价物
 
-agentrt-linux 要求所有维护者签署"Reviewer's Statement of Oversight"等价物——一份明确的承诺书，声明：
+agent-linux 要求所有维护者签署"Reviewer's Statement of Oversight"等价物——一份明确的承诺书，声明：
 
 - 我理解我审查的代码的影响范围。
 - 我承诺持续跟踪该代码的后续演进。
@@ -370,7 +370,7 @@ agentrt-linux 要求所有维护者签署"Reviewer's Statement of Oversight"等�
 
 ### 6.3 审查礼仪
 
-审查是 thankless 工作——审查者付出了时间与专业能力，但代码合并后功劳归于作者。agentrt-linux 在 A-3 人文关怀原则下，要求所有审查参与者遵守：
+审查是 thankless 工作——审查者付出了时间与专业能力，但代码合并后功劳归于作者。agent-linux 在 A-3 人文关怀原则下，要求所有审查参与者遵守：
 
 - **审查针对代码，不针对人**。看似愤怒的审查不是针对个人，而是对代码质量的关切。审查者粗鲁的措辞可以被批评，但其技术意见不应因此被否定。
 - **不响应审查是致命错误**。一个补丁如果长时间（>2 周）未响应审查意见，将被视为废弃，自动从队列中移除。
@@ -378,7 +378,7 @@ agentrt-linux 要求所有维护者签署"Reviewer's Statement of Oversight"等�
 
 ### 6.4 顶级审查人角色
 
-agentrt-linux 设立顶级审查人角色（对应 Linux 社区中 Andrew Morton 的角色），其职责是：
+agent-linux 设立顶级审查人角色（对应 Linux 社区中 Andrew Morton 的角色），其职责是：
 
 - 接收"无明确子系统归属"的补丁，作为兜底审查者。
 - 在多个子系统维护者意见冲突时，作为技术仲裁者。
@@ -428,11 +428,11 @@ Signed-off-by: Bob Subsystem Maintainer <bob@example.com>
 Signed-off-by: Carol Top Maintainer <carol@example.com>
 ```
 
-agentrt-linux 通过 DCO bot 自动验证 PR 的 `Signed-off-by:` 链条完整性。
+agent-linux 通过 DCO bot 自动验证 PR 的 `Signed-off-by:` 链条完整性。
 
 ### 7.5 多种审查标签
 
-agentrt-linux 继承 Linux 的多种审查标签体系，每种标签有明确语义：
+agent-linux 继承 Linux 的多种审查标签体系，每种标签有明确语义：
 
 | 标签 | 语义 | 责任 |
 |------|------|------|
@@ -501,9 +501,9 @@ int airy_dispatch_task(struct airy_task *task, uint32_t timeout_ms);
 
 CI 中强制运行 `make htmldocs`，验证所有 kernel-doc 注释可被正确解析为 HTML 文档。任何 kernel-doc 语法错误都会导致 CI 失败——文档语法错误与代码语法错误同等严重。
 
-### 8.7 agentrt-linux 专属：Agent SDK 接口必须多语言文档化
+### 8.7 agent-linux 专属：Agent SDK 接口必须多语言文档化
 
-agentrt-linux 作为多语言栈（C / Rust / Python / TypeScript）的智能体操作系统，要求所有 L1 Agent 应用 API 必须在四种语言中均有完整文档。一份接口只在 C 头文件中注释而在 Rust/Python/TS SDK 中缺失，等同于文档缺失。多语言文档化的工作量大，但这是 E-4 跨平台一致性原则的执行要求——开发者无论使用哪种语言，都应获得同等质量的文档体验。
+agent-linux 作为多语言栈（C / Rust / Python / TypeScript）的智能体操作系统，要求所有 L1 Agent 应用 API 必须在四种语言中均有完整文档。一份接口只在 C 头文件中注释而在 Rust/Python/TS SDK 中缺失，等同于文档缺失。多语言文档化的工作量大，但这是 E-4 跨平台一致性原则的执行要求——开发者无论使用哪种语言，都应获得同等质量的文档体验。
 
 ---
 
@@ -520,7 +520,7 @@ agentrt-linux 作为多语言栈（C / Rust / Python / TypeScript）的智能体
 
 ### 9.2 用户空间接口设计必须深思熟虑
 
-agentrt-linux 的工程师在设计用户空间接口时，必须自问以下问题：
+agent-linux 的工程师在设计用户空间接口时，必须自问以下问题：
 
 1. 这个接口在 10 年后还需要存在吗？如果不需要，它不应该被导出。
 2. 这个接口的语义能否在不破坏向后兼容的前提下演进？如果不能，它的设计需要重新考虑。
@@ -529,7 +529,7 @@ agentrt-linux 的工程师在设计用户空间接口时，必须自问以下问
 
 ### 9.3 所有用户空间接口改动必须 CC 专门的 ABI 审查组
 
-agentrt-linux 设立专门的 ABI 审查组（`os-abi-reviewers@airymaxos.dev`），所有涉及用户空间接口的 PR 必须显式 CC 该组。ABI 审查组的职责：
+agent-linux 设立专门的 ABI 审查组（`os-abi-reviewers@airymaxos.dev`），所有涉及用户空间接口的 PR 必须显式 CC 该组。ABI 审查组的职责：
 
 - 审查接口设计的长期合理性。
 - 评估接口演进的兼容性风险。
@@ -537,7 +537,7 @@ agentrt-linux 设立专门的 ABI 审查组（`os-abi-reviewers@airymaxos.dev`�
 
 ### 9.4 案例：旧程序在新内核上仍能运行
 
-agentrt-linux 的工程目标是：一个为 v1.0 编写的 Agent 应用，在 v2.0、v3.0、v10.0 上都应能正常运行，无需重新编译（在 ABI 兼容的硬件架构上）。这不是软性目标，而是硬性承诺。
+agent-linux 的工程目标是：一个为 v1.0 编写的 Agent 应用，在 v2.0、v3.0、v10.0 上都应能正常运行，无需重新编译（在 ABI 兼容的硬件架构上）。这不是软性目标，而是硬性承诺。
 
 实现这一承诺的机制包括：
 
@@ -559,7 +559,7 @@ agentrt-linux 的工程目标是：一个为 v1.0 编写的 Agent 应用，在 v
 
 Linux 内核管理哲学的核心论断：**管理的本质是避免决策，而非做出决策**。一个需要管理者亲自做的"大决策"，意味着管理者已经脱离了技术细节——而脱离技术细节的管理者做的决策，大概率是错的。
 
-agentrt-linux 将这一哲学转译为可操作规则：
+agent-linux 将这一哲学转译为可操作规则：
 
 - **能 undo 的决策就是小决策**。判断一个决策大小的标准，不是它的影响范围，而是它能否被回退。能被回退的决策可以随时做出，不能被回退的决策需要深思熟虑。
 - **永远不要让自己进入无法回退的角落**。一个"如果不这样做就会怎样"的决策，本质上是绑架——它迫使组织接受一个本应被质疑的方案。
@@ -579,7 +579,7 @@ agentrt-linux 将这一哲学转译为可操作规则：
 
 **alienating people 是不可逆的**。这是管理哲学中比技术决策更严肃的命题——技术决策可以被 revert，人际关系一旦破裂难以修复。
 
-agentrt-linux 要求所有维护者、审查者、贡献者遵守两条简单规则：
+agent-linux 要求所有维护者、审查者、贡献者遵守两条简单规则：
 
 1. 不要在公开场合侮辱他人（即使你认为对方是错的）。
 2. 如果违反了规则 1，必须学会道歉。
@@ -588,29 +588,29 @@ agentrt-linux 要求所有维护者、审查者、贡献者遵守两条简单规
 
 ### 10.4 6 级贡献者成熟度模型
 
-agentrt-linux 采用 Linux Foundation TAB 提出的贡献者成熟度模型，并按 IRON-9 v3 同源且部分代码共享原则适配 agentrt-linux 语境：
+agent-linux 采用 Linux Foundation TAB 提出的贡献者成熟度模型，并按 IRON-9 v3 同源且部分代码共享原则适配 agent-linux 语境：
 
-| Level | 特征 | agentrt-linux 表述 |
+| Level | 特征 | agent-linux 表述 |
 |-------|------|----------------|
-| **L0** | 工程师不允许贡献补丁 | 不允许向 agentrt-linux 主线提交补丁（明令禁止） |
-| **L1** | 工程师被允许贡献补丁（工作时间内或业余） | 工程师被允许向 agentrt-linux 主线提交补丁，作为工作职责或个人时间均可 |
-| **L2** | 工程师被期望贡献补丁（作为工作职责） | 工程师被期望贡献补丁，参与 agentrt-linux 相关会议可计入工作时间，贡献纳入晋升评审 |
-| **L3** | 工程师被期望审查补丁（包括跨组织） | 工程师被期望审查补丁（包括其他组织的补丁），在 agentrt-linux 相关会议发表演讲计入工作，组织需定期报告开源贡献指标 |
+| **L0** | 工程师不允许贡献补丁 | 不允许向 agent-linux 主线提交补丁（明令禁止） |
+| **L1** | 工程师被允许贡献补丁（工作时间内或业余） | 工程师被允许向 agent-linux 主线提交补丁，作为工作职责或个人时间均可 |
+| **L2** | 工程师被期望贡献补丁（作为工作职责） | 工程师被期望贡献补丁，参与 agent-linux 相关会议可计入工作时间，贡献纳入晋升评审 |
+| **L3** | 工程师被期望审查补丁（包括跨组织） | 工程师被期望审查补丁（包括其他组织的补丁），在 agent-linux 相关会议发表演讲计入工作，组织需定期报告开源贡献指标 |
 | **L4** | 工程师被鼓励投入一定比例工作时间于 Upstream Work | 工程师被鼓励投入工作时间于 Upstream Work（审查、工程规范委员会、测试基础设施、技术债、文档），社区反馈纳入绩效评审 |
-| **L5** | Upstream 开发是正式岗位 | agentrt-linux 主线开发是正式岗位，至少 1/3 工作时间投入 Upstream Work，组织主动寻求社区反馈 |
+| **L5** | Upstream 开发是正式岗位 | agent-linux 主线开发是正式岗位，至少 1/3 工作时间投入 Upstream Work，组织主动寻求社区反馈 |
 
-### 10.5 agentrt-linux 专属：期望从 Level 1 起步，逐步迈向 Level 5
+### 10.5 agent-linux 专属：期望从 Level 1 起步，逐步迈向 Level 5
 
-agentrt-linux 作为一个新建的智能体操作系统发行版，其工程组织的成熟度不可能一蹴而就。我们设定务实的演进路径：
+agent-linux 作为一个新建的智能体操作系统发行版，其工程组织的成熟度不可能一蹴而就。我们设定务实的演进路径：
 
 - **0.1.x 版本（奠基期）**：组织处于 L1-L2 之间。少数核心维护者全职投入，多数贡献者为允许贡献状态。
 - **1.0.x 版本（开发期）**：组织演进至 L2-L3。核心维护者开始系统审查外部贡献，参与社区演讲。
 - **2.0.x 版本（成熟期）**：组织演进至 L3-L4。建立专门的 Upstream Work 时间预算，社区反馈纳入绩效评审。
-- **3.0.x 版本（自治期）**：组织演进至 L4-L5。agentrt-linux 主线开发成为正式岗位，组织主动寻求社区反馈作为绩效因素。
+- **3.0.x 版本（自治期）**：组织演进至 L4-L5。agent-linux 主线开发成为正式岗位，组织主动寻求社区反馈作为绩效因素。
 
 这一演进路径本身就是一个增量演化的过程（C-2 增量演化原则）——不期望跳跃式达到 L5，而是每一步都建立在前一步的稳固基础上。试图跳过中间阶段直接到达 L5 的组织，往往会因为缺乏中间积累而无法真正履行 L5 的承诺——正如试图跳过 Merge Window 直接在 RC 阶段合并大特性的开发者，会得到"unfriendly reception"一样。
 
-工程思想的真正力量，不在于它被写在这里，而在于它在每一次补丁提交、每一次审查响应、每一次 regression 决策中被默默遵守。本文档的所有规则编号（OS-IRON-001 至 OS-IRON-016，OS-KER-060 至 OS-KER-069）都不是装饰，而是 agentrt-linux 工程体系的承重结构——它们与五维正交 24 原则共同构成系统的思想骨架，与 Linux 6.6 内核基线共同保证系统的工程严肃性，与 IRON-9 v3 同源且部分代码共享原则共同定义 agentrt-linux 与 agentrt 的协作边界。
+工程思想的真正力量，不在于它被写在这里，而在于它在每一次补丁提交、每一次审查响应、每一次 regression 决策中被默默遵守。本文档的所有规则编号（OS-IRON-001 至 OS-IRON-016，OS-KER-060 至 OS-KER-069）都不是装饰，而是 agent-linux 工程体系的承重结构——它们与五维正交 24 原则共同构成系统的思想骨架，与 Linux 6.6 内核基线共同保证系统的工程严肃性，与 IRON-9 v3 同源且部分代码共享原则共同定义 agent-linux 与 agentrt 的协作边界。
 
 ---
 
@@ -669,6 +669,6 @@ agentrt-linux 作为一个新建的智能体操作系统发行版，其工程组
 
 ---
 
-> **文档结束** | agentrt-linux 工程标准 50-engineering-standards/04-engineering-philosophy.md
+> **文档结束** | agent-linux 工程标准 50-engineering-standards/04-engineering-philosophy.md
 > **同源文档**： `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）| IRON-9 v3 工程铁律（工程标准规范，17 类规则编号体系）
 > **下游文档**： `05-development-process.md`（开发流程）| `07-maintainers-and-governance.md`（维护者制度与治理）

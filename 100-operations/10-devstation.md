@@ -24,7 +24,7 @@ devstation 是 AirymaxOS 专属的开发运维工具，为开发与运维人员�
 
 ### 1.2 devstation 定位
 
-devstation 是 agentrt-linux（AirymaxOS）的开发运维工作站，与 12 daemon 的关系：
+devstation 是 agent-linux（AirymaxOS）的开发运维工作站，与 12 daemon 的关系：
 
 - **消费者**：消费 macro_d、logger_d、audit_d 提供的监控与日志数据。
 - **操作者**：通过 airyctl 命令操作 Agent、记忆、配置等。
@@ -731,8 +731,8 @@ RPM 包内容：
 支持从源码编译：
 
 ```bash
-git clone https://github.com/spharx/agentrt-linux
-cd agentrt-linux/tools/devstation
+git clone https://github.com/spharx/agent-linux
+cd agent-linux/tools/devstation
 make
 sudo make install
 ```

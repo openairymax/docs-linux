@@ -1,17 +1,17 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 接口设计
-> **文档定位**：agentrt-linux（AirymaxOS） 接口设计层的总览与索引\
+> **文档定位**：agent-linux（AirymaxOS） 接口设计层的总览与索引\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 总览](../README.md)\
+> **上级文档**：[agent-linux 总览](../README.md)\
 > **设计依据**：综合修正方案 §3.1（P0 级缺失文档 #3/#4）+ §6.2.1（30-interfaces 一致性检查）
 
 ---
 
 ## 1. 接口设计概览
 
-agentrt-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS 与应用之间的全部接口契约。所有接口遵循"机制在内核、策略在用户态"的微内核原则，并与 agentrt 同源模块保持语义兼容。
+agent-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS 与应用之间的全部接口契约。所有接口遵循"机制在内核、策略在用户态"的微内核原则，并与 agentrt 同源模块保持语义兼容。
 
 接口分为 5 类（v1.0.1 新增 [SC] 共享契约类别，对齐 Airymax Unify Design 5 模块与 IRON-9 v3 四层模型）：
 
@@ -112,13 +112,13 @@ agentrt-linux 接口设计层定义 8 子仓之间、内核与用户态之间、
 
 ## 5. 与 agentrt 接口的关系
 
-agentrt-linux 接口与 agentrt 接口遵循 IRON-9 v3"四层共享模型"原则（[SC] 共享契约 + [SS] 语义同源 + [IND] 完全独立 + [DSL] 降级生存，详见 [10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)）：
+agent-linux 接口与 agentrt 接口遵循 IRON-9 v3"四层共享模型"原则（[SC] 共享契约 + [SS] 语义同源 + [IND] 完全独立 + [DSL] 降级生存，详见 [10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)）：
 
-| 维度 | agentrt 接口 | agentrt-linux 接口 | 关系 | IRON-9 v3 层级 |
+| 维度 | agentrt 接口 | agent-linux 接口 | 关系 | IRON-9 v3 层级 |
 |------|-------------|---------------|------|---------------|
-| 系统调用 | 无（用户态运行时） | `AIRY_SYS_*` 内核系统调用 | agentrt-linux 新增（OS 级） | [IND] |
+| 系统调用 | 无（用户态运行时） | `AIRY_SYS_*` 内核系统调用 | agent-linux 新增（OS 级） | [IND] |
 | IPC 消息头 | AgentsIPC 128B 定长 | 同源 128B 定长（字段对齐） | 语义同源，布局兼容 | [SC]（`ipc.h`） |
-| IPC payload | 自定义协议 | 5 种 payload（REQUEST/RESPONSE/EVENT/STREAM/CONTROL） | agentrt-linux 扩展 | [IND] |
+| IPC payload | 自定义协议 | 5 种 payload（REQUEST/RESPONSE/EVENT/STREAM/CONTROL） | agent-linux 扩展 | [IND] |
 | SDK | sdk（应用层） | agentctl + 4 语言 SDK | 同源语义，OS 级封装 | [SS] |
 | capability | 应用权限模型 | seL4 风格 capability 系统 + 纯 C LSM | 同源语义，OS 级升级 | [SC]（`security_types.h`）+ [IND] |
 | 调度 | MicroCoreRT 用户态调度 | sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射） | 同源语义，内核态实现 | [SC]（`sched.h`）+ [IND] |
@@ -127,21 +127,21 @@ agentrt-linux 接口与 agentrt 接口遵循 IRON-9 v3"四层共享模型"原则
 | 记忆 | MemoryRovol 用户态 | MemoryRovol 内核态 | 同源语义，内核态升级 | [SC]（`memory_types.h`） |
 | 认知循环 | CoreLoopThree 用户态 | CoreLoopThree kthread | 同源语义，内核态加速 | [SC]（`cognition_types.h`） |
 
-**同源红利**: agentrt 在 agentrt-linux 上运行时，IPC 消息头布局兼容、调度语义一致、capability 模型一致，无需适配层即可天然契合。具体表现：
+**同源红利**: agentrt 在 agent-linux 上运行时，IPC 消息头布局兼容、调度语义一致、capability 模型一致，无需适配层即可天然契合。具体表现：
 
-- **IPC 兼容**: agentrt 发出的 128B 消息头可直接被 agentrt-linux io_uring + IORING_OP_URING_CMD 通道接收，无需协议转换（不使用 page flipping）。
+- **IPC 兼容**: agentrt 发出的 128B 消息头可直接被 agent-linux io_uring + IORING_OP_URING_CMD 通道接收，无需协议转换（不使用 page flipping）。
 - **调度兼容**: agentrt 的任务优先级语义（0-139）与sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF）对齐，调度行为一致（不使用 sched_ext）。
-- **记忆兼容**: agentrt 的 MemoryRovol 用户态 API 与 agentrt-linux 内核态实现语义对齐，可平滑迁移。
+- **记忆兼容**: agentrt 的 MemoryRovol 用户态 API 与 agent-linux 内核态实现语义对齐，可平滑迁移。
 
-**独立性**: agentrt-linux 接口为 OS 级接口（系统调用、内核 IPC、OS 级 SDK），与 agentrt 的应用级接口在分层上独立，不构成依赖耦合。当 agentrt 演进时，agentrt-linux 通过接口契约评审决定是否同步，避免被动跟随。独立性体现在：
+**独立性**: agent-linux 接口为 OS 级接口（系统调用、内核 IPC、OS 级 SDK），与 agentrt 的应用级接口在分层上独立，不构成依赖耦合。当 agentrt 演进时，agent-linux 通过接口契约评审决定是否同步，避免被动跟随。独立性体现在：
 
-- **分层独立**: agentrt-linux 接口位于 OS 层（系统调用 + 内核 IPC），agentrt 接口位于应用层（SDK + 用户态 IPC），二者通过契约解耦。
-- **演进独立**: agentrt-linux 接口随 Linux 6.6 内核基线演进节奏，agentrt 接口随应用层需求演进，互不阻塞。
-- **测试独立**: agentrt-linux 接口由 `tests-linux` 子仓验证（形式化 + Soak + 混沌），agentrt 接口由 agentrt 自有测试覆盖。
+- **分层独立**: agent-linux 接口位于 OS 层（系统调用 + 内核 IPC），agentrt 接口位于应用层（SDK + 用户态 IPC），二者通过契约解耦。
+- **演进独立**: agent-linux 接口随 Linux 6.6 内核基线演进节奏，agentrt 接口随应用层需求演进，互不阻塞。
+- **测试独立**: agent-linux 接口由 `tests-linux` 子仓验证（形式化 + Soak + 混沌），agentrt 接口由 agentrt 自有测试覆盖。
 
 ### 5.1 接口演进与版本协商
 
-agentrt-linux 接口采用语义化版本 + ABI 兼容承诺的演进策略：
+agent-linux 接口采用语义化版本 + ABI 兼容承诺的演进策略：
 
 - **MAJOR 版本**: 不兼容的接口变更，需重新评审全部契约，触发 K-2 契约重签。
 - **MINOR 版本**: 向后兼容的新增接口（新系统调用编号、新 IPC payload 类型），不影响既有调用方。
@@ -155,7 +155,7 @@ agentrt-linux 接口采用语义化版本 + ABI 兼容承诺的演进策略：
 
 ## 6. 相关文档
 
-- [agentrt-linux 总览](../README.md)
+- [agent-linux 总览](../README.md)
 - [模块设计](../20-modules/README.md)
 - [架构设计](../10-architecture/01-system-architecture.md)
 - [Airymax Unify Design 总纲](../10-architecture/10-unify-design.md)

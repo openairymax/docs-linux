@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）user_events 接口
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L5 层——用户态事件追踪桥接 user_events 的工程规范\
+# agent-linux（AirymaxOS）user_events 接口
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L5 层——用户态事件追踪桥接 user_events 的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
@@ -29,13 +29,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架，允许用户态进程通过 `ioctl()` 注册事件，并通过 `write()` 到 `/sys/kernel/tracing/user_events_data` 投递事件数据；`enabled` 启用位通过 `mmap()` 共享，用户态零拷贝检查启用状态。agentrt-linux 选择 user_events 作为可观测性 L5 层（用户态桥接），原因有三：
+user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架，允许用户态进程通过 `ioctl()` 注册事件，并通过 `write()` 到 `/sys/kernel/tracing/user_events_data` 投递事件数据；`enabled` 启用位通过 `mmap()` 共享，用户态零拷贝检查启用状态。agent-linux 选择 user_events 作为可观测性 L5 层（用户态桥接），原因有三：
 
 1. **启用位 mmap 零拷贝检查 + write() 投递**：user_events 将 `enabled` 位通过 `mmap()` 暴露给用户态，用户态原子读检查（无需系统调用），命中后经 `write()` 到 `user_events_data` 投递事件（单次 syscall，非零拷贝写入），单事件开销 < 10ns（enabled 检查 ~1.2ns + write 投递），远低于 A-ULP 日志路径的 ~500ns。
 2. **与 ftrace 统一**：user_events 事件与内核 tracepoint 事件共享同一 ring buffer 与同一 `events/` 目录结构，可在同一 trace 输出中混合查看，符合 A-ULS 模块 macro_d 的"统一观测面"原则。
 3. **与 logger_d 解耦**：user_events 用于实时追踪（短期、高频率），logger_d 用于持久化日志（长期、结构化）；二者职责清晰，不互相替代。
 
-**OS-OBS-061: user_events 是 agentrt-linux 可观测性 L5 层的强制基线，用户态守护进程上报追踪事件必须经 user_events，不得自创 ioctl/netlink/共享内存替代方案。**
+**OS-OBS-061: user_events 是 agent-linux 可观测性 L5 层的强制基线，用户态守护进程上报追踪事件必须经 user_events，不得自创 ioctl/netlink/共享内存替代方案。**
 
 **OS-KER-151: kernel 的 defconfig 必须开启 CONFIG_USER_EVENTS；部署时须验证 `/sys/kernel/tracing/user_events` 文件存在（内建 Airy LSM，非 agentrt.ko）。**
 
@@ -49,7 +49,7 @@ user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架，允
 | events 子系统 | `kernel/trace/trace_events.c` | 事件管理与导出 |
 | 用户态库 | `libairy_user_events.so` | 封装 ioctl 与写入逻辑 |
 
-**OS-STD-051: 任何对 `kernel/trace/trace_events_user.c` 的修改必须经过 user_events 维护者审查；agentrt-linux 不得 fork user_events 子系统。**
+**OS-STD-051: 任何对 `kernel/trace/trace_events_user.c` 的修改必须经过 user_events 维护者审查；agent-linux 不得 fork user_events 子系统。**
 
 ### 1.3 user_events vs Ring Buffer 日志
 
@@ -159,7 +159,7 @@ cat /sys/kernel/tracing/trace
 
 ### 3.1 airy_user_event_register() API
 
-agentrt-linux 提供封装 API `airy_user_event_register()`，供 12 daemon 与 Agent 运行时使用：
+agent-linux 提供封装 API `airy_user_event_register()`，供 12 daemon 与 Agent 运行时使用：
 
 ```c
 /* include/uapi/linux/airymax/user_events.h（v1.0.1 计划实现，当前未创建） */
@@ -379,7 +379,7 @@ echo 'agent_id == 42 && input_tokens > 1000' > \
 
 ### 5.2 协同工作流
 
-agentrt-linux 中，user_events 与 logger_d 协同工作：
+agent-linux 中，user_events 与 logger_d 协同工作：
 
 1. **实时分析阶段**：开发人员通过 user_events 实时观察 Agent 行为，定位性能瓶颈。
 2. **持久化阶段**：关键事件同时写入 A-ULP Ring Buffer，由 logger_d 异步落盘。
@@ -428,7 +428,7 @@ cat /sys/kernel/tracing/trace_pipe | logger_d --user-events
 
 ### 6.1 单事件开销
 
-user_events 的核心优势是极低开销。agentrt-linux 基线测量（ARM64 Neoverse N2 @ 3GHz）：
+user_events 的核心优势是极低开销。agent-linux 基线测量（ARM64 Neoverse N2 @ 3GHz）：
 
 | 路径 | 单事件开销 | 说明 |
 |------|-----------|------|
@@ -453,7 +453,7 @@ user_events 启用时的 8.7ns 开销分解：
 
 ### 6.3 批量写入优化
 
-对于高频事件，agentrt-linux 支持批量写入：
+对于高频事件，agent-linux 支持批量写入：
 
 ```c
 /* 批量写入示例（单次 write 多个事件） */
@@ -512,7 +512,7 @@ bpftool prog load cogn_trace.o /sys/fs/bpf/cogn_trace \
 
 ### 7.3 与 02-ebpf-probes.md 的关系
 
-[02-ebpf-probes.md](02-ebpf-probes.md) 定义了 eBPF 在 agentrt-linux 可观测性 L2 层的工程规范，涵盖：
+[02-ebpf-probes.md](02-ebpf-probes.md) 定义了 eBPF 在 agent-linux 可观测性 L2 层的工程规范，涵盖：
 
 - kfunc + BTF + dynamic pointer 机制
 - BPF 程序加载与验证
@@ -595,4 +595,4 @@ bpftool prog load cogn_trace.o /sys/fs/bpf/cogn_trace \
 
 ---
 
-> **文档结束** | agentrt-linux user_events 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."
+> **文档结束** | agent-linux user_events 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."

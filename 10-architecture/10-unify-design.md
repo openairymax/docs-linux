@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 架构师、内核开发者、用户态守护进程开发者、跨端集成工程师
+- **目标读者**：agent-linux 架构师、内核开发者、用户态守护进程开发者、跨端集成工程师
 - **前置知识**：理解 [03-microkernel-strategy.md](03-microkernel-strategy.md) 微内核化策略、[06-iron9-shared-model.md](06-iron9-shared-model.md) IRON-9 v3 四层模型、[04-engineering-baseline.md](04-engineering-baseline.md) 工程基线
 - **预计阅读时间**：60 分钟
 - **核心概念**：A-UEF、A-ULP、A-UCS、A-ULS、A-IPC、[DSL]、sched_tac、四大技术领域
@@ -33,7 +33,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 冲突点全景
 
-在 agentrt-linux v0.1.1 文档体系逐一检查中，暴露出 7 个 P0 级架构冲突点。这些冲突并非孤立的技术表述错误，而是源于"缺少一个统一的设计思想来约束所有模块的边界"。Airymax Unify Design 即为消解这 7 个冲突点而提出。
+在 agent-linux v0.1.1 文档体系逐一检查中，暴露出 7 个 P0 级架构冲突点。这些冲突并非孤立的技术表述错误，而是源于"缺少一个统一的设计思想来约束所有模块的边界"。Airymax Unify Design 即为消解这 7 个冲突点而提出。
 
 | # | 冲突点 | 冲突表现 | Unify Design 消解方式 |
 |---|--------|---------|---------------------|
@@ -199,7 +199,7 @@ Fault 码从 `0x1000` 起步，每个 Fault 对应一个不可恢复的异常场
 
 ### 4.4 [SC] error.h 契约
 
-`kernel/include/uapi/linux/airymax/error.h` 是 A-UEF 的 [SC] 共享契约头文件，agentrt 与 agentrt-linux 物理共享同一份文件，逐字节相同。CI 通过 `sc-dual-ci.yml` 验证两端 `error.h` 逐字节一致。详细契约定义见 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)。
+`kernel/include/uapi/linux/airymax/error.h` 是 A-UEF 的 [SC] 共享契约头文件，agentrt 与 agent-linux 物理共享同一份文件，逐字节相同。CI 通过 `sc-dual-ci.yml` 验证两端 `error.h` 逐字节一致。详细契约定义见 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)。
 
 ---
 
@@ -369,7 +369,7 @@ A-ULS 定义 Agent 8 态生命周期，与 Linux 进程状态天然映射（sche
 | H1 | Layout C v4 总长 128 字节，magic 0x41524531 'ARE1'——一经发布即冻结 | 破坏 [SC] 契约，双端不兼容 |
 | H2 | `capability_badge` 字段进入 [SC] `ipc.h`，但校验机制属于 [SS] 语义同源层 | [SC]/[SS] 边界模糊，违反 IRON-9 |
 | H3 | agentrt 用户态 `capability_badge` 始终为 0，使用传统 cap_t 引用 | agentrt 用户态复杂化 |
-| H4 | agentrt-linux 内核 `capability_badge` 由 sec_d 编译，fastpath C-S9 校验 | 安全模型破坏 |
+| H4 | agent-linux 内核 `capability_badge` 由 sec_d 编译，fastpath C-S9 校验 | 安全模型破坏 |
 | H5 | 纯 C LSM 模块职责不变（策略/撤销/审计/执法），Badge 校验是其 fastpath 内联 | 违反 SSoT，需重新选型 |
 | H6 | [DSL] 降级模式下 `capability_badge` 字段存在但被忽略（值=0，跳过 C-S9 校验） | 降级模式失败，系统不可用 |
 
@@ -387,7 +387,7 @@ A-IPC 的物理载体是 [SC] `ipc.h` Layout C v4 128B 定长消息头（2 cache
 | 24 | src_task | 8B | 源 task_id，与 Badge 编译时绑定 | C-S9 |
 | 32 | dst_task | 8B | 目标 task_id，决定 kfifo 路由 | C-S5/C-S6 |
 | 48 | payload_len | 4B | 负载长度 | C-S3/C-S4 |
-| 40 | capability_badge | 8B | **Capability Folding 物理载体**：64-bit Native Word（Epoch + Random Tag + Perms），agentrt=0，agentrt-linux 由 sec_d 编译 | C-S9 |
+| 40 | capability_badge | 8B | **Capability Folding 物理载体**：64-bit Native Word（Epoch + Random Tag + Perms），agentrt=0，agent-linux 由 sec_d 编译 | C-S9 |
 | 52 | crc32 | 4B | CRC32 覆盖 `header[0:52) + payload` | C-S12 |
 | 56 | reserved[72] | 72B | 保留，必须为零 | C-S4 |
 
@@ -439,7 +439,7 @@ fastpath 校验链为 **C-S0~C-S12 共 13 项**（详见 [07-ipc-fastpath.md §3
 /* C-S9: Capability Folding Badge 校验（关键步骤，~10ns） */
 /* H2: 校验机制属于 [SS] 语义同源层 */
 /* H3: agentrt 用户态 capability_badge=0，跳过 Badge 校验 */
-/* H4: agentrt-linux 内核 Badge 由 sec_d 编译，C-S9 校验 */
+/* H4: agent-linux 内核 Badge 由 sec_d 编译，C-S9 校验 */
 /* H6: [DSL] 降级模式 capability_badge=0，跳过 C-S9 */
 
 /* CAP_REQUEST 自举：Agent 向 sec_d 请求 Badge（无需 Badge） */
@@ -517,7 +517,7 @@ Capability Folding 的隔离基础是**数据结构级隔离**（非 seL4 架构
 |------|---------------|
 | **[SC] 共享契约层** | `ipc.h`：`struct airy_ipc_msg_hdr` Layout C v4 128B 消息头 + 7 opcode + 6 flags + Badge 位布局宏 + Capability 权限位 + `_Static_assert(sizeof == 128)` |
 | **[SS] 语义同源层** | `airy_cap_badge_ok()` 内联函数 + `agent_caps[1024]` 静态数组（`__airymax_cap_table`，sec_d 唯一写者）+ `airy_cap_global_epoch` atomic_t + Random Tag 生成 + C-S9 校验逻辑 + sec_d Badge 编译流程 |
-| **[IND] 完全独立层** | agentrt 用户态 `capability_badge=0`（H3）↔ agentrt-linux 内核 `capability_badge` 由 sec_d 编译（H4） |
+| **[IND] 完全独立层** | agentrt 用户态 `capability_badge=0`（H3）↔ agent-linux 内核 `capability_badge` 由 sec_d 编译（H4） |
 | **[DSL] 降级生存层** | [DSL] 模式下 `capability_badge=0`，fastpath C-S9 跳过 Badge 校验（H6）；IPC 数据面 fastpath 仍可用，控制面 `airy_sys_call` 降级为传统 cap_t 引用模式 |
 
 ### 8.10 与 v1.0 的对比总结

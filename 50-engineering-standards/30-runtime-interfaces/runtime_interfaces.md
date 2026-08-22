@@ -1,22 +1,22 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux ARE 运行时接口规范合集
-> **文档定位**：合并 L1 核心运行时接口、L2 服务通信协议、L3 安全与治理三层 ARE Standards 规范，作为 agentrt-linux（AirymaxOS）运行时接口的完整参考。理论根基：体系并行论、五维正交24原则、MicroCoreRT 微核心极简设计、AgentsIPC 协议族、Cupolas 安全穹顶模型、seL4 capability 安全模型。\
+# agent-linux ARE 运行时接口规范合集
+> **文档定位**：合并 L1 核心运行时接口、L2 服务通信协议、L3 安全与治理三层 ARE Standards 规范，作为 agent-linux（AirymaxOS）运行时接口的完整参考。理论根基：体系并行论、五维正交24原则、MicroCoreRT 微核心极简设计、AgentsIPC 协议族、Cupolas 安全穹顶模型、seL4 capability 安全模型。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)\
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
 > **SSoT 依赖声明**：本文件规则编号权威为 09-ssot-registry.md §3
 
 ---
 
-## Part I: agentrt-linux L1 核心运行时接口规范
+## Part I: agent-linux L1 核心运行时接口规范
 
-> **SSoT 声明**： 本文档的 L1 核心运行时接口规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md) 为单一数据源（SSoT）。本文档仅补充 agentrt-linux（AirymaxOS）特有的差异（如内核态 syscall 实现、ops 注入的 Linux 加速路径、seL4 形式化验证思想落地）。当两者冲突时，以 AirymaxRT SSoT 为准。
+> **SSoT 声明**： 本文档的 L1 核心运行时接口规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如内核态 syscall 实现、ops 注入的 Linux 加速路径、seL4 形式化验证思想落地）。当两者冲突时，以 AirymaxRT SSoT 为准。
 
 ### 文档信息卡
 - **目标读者**: OS 内核开发者、运行时接口实现者、调度器开发者、安全架构师  
-- **前置知识**: 理解 agentrt-linux（AirymaxOS）架构概览，熟悉微内核设计思想，了解 IPC 基础  
+- **前置知识**: 理解 agent-linux（AirymaxOS）架构概览，熟悉微内核设计思想，了解 IPC 基础  
 - **预计阅读时间**: 45 分钟  
 - **核心概念**: MicroCoreRT, 系统调用, ops 注入, 一致性测试, 4 原子机制, 可插拔策略  
 - **复杂度标识**: 高级  
@@ -25,9 +25,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1. 引言
 
-L1 核心运行时接口是 agentrt-linux（AirymaxOS）ARE Standards 的最底层规范，定义了 OS 内核态最基础、最核心的运行时原语。L1 的设计哲学根植于 MicroCoreRT 微核心极简设计思想（参考 seL4 的形式化验证方法），严格遵循五维正交24原则中 K-1（内核极简原则）：内核只保留最必要的原子机制，所有策略性决策外移至用户空间或可插拔模块。
+L1 核心运行时接口是 agent-linux（AirymaxOS）ARE Standards 的最底层规范，定义了 OS 内核态最基础、最核心的运行时原语。L1 的设计哲学根植于 MicroCoreRT 微核心极简设计思想（参考 seL4 的形式化验证方法），严格遵循五维正交24原则中 K-1（内核极简原则）：内核只保留最必要的原子机制，所有策略性决策外移至用户空间或可插拔模块。
 
-L1 接口是 agentrt-linux（AirymaxOS）整个 OS 栈的基石——L2 服务通信协议依赖 L1 的 IPC 原语，L3 安全与治理依赖 L1 的内存管理和进程隔离。L1 的正确性、性能和安全性直接影响整个系统的可靠性。
+L1 接口是 agent-linux（AirymaxOS）整个 OS 栈的基石——L2 服务通信协议依赖 L1 的 IPC 原语，L3 安全与治理依赖 L1 的内存管理和进程隔离。L1 的正确性、性能和安全性直接影响整个系统的可靠性。
 
 #### 1.1 与 agentrt L1 的共享关系
 
@@ -53,7 +53,7 @@ L1 的设计严格遵循以下五维正交24原则映射：
 
 ### 2. MicroCoreRT 微核心运行时接口
 
-MicroCoreRT 是 agentrt-linux（AirymaxOS）的微核心运行时核心，定义了内核态的最小运行时接口集合。它遵循 Liedtke 最小化原则：内核越小的系统越可靠，越容易验证。
+MicroCoreRT 是 agent-linux（AirymaxOS）的微核心运行时核心，定义了内核态的最小运行时接口集合。它遵循 Liedtke 最小化原则：内核越小的系统越可靠，越容易验证。
 
 #### 2.1 五大原子机制
 
@@ -137,13 +137,13 @@ graph TB
     style MEM_OPS fill:#fff3e0
 ```
 
-**图1: agentrt-linux L1 核心运行时接口架构**
+**图1: agent-linux L1 核心运行时接口架构**
 
 ---
 
 ### 3. 系统调用接口规范
 
-agentrt-linux（AirymaxOS）的系统调用遵循 `airy_syscall` 命名规范，所有系统调用通过统一的入口分发，保证了接口的整齐性和可审计性。
+agent-linux（AirymaxOS）的系统调用遵循 `airy_syscall` 命名规范，所有系统调用通过统一的入口分发，保证了接口的整齐性和可审计性。
 
 #### 3.1 系统调用命名约定
 
@@ -451,7 +451,7 @@ int airy_sync_sem_post(are_cap_t sem);
 
 ### 4. ops 注入机制
 
-ops 注入机制是 agentrt-linux（AirymaxOS）L1 接口实现策略与机制分离的核心手段，也是五维正交24原则中 K-4（可插拔策略原则）的典型实现。它允许用户空间通过定义好的 ops 接口向内核注入调度策略、安全策略和内存策略。
+ops 注入机制是 agent-linux（AirymaxOS）L1 接口实现策略与机制分离的核心手段，也是五维正交24原则中 K-4（可插拔策略原则）的典型实现。它允许用户空间通过定义好的 ops 接口向内核注入调度策略、安全策略和内存策略。
 
 #### 4.1 调度策略 ops
 
@@ -619,11 +619,11 @@ sequenceDiagram
 
 ### 5. 参考 seL4 的 4 原子机制
 
-agentrt-linux（AirymaxOS）L1 接口的设计参考了 seL4 微内核的 4 原子机制。seL4 是经过形式化验证的微内核，其设计理念为 agentrt-linux 提供了坚实的理论基础。
+agent-linux（AirymaxOS）L1 接口的设计参考了 seL4 微内核的 4 原子机制。seL4 是经过形式化验证的微内核，其设计理念为 agent-linux 提供了坚实的理论基础。
 
 #### 5.1 seL4 4 原子机制对照
 
-| seL4 原子机制 | 描述 | agentrt-linux 对应 | 创新点 |
+| seL4 原子机制 | 描述 | agent-linux 对应 | 创新点 |
 |---------------|------|-------------------|--------|
 | **线程抽象** | 执行上下文的最小单元 | `MCORE_TASK` 任务管理 | 增加 sched_tac 智能体调度策略 |
 | **地址空间** | 虚拟地址空间隔离 | `MCORE_MEM` 内存管理 | 增加内存守卫、池化策略 |
@@ -632,27 +632,27 @@ agentrt-linux（AirymaxOS）L1 接口的设计参考了 seL4 微内核的 4 原�
 
 #### 5.2 seL4 形式化验证启示
 
-seL4 的形式化验证（形式化规约 → 形式化实现 → 形式化证明）为 agentrt-linux（AirymaxOS）L1 接口设计提供了以下启示：
+seL4 的形式化验证（形式化规约 → 形式化实现 → 形式化证明）为 agent-linux（AirymaxOS）L1 接口设计提供了以下启示：
 
 1. **接口必须可形式化**：每个系统调用的前置条件、后置条件必须清晰，避免模糊语义
 2. **最小化信任计算基（TCB）**：L1 代码量必须控制，仅保留不可约简的核心机制
 3. **资源管理确定性**：所有资源分配和释放必须具有确定性行为，不能有内存泄漏
 4. **能力令牌模型的严格性**：所有资源访问必须通过能力令牌，禁止直接指针引用
 
-#### 5.3 超越 seL4 的 agentrt-linux 创新
+#### 5.3 超越 seL4 的 agent-linux 创新
 
-agentrt-linux（AirymaxOS）在参考 seL4 的基础上，针对智能体工作负载做了以下创新：
+agent-linux（AirymaxOS）在参考 seL4 的基础上，针对智能体工作负载做了以下创新：
 
 1. **sched_tac 调度策略**：专为智能体认知任务优化，支持认知优先级、Token 预算感知调度（基于 sched_tac：SCHED_DEADLINE/SCHED_FIFO/EEVDF）
-2. **ops 可插拔注入**：seL4 的策略内嵌于内核，agentrt-linux 通过 ops 实现策略外置
-3. **128B 消息头**：seL4 的 IPC 消息无格式，agentrt-linux 强制 128B 消息头，支持 trace_id 贯穿
-4. **多后端服务发现**：seL4 无服务发现机制，agentrt-linux 在 L2 提供多后端服务发现
+2. **ops 可插拔注入**：seL4 的策略内嵌于内核，agent-linux 通过 ops 实现策略外置
+3. **128B 消息头**：seL4 的 IPC 消息无格式，agent-linux 强制 128B 消息头，支持 trace_id 贯穿
+4. **多后端服务发现**：seL4 无服务发现机制，agent-linux 在 L2 提供多后端服务发现
 
 ---
 
 ### 6. 一致性测试要求
 
-为保证 agentrt-linux（AirymaxOS）L1 接口的不同实现之间的一致性，ARE Standards 定义了一套一致性测试框架。
+为保证 agent-linux（AirymaxOS）L1 接口的不同实现之间的一致性，ARE Standards 定义了一套一致性测试框架。
 
 #### 6.1 测试分类
 
@@ -702,7 +702,7 @@ tests/
 测试步骤: 1. 创建两个端点  2. 发送消息  3. 验证接收方收到的消息
 预期结果: 返回 0，接收方收到完整消息
 实际结果: PASS
-测试环境: agentrt-linux v0.1.1, x86_64, Linux 6.6
+测试环境: agent-linux v0.1.1, x86_64, Linux 6.6
 测试日期: 2026-07-07
 ```
 
@@ -776,19 +776,19 @@ L1 接口使用统一的错误码体系。`AIRY_E*` 常量采用**正数幅值**
 ### 10. 参考文献
 
 1. [ARE Standards 总览](./README.md)
-2. [agentrt-linux（AirymaxOS）架构设计](../../10-architecture/01-system-architecture.md)
-3. [agentrt-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
+2. [agent-linux（AirymaxOS）架构设计](../../10-architecture/01-system-architecture.md)
+3. [agent-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
 4. seL4 项目文档：https://sel4.systems/
 5. Linux 6.6 调度器文档：https://docs.kernel.org/scheduler/（SCHED_DEADLINE/SCHED_FIFO/EEVDF 原生调度类参考）
 6. Linux LSM 框架文档：https://docs.kernel.org/admin-guide/LSM/index.html
 
 ---
 
-## Part II: agentrt-linux L2 服务通信协议规范
+## Part II: agent-linux L2 服务通信协议规范
 
 ### 文档信息卡
 - **目标读者**: 协议设计者、服务开发者、系统集成工程师、云原生架构师  
-- **前置知识**: 理解 agentrt-linux（AirymaxOS）架构概览，熟悉 JSON-RPC 2.0，了解服务发现机制  
+- **前置知识**: 理解 agent-linux（AirymaxOS）架构概览，熟悉 JSON-RPC 2.0，了解服务发现机制  
 - **预计阅读时间**: 45 分钟  
 - **核心概念**: AgentsIPC, 128B 消息头, 服务发现, daemon 命名空间, trace_id 贯穿  
 - **复杂度标识**: 高级  
@@ -797,9 +797,9 @@ L1 接口使用统一的错误码体系。`AIRY_E*` 常量采用**正数幅值**
 
 ### 1. 引言
 
-L2 服务通信协议是 agentrt-linux（AirymaxOS）ARE Standards 的中间层规范，定义了 OS 层各服务之间的通信协议。L2 协议建立在 L1 核心运行时接口（IPC 原语）之上，为上层服务提供可发现、可路由、可追踪的通信能力。
+L2 服务通信协议是 agent-linux（AirymaxOS）ARE Standards 的中间层规范，定义了 OS 层各服务之间的通信协议。L2 协议建立在 L1 核心运行时接口（IPC 原语）之上，为上层服务提供可发现、可路由、可追踪的通信能力。
 
-agentrt-linux（AirymaxOS）作为智能体操作系统，其服务通信具有以下特点：
+agent-linux（AirymaxOS）作为智能体操作系统，其服务通信具有以下特点：
 
 1. **多服务协同**：12 个 daemon 守护进程（调度、内存、安全、认知、云原生等）需要高效通信
 2. **跨进程协作**：内核态与用户态服务之间需要标准化通信协议
@@ -830,7 +830,7 @@ L2 的设计遵循以下五维正交24原则映射：
 
 ### 2. AgentsIPC 128B 消息头规范
 
-AgentsIPC 是 agentrt-linux（AirymaxOS）的进程间通信协议族，其核心是 128 字节定长消息头。消息头是 agentrt 与 agentrt-linux 在 IRON-9 v3 [SC] 共享契约层的核心共享构件。
+AgentsIPC 是 agent-linux（AirymaxOS）的进程间通信协议族，其核心是 128 字节定长消息头。消息头是 agentrt 与 agent-linux 在 IRON-9 v3 [SC] 共享契约层的核心共享构件。
 
 #### 2.1 消息头布局
 
@@ -940,7 +940,7 @@ IPC 操作码枚举：
 
 ### 3. JSON-RPC 2.0 命名空间规范
 
-JSON-RPC 2.0 是 AgentsIPC 中最主要的载荷协议。agentrt-linux（AirymaxOS）在标准 JSON-RPC 2.0 基础上增加了命名空间规范，用于 OS 层 daemon 之间的方法调用。
+JSON-RPC 2.0 是 AgentsIPC 中最主要的载荷协议。agent-linux（AirymaxOS）在标准 JSON-RPC 2.0 基础上增加了命名空间规范，用于 OS 层 daemon 之间的方法调用。
 
 #### 3.1 方法命名约定
 
@@ -1025,7 +1025,7 @@ kernel.get_stats
 
 ### 4. OS 层 daemon 命名空间
 
-agentrt-linux（AirymaxOS）的 OS 层定义了 12 个 daemon 守护进程，每个 daemon 拥有独立的命名空间，用于服务发现和消息路由。这些命名空间是 L2 在 [IND] 完全独立层的 OS 专属定义。
+agent-linux（AirymaxOS）的 OS 层定义了 12 个 daemon 守护进程，每个 daemon 拥有独立的命名空间，用于服务发现和消息路由。这些命名空间是 L2 在 [IND] 完全独立层的 OS 专属定义。
 
 #### 4.1 命名空间列表
 
@@ -1076,7 +1076,7 @@ int airy_svc_register(const char *namespace, const char *endpoint,
 
 ### 5. 服务发现多后端
 
-agentrt-linux（AirymaxOS）的服务发现支持多种后端，从简单到复杂场景，符合五维正交24原则中 C-2（增量演化原则）的要求。
+agent-linux（AirymaxOS）的服务发现支持多种后端，从简单到复杂场景，符合五维正交24原则中 C-2（增量演化原则）的要求。
 
 #### 5.1 后端对比
 
@@ -1131,7 +1131,7 @@ struct are_svc_discovery_ops {
 #### 5.4 服务发现配置
 
 ```yaml
-# agentrt-linux 服务发现配置示例
+# agent-linux 服务发现配置示例
 service_discovery:
   backend: "etcd"                    # shm | dns-sd | consul | etcd | k8s
   config:
@@ -1147,7 +1147,7 @@ service_discovery:
 
 ### 6. trace_id 贯穿机制
 
-trace_id 是 agentrt-linux（AirymaxOS）可观测性体系的核心，贯穿整个服务调用链，确保每个请求从发起到完成都可以被追踪。
+trace_id 是 agent-linux（AirymaxOS）可观测性体系的核心，贯穿整个服务调用链，确保每个请求从发起到完成都可以被追踪。
 
 #### 6.1 trace_id 生成
 
@@ -1307,8 +1307,8 @@ sequenceDiagram
 
 #### 9.1 [SC] 层共享消息头布局
 
-agentrt 和 agentrt-linux 在 [SC] 层完全共享基础 128B 消息头 `struct airy_ipc_msg_hdr`（Layout C，SSoT 物理宿主见 `120-cross-project-code-sharing.md` §Layout C）的定义。这意味着：
-- 在 agentrt 用户态运行时构造的消息，可以在 agentrt-linux 内核中直接解析
+agentrt 和 agent-linux 在 [SC] 层完全共享基础 128B 消息头 `struct airy_ipc_msg_hdr`（Layout C，SSoT 物理宿主见 `120-cross-project-code-sharing.md` §Layout C）的定义。这意味着：
+- 在 agentrt 用户态运行时构造的消息，可以在 agent-linux 内核中直接解析
 - 消息头字段顺序、偏移量、大小完全一致
 - magic 编号 `0x41524531` 在两端具有相同的语义
 
@@ -1324,7 +1324,7 @@ agentrt 和 agentrt-linux 在 [SC] 层完全共享基础 128B 消息头 `struct 
 
 #### 9.3 [IND] 层 OS 专属
 
-以下内容属于 [IND] 完全独立层，仅在 agentrt-linux 中存在：
+以下内容属于 [IND] 完全独立层，仅在 agent-linux 中存在：
 - 12 个 daemon 命名空间定义
 - systemd 集成和 systemd socket activation
 - LSM 钩子与 IPC 权限检查的集成
@@ -1337,7 +1337,7 @@ agentrt 和 agentrt-linux 在 [SC] 层完全共享基础 128B 消息头 `struct 
 
 #### 10.1 向前兼容
 
-agentrt-linux L2 协议遵循以下向前兼容规则：
+agent-linux L2 协议遵循以下向前兼容规则：
 1. 新增字段只能追加到 extension 区域（90-127 字节）
 2. 新增 payload_type 枚举值不影响已有实现
 3. 新增命名空间不影响已有命名空间
@@ -1391,21 +1391,21 @@ agentrt-linux L2 协议遵循以下向前兼容规则：
 ### 13. 参考文献
 
 1. [ARE Standards 总览](./README.md)
-2. [L1 核心运行时接口规范](./runtime_interfaces.md#part-i-agentrt-linux-l1-核心运行时接口规范)
-3. [agentrt-linux（AirymaxOS）架构设计](../../10-architecture/01-system-architecture.md)
+2. [L1 核心运行时接口规范](./runtime_interfaces.md#part-i-agent-linux-l1-核心运行时接口规范)
+3. [agent-linux（AirymaxOS）架构设计](../../10-architecture/01-system-architecture.md)
 4. JSON-RPC 2.0 规范：https://www.jsonrpc.org/specification
 5. AgentsIPC 协议文档：agentrt/protocols/
 6. OpenTelemetry 规范：https://opentelemetry.io/docs/specs/
 
 ---
 
-## Part III: agentrt-linux L3 安全与治理规范
+## Part III: agent-linux L3 安全与治理规范
 
-> **SSoT 声明**： 本文档的 L3 安全与治理规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/03-l3-security-governance.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/03-l3-security-governance.md) 为单一数据源（SSoT）。本文档仅补充 agentrt-linux（AirymaxOS）特有的差异（如 LSM 钩子集成、内核态 capability 派生实现、审计日志内核管道）。当两者冲突时，以 AirymaxRT SSoT 为准。
+> **SSoT 声明**： 本文档的 L3 安全与治理规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/03-l3-security-governance.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/03-l3-security-governance.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如 LSM 钩子集成、内核态 capability 派生实现、审计日志内核管道）。当两者冲突时，以 AirymaxRT SSoT 为准。
 
 ### 文档信息卡
 - **目标读者**: 安全架构师、OS 安全开发者、合规工程师、审计人员、开源合规官  
-- **前置知识**: 理解 agentrt-linux（AirymaxOS）架构概览，熟悉 Linux 安全模块（LSM），了解 capability 安全模型  
+- **前置知识**: 理解 agent-linux（AirymaxOS）架构概览，熟悉 Linux 安全模块（LSM），了解 capability 安全模型  
 - **预计阅读时间**: 50 分钟  
 - **核心概念**: Cupolas 权限引擎, 五级沙箱, 能力派生, 审计日志, SBOM, 供应链安全, 双许可证  
 - **复杂度标识**: 高级  
@@ -1414,9 +1414,9 @@ agentrt-linux L2 协议遵循以下向前兼容规则：
 
 ### 1. 引言
 
-L3 安全与治理是 agentrt-linux（AirymaxOS）ARE Standards 的最上层规范，定义了系统的安全模型、权限管理、沙箱隔离、审计追溯和合规治理体系。L3 的设计哲学根植于五维正交24原则中 E-1（安全内生原则）：安全不是事后附加的功能，而是系统设计的内在属性。
+L3 安全与治理是 agent-linux（AirymaxOS）ARE Standards 的最上层规范，定义了系统的安全模型、权限管理、沙箱隔离、审计追溯和合规治理体系。L3 的设计哲学根植于五维正交24原则中 E-1（安全内生原则）：安全不是事后附加的功能，而是系统设计的内在属性。
 
-agentrt-linux（AirymaxOS）作为面向智能体协作的操作系统，其安全需求不同于传统操作系统：
+agent-linux（AirymaxOS）作为面向智能体协作的操作系统，其安全需求不同于传统操作系统：
 1. **多智能体共存**：多个 Agent 运行在同一物理机上，需要严格的权限隔离
 2. **动态能力管理**：Agent 的能力（访问文件、网络、其他 Agent）需要动态授予和撤销
 3. **可审计性**：所有 Agent 操作必须可追溯，满足合规要求
@@ -1447,7 +1447,7 @@ L3 的设计遵循以下五维正交24原则映射：
 
 ### 2. Cupolas 权限引擎
 
-Cupolas（安全穹顶）是 agentrt-linux（AirymaxOS）的核心权限引擎，实现了基于能力（capability）的安全模型。其设计参考 seL4 的 capability-based security 模型，结合 Linux 现有能力体系，为智能体协作场景提供细粒度的权限控制。
+Cupolas（安全穹顶）是 agent-linux（AirymaxOS）的核心权限引擎，实现了基于能力（capability）的安全模型。其设计参考 seL4 的 capability-based security 模型，结合 Linux 现有能力体系，为智能体协作场景提供细粒度的权限控制。
 
 #### 2.1 能力派生模型
 
@@ -1549,7 +1549,7 @@ int airy_cap_derive(uint32_t src_agent, uint32_t dst_agent,
 
 #### 2.3 POSIX capability 41 ID（0-40）枚举
 
-agentrt-linux（AirymaxOS）集成 Linux 6.6 标准 41 个 capabilities（ID 0-40）并扩展为 44 ID 枚举（ID 41-43 为 Airymax 专属）：
+agent-linux（AirymaxOS）集成 Linux 6.6 标准 41 个 capabilities（ID 0-40）并扩展为 44 ID 枚举（ID 41-43 为 Airymax 专属）：
 
 | ID | 名称 | 描述 | 风险等级 |
 |----|------|------|----------|
@@ -1598,13 +1598,13 @@ agentrt-linux（AirymaxOS）集成 Linux 6.6 标准 41 个 capabilities（ID 0-4
 | 42 | `AIRY_CAP_GPU_SCHED` | **GPU 调度访问（Airymax 专属）** | 高 |
 | 43 | `AIRY_CAP_NPU_ACCESS` | **NPU 算力访问（Airymax 专属）** | 高 |
 
-> 注：ID 41-43 为 agentrt-linux（AirymaxOS）在 Linux 6.6 标准 41 个能力（ID 0-40）基础上新增的 Airymax 专属能力（`AIRY_CAP_AGENT_SPAWN`/`AIRY_CAP_GPU_SCHED`/`AIRY_CAP_NPU_ACCESS`），权威定义见 [SC] `security_types.h` `enum airy_cap_id`。
+> 注：ID 41-43 为 agent-linux（AirymaxOS）在 Linux 6.6 标准 41 个能力（ID 0-40）基础上新增的 Airymax 专属能力（`AIRY_CAP_AGENT_SPAWN`/`AIRY_CAP_GPU_SCHED`/`AIRY_CAP_NPU_ACCESS`），权威定义见 [SC] `security_types.h` `enum airy_cap_id`。
 
 ---
 
 ### 3. 五级沙箱模型
 
-agentrt-linux（AirymaxOS）定义了五级沙箱安全隔离模型，从 Level 0（完全不隔离）到 Level 4（硬件级隔离），每一级对应不同的安全需求和性能开销。
+agent-linux（AirymaxOS）定义了五级沙箱安全隔离模型，从 Level 0（完全不隔离）到 Level 4（硬件级隔离），每一级对应不同的安全需求和性能开销。
 
 #### 3.1 沙箱级别定义
 
@@ -1713,7 +1713,7 @@ int airy_sandbox_upgrade(are_cap_t sandbox, uint32_t new_level,
 
 ### 4. 统一错误码体系
 
-agentrt-linux（AirymaxOS）使用统一的错误码体系，确保错误信息在 OS 层和用户态层之间一致传递。该体系在 IRON-9 v3 [SC] 共享契约层与 agentrt 完全共享。
+agent-linux（AirymaxOS）使用统一的错误码体系，确保错误信息在 OS 层和用户态层之间一致传递。该体系在 IRON-9 v3 [SC] 共享契约层与 agentrt 完全共享。
 
 #### 4.1 错误码分类
 
@@ -1768,7 +1768,7 @@ agentrt-linux（AirymaxOS）使用统一的错误码体系，确保错误信息�
 
 ### 5. 审计日志规范
 
-审计日志是 agentrt-linux（AirymaxOS）不可妥协的安全底线，对应五维正交24原则中 E-1（安全内生原则）和 E-6（错误可追溯原则）。
+审计日志是 agent-linux（AirymaxOS）不可妥协的安全底线，对应五维正交24原则中 E-1（安全内生原则）和 E-6（错误可追溯原则）。
 
 #### 5.1 审计日志格式
 
@@ -1867,7 +1867,7 @@ int airy_audit_query(const are_audit_filter_t *filter,
 
 ### 6. LSM 钩子集成
 
-agentrt-linux（AirymaxOS）在 Linux 安全模块（LSM）框架基础上，为 Agent 场景增加了专属安全钩子点。
+agent-linux（AirymaxOS）在 Linux 安全模块（LSM）框架基础上，为 Agent 场景增加了专属安全钩子点。
 
 #### 6.1 LSM 钩子分类
 
@@ -1886,13 +1886,13 @@ agentrt-linux（AirymaxOS）在 Linux 安全模块（LSM）框架基础上，为
 
 #### 6.2 Agent 专属 LSM 钩子
 
-agentrt-linux（AirymaxOS）在标准 Linux LSM 250 个钩子之上，增加了以下 Agent 专属钩子：
+agent-linux（AirymaxOS）在标准 Linux LSM 250 个钩子之上，增加了以下 Agent 专属钩子：
 
 ```c
 /**
  * Agent 专属 LSM 钩子（[IND] 完全独立层）
  *
- * 这些钩子仅在 agentrt-linux（AirymaxOS）中存在，
+ * 这些钩子仅在 agent-linux（AirymaxOS）中存在，
  * 不属于 agentrt 共享范畴。
  */
 struct are_agent_security_ops {
@@ -2004,7 +2004,7 @@ graph TB
     style COMPLIANCE fill:#e8eaf6
 ```
 
-**图1: agentrt-linux L3 安全与治理架构**
+**图1: agent-linux L3 安全与治理架构**
 
 #### 7.1 安全治理流程
 
@@ -2041,13 +2041,13 @@ sequenceDiagram
     Compliance->>Compliance: 生成合规报告
 ```
 
-**图2: agentrt-linux 安全治理流程**
+**图2: agent-linux 安全治理流程**
 
 ---
 
 ### 8. 双许可证体系
 
-agentrt-linux（AirymaxOS）遵循双许可证体系，平衡开放性与商业可持续性。
+agent-linux（AirymaxOS）遵循双许可证体系，平衡开放性与商业可持续性。
 
 #### 8.1 许可证分配
 
@@ -2062,8 +2062,8 @@ agentrt-linux（AirymaxOS）遵循双许可证体系，平衡开放性与商业�
 
 #### 8.2 许可证选择理由
 
-1. **AGPL-3.0 for 用户态服务**：确保 agentrt-linux 作为网络服务运行时，对其修改必须开源，维护社区生态健康
-2. **Apache-2.0 for SDK**：允许商业公司基于 agentrt-linux 构建闭源智能体应用，促进生态繁荣
+1. **AGPL-3.0 for 用户态服务**：确保 agent-linux 作为网络服务运行时，对其修改必须开源，维护社区生态健康
+2. **Apache-2.0 for SDK**：允许商业公司基于 agent-linux 构建闭源智能体应用，促进生态繁荣
 3. **GPL-2.0 for 内核**：遵循 Linux 内核上游许可证，保证合规性
 4. **Apache-2.0 for 标准文档**：促进 ARE Standards 的最广泛采纳
 
@@ -2077,7 +2077,7 @@ agentrt-linux（AirymaxOS）遵循双许可证体系，平衡开放性与商业�
 
 #### 9.1 SBOM 标准
 
-agentrt-linux（AirymaxOS）遵循 SPDX 2.3 标准生成软件物料清单（SBOM），确保供应链透明度。
+agent-linux（AirymaxOS）遵循 SPDX 2.3 标准生成软件物料清单（SBOM），确保供应链透明度。
 
 #### 9.2 SBOM 内容
 
@@ -2164,11 +2164,11 @@ airymaxos-sbom generate \
 
 ### 11. 与 seL4 capability 安全模型参考
 
-agentrt-linux（AirymaxOS）的 Cupolas 权限引擎严格参考了 seL4 的 capability 安全模型：
+agent-linux（AirymaxOS）的 Cupolas 权限引擎严格参考了 seL4 的 capability 安全模型：
 
 #### 11.1 seL4 核心安全原则
 
-| seL4 原则 | 描述 | agentrt-linux 实现 |
+| seL4 原则 | 描述 | agent-linux 实现 |
 |-----------|------|-------------------|
 | **能力是唯一访问方式** | 所有资源访问必须通过能力令牌 | `airy_cap_mint` 系列接口 |
 | **能力不可伪造** | 能力令牌由内核管理，用户空间无法伪造 | 内核态能力存储 |
@@ -2178,11 +2178,11 @@ agentrt-linux（AirymaxOS）的 Cupolas 权限引擎严格参考了 seL4 的 cap
 
 #### 11.2 超越 seL4 的创新
 
-agentrt-linux（AirymaxOS）在 seL4 基础上增加了：
+agent-linux（AirymaxOS）在 seL4 基础上增加了：
 
-1. **能力生存时间（TTL）**：seL4 的能力无过期机制，agentrt-linux 支持 TTL，自动过期
+1. **能力生存时间（TTL）**：seL4 的能力无过期机制，agent-linux 支持 TTL，自动过期
 2. **能力审计链**：每次能力派生和撤销都记录到审计日志
-3. **五级沙箱模型**：seL4 只有进程隔离，agentrt-linux 提供五级隔离
+3. **五级沙箱模型**：seL4 只有进程隔离，agent-linux 提供五级隔离
 4. **Agent 专属能力**：`AIRY_CAP_AGENT_SPAWN`、`AIRY_CAP_GPU_SCHED`、`AIRY_CAP_NPU_ACCESS`
 
 ---
@@ -2199,10 +2199,10 @@ agentrt-linux（AirymaxOS）在 seL4 基础上增加了：
 ### 13. 参考文献
 
 1. [ARE Standards 总览](./README.md)
-2. [L1 核心运行时接口规范](./runtime_interfaces.md#part-i-agentrt-linux-l1-核心运行时接口规范)
-3. [L2 服务通信协议规范](./runtime_interfaces.md#part-ii-agentrt-linux-l2-服务通信协议规范)
-4. [agentrt-linux（AirymaxOS）安全设计](../../110-security/README.md)
-5. [agentrt-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
+2. [L1 核心运行时接口规范](./runtime_interfaces.md#part-i-agent-linux-l1-核心运行时接口规范)
+3. [L2 服务通信协议规范](./runtime_interfaces.md#part-ii-agent-linux-l2-服务通信协议规范)
+4. [agent-linux（AirymaxOS）安全设计](../../110-security/README.md)
+5. [agent-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
 6. seL4 项目文档：https://sel4.systems/
 7. Linux capabilities 文档：https://man7.org/linux/man-pages/man7/capabilities.7.html
 8. SPDX 2.3 规范：https://spdx.github.io/spdx-spec/v2.3/

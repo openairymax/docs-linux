@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）架构设计
-> **文档定位**：agentrt-linux（AirymaxOS）架构设计层的总览与索引，包含系统架构、Airymax Unify Design 总纲、IRON-9 v3 共享模型、[DSL] 降级生存层、五维原则、微内核策略、工程基线、ADR、目录结构等\
+# agent-linux（AirymaxOS）架构设计
+> **文档定位**：agent-linux（AirymaxOS）架构设计层的总览与索引，包含系统架构、Airymax Unify Design 总纲、IRON-9 v3 共享模型、[DSL] 降级生存层、五维原则、微内核策略、工程基线、ADR、目录结构等\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 总览](../README.md)
+> **上级文档**：[agent-linux 总览](../README.md)
 
 ---
 
@@ -12,16 +12,16 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 本文档是 `10-architecture/` 目录的总览与索引，承担四项核心职责：
 
-1. **系统架构总览**：定义 agentrt-linux 的三大支柱（微内核设计思想 + agentrt-linux 工程基线 + Airymax 同源性）、7 层架构模型与 8 子仓架构图。
+1. **系统架构总览**：定义 agent-linux 的三大支柱（微内核设计思想 + agent-linux 工程基线 + Airymax 同源性）、7 层架构模型与 8 子仓架构图。
 2. **Unify Design 总纲**：`10-unify-design.md` 作为 Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）的统一设计总纲，定义五模块的接口契约与跨模块协作关系。
-3. **IRON-9 v3 共享模型**：`06-iron9-shared-model.md` 定义 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]），作为 agentrt ↔ agentrt-linux 同源代码共享的工程基线。
+3. **IRON-9 v3 共享模型**：`06-iron9-shared-model.md` 定义 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]），作为 agentrt ↔ agent-linux 同源代码共享的工程基线。
 4. **[DSL] 降级生存层**：`11-degraded-survival-layer.md` 定义系统在故障、资源不足、Panic 等场景下的降级生存策略，确保 A-ULP Panic 生存路径与 A-ULS 故障监管的架构支撑。
 
 ---
 
 ## 2. 技术选型声明
 
-本目录的架构设计以 agentrt-linux v1.0 五大技术选型为基线：
+本目录的架构设计以 agent-linux v1.0 五大技术选型为基线：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 架构影响 |
 |---|---------|---------|----------------|---------|
@@ -33,7 +33,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 修正声明（sched_ext / SCHED_AGENT 旧表述）
 
-agentrt-linux v1.0 **全面修正**早期文档中关于 sched_ext 与 SCHED_AGENT 的旧表述：
+agent-linux v1.0 **全面修正**早期文档中关于 sched_ext 与 SCHED_AGENT 的旧表述：
 
 - ~~`sched_ext + eBPF + io_uring + Rust 微内核化改造`~~ → **sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF）+ io_uring（IORING_OP_URING_CMD）+ 纯 C LSM + Rust 实验性支持**
 - ~~`SCHED_AGENT 策略（sched_ext）`~~ → **sched_tac 调度策略（SCHED_DEADLINE/SCHED_FIFO/EEVDF 原生调度类组合）**
@@ -47,7 +47,7 @@ agentrt-linux v1.0 **全面修正**早期文档中关于 sched_ext 与 SCHED_AGE
 | 支柱 | 核心思想 | 参考来源 | 落地子仓 |
 |------|----------|----------|----------|
 | **微内核设计思想** | 最小化特权态代码（Liedtke minimality）、服务用户态化、消息传递通信、capability 安全 | seL4（ADR-014，唯一来源） | kernel / services / security |
-| **agentrt-linux 工程基线** | 采用 agentrt-linux 自身的模块设计、技术规格、标准和规范，兼容企业级 Linux 生态 | Linux 6.6 内核基线（1.x.x）/ Linux 7.1（2.x.x，ADR-016） | system / tests-linux / cloudnative |
+| **agent-linux 工程基线** | 采用 agent-linux 自身的模块设计、技术规格、标准和规范，兼容企业级 Linux 生态 | Linux 6.6 内核基线（1.x.x）/ Linux 7.1（2.x.x，ADR-016） | system / tests-linux / cloudnative |
 | **Airymax 同源性** | 与 agentrt 共享 MicroCoreRT / AgentsIPC / Cupolas / MemoryRovol / CoreLoopThree 设计理念，天然适配无适配层 | agentrt atoms/cupolas/coreloopthree | 全部 8 子仓 |
 
 ---
@@ -56,7 +56,7 @@ agentrt-linux v1.0 **全面修正**早期文档中关于 sched_ext 与 SCHED_AGE
 
 ```mermaid
 graph TB
-    subgraph "agentrt-linux 8 子仓架构"
+    subgraph "agent-linux 8 子仓架构"
         direction TB
 
         KERNEL["kernel<br/>极境内核<br/>Linux 6.6 + sched_tac + IORING_OP_URING_CMD<br/>同源: atoms/corekern (MicroCoreRT)"]
@@ -127,9 +127,9 @@ graph TB
 | # | 文档 | 核心内容 | 版本 | 状态 |
 |---|------|---------|------|------|
 | 1 | [01-system-architecture.md](01-system-architecture.md) | 系统架构总览（三大支柱 + 整体架构 + 同源关系 + 前沿理论） | v1.0.1 | 维护中 |
-| 2 | [02-five-dimensional-principles.md](02-five-dimensional-principles.md) | 五维正交 24 原则与 agentrt-linux 落地映射（S/K/C/E/A 全维度） | v1.0.1 | 维护中 |
+| 2 | [02-five-dimensional-principles.md](02-five-dimensional-principles.md) | 五维正交 24 原则与 agent-linux 落地映射（S/K/C/E/A 全维度） | v1.0.1 | 维护中 |
 | 3 | [03-microkernel-strategy.md](03-microkernel-strategy.md) | 微内核化改造策略（seL4 思想 + 改造路径，ADR-014） | v1.0.1 | 维护中 |
-| 4 | [04-engineering-baseline.md](04-engineering-baseline.md) | agentrt-linux 工程基线（治理组对应 + AI 原生 + 技术规格） | v1.0.1 | 维护中 |
+| 4 | [04-engineering-baseline.md](04-engineering-baseline.md) | agent-linux 工程基线（治理组对应 + AI 原生 + 技术规格） | v1.0.1 | 维护中 |
 | 5 | [05-adrs.md](05-adrs.md) | 架构决策记录 ADR-001~018（18 个核心决策，含 ADR-015 已撤销 + ADR-016 版本基线锁定 + ADR-018 openEuler 硬件复用） | v1.0.1 | 维护中 |
 | 6 | [06-iron9-shared-model.md](06-iron9-shared-model.md) | **IRON-9 v3 四层模型**（[SC] 共享契约 + [SS] 语义同源 + [IND] 独立实现 + [DSL] 降级生存） | v1.0.1 | 维护中 |
 | 7 | [07-directory-structure.md](07-directory-structure.md) | 源码目录结构设计（8 子仓 submodule + [SC] 物理隔离 + 模型 A 完整 fork） | v1.0.1 | 维护中 |
@@ -168,8 +168,8 @@ graph TB
 | IRON-9 v3 层次 | Unify Design 五模块映射 |
 |---------------|----------------------|
 | [SC] 共享契约层 | `include/uapi/linux/airymax/sched.h`（A-UEF）、`include/uapi/linux/airymax/log_types.h`（A-ULP）、`include/uapi/linux/airymax/syscalls.h`（A-UCS）、`include/uapi/linux/airymax/ipc.h`（A-IPC）、`include/uapi/linux/airymax/security_types.h`（A-ULS） |
-| [SS] 语义同源层 | 五模块的 API 签名在 agentrt ↔ agentrt-linux 之间保持一致 |
-| [IND] 独立实现层 | 五模块在 agentrt-linux 内核态实现与 agentrt 用户态实现各自独立 |
+| [SS] 语义同源层 | 五模块的 API 签名在 agentrt ↔ agent-linux 之间保持一致 |
+| [IND] 独立实现层 | 五模块在 agent-linux 内核态实现与 agentrt 用户态实现各自独立 |
 | [DSL] 降级生存层 | 五模块的 `#ifdef AIRY_SC_FALLBACK` 降级生存块，提供 [SC] 损坏时最小可运行子集 |
 
 ---
@@ -188,9 +188,9 @@ graph TB
 
 ## 9. 与 agentrt 的架构对应关系
 
-agentrt-linux 与 agentrt 同源且部分代码共享（IRON-9 v3）。两者在多个核心模块上存在同源映射关系，共享契约层代码（`include/uapi/linux/airymax/` 头文件库），实现层各自独立。
+agent-linux 与 agentrt 同源且部分代码共享（IRON-9 v3）。两者在多个核心模块上存在同源映射关系，共享契约层代码（`include/uapi/linux/airymax/` 头文件库），实现层各自独立。
 
-| agentrt 模块 | agentrt-linux 同源子仓 | 同源语义 | IRON-9 v3 层次 |
+| agentrt 模块 | agent-linux 同源子仓 | 同源语义 | IRON-9 v3 层次 |
 |--------------|---------------------|----------|----------|
 | atoms/corekern (MicroCoreRT) | kernel（sched_tac） | 调度语义一致 | [SC] sched.h + [SS] 调度语义 + [IND] 内核态实现 |
 | atoms/ipc + protocols (AgentsIPC) | services (A-IPC) | IPC 协议语义一致 | [SC] ipc.h + [SS] 128B 消息头 + [IND] io_uring 实现 |
@@ -202,7 +202,7 @@ agentrt-linux 与 agentrt 同源且部分代码共享（IRON-9 v3）。两者在
 
 ## 10. 相关文档
 
-- [agentrt-linux 总览](../README.md)：v1.0 设计文档体系总览与技术选型声明
+- [agent-linux 总览](../README.md)：v1.0 设计文档体系总览与技术选型声明
 - [需求分析层](../00-requirements/README.md)：业务需求 + 功能需求 + 非功能需求
 - [模块设计层](../20-modules/README.md)：8 子仓 + A-ULS/A-ULP/A-UCS 详细设计
 - [接口设计层](../30-interfaces/README.md)：syscall + IPC + SDK + 编码规范

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）形式化验证
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 10 卷——形式化验证（Formal Verification）。本卷规定形式化验证范围（Capability 模型 / IPC 状态机 / Agent 生命周期）、TLA+ 规约（Agent 8 态状态机）、Coq/Isabelle 证明（Capability 检查算法正确性）、CBMC 模型检查（C 代码 bounded model checking）、seL4 方法参照（借鉴 seL4 形式化验证体系方法论）、验证报告生成与 CI 集成。\
+# agent-linux（AirymaxOS）形式化验证
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 10 卷——形式化验证（Formal Verification）。本卷规定形式化验证范围（Capability 模型 / IPC 状态机 / Agent 生命周期）、TLA+ 规约（Agent 8 态状态机）、Coq/Isabelle 证明（Capability 检查算法正确性）、CBMC 模型检查（C 代码 bounded model checking）、seL4 方法参照（借鉴 seL4 形式化验证体系方法论）、验证报告生成与 CI 集成。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 10 卷，回答"关键路径怎么证明正确"。它在 09-fuzz-testing（模糊测试）之后形成形式化验证层，是测试体系的最高保障层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 10 卷，回答"关键路径怎么证明正确"。它在 09-fuzz-testing（模糊测试）之后形成形式化验证层，是测试体系的最高保障层：
 
 - **上游依赖**：README 定义"测试体系分层"——L10 形式化验证由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 16 层（形式化验证层）。
 - **下游依赖**：本卷是测试工程的顶层，无下游文档；形式化验证结果反馈至 03-kernel-selftests / 08-agent-contract-testing，作为契约定义的"证明基线"。
@@ -29,7 +29,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | Coq | 基于 Curry-Howard 同构的证明助手 |
 | Isabelle/HOL | 高阶逻辑定理证明助手 |
 | CBMC | C Bounded Model Checker，C 代码模型检查 |
-| seL4 | 形式化验证的微内核，agentrt-linux 方法参照对象 |
+| seL4 | 形式化验证的微内核，agent-linux 方法参照对象 |
 | l4v | seL4 项目的形式化验证框架（L4.verified） |
 | capDL | seL4 的 Capability 描述语言 |
 | 不变量（invariant） | 系统在任意状态下均满足的性质 |
@@ -42,9 +42,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 起源与定位
 
-形式化验证是 agentrt-linux 测试体系的**最高保障层**，提供"可证明的正确性"。其设计目标有三：**数学证明**（用数学方法证明系统正确，而非仅靠测试覆盖）、**关键路径覆盖**（仅对关键路径形式化验证，避免全系统验证成本）、**seL4 方法借鉴**（借鉴 seL4 l4v 框架的方法论，但不追求全内核形式化验证）。
+形式化验证是 agent-linux 测试体系的**最高保障层**，提供"可证明的正确性"。其设计目标有三：**数学证明**（用数学方法证明系统正确，而非仅靠测试覆盖）、**关键路径覆盖**（仅对关键路径形式化验证，避免全系统验证成本）、**seL4 方法借鉴**（借鉴 seL4 l4v 框架的方法论，但不追求全内核形式化验证）。
 
-agentrt-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 200+ 人年），而是聚焦三个关键路径：
+agent-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 200+ 人年），而是聚焦三个关键路径：
 
 1. **Agent 8 态生命周期状态机**：用 TLA+ 规约并证明无死锁、无非法转换。
 2. **Capability 检查算法**：用 Coq/Isabelle 证明权限校验算法的正确性。
@@ -52,7 +52,7 @@ agentrt-linux 不追求 seL4 级别的"全内核形式化验证"（seL4 投入 2
 
 ```mermaid
 flowchart TB
-    subgraph "形式化验证范围（agentrt-linux）"
+    subgraph "形式化验证范围（agent-linux）"
         A1["Agent 8 态状态机<br/>TLA+ 规约 + TLC 模型检查"]
         A2["Capability 检查算法<br/>Coq/Isabelle 证明"]
         A3["关键 C 代码路径<br/>CBMC bounded model checking"]
@@ -108,7 +108,7 @@ flowchart TB
 
 ### 2.1 TLA+ 模型
 
-agentrt-linux 用 TLA+ 规约 Agent 8 态生命周期状态机，验证以下属性：
+agent-linux 用 TLA+ 规约 Agent 8 态生命周期状态机，验证以下属性：
 
 - **不变量 1**：Agent 状态始终属于 8 态之一（INACTIVE / SPAWNING / READY / RUNNING / BLOCKED / STOPPING / STOPPED / DEAD）。
 - **不变量 2**：状态转换仅发生在合法路径上（14 条合法转换）。
@@ -255,7 +255,7 @@ Model checking completed: 0 errors, 8192 distinct states
 
 ### 3.1 Capability 检查算法
 
-agentrt-linux 的 Capability 检查算法（`airy_cap_check`）验证主体对客体的访问权限：
+agent-linux 的 Capability 检查算法（`airy_cap_check`）验证主体对客体的访问权限：
 
 ```c
 /* kernel/airymaxos/cap/airy_cap_check.c（简化版） */
@@ -610,7 +610,7 @@ CBMC 将 `READ_ONCE`/`WRITE_ONCE`/`smp_store_release`/`smp_load_acquire` 建模�
 
 诚实声明 CBMC 与 seL4 Isabelle/HOL 在验证深度上存在本质区别，避免对 CBMC 验证结果的过度宣传：
 
-| 维度 | CBMC（agentrt-linux 选择） | seL4 Isabelle/HOL |
+| 维度 | CBMC（agent-linux 选择） | seL4 Isabelle/HOL |
 |------|----------------------------|-------------------|
 | 验证范式 | 模型检验（model checking） | 定理证明（theorem proving） |
 | 状态空间 | 有限状态空间（bounded by `--unwind N`） | 无限状态空间（数学归纳法） |
@@ -620,11 +620,11 @@ CBMC 将 `READ_ONCE`/`WRITE_ONCE`/`smp_store_release`/`smp_load_acquire` 建模�
 | 投入成本 | 5-10 人年（8 属性整体）；单函数模块约 1 人月 | 200+ 人年（seL4 全内核） |
 | 验证深度 | 实现层 C 代码 | 抽象层 → 设计层 → 实现层 全链精化 |
 
-- **结论**：CBMC 验证提供"高置信度工程证据"（high-confidence engineering evidence），**不等价于** seL4 的"数学证明"（mathematical proof）。agentrt-linux v1.0.1 阶段以 CBMC 为 fastpath 验证主力，下一版本引入 Isabelle/HOL 逐步精化证明（refinement）以缩小鸿沟。
+- **结论**：CBMC 验证提供"高置信度工程证据"（high-confidence engineering evidence），**不等价于** seL4 的"数学证明"（mathematical proof）。agent-linux v1.0.1 阶段以 CBMC 为 fastpath 验证主力，下一版本引入 Isabelle/HOL 逐步精化证明（refinement）以缩小鸿沟。
 
 ### 4.6 seL4 偏离分析专章
 
-本节诚实声明 AirymaxOS（agentrt-linux）在**对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造**过程中，各维度与 seL4 原型的工程差异、落地方式与残余风险，避免对外宣传中将 AirymaxOS 等同于 seL4 或声称"seL4 级形式化验证"。本节与 §4.5 A6（CBMC 与 Isabelle/HOL 的本质鸿沟）形成呼应，从验证维度扩展至内核架构、Capability 存储、IPC、调度、故障处理、内存隔离等 7 个维度。
+本节诚实声明 AirymaxOS（agent-linux）在**对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造**过程中，各维度与 seL4 原型的工程差异、落地方式与残余风险，避免对外宣传中将 AirymaxOS 等同于 seL4 或声称"seL4 级形式化验证"。本节与 §4.5 A6（CBMC 与 Isabelle/HOL 的本质鸿沟）形成呼应，从验证维度扩展至内核架构、Capability 存储、IPC、调度、故障处理、内存隔离等 7 个维度。
 
 > **核心定位重申**：AirymaxOS 是"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"（ADR-012 + ADR-014）。"微内核化改造"是核心定位而非偏离——下表中的"差异"指的是 AirymaxOS 在落地 seL4 思想时采用的工程手段与 seL4 原型的区别，不代表对"微内核化改造"目标的偏离。
 
@@ -709,7 +709,7 @@ CBMC 将 `READ_ONCE`/`WRITE_ONCE`/`smp_store_release`/`smp_load_acquire` 建模�
 
 seL4 是首个完整形式化验证的微内核，其 l4v（L4.verified）框架包含：
 
-| 层次 | 工具 | 验证内容 | agentrt-linux 对应 |
+| 层次 | 工具 | 验证内容 | agent-linux 对应 |
 |------|------|---------|-------------------|
 | 抽象规约 | Isabelle/HOL | 系统行为的数学抽象 | TLA+ 规约（Agent 状态机） |
 | 设计规约 | Isabelle/HOL | 数据结构设计 | （未对应） |
@@ -717,9 +717,9 @@ seL4 是首个完整形式化验证的微内核，其 l4v（L4.verified）框架
 | Capability 系统 | capDL | Capability 描述 | Coq 证明（airy_cap_check） |
 | 安全属性 | info-flow | 机密性/完整性 | （未对应，下一版本规划） |
 
-### 5.2 agentrt-linux 与 seL4 的差异
+### 5.2 agent-linux 与 seL4 的差异
 
-| 维度 | seL4 | agentrt-linux |
+| 维度 | seL4 | agent-linux |
 |------|------|---------------|
 | 验证范围 | 全内核 | 关键路径（3 项） |
 | 投入 | 200+ 人年（seL4 全内核） | 5-10 人年（关键路径整体）；单函数模块约 1 人月 |
@@ -727,11 +727,11 @@ seL4 是首个完整形式化验证的微内核，其 l4v（L4.verified）框架
 | 验证工具 | Isabelle/HOL 为主 | TLA+ / Coq / CBMC 多工具 |
 | 验证目标 | 通用微内核安全 | Agent 操作系统关键路径 |
 
-**OS-KER-171**：agentrt-linux 不追求 seL4 级别的全内核形式化验证；本卷聚焦 P0 关键路径（Agent 状态机 / Capability 算法 / CBMC C 代码验证），P1/P2 验证对象按优先级推进。
+**OS-KER-171**：agent-linux 不追求 seL4 级别的全内核形式化验证；本卷聚焦 P0 关键路径（Agent 状态机 / Capability 算法 / CBMC C 代码验证），P1/P2 验证对象按优先级推进。
 
 ### 5.3 seL4 方法论的借鉴
 
-agentrt-linux 借鉴 seL4 以下方法论：
+agent-linux 借鉴 seL4 以下方法论：
 
 1. **抽象层先于实现层**：先验证 TLA+ 抽象规约，再验证 C 代码实现。
 2. **不变量优先**：优先证明不变量（safety），再证明活性（liveness）。
@@ -1034,7 +1034,7 @@ CBMC 验证的工程价值：
 
 #### 升级路径
 
-为逐步缩小与 seL4 Isabelle/HOL 的鸿沟（§4.5 A6），agentrt-linux 规划以下升级路径：
+为逐步缩小与 seL4 Isabelle/HOL 的鸿沟（§4.5 A6），agent-linux 规划以下升级路径：
 
 | 版本 | 验证技术 | 验证对象 | 目标 |
 |------|---------|---------|------|
@@ -1097,11 +1097,11 @@ CBMC 验证的工程价值：
 
 | 验证对象 | 具体内容 | 对应源码 |
 |---------|---------|---------|
-| fastpath 冻结门 | `airy_ipc_fastpath_send()` 入口的 frozen 检查：frozen=true 时返回 `-AIRY_EIPC_FROZEN` 且不推进 head | [airy_ipc_fastpath.c:68-91](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c) |
-| SPSC ring 内存序 | `airy_ipc_ring_post()` 的 `smp_store_release` 与 `airy_ipc_ring_consume()` 的 `smp_load_acquire` 配对：head 发布 → consume 看到完整 slot | [airy_ipc_ring.c:94-95,121](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
-| Badge 校验语义 | `airy_cap_badge_ok()` 的 C-S9 三检查（epoch / randtag / perms 子集），3 次 READ_ONCE + 位运算 | [airy_cap.h:75-102](../../agentrt-linux/kernel/security/airy/airy_cap.h) |
-| COPY 权限降级 | `new_perms & src->perms` 交集语义（P1-10 fix，seL4 maskCapRights 对齐） | [airy_cap_derive.c:184-187](../../agentrt-linux/kernel/security/airy/airy_cap_derive.c) |
-| cancelBadgedSends | 取消后匹配 badge 的 slot 不再被 consume 投递（P1-8 fix） | [airy_ipc_ring.c:179-207](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
+| fastpath 冻结门 | `airy_ipc_fastpath_send()` 入口的 frozen 检查：frozen=true 时返回 `-AIRY_EIPC_FROZEN` 且不推进 head | [airy_ipc_fastpath.c:68-91](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c) |
+| SPSC ring 内存序 | `airy_ipc_ring_post()` 的 `smp_store_release` 与 `airy_ipc_ring_consume()` 的 `smp_load_acquire` 配对：head 发布 → consume 看到完整 slot | [airy_ipc_ring.c:94-95,121](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
+| Badge 校验语义 | `airy_cap_badge_ok()` 的 C-S9 三检查（epoch / randtag / perms 子集），3 次 READ_ONCE + 位运算 | [airy_cap.h:75-102](../../agent-linux/kernel/security/airy/airy_cap.h) |
+| COPY 权限降级 | `new_perms & src->perms` 交集语义（P1-10 fix，seL4 maskCapRights 对齐） | [airy_cap_derive.c:184-187](../../agent-linux/kernel/security/airy/airy_cap_derive.c) |
+| cancelBadgedSends | 取消后匹配 badge 的 slot 不再被 consume 投递（P1-8 fix） | [airy_ipc_ring.c:179-207](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
 
 **证明深度**：以上均为 **C 功能行为层**（functional correctness of C semantics），即"假设 C 程序在顺序一致 / LKMM 内存模型下执行时满足的数学性质"。
 
@@ -1115,8 +1115,8 @@ CBMC 验证的工程价值：
 | 缓存与 TLB 管理 | 硬件级行为，不由本路径建模 |
 | 启动代码（boot / decompressor） | 独立于 IPC fastpath 路径 |
 | SMP 并发 | 本路径证明 SPSC 单生产者/单消费者配对语义，**不覆盖**多核任意交错下的强非干扰性（[09-known-caveats.md](../10-architecture/09-known-caveats.md) §4.2） |
-| MCS（Mixed Criticality Systems） | agentrt-linux 通过 sched_tac 映射实现等价能力，不引入 seL4 MCS 验证 |
-| LSM 5-phase slowpath 整体 | slowpath 调用链（`airy_uring_cmd_check()` [airy_cap_check.c:197-266](../../agentrt-linux/kernel/security/airy/airy_cap_check.c)）仅证明与 fastpath 裁决一致的 C-S9 语义，完整调用链验证延后 |
+| MCS（Mixed Criticality Systems） | agent-linux 通过 sched_tac 映射实现等价能力，不引入 seL4 MCS 验证 |
+| LSM 5-phase slowpath 整体 | slowpath 调用链（`airy_uring_cmd_check()` [airy_cap_check.c:197-266](../../agent-linux/kernel/security/airy/airy_cap_check.c)）仅证明与 fastpath 裁决一致的 C-S9 语义，完整调用链验证延后 |
 
 **声明**：即使 IPC Fastpath 证明完成，也不构成"内核无缺陷"的二进制级保证；生产部署仍须结合运行时不变量检查与回归测试（与 09-known-caveats §1.3 结论一致）。IPC fastpath 性能（~10ns badge 校验、~158ns fastpath）为设计估算、未实测，本路径证明目标为**正确性而非性能**（性能验证见 170-performance 卷）。
 
@@ -1128,10 +1128,10 @@ CBMC 验证的工程价值：
 
 | HOL 模型元素 | C 符号 | 源码出处 |
 |-------------|--------|---------|
-| `ring.head / ring.tail / ring.cap / ring.frozen / ring.slots` | `struct airy_ipc_ring {head, tail, mask, frozen, slots}` | [airy_ipc_internal.h:23-29](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_ipc_internal.h) |
-| `slot.magic / slot.sl_badge / slot.sl_data` | `struct airy_ipc_msg_hdr {magic, capability_badge, ...}` | [ipc.h:67-79](../../agentrt-linux/kernel/include/uapi/linux/airymax/ipc.h) |
-| `cap_slot.ce / cr / cp` | `struct airy_cap_slot {epoch, randtag, perms}` | [lsm_types.h:60-74](../../agentrt-linux/kernel/include/uapi/linux/airymax/lsm_types.h) |
-| `badge_epoch / badge_randtag / badge_perms` | `AIRY_BADGE_EPOCH/RANDTAG/PERMS`（48/16/0 位移） | [ipc.h:49-64](../../agentrt-linux/kernel/include/uapi/linux/airymax/ipc.h) |
+| `ring.head / ring.tail / ring.cap / ring.frozen / ring.slots` | `struct airy_ipc_ring {head, tail, mask, frozen, slots}` | [airy_ipc_internal.h:23-29](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_internal.h) |
+| `slot.magic / slot.sl_badge / slot.sl_data` | `struct airy_ipc_msg_hdr {magic, capability_badge, ...}` | [ipc.h:67-79](../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
+| `cap_slot.ce / cr / cp` | `struct airy_cap_slot {epoch, randtag, perms}` | [lsm_types.h:60-74](../../agent-linux/kernel/include/uapi/linux/airymax/lsm_types.h) |
+| `badge_epoch / badge_randtag / badge_perms` | `AIRY_BADGE_EPOCH/RANDTAG/PERMS`（48/16/0 位移） | [ipc.h:49-64](../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
 
 #### Isabelle/HOL datatype / record / locale 骨架
 
@@ -1387,7 +1387,7 @@ seL4 形式化验证四件套（见 22 号工程思想报告 v3.6c）在 Airymax
 
 #### (a) AIRY_COMPILE_ASSERT 双模式宏（uapi_compat.h 落点，v3.6c E1）
 
-seL4 对照（`include/assert.h` L45-69）：`CONFIG_VERIFICATION_BUILD` 下用 typedef 数组技巧（负长度数组编译报错），否则用 `_Static_assert`——因为 l4v 的 C parser 不支持 `_Static_assert` 语法。Airymax 等价物规划落点 [uapi_compat.h](../../agentrt-linux/kernel/include/uapi/linux/airymax/uapi_compat.h)（三态类型桥接头，内核/用户态/非 Linux 三端共享）：
+seL4 对照（`include/assert.h` L45-69）：`CONFIG_VERIFICATION_BUILD` 下用 typedef 数组技巧（负长度数组编译报错），否则用 `_Static_assert`——因为 l4v 的 C parser 不支持 `_Static_assert` 语法。Airymax 等价物规划落点 [uapi_compat.h](../../agent-linux/kernel/include/uapi/linux/airymax/uapi_compat.h)（三态类型桥接头，内核/用户态/非 Linux 三端共享）：
 
 ```c
 /* ─── AIRY_COMPILE_ASSERT：双模式编译期断言（1.0.1+ 引入，v3.6c E1）──
@@ -1523,4 +1523,4 @@ jobs:
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 10 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 10 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

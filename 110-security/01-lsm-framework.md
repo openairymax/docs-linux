@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # LSM 框架详解
-> **文档定位**：agentrt-linux（AirymaxOS）安全工程体系第 1 主题文档——Linux 安全模块（LSM）框架深度剖析\
+> **文档定位**：agent-linux（AirymaxOS）安全工程体系第 1 主题文档——Linux 安全模块（LSM）框架深度剖析\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt Cupolas（安全穹顶）+ Linux 6.6 LSM/Landlock/capability\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-1 安全内生\
 > **核心约束**：IRON-9 v3 同源且部分代码共享；v1.0.1 起 Capability Badge 校验由 fastpath C-S9 内联完成（LSM 钩子仅 slowpath 接管）
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## SSoT 声明
 
-> **单一权威源声明**：本文件是 **LSM 框架在 agentrt-linux 中的集成方式** 的唯一权威源。LSM 钩子链表（`security_hook_heads`）、blob 分配（`lsm_blob_sizes`）、排序机制（`LSM_ORDER_FIRST/MUTABLE/LAST`）、初始化流程（`ordered_lsm_init`）、Cupolas（airy LSM）注册模式均以本文件为唯一权威定义。**blob 结构（`airy_task_sec`/`airy_inode_sec`/`airy_cap_slot`）与 4 值裁决枚举（`airy_verdict`）的 SSoT 为 [SC] `lsm_types.h` 与 `security_types.h`**，本文件引用而非重定义。其余文档只能引用本文件，禁止重新定义 LSM 框架机制与 Cupolas 集成模式。
+> **单一权威源声明**：本文件是 **LSM 框架在 agent-linux 中的集成方式** 的唯一权威源。LSM 钩子链表（`security_hook_heads`）、blob 分配（`lsm_blob_sizes`）、排序机制（`LSM_ORDER_FIRST/MUTABLE/LAST`）、初始化流程（`ordered_lsm_init`）、Cupolas（airy LSM）注册模式均以本文件为唯一权威定义。**blob 结构（`airy_task_sec`/`airy_inode_sec`/`airy_cap_slot`）与 4 值裁决枚举（`airy_verdict`）的 SSoT 为 [SC] `lsm_types.h` 与 `security_types.h`**，本文件引用而非重定义。其余文档只能引用本文件，禁止重新定义 LSM 框架机制与 Cupolas 集成模式。
 >
 > **OLK 6.6 对齐说明**：OLK 6.6 `include/linux/lsm_hooks.h:113` 注释明确 `LSM_ORDER_FIRST` "This is only for capabilities."——**airy_lsm 不使用 `LSM_ORDER_FIRST`**，改用 `LSM_ORDER_MUTABLE`（默认值），通过 `CONFIG_LSM` 默认值将 `airy` 置于 `capability` 之后、其他 LSM 之前。`capability` 模块正确使用 `LSM_ORDER_FIRST`（OLK 6.6 硬编码，仅用于 capabilities）。
 >
@@ -32,7 +32,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [第 5 章 LSM 初始化流程](#第-5-章-lsm-初始化流程)
 - [第 6 章 LSM 钩子类型](#第-6-章-lsm-钩子类型)
 - [第 7 章 LSM 与 capability 共存](#第-7-章-lsm-与-capability-共存)
-- [第 8 章 agentrt-linux Cupolas 作为 LSM 模块集成](#第-8-章-agentrt-linux-cupolas-作为-lsm-模块集成)
+- [第 8 章 agent-linux Cupolas 作为 LSM 模块集成](#第-8-章-agent-linux-cupolas-作为-lsm-模块集成)
 - [第 9 章 LSM 钩子注册示例](#第-9-章-lsm-钩子注册示例)
 - [第 10 章 五维原则映射](#第-10-章-五维原则映射)
 - [第 11 章 同源 agentrt 映射](#第-11-章-同源-agentrt-映射)
@@ -46,9 +46,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-LSM（Linux Security Module）是 Linux 6.6 内核基线提供的通用安全钩子框架，在不破坏既有 DAC/MAC 语义的前提下，为内核关键路径提供可插拔的策略注入点。LSM 不实现具体策略，只提供钩子骨架——具体策略由 SELinux、AppArmor、Smack、Tomoyo、Landlock、capability 等模块填充。agentrt-linux 将 LSM 视为整个安全体系的承重点：所有内核态安全决策都经 LSM 钩子入口路由到 Cupolas 安全穹顶的对应子系统。LSM 经过 20+ 年实战沉淀，其钩子覆盖面、并发安全、blob 共享、排序机制都已严格验证，符合 agentrt-linux 在 Linux 6.6 内核基线之上"不重造轮子"的工程哲学。
+LSM（Linux Security Module）是 Linux 6.6 内核基线提供的通用安全钩子框架，在不破坏既有 DAC/MAC 语义的前提下，为内核关键路径提供可插拔的策略注入点。LSM 不实现具体策略，只提供钩子骨架——具体策略由 SELinux、AppArmor、Smack、Tomoyo、Landlock、capability 等模块填充。agent-linux 将 LSM 视为整个安全体系的承重点：所有内核态安全决策都经 LSM 钩子入口路由到 Cupolas 安全穹顶的对应子系统。LSM 经过 20+ 年实战沉淀，其钩子覆盖面、并发安全、blob 共享、排序机制都已严格验证，符合 agent-linux 在 Linux 6.6 内核基线之上"不重造轮子"的工程哲学。
 
-### 1.2 在 agentrt-linux 安全体系中的位置
+### 1.2 在 agent-linux 安全体系中的位置
 
 | 层级 | 机制 | 由谁实现 |
 |------|------|----------|
@@ -56,13 +56,13 @@ LSM（Linux Security Module）是 Linux 6.6 内核基线提供的通用安全钩
 | L2 | capability | `LSM_ORDER_FIRST`，永远第一 |
 | L3 | Landlock | 用户态可加载沙箱 |
 | L4 | Yama / LoadPin / Lockdown | 内置可选模块 |
-| L5 | Cupolas 安全穹顶 | agentrt-linux 专属 LSM |
+| L5 | Cupolas 安全穹顶 | agent-linux 专属 LSM |
 
-agentrt-linux Cupolas 作为最后初始化的 LSM 注册到框架中，与 capability、Landlock、Yama 等共存。
+agent-linux Cupolas 作为最后初始化的 LSM 注册到框架中，与 capability、Landlock、Yama 等共存。
 
 ### 1.3 与 MicroCoreRT 的关系
 
-MicroCoreRT 是 agentrt-linux 内核的极简 RT 适配层，它把 LSM 框架的 250 个 LSM 钩子收敛为一份"内核安全契约"白名单，确保 Cupolas 只依赖被 MicroCoreRT 锁定的稳定入口，避免被 Linux 内部 API 漂移破坏。这是 IRON-9 v3 同源且部分代码共享原则在内核安全层的具体落地：同源在于 Cupolas 在 agentrt 用户态与 agentrt-linux 内核态两端语义一致；独立在于 agentrt-linux 端的 Cupolas 必须独立维护与 LSM 框架的 ABI 契约。
+MicroCoreRT 是 agent-linux 内核的极简 RT 适配层，它把 LSM 框架的 250 个 LSM 钩子收敛为一份"内核安全契约"白名单，确保 Cupolas 只依赖被 MicroCoreRT 锁定的稳定入口，避免被 Linux 内部 API 漂移破坏。这是 IRON-9 v3 同源且部分代码共享原则在内核安全层的具体落地：同源在于 Cupolas 在 agentrt 用户态与 agent-linux 内核态两端语义一致；独立在于 agent-linux 端的 Cupolas 必须独立维护与 LSM 框架的 ABI 契约。
 
 ```mermaid
 flowchart TB
@@ -71,7 +71,7 @@ flowchart TB
     DAC --> LSM["LSM 钩子框架<br/>security_hook_heads"]
     LSM --> CAP["capability<br/>(LSM_ORDER_FIRST)"]
     LSM --> LANDLOCK["Landlock"]
-    LSM --> CUPOLAS["Cupolas<br/>(agentrt-linux 专属)"]
+    LSM --> CUPOLAS["Cupolas<br/>(agent-linux 专属)"]
     CAP --> KRES["内核资源<br/>inode/file/task/cred"]
     LANDLOCK --> KRES
     CUPOLAS --> KRES
@@ -181,7 +181,7 @@ landlock_cred(const struct cred *cred)
 }
 ```
 
-Cupolas（内核态模块名 `airy`）同样遵循此约定：定义 `airy_blob_sizes`，在 `prepare_lsm()` 阶段被框架合并进全局 `blob_sizes`，运行时通过 `airy_cred(cred)` / `airy_inode(inode)` 等内联函数取出自己的 blob 区。这种"扁平 blob + 偏移访问"模式是 agentrt-linux Cupolas（airy LSM）与 Landlock、capability 在同一对象上共存的关键机制。
+Cupolas（内核态模块名 `airy`）同样遵循此约定：定义 `airy_blob_sizes`，在 `prepare_lsm()` 阶段被框架合并进全局 `blob_sizes`，运行时通过 `airy_cred(cred)` / `airy_inode(inode)` 等内联函数取出自己的 blob 区。这种"扁平 blob + 偏移访问"模式是 agent-linux Cupolas（airy LSM）与 Landlock、capability 在同一对象上共存的关键机制。
 
 ---
 
@@ -198,7 +198,7 @@ static __initdata const char *chosen_major_lsm;       /* 来自 security= 引导
 static __initconst const char *const builtin_lsm_order = CONFIG_LSM;  /* 编译期默认 */
 ```
 
-agentrt-linux 的 `CONFIG_LSM` **需显式配置**包含 `airy`（当前 defconfig 未设置 `CONFIG_LSM` 行，见 known-caveats），示例：`CONFIG_LSM="capability,landlock,yama,airy"`（其中 capability 与 integrity 分别由 `LSM_ORDER_FIRST` / `LSM_ORDER_LAST` 强制首尾；airy 使用 `LSM_ORDER_MUTABLE`（默认值），通过 `CONFIG_LSM` 列表置于 `capability` 之后、其他 LSM 之前，capability 永远在 airy 之前执行——OLK 6.6 `include/linux/lsm_hooks.h:113` 注释明确 `LSM_ORDER_FIRST` 仅用于 capabilities，airy 不滥用之）。详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.1。
+agent-linux 的 `CONFIG_LSM` **需显式配置**包含 `airy`（当前 defconfig 未设置 `CONFIG_LSM` 行，见 known-caveats），示例：`CONFIG_LSM="capability,landlock,yama,airy"`（其中 capability 与 integrity 分别由 `LSM_ORDER_FIRST` / `LSM_ORDER_LAST` 强制首尾；airy 使用 `LSM_ORDER_MUTABLE`（默认值），通过 `CONFIG_LSM` 列表置于 `capability` 之后、其他 LSM 之前，capability 永远在 airy 之前执行——OLK 6.6 `include/linux/lsm_hooks.h:113` 注释明确 `LSM_ORDER_FIRST` 仅用于 capabilities，airy 不滥用之）。详见 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2.1。
 
 ### 4.2 排序解析流程
 
@@ -385,7 +385,7 @@ static void hook_cred_transfer(struct cred *const new, const struct cred *const 
 }
 ```
 
-Landlock 在此把父域引用计数 +1 并附加到新凭据，从而保证子进程继承父进程的 Landlock 域。Cupolas 在 `cred_prepare` 阶段执行"能力下沉"——按 IRON-9 v3 同源且部分代码共享原则，agentrt-linux 端的 capability 子集被复制到子进程，agentrt 端的运行时 capability 则由 agentrt 自行维护。
+Landlock 在此把父域引用计数 +1 并附加到新凭据，从而保证子进程继承父进程的 Landlock 域。Cupolas 在 `cred_prepare` 阶段执行"能力下沉"——按 IRON-9 v3 同源且部分代码共享原则，agent-linux 端的 capability 子集被复制到子进程，agentrt 端的运行时 capability 则由 agentrt 自行维护。
 
 ### 6.5 钩子类型小结
 
@@ -404,11 +404,11 @@ if (!task_no_new_privs(current) &&
     return -EPERM;
 ```
 
-Cupolas 进一步把 capability 抽象为"主体能力位图"的一部分，主体校验时按 capability → Landlock 域 → Cupolas 域的顺序短路返回。这种分层短路正是 agentrt-linux 五维正交 24 原则中 E-1（安全内生）与 K-4（可插拔策略）的合奏：每一层只做自己最擅长的事，互不越界。
+Cupolas 进一步把 capability 抽象为"主体能力位图"的一部分，主体校验时按 capability → Landlock 域 → Cupolas 域的顺序短路返回。这种分层短路正是 agent-linux 五维正交 24 原则中 E-1（安全内生）与 K-4（可插拔策略）的合奏：每一层只做自己最擅长的事，互不越界。
 
 ---
 
-## 第 8 章 agentrt-linux Cupolas 作为 LSM 模块集成
+## 第 8 章 agent-linux Cupolas 作为 LSM 模块集成
 
 ### 8.1 Cupolas 的 LSM 注册
 
@@ -417,7 +417,7 @@ Cupolas 进一步把 capability 抽象为"主体能力位图"的一部分，主�
 Cupolas 通过 `DEFINE_LSM` 宏在编译期注册自身（模块名 `airy`，初始化顺序 `LSM_ORDER_MUTABLE`，通过 `CONFIG_LSM` 默认值置于 `capability` 之后、其他 LSM 之前，capability 永远在 airy 之前执行——OLK 6.6 注释明确 `LSM_ORDER_FIRST` 仅用于 capabilities，airy 不滥用之）：
 
 ```c
-// security/airy/airy_lsm.c（agentrt-linux 专属，对齐 07-airy-lsm-design.md §2.1）
+// security/airy/airy_lsm.c（agent-linux 专属，对齐 07-airy-lsm-design.md §2.1）
 // blob 结构对齐 [SC] lsm_types.h SSoT：airy_task_sec + airy_inode_sec
 struct lsm_blob_sizes airy_blob_sizes __ro_after_init = {
     .lbs_task  = sizeof(struct airy_task_sec),   /* [SC] lsm_types.h */
@@ -454,7 +454,7 @@ DEFINE_LSM(airy) = {
 
 ### 8.2 与 MicroCoreRT 的契约
 
-Cupolas 注册的钩子集合必须在 MicroCoreRT 锁定的"内核安全契约"白名单内。任何新增钩子都需经 RFC 评审、ABI 稳定性确认（OS-IRON-001）、五维原则映射检查（OS-STD-007）三道关。这是 IRON-9 v3 同源且部分代码共享原则的硬性要求：agentrt 端的 Cupolas 用户态 API（`airy_cupolas_*`）在 agentrt-linux 内核态对应实现必须独立维护，但语义必须同源。
+Cupolas 注册的钩子集合必须在 MicroCoreRT 锁定的"内核安全契约"白名单内。任何新增钩子都需经 RFC 评审、ABI 稳定性确认（OS-IRON-001）、五维原则映射检查（OS-STD-007）三道关。这是 IRON-9 v3 同源且部分代码共享原则的硬性要求：agentrt 端的 Cupolas 用户态 API（`airy_cupolas_*`）在 agent-linux 内核态对应实现必须独立维护，但语义必须同源。
 
 ### 8.3 与 A-IPC（Capability Folding）的桥接
 
@@ -515,7 +515,7 @@ DEFINE_LSM(demo) = { .name = "demo", .init = demo_init };
 
 ## 第 10 章 五维原则映射
 
-agentrt-linux 五维正交 24 原则在 LSM 框架层的体现：
+agent-linux 五维正交 24 原则在 LSM 框架层的体现：
 
 | 原则 | 编号 | 在 LSM 框架的体现 |
 |------|------|-------------------|
@@ -536,9 +536,9 @@ agentrt-linux 五维正交 24 原则在 LSM 框架层的体现：
 
 ## 第 11 章 同源 agentrt 映射
 
-agentrt 的 `cupolas/` 模块与 agentrt-linux 内核态 Cupolas 同源，遵循 IRON-9 v3 同源且部分代码共享原则。Cupolas 的 7 大子系统在两端各自落地：
+agentrt 的 `cupolas/` 模块与 agent-linux 内核态 Cupolas 同源，遵循 IRON-9 v3 同源且部分代码共享原则。Cupolas 的 7 大子系统在两端各自落地：
 
-| Cupolas 子系统 | agentrt 端（用户态） | agentrt-linux 端（内核态 LSM） |
+| Cupolas 子系统 | agentrt 端（用户态） | agent-linux 端（内核态 LSM） |
 |----------------|----------------------|------------------------------|
 | **Guards 守卫** | `airy_cupolas_guard_enter()` 入口防护 | `security_file_open` / `security_task_alloc` 钩子 |
 | **Permission 权限裁决** | `airy_cupolas_perm_check()` 策略裁决 | `security_inode_permission` 钩子 + capability |
@@ -552,7 +552,7 @@ agentrt 的 `cupolas/` 模块与 agentrt-linux 内核态 Cupolas 同源，遵循
 
 ### 11.1 IRON-9 v3 四层共享模型
 
-IRON-9 v3 将 agentrt Cupolas 与 agentrt-linux LSM 框架的协作划分为四层：
+IRON-9 v3 将 agentrt Cupolas 与 agent-linux LSM 框架的协作划分为四层：
 
 | 层次 | 共享程度 | LSM 框架内容 |
 |------|---------|-------------|
@@ -626,11 +626,11 @@ enum airy_verdict {
 };
 ```
 
-**OS-IRON-003 约束**：agentrt-linux LSM 与 agentrt Cupolas 共享 `lsm_types.h` 与 `security_types.h`，blob 结构布局（`airy_task_sec`/`airy_inode_sec`/`airy_cap_slot`）与 4 值裁决枚举（`airy_verdict`）两端必须逐字节一致。**Airy 实际注册 7 个 LSM 钩子**（`AIRY_LSM_HOOK_IMPLEMENTED = 7`：`uring_cmd`/`task_alloc`/`task_free`/`task_kill`/`file_open`/`inode_alloc_security`/`inode_free_security`），并非 250 个——`AIRY_LSM_KERNEL_HOOK_TOTAL = 250` 仅为 Linux 6.6 LSM 框架可用钩子上限的文档用途常量，非数组尺寸。
+**OS-IRON-003 约束**：agent-linux LSM 与 agentrt Cupolas 共享 `lsm_types.h` 与 `security_types.h`，blob 结构布局（`airy_task_sec`/`airy_inode_sec`/`airy_cap_slot`）与 4 值裁决枚举（`airy_verdict`）两端必须逐字节一致。**Airy 实际注册 7 个 LSM 钩子**（`AIRY_LSM_HOOK_IMPLEMENTED = 7`：`uring_cmd`/`task_alloc`/`task_free`/`task_kill`/`file_open`/`inode_alloc_security`/`inode_free_security`），并非 250 个——`AIRY_LSM_KERNEL_HOOK_TOTAL = 250` 仅为 Linux 6.6 LSM 框架可用钩子上限的文档用途常量，非数组尺寸。
 
 #### [SS] 语义同源层
 
-| 维度 | agentrt 用户态（Cupolas） | agentrt-linux 内核态（LSM） | 同源点 |
+| 维度 | agentrt 用户态（Cupolas） | agent-linux 内核态（LSM） | 同源点 |
 |------|--------------------------|---------------------------|--------|
 | 钩子注册 | `airy_cupolas_hook_register()` | `security_add_hooks()` | 注册模式同源 |
 | 钩子链遍历 | 应用层策略链 | `hlist_for_each_entry_rcu()` | 链遍历语义同源 |
@@ -643,7 +643,7 @@ agentrt 的 `cupolas/guards` 模块定义了 `airy_cupolas_guard_enter(domain, a
 
 #### [IND] 完全独立层
 
-| 维度 | agentrt 用户态（Cupolas） | agentrt-linux 内核态（LSM） |
+| 维度 | agentrt 用户态（Cupolas） | agent-linux 内核态（LSM） |
 |------|--------------------------|---------------------------|
 | 钩子链表实现 | 应用层回调数组 | RCU 保护的双向链表 `security_hook_heads` |
 | blob 分配器 | 用户态 malloc/arena | `kmem_cache` + `__ro_after_init` 偏移表 |
@@ -745,7 +745,7 @@ struct airy_ipc_msg_hdr hdr = {
 
 `verdict` 字段取值严格遵循 [SC] `security_types.h` 的 `airy_verdict` 4 值枚举（`AIRY_VERDICT_ALLOW/DENY/AUDIT/COMPLAIN`），与 agentrt 用户态 Cupolas 裁决语义完全相同（OS-IRON-003）。**不存在虚构的 `airy_lsm_hook_id` 枚举**——LSM 钩子标识通过钩子名哈希在 payload 中传递，而非 250 ID 枚举。
 
-#### 11.2.4 OS-SEC 规则集（agentrt-linux 专属扩展深化，v1.0.1 对齐 4 值枚举）
+#### 11.2.4 OS-SEC 规则集（agent-linux 专属扩展深化，v1.0.1 对齐 4 值枚举）
 
 | 规则编号 | 类型 | 描述 |
 |----------|------|------|
@@ -758,7 +758,7 @@ struct airy_ipc_msg_hdr hdr = {
 
 > **编号说明**：v1.0.1 新增规则原使用 OS-SEC-012/013，因与 02-landlock-sandbox.md 的 OS-SEC-012（3 层域叠加）/OS-SEC-013（访问掩码合并）冲突，重编号为 OS-SEC-016/017（SSoT 注册表下一可用编号）。详见 [09-ssot-registry.md §9.1](../50-engineering-standards/09-ssot-registry.md)。
 
-上述规则在 IRON-9 v3 [SC] 共享契约层约束下，保证 agentrt 用户态 Cupolas 与 agentrt-linux 内核态 LSM 钩子的语义同源；任何对钩子映射表的修改必须经 RFC 评审与 ABI 稳定性确认（OS-IRON-001）及五维原则映射检查（OS-STD-007）。
+上述规则在 IRON-9 v3 [SC] 共享契约层约束下，保证 agentrt 用户态 Cupolas 与 agent-linux 内核态 LSM 钩子的语义同源；任何对钩子映射表的修改必须经 RFC 评审与 ABI 稳定性确认（OS-IRON-001）及五维原则映射检查（OS-STD-007）。
 
 ---
 
@@ -813,7 +813,7 @@ struct airy_ipc_msg_hdr hdr = {
 | 文档定位 | LSM 框架详解 |
 | 当前版本 | v1.0.1 |
 | 最后更新 | 2026-07-21 |
-| 维护者 | agentrt-linux 安全工程组 |
+| 维护者 | agent-linux 安全工程组 |
 | 同源映射 | agentrt Cupolas + Linux 6.6 LSM/Landlock/capability |
 | 理论根基 | Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-1 安全内生 |
 | 核心约束 | IRON-9 v3 同源且部分代码共享；v1.0.1 起 Capability Badge 校验由 fastpath C-S9 内联完成 |
@@ -942,7 +942,7 @@ struct lsm_info {
 };
 ```
 
-#### A.1.5 airy Blob 结构（agentrt-linux 专属，对齐 [SC] lsm_types.h SSoT）
+#### A.1.5 airy Blob 结构（agent-linux 专属，对齐 [SC] lsm_types.h SSoT）
 
 > **命名说明**：架构概念称 "Cupolas"（安全穹顶），但内核态 LSM 模块的 C 语言标识符（结构体、函数、宏）统一使用 `airy_` 前缀，对齐 [07-airy-lsm-design.md](07-airy-lsm-design.md) §2 SSoT 声明。
 >
@@ -1222,7 +1222,7 @@ enum lsm_order {
 
 ```c
 /**
- * airy blob 尺寸定义（agentrt-linux 专属，模块名 "airy"）
+ * airy blob 尺寸定义（agent-linux 专属，模块名 "airy"）
  *
  * M0 基线仅设置 lbs_task + lbs_inode（对齐 AIRY_LSM_HOOK_IMPLEMENTED=7
  * 仅消费 task + inode blob）。其余 blob 尺寸为 0，LSM 框架会跳过分配。

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — misc 设备框架与轻量字符设备
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第四篇——misc 设备框架与 `/dev/airy_*` 设备节点创建\
+# agent-linux（AirymaxOS）驱动模型 — misc 设备框架与轻量字符设备
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第四篇——misc 设备框架与 `/dev/airy_*` 设备节点创建\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[60-driver-model README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 概述
 
-Linux 内核 misc 设备框架是字符设备的"轻量级封装"——它为不需要独立主设备号的简单字符设备提供共享主设备号（10）与统一注册接口。agentrt-linux v1.0.1 选择 misc 框架作为 Agent 虚拟设备的默认字符设备接口，原因有三：
+Linux 内核 misc 设备框架是字符设备的"轻量级封装"——它为不需要独立主设备号的简单字符设备提供共享主设备号（10）与统一注册接口。agent-linux v1.0.1 选择 misc 框架作为 Agent 虚拟设备的默认字符设备接口，原因有三：
 
 1. **主设备号共享**：Agent 虚拟设备数量可能达数十个，misc 框架的共享主设备号（10）避免主设备号耗尽
 2. **注册接口简洁**：`misc_register` 一步完成 `cdev_init` + `cdev_add` + `device_create`，与 devm 资源托管天然契合
@@ -21,14 +21,14 @@ Linux 内核 misc 设备框架是字符设备的"轻量级封装"——它为不
 
 本文档覆盖五大主题：misc 设备框架核心机制、Agent 虚拟设备注册接口（`airy_misc_register` / `airy_misc_deregister`）、设备文件操作（open/read/write/ioctl/release）、与 A-IPC 模块的关系（io_uring 作为设备访问的 fastpath）、与 VFS 用户态化的关系（vfs_d daemon 管理 `/dev/airy_*` 设备）。
 
-| 字符设备注册方式 | 注册接口 | 主设备号 | agentrt-linux 适用度 |
+| 字符设备注册方式 | 注册接口 | 主设备号 | agent-linux 适用度 |
 |----------------|---------|---------|---------------------|
 | **misc 框架** | `misc_register` | 共享 10 | **首选**（Agent 虚拟设备） |
 | cdev 直注册 | `cdev_add` + `device_create` | 独立申请 | 仅特殊设备（如 vfio） |
 | platform driver + cdev | `platform_driver` + `cdev_add` | 独立申请 | SoC 硬件设备 |
 | 字符设备 early console | `register_console` | N/A | 仅早期控制台 |
 
-> **OS-DRV-060**： agentrt-linux Agent 虚拟设备的字符设备接口必须通过 misc 框架注册，禁止直接使用 `cdev_add`。这是 K-1 内核极简原则的体现——misc 框架已足够承载 Agent 设备的字符设备接口。
+> **OS-DRV-060**： agent-linux Agent 虚拟设备的字符设备接口必须通过 misc 框架注册，禁止直接使用 `cdev_add`。这是 K-1 内核极简原则的体现——misc 框架已足够承载 Agent 设备的字符设备接口。
 
 > **OS-DRV-061**： `airy_misc_register` / `airy_misc_deregister` 必须通过 devm 资源托管（`devm_misc_register`）——设备注销时自动调用 `misc_deregister`，避免资源泄漏。
 
@@ -113,7 +113,7 @@ static int misc_open(struct inode *inode, struct file *file)
 
 ### 3.1 airy_misc_register / airy_misc_deregister
 
-agentrt-linux v1.0.1 在 misc 框架之上封装了 Agent 虚拟设备专用注册接口：
+agent-linux v1.0.1 在 misc 框架之上封装了 Agent 虚拟设备专用注册接口：
 
 ```c
 /**
@@ -371,7 +371,7 @@ out:
 
 ### 4.4 ioctl 命令编号体系
 
-agentrt-linux v1.0.1 定义了统一的 ioctl 命令编号体系，通过 [SC] 头文件三路桥接：
+agent-linux v1.0.1 定义了统一的 ioctl 命令编号体系，通过 [SC] 头文件三路桥接：
 
 ```c
 /* [SC] include/uapi/linux/airymax/airy_ioctl.h — ioctl 命令编号 */
@@ -706,7 +706,7 @@ static int airy_cogn_probe(struct device *dev)
 
 ### 8.1 命名规则
 
-agentrt-linux v1.0.1 的 Agent 设备命名规则：
+agent-linux v1.0.1 的 Agent 设备命名规则：
 
 ```
 /dev/airy_<agent_id>_<dev_type>[_<instance>]
@@ -814,4 +814,4 @@ v1.0 文档未单独覆盖 misc 框架——misc 设备的提及散见于 `01-de
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 — misc 设备框架与轻量字符设备 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型 — misc 设备框架与轻量字符设备 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Token 效率监控
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L8 层——agentrt-linux 专属 Token 能效监控的工程规范\
+# agent-linux（AirymaxOS）Token 效率监控
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L8 层——agent-linux 专属 Token 能效监控的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[90-observability README](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + cogn_d daemon + A-ULS macro_d 监管\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + sched_tac 调度\
-> **核心约束**：Token 效率监控是 agentrt-linux 专属 L8 层可观测性，A-ULS 模块 macro_d 强制监管
+> **核心约束**：Token 效率监控是 agent-linux 专属 L8 层可观测性，A-ULS 模块 macro_d 强制监管
 
 ---
 
@@ -29,13 +29,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-Token 效率监控是 agentrt-linux 专属的可观测性 L8 层，专门追踪智能体操作系统中每个 Agent 的 Token（模型推理的最小计算单位）消耗与产出效率。与传统 Linux 内核观测 CPU/内存/IO 不同，Token 是智能体操作系统的"计算货币"，其消耗效率直接决定系统整体经济性与可用性。agentrt-linux 将 Token 效率监控作为可观测性体系的一等公民，原因有三：
+Token 效率监控是 agent-linux 专属的可观测性 L8 层，专门追踪智能体操作系统中每个 Agent 的 Token（模型推理的最小计算单位）消耗与产出效率。与传统 Linux 内核观测 CPU/内存/IO 不同，Token 是智能体操作系统的"计算货币"，其消耗效率直接决定系统整体经济性与可用性。agent-linux 将 Token 效率监控作为可观测性体系的一等公民，原因有三：
 
 1. **经济性约束**：Agent 调用 LLM 推理服务按 Token 计费，无约束的 Token 消耗会导致系统运行成本失控。Token 效率监控是 A-ULS 模块 macro_d 执行预算监管的数据基础。
 2. **行为诊断**：Token 消耗模式反映 Agent 决策质量——高 input/output 比率可能意味着提示工程低效，低 output/input 比率可能意味着模型输出冗余。Token 效率指标是 Agent 行为追踪的关键维度。
 3. **sched_tac 协同**：SCHED_DEADLINE Agent 的 Token 预算必须与 runtime 预算匹配；Token 预算溢出会触发 macro_d 降级 Agent 至 SCHED_FIFO，是sched_tac 调度类切换的触发条件之一。
 
-**OS-OBS-071: Token 效率监控是 agentrt-linux 可观测性 L8 层的强制基线，所有 Agent 必须接受 Token 消耗追踪，不得存在"匿名 Token 消费"路径。**
+**OS-OBS-071: Token 效率监控是 agent-linux 可观测性 L8 层的强制基线，所有 Agent 必须接受 Token 消耗追踪，不得存在"匿名 Token 消费"路径。**
 
 **OS-KER-161: Token 监控规划配置项 `CONFIG_AIRY_TOKEN_MONITOR`（**当前 kernel 源码中不存在，属规划**）；落地时由内建 Airy LSM（非 agentrt.ko）在 `airy_init()` 阶段注册 Token 追踪数据结构。**
 
@@ -54,7 +54,7 @@ Token 效率监控是 agentrt-linux 专属的可观测性 L8 层，专门追踪�
 
 ### 1.3 Token 消耗模型
 
-agentrt-linux 中，Token 消耗分为四类：
+agent-linux 中，Token 消耗分为四类：
 
 | Token 类型 | 含义 | 来源 |
 |-----------|------|------|
@@ -217,7 +217,7 @@ int airy_token_report(u32 agent_id, struct airy_token_delta *delta)
 
 ### 3.2 指标分级
 
-agentrt-linux 将 Token 效率指标分为三级：
+agent-linux 将 Token 效率指标分为三级：
 
 | 等级 | 颜色 | 触发条件 | 处置 |
 |------|------|---------|------|
@@ -495,7 +495,7 @@ Agent 42 Token Budget Prediction:
 
 ### 7.1 cogn_d 职责
 
-cogn_d daemon 是 agentrt-linux 的认知循环守护进程，负责：
+cogn_d daemon 是 agent-linux 的认知循环守护进程，负责：
 
 1. **LLM 推理调用**：代理 Agent 调用外部 LLM 服务（如 OpenAI API、本地模型）。
 2. **Token 计量**：从 LLM 响应中解析 Token 消耗，上报至内核态。
@@ -611,4 +611,4 @@ cogn_d 的 LLM 推理调用是 SCHED_DEADLINE 调度类的主要负载：
 
 ---
 
-> **文档结束** | agentrt-linux Token 效率监控 v1.0.1 | 维护者：开源极境工程与规范委员会 | "In the economy of intelligence, tokens are the currency of thought."
+> **文档结束** | agent-linux Token 效率监控 v1.0.1 | 维护者：开源极境工程与规范委员会 | "In the economy of intelligence, tokens are the currency of thought."

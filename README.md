@@ -1,12 +1,12 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 设计文档体系总览
+# agent-linux 设计文档体系总览
 
-> **文档定位**：agentrt-linux（AirymaxOS 极境智能体操作系统）整体方案文档体系的总入口与纲领\
+> **文档定位**：agent-linux（AirymaxOS 极境智能体操作系统）整体方案文档体系的总入口与纲领\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-30\
-> **正式全称**：agentrt-linux（极境智能体操作系统，英文名：AirymaxOS）\
-> **仓库别名**：agentrt-linux（仓库名）\
+> **正式全称**：agent-linux（极境智能体操作系统，英文名：AirymaxOS）\
+> **仓库别名**：agent-linux（仓库名）\
 > **文档维护**：开源极境工程与规范委员会（OpenAirymax Engineering and Standardization Committee）
 
 ***
@@ -15,20 +15,20 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 本文档是 `docs/AirymaxOS/` 目录的**顶层纲领**，承担四项核心职责：
 
-1. **整体方案总览**：定义 agentrt-linux（AirymaxOS）作为基于 Linux 内核的智能体操作系统发行版的整体设计思想、架构支柱与子仓清单。
+1. **整体方案总览**：定义 agent-linux（AirymaxOS）作为基于 Linux 内核的智能体操作系统发行版的整体设计思想、架构支柱与子仓清单。
 2. **技术选型声明**：明确声明 v1.x.x 阶段的五大核心技术选型（sched\_tac、IORING\_OP\_URING\_CMD、纯 C LSM、alloc\_pages + mmap、IRON-9 v3 四层模型），作为全文档体系的不可妥协基线。
 3. **文档索引**：列出 `docs/AirymaxOS/` 下全部子目录及其文档数量，提供导航入口。
 4. **Unify Design 映射**：阐述 Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）在文档体系中的分布。
 
-agentrt-linux 与 agentrt（AgentRT 极境智能体运行底座平台工程）同源：agentrt 是跨平台用户态运行时（Linux/macOS/Windows），agentrt-linux 是基于 Linux 6.6 内核基线的发行版（专为 Agent 工作负载优化），两者共享 Airymax 工程设计思想，agentrt 在 agentrt-linux 上运行天然更稳健和适配，架构同源，无适配层。
+agent-linux 与 agentrt（AgentRT 极境智能体运行底座平台工程）同源：agentrt 是跨平台用户态运行时（Linux/macOS/Windows），agent-linux 是基于 Linux 6.6 内核基线的发行版（专为 Agent 工作负载优化），两者共享 Airymax 工程设计思想，agentrt 在 agent-linux 上运行天然更稳健和适配，架构同源，无适配层。
 
-> **项目定位（极境内核标准）**：AirymaxOS（agentrt-linux）是**对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核**——基于 Linux 6.6 内核基线，通过 seL4 微内核工程思想（Liedtke minimality principle、capability-based security、消息传递 IPC、服务用户态化）进行系统化改造，落地 v1.0.1 Capability Folding 单平面架构（~10ns fastpath Badge 校验）+ 12 daemon 用户态服务化 + 纯 C LSM + sched_tac 调度优化。
+> **项目定位（极境内核标准）**：AirymaxOS（agent-linux）是**对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核**——基于 Linux 6.6 内核基线，通过 seL4 微内核工程思想（Liedtke minimality principle、capability-based security、消息传递 IPC、服务用户态化）进行系统化改造，落地 v1.0.1 Capability Folding 单平面架构（~10ns fastpath Badge 校验）+ 12 daemon 用户态服务化 + 纯 C LSM + sched_tac 调度优化。
 
 ***
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。全文档体系的所有设计文档必须以本声明为基线，任何偏离均需通过 ADR 评审。
+agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。全文档体系的所有设计文档必须以本声明为基线，任何偏离均需通过 ADR 评审。
 
 | # | 技术维度        | 选定方案                                                                                                                                                       | 明确不采用的方案                                                                  | 选定理由                                                                                      | 落地文档                                                                                         |
 | - | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -149,7 +149,7 @@ docs/AirymaxOS/
 
 ## 5. Airymax Unify Design 映射
 
-Airymax Unify Design 是 agentrt-linux v1.0 的**统一设计总纲**，定义五个横切模块，贯穿 agentrt-linux 的内核态与用户态、设计层与实现层。五模块在 `docs/AirymaxOS/` 各目录中的分布如下：
+Airymax Unify Design 是 agent-linux v1.0 的**统一设计总纲**，定义五个横切模块，贯穿 agent-linux 的内核态与用户态、设计层与实现层。五模块在 `docs/AirymaxOS/` 各目录中的分布如下：
 
 | Unify 模块  | 全称                                                | 核心职责                                                                               | 主要分布目录                                                                                                                                                                                                                   |
 | --------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -187,11 +187,11 @@ Unify Design 的总纲文档为 [`10-architecture/10-unify-design.md`](10-archit
 
 ## 6. 仓库地址
 
-所有 agentrt-linux 仓库归属 `openairymax` 组织，托管于 atomgit.com：
+所有 agent-linux 仓库归属 `openairymax` 组织，托管于 atomgit.com：
 
 | 仓库   | URL                                             |
 | ---- | ----------------------------------------------- |
-| 管理仓  | `https://atomgit.com/openairymax/agentrt-linux` |
+| 管理仓  | `https://atomgit.com/openairymax/agent-linux` |
 | 子仓 1 | `https://atomgit.com/openairymax/kernel`        |
 | 子仓 2 | `https://atomgit.com/openairymax/services`      |
 | 子仓 3 | `https://atomgit.com/openairymax/security`      |
@@ -205,10 +205,10 @@ Unify Design 的总纲文档为 [`10-architecture/10-unify-design.md`](10-archit
 
 ## 7. 版本规划
 
-| 版本    | agentrt-linux 范围                                                | agentrt 范围           |
+| 版本    | agent-linux 范围                                                | agentrt 范围           |
 | ----- | --------------------------------------------------------------- | -------------------- |
-| v1.0  | 设计文档体系升级（sched\_tac + Airymax Unify Design + IRON-9 v3 + 新文档索引） | 与 agentrt-linux 协同验证 |
-| 1.0.1 | 内核和 OS 实现                                                       | 与 agentrt-linux 协同验证 |
+| v1.0  | 设计文档体系升级（sched\_tac + Airymax Unify Design + IRON-9 v3 + 新文档索引） | 与 agent-linux 协同验证 |
+| 1.0.1 | 内核和 OS 实现                                                       | 与 agent-linux 协同验证 |
 
 ***
 
@@ -228,7 +228,7 @@ Unify Design 的总纲文档为 [`10-architecture/10-unify-design.md`](10-archit
 | Wasm 3.0（安全沙箱运行时）                                       | cognition                    |
 | CXL（内存分层与池化）                                            | memory                       |
 
-> **参考声明**：agentrt-linux 的微内核设计思想**唯一来源为 seL4**，工程实现标准完全对齐 Linux 6.6 内核基线。agentrt-linux 的内核基线为 Linux 官方 stable（kernel.org），**特别是在硬件驱动的适配上移植 openEuler 特有特性**，对 openEuler 的代码工程实现标准和规范进行全面对齐和参考，从而广泛兼容国产主流硬件（鲲鹏/飞腾/海光/申威/昇腾）。内核核心子系统（调度/安全/IPC/内存）不移植 openEuler 修改，保持 vanilla 基线纯净。
+> **参考声明**：agent-linux 的微内核设计思想**唯一来源为 seL4**，工程实现标准完全对齐 Linux 6.6 内核基线。agent-linux 的内核基线为 Linux 官方 stable（kernel.org），**特别是在硬件驱动的适配上移植 openEuler 特有特性**，对 openEuler 的代码工程实现标准和规范进行全面对齐和参考，从而广泛兼容国产主流硬件（鲲鹏/飞腾/海光/申威/昇腾）。内核核心子系统（调度/安全/IPC/内存）不移植 openEuler 修改，保持 vanilla 基线纯净。
 
 ***
 
@@ -237,16 +237,16 @@ Unify Design 的总纲文档为 [`10-architecture/10-unify-design.md`](10-archit
 ```
 agentrt（AirymaxAgentRT，跨平台用户态运行时）
    │
-   └── 运行在 agentrt-linux 上: 天然更稳健和适配（同源）
+   └── 运行在 agent-linux 上: 天然更稳健和适配（同源）
        │
-       ├── agentrt 的 MicroCoreRT 调度 ←→ agentrt-linux 的sched_tac 调度策略（语义同源）
-       ├── agentrt 的 AgentsIPC 协议 ←→ agentrt-linux 的 A-IPC（io_uring IORING_OP_URING_CMD，128B 消息头同源）
-       ├── agentrt 的 Cupolas 安全 ←→ agentrt-linux 的 capability + 纯 C LSM（模型同源）
-       ├── agentrt 的 MemoryRovol ←→ agentrt-linux 的 记忆子系统（alloc_pages + mmap，记忆模型同源）
-       └── agentrt 的 CoreLoopThree ←→ agentrt-linux 的 A-UEF（认知 kthread，循环模型同源）
+       ├── agentrt 的 MicroCoreRT 调度 ←→ agent-linux 的sched_tac 调度策略（语义同源）
+       ├── agentrt 的 AgentsIPC 协议 ←→ agent-linux 的 A-IPC（io_uring IORING_OP_URING_CMD，128B 消息头同源）
+       ├── agentrt 的 Cupolas 安全 ←→ agent-linux 的 capability + 纯 C LSM（模型同源）
+       ├── agentrt 的 MemoryRovol ←→ agent-linux 的 记忆子系统（alloc_pages + mmap，记忆模型同源）
+       └── agentrt 的 CoreLoopThree ←→ agent-linux 的 A-UEF（认知 kthread，循环模型同源）
 ```
 
-**同源红利**：agentrt 的设计假设和 agentrt-linux 的实现假设一致，agentrt 在 agentrt-linux 上运行**无适配层**，天然契合，更稳健。两端通过 IRON-9 v3 四层模型（\[SC]/\[SS]/\[IND]/\[DSL]）共享契约层代码与降级生存块。
+**同源红利**：agentrt 的设计假设和 agent-linux 的实现假设一致，agentrt 在 agent-linux 上运行**无适配层**，天然契合，更稳健。两端通过 IRON-9 v3 四层模型（\[SC]/\[SS]/\[IND]/\[DSL]）共享契约层代码与降级生存块。
 
 ***
 
@@ -274,5 +274,5 @@ agentrt（AirymaxAgentRT，跨平台用户态运行时）
 
 ***
 
-> **文档结束** | agentrt-linux v1.0.1 设计文档体系 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux v1.0.1 设计文档体系 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
 

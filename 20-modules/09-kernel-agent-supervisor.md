@@ -136,15 +136,15 @@ Micro-Supervisor 在态迁移时通知 sched_d:
 
 ### 1.5.x seL4 Notification 借鉴
 
-agentrt-linux 的事件通知机制（eventfd）借鉴 seL4 Notification 的位图语义（`src/object/notification.c`）：
+agent-linux 的事件通知机制（eventfd）借鉴 seL4 Notification 的位图语义（`src/object/notification.c`）：
 
-| seL4 Notification | agentrt-linux 实现 | 说明 |
+| seL4 Notification | agent-linux 实现 | 说明 |
 |-------------------|-------------------|------|
 | `sendSignal()` | `eventfd_signal(ctx, n)` | 异步信号发送 |
 | `receiveSignal()` | `eventfd_ctx_get()` + `wait_event` | 异步信号接收 |
 | NtfnState_Idle/Waiting/Active | eventfd 计数器状态 | 3 态语义 |
 
-**位图聚合借鉴**：seL4 Notification 使用 `word_t` 位图（每 bit 代表一个事件），agentrt-linux 在 eventfd 之上实现多事件聚合——`eventfd_signal(ctx, 1ULL << fault_type)` 按位编码 Fault 类型，Macro-Supervisor 通过 `eventfd_ctx_get()` 读取后解码。
+**位图聚合借鉴**：seL4 Notification 使用 `word_t` 位图（每 bit 代表一个事件），agent-linux 在 eventfd 之上实现多事件聚合——`eventfd_signal(ctx, 1ULL << fault_type)` 按位编码 Fault 类型，Macro-Supervisor 通过 `eventfd_ctx_get()` 读取后解码。
 
 ---
 

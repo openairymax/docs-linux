@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）IPC 性能工程设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）进程间通信性能工程详细设计\
+# agent-linux（AirymaxOS）IPC 性能工程设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）进程间通信性能工程详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -22,7 +22,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标（v1.0.1: FAST_SEND 实测 ~46ns / SLOW_SEND 估算 ~600ns-5.5μs）
 
-agentrt-linux（AirymaxOS）IPC 性能工程为 A-IPC（Airymax Unify IPC Fabric，v1.0.1 Capability Folding 单平面架构）提供低延迟、高吞吐、零拷贝的传输能力。本设计聚焦四大目标：
+agent-linux（AirymaxOS）IPC 性能工程为 A-IPC（Airymax Unify IPC Fabric，v1.0.1 Capability Folding 单平面架构）提供低延迟、高吞吐、零拷贝的传输能力。本设计聚焦四大目标：
 
 1. **v1.0.1 FAST_SEND 延迟 SLO**（fastpath C-S9 通过）：≤ 200ns，实测 ~46ns（37-61ns，KUnit `airy_fastpath_bench`，UML x86_64 测量环境，含 C-S9 Badge 校验 2-10ns + Ring Buffer 写入）
 2. **v1.0.1 SLOW_SEND 延迟 SLO**（fastpath C-S9 失败，LSM 钩子接管）：≤ 10μs，估算 ~600ns-5.5μs（未实测，含 LSM 钩子 + 冷酷执法 + eventfd 通知）
@@ -39,7 +39,7 @@ agentrt-linux（AirymaxOS）IPC 性能工程为 A-IPC（Airymax Unify IPC Fabric
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。A-IPC（Airymax Unify IPC Fabric，v1.0.1 Capability Folding 单平面架构）在 agentrt-linux 中基于内核 io_uring `IORING_OP_URING_CMD` 实现，在 agentrt 中基于用户态消息队列实现，两者属于 IRON-9 v3 [SS] 语义同源层。原 AgentsIPC 名称自 v1.0.1 起统一为 A-IPC。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。A-IPC（Airymax Unify IPC Fabric，v1.0.1 Capability Folding 单平面架构）在 agent-linux 中基于内核 io_uring `IORING_OP_URING_CMD` 实现，在 agentrt 中基于用户态消息队列实现，两者属于 IRON-9 v3 [SS] 语义同源层。原 AgentsIPC 名称自 v1.0.1 起统一为 A-IPC。
 
 ### 1.4 IPC 性能 SLO 矩阵（v1.0.1: 新增 FAST_SEND / SLOW_SEND）
 
@@ -55,7 +55,7 @@ agentrt-linux（AirymaxOS）IPC 性能工程为 A-IPC（Airymax Unify IPC Fabric
 
 ### 1.5 v1.0.1 FAST_SEND 实测性能（KUnit `airy_fastpath_bench`）
 
-FAST_SEND（fastpath C-S9 通过路径）的实测数据来自内核 KUnit 微基准 [airy_fastpath_bench.c](../../agentrt-linux/kernel/kernel/corekern/ipc/airy_fastpath_bench.c)，**测量环境：UML x86_64**（ktime_get_ns 分批计时，warm-up + batched loop，net mean = raw - baseline），数据非估算：
+FAST_SEND（fastpath C-S9 通过路径）的实测数据来自内核 KUnit 微基准 [airy_fastpath_bench.c](../../agent-linux/kernel/kernel/corekern/ipc/airy_fastpath_bench.c)，**测量环境：UML x86_64**（ktime_get_ns 分批计时，warm-up + batched loop，net mean = raw - baseline），数据非估算：
 
 | 指标 | 实测延迟 | 说明 |
 |------|----------|------|
@@ -241,7 +241,7 @@ int airy_ipc_ring_init(struct airy_ipc_ring *r)
 	return 0;
 
 out_err:
-	pr_err("agentrt-linux: io_uring init failed ret=%d\n", ret);
+	pr_err("agent-linux: io_uring init failed ret=%d\n", ret);
 	return ret;
 }
 ```
@@ -275,7 +275,7 @@ int airy_ipc_send_batch(struct airy_ipc_ring *r,
 
 	submitted = io_uring_submit(&r->ring);
 	if (submitted < 0) {
-		pr_warn("agentrt-linux: io_uring submit failed %d\n",
+		pr_warn("agent-linux: io_uring submit failed %d\n",
 			submitted);
 		return submitted;
 	}
@@ -509,7 +509,7 @@ static int airy_ipc_rx_kthread(void *data)
 		for (i = 0; i < n; i++) {
 			ret = airy_ipc_dispatch(&batch[i]);
 			if (ret < 0)
-				pr_warn("agentrt-linux: dispatch failed %d\n",
+				pr_warn("agent-linux: dispatch failed %d\n",
 					ret);
 		}
 	}
@@ -793,7 +793,7 @@ out_err:
 
 ## 9. IRON-9 v3 同源映射（v1.0.1: Capability Folding 集成）
 
-| 组件 | agentrt-linux（[SS] 语义同源） | agentrt（[SS] 语义同源） | 共享（[SC] 共享契约） |
+| 组件 | agent-linux（[SS] 语义同源） | agentrt（[SS] 语义同源） | 共享（[SC] 共享契约） |
 |------|--------------------------------|--------------------------|----------------------|
 | IPC 传输 | 内核 io_uring `IORING_OP_URING_CMD` | 用户态消息队列 | 128B 消息头结构（Layout C v4） |
 | 消息类型枚举 | AIRY_IPC_MSG_* | AIRY_IPC_MSG_* | `include/uapi/linux/airymax/ipc.h` |
@@ -854,4 +854,4 @@ out_err:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）IPC 性能工程设计 v1.0.1（Capability Folding 集成版）
+> **文档结束** | agent-linux（AirymaxOS）IPC 性能工程设计 v1.0.1（Capability Folding 集成版）

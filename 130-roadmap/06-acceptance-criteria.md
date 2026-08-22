@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）验收标准与质量门禁
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）开发详细方案（路线图）模块第 6 文档\
+# agent-linux（AirymaxOS）验收标准与质量门禁
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）开发详细方案（路线图）模块第 6 文档\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `agentrt工程标准规范手册.md` v29.0（§38.10 ACC-OS04 + 149 项 ACC）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则（体系并行论）\
-> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 与 agentrt-linux 验收标准共享编号骨架，独立实施）
+> **核心约束**：IRON-9 v3 同源且部分代码共享（agentrt 与 agent-linux 验收标准共享编号骨架，独立实施）
 
 ---
 
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 验收标准定位
 
-agentrt-linux 验收标准（OS-ACC）是工程标准（OS-IRON / OS-STD / OS-BAN）的**可执行验证形态**。每条验收标准必须满足：
+agent-linux 验收标准（OS-ACC）是工程标准（OS-IRON / OS-STD / OS-BAN）的**可执行验证形态**。每条验收标准必须满足：
 
 1. **可执行验证方法**——配 grep / wc / find / make 等命令，CI 可自动执行
 2. **明确通过标准**——量化阈值（如 ≥80% 覆盖率、≥400 行、0 结果）
@@ -24,7 +24,7 @@ agentrt-linux 验收标准（OS-ACC）是工程标准（OS-IRON / OS-STD / OS-BA
 
 ### 1.2 OS-ACC 总数
 
-agentrt-linux 1.0.1 共定义约 110 项 OS-ACC 验收标准，覆盖 9 个 Part：
+agent-linux 1.0.1 共定义约 110 项 OS-ACC 验收标准，覆盖 9 个 Part：
 
 | 类别 | 数量 | 编号范围 |
 |------|------|---------|
@@ -131,7 +131,7 @@ agentrt-linux 1.0.1 共定义约 110 项 OS-ACC 验收标准，覆盖 9 个 Part
 | OS-ACC-037 ★ | ABI 检查工具集成 | `grep -rE "abi-check\|libabigail" docs/AirymaxOS/70-build-system/` | ≥1 处 | P0 | M1 |
 | OS-ACC-038 | 12 daemons 集成定义 | `grep -rE "12 daemons\|daemons 集成" docs/AirymaxOS/` | ≥2 处 | P0 | M1 |
 | OS-ACC-039 | 同源 API 映射表 | `grep -rE "同源 API\|MicroCoreRT\|Cupolas\|MemoryRovol\|CoreLoopThree" docs/AirymaxOS/` | ≥5 处 | P0 | M1 |
-| OS-ACC-040 | 8 子仓裸名（禁止 airymaxos- 前缀） | `grep -rE "github.com/agentrt-linux/airymaxos-" docs/AirymaxOS/` | 0 处 | P0 | M1 |
+| OS-ACC-040 | 8 子仓裸名（禁止 airymaxos- 前缀） | `grep -rE "github.com/agent-linux/airymaxos-" docs/AirymaxOS/` | 0 处 | P0 | M1 |
 
 ---
 
@@ -420,7 +420,7 @@ graph LR
 - IRON-9 v3 工程铁律 — 17 类规则编号体系（v28.0，含 IRON-9 + ACC-OS04 + 149 项 ACC）
 - agentrt 工程改进方案 — agentrt 三大支柱方案（v4.2）
 
-### 15.3 agentrt-linux 工程标准
+### 15.3 agent-linux 工程标准
 
 - `50-engineering-standards/README.md` — 工程标准主框架（OS-IRON / OS-STD / OS-BAN 编号体系）
 - `50-engineering-standards/06-toolchain-and-automation.md` — 工具链与自动化（7 层验证 + 24 项提交检查清单）

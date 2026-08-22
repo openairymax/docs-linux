@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）ftrace 框架详解
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性体系 L1 层——内核函数级跟踪框架 ftrace 的工程规范\
+# agent-linux（AirymaxOS）ftrace 框架详解
+> **文档定位**：agent-linux（AirymaxOS）可观测性体系 L1 层——内核函数级跟踪框架 ftrace 的工程规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 ftrace/tracefs/ring buffer\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-2 可观测性\
 > **核心约束**：IRON-9 同源且部分代码共享（IRON-9 v3）——与 agentrt 用户态可观测性同源，但内核态实现独立
@@ -22,7 +22,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [第 7 章 ftrace 多缓冲 trace_instances](#第-7-章-ftrace-多缓冲-trace_instances)
 - [第 8 章 ftrace 触发器](#第-8-章-ftrace-触发器)
 - [第 9 章 ftrace 与 kallsyms 关联](#第-9-章-ftrace-与-kallsyms-关联)
-- [第 10 章 agentrt-linux Agent 行为追踪扩展](#第-10-章-agentrt-linux-agent-行为追踪扩展)
+- [第 10 章 agent-linux Agent 行为追踪扩展](#第-10-章-agent-linux-agent-行为追踪扩展)
 - [第 11 章 五维原则映射](#第-11-章-五维原则映射)
 - [第 12 章 同源 agentrt 映射](#第-12-章-同源-agentrt-映射)
 - [第 13 章 相关文档与版本维护](#第-13-章-相关文档与版本维护)
@@ -33,13 +33,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-ftrace（function tracer）是 Linux 6.6 内核基线提供的官方跟踪框架。它不是单纯的函数跟踪器，而是围绕 tracefs 文件系统、ring buffer 数据通路、多种 tracer 类型、过滤器与触发器构建的可观测性工程框架。agentrt-linux 选择 ftrace 作为可观测性 L1 层，原因有三：
+ftrace（function tracer）是 Linux 6.6 内核基线提供的官方跟踪框架。它不是单纯的函数跟踪器，而是围绕 tracefs 文件系统、ring buffer 数据通路、多种 tracer 类型、过滤器与触发器构建的可观测性工程框架。agent-linux 选择 ftrace 作为可观测性 L1 层，原因有三：
 
 1. **零依赖、内核内建**：由 `CONFIG_FUNCTION_TRACER`、`CONFIG_FUNCTION_GRAPH_TRACER`、`CONFIG_DYNAMIC_FTRACE` 等 Kconfig 控制，不依赖任何用户态运行时，与 MicroCoreRT 极简内核契约天然契合。
 2. **机制-策略分离**：ftrace 只提供机制（tracefs 接口、ring buffer、tracer 注册），策略由用户通过 `current_tracer` 与过滤器组合决定。
 3. **可叠加**：ftrace 与 eBPF、perf 共享 ring buffer 基础设施，可在同一系统上协同工作。
 
-**OS-OBS-001: ftrace 是 agentrt-linux 可观测性 L1 层的强制基线，不得移除或替换为第三方商业跟踪方案。**
+**OS-OBS-001: ftrace 是 agent-linux 可观测性 L1 层的强制基线，不得移除或替换为第三方商业跟踪方案。**
 
 **OS-KER-101: kernel 的 defconfig 必须开启 CONFIG_FUNCTION_TRACER、CONFIG_FUNCTION_GRAPH_TRACER、CONFIG_TRACER_MAX_TRACE、CONFIG_DYNAMIC_FTRACE。**
 
@@ -62,7 +62,7 @@ ftrace（function tracer）是 Linux 6.6 内核基线提供的官方跟踪框架
 
 ### 2.1 挂载点
 
-Linux 6.6 内核基线规定 tracefs 的标准挂载点是 `/sys/kernel/tracing`。出于向后兼容，当 debugfs 挂载时 tracefs 也会自动挂在 `/sys/kernel/debug/tracing`。agentrt-linux 遵循上游约定：
+Linux 6.6 内核基线规定 tracefs 的标准挂载点是 `/sys/kernel/tracing`。出于向后兼容，当 debugfs 挂载时 tracefs 也会自动挂在 `/sys/kernel/debug/tracing`。agent-linux 遵循上游约定：
 
 ```bash
 # 标准挂载（fstab 永久化）
@@ -130,7 +130,7 @@ graph LR
 
 ### 3.3 trace_clock 选择
 
-ring buffer 时间戳由 `trace_clock` 控制，默认 `local`（per-CPU 快速但可能跨 CPU 不同步）。agentrt-linux 在 Agent 调度分析场景推荐 `global`：
+ring buffer 时间戳由 `trace_clock` 控制，默认 `local`（per-CPU 快速但可能跨 CPU 不同步）。agent-linux 在 Agent 调度分析场景推荐 `global`：
 
 ```bash
 cat trace_clock     # [local] global counter x86-tsc
@@ -143,7 +143,7 @@ echo global > trace_clock
 
 ### 4.1 五大基础 tracer
 
-`available_tracers` 列出编译进内核的 tracer。agentrt-linux defconfig 至少启用以下五种：
+`available_tracers` 列出编译进内核的 tracer。agent-linux defconfig 至少启用以下五种：
 
 | tracer | 用途 | 何时使用 |
 |--------|------|----------|
@@ -198,7 +198,7 @@ echo 1 > tracing_on
 
 每条事件行字段依次为：任务名、PID、CPU 号、4 位标志（中断/抢占/软中断/抢占深度）、时间戳、函数名或事件 payload。
 
-**OS-OBS-005: agentrt-linux Agent 行为追踪输出必须包含 4 位标志位，用于区分 Agent 决策发生在硬中断、软中断还是进程上下文。**
+**OS-OBS-005: agent-linux Agent 行为追踪输出必须包含 4 位标志位，用于区分 Agent 决策发生在硬中断、软中断还是进程上下文。**
 
 **OS-KER-082: Agent tracepoint 的 `print fmt` 必须以 `agent_id=0x%04x decision=%s` 起始，便于 `trace` 文件 grep 过滤。**
 
@@ -220,7 +220,7 @@ echo 1 > tracing_on
 `set_ftrace_filter` 是函数跟踪白名单，`set_ftrace_notrace` 是黑名单。两者协同缩小跟踪范围，避免 ring buffer 淹没。当一个函数同时出现在两文件中时，`set_ftrace_notrace` 优先（即不跟踪）：
 
 ```bash
-# 仅跟踪 agentrt-linux Agent 核心路径
+# 仅跟踪 agent-linux Agent 核心路径
 echo 'airy_*' > set_ftrace_filter
 echo '*lock*' >> set_ftrace_notrace
 echo '*rcu*' >> set_ftrace_notrace
@@ -283,7 +283,7 @@ graph TB
     style C fill:#bfdbfe,stroke:#1d4ed8
 ```
 
-**OS-OBS-007: agentrt-linux 必须为 Token 能效、Agent 决策、记忆卷载三类观测创建独立 instances，避免相互覆盖。**
+**OS-OBS-007: agent-linux 必须为 Token 能效、Agent 决策、记忆卷载三类观测创建独立 instances，避免相互覆盖。**
 
 **OS-STD-004: instances 创建数量不得超过 8 个；每个 instance 的 buffer_size_kb 不得超过系统内存的 1%。**
 
@@ -333,7 +333,7 @@ ftrace 触发器允许在函数命中或事件发生时执行预定义动作，�
 
 ### 8.2 Agent 异常触发器配置
 
-**OS-OBS-008: agentrt-linux 必须为 Agent 异常路径配置触发器：`airy_panic:traceoff`、`airy_anomaly:stacktrace`、`airy_overflow:snapshot:1`。**
+**OS-OBS-008: agent-linux 必须为 Agent 异常路径配置触发器：`airy_panic:traceoff`、`airy_anomaly:stacktrace`、`airy_overflow:snapshot:1`。**
 
 ```bash
 # Agent 异常时立即停止跟踪并抓快照
@@ -386,11 +386,11 @@ int register_agent_hook(void)
 
 ---
 
-## 第 10 章 agentrt-linux Agent 行为追踪扩展
+## 第 10 章 agent-linux Agent 行为追踪扩展
 
 ### 10.1 设计目标
 
-agentrt-linux 在 Linux 6.6 ftrace 基础上扩展 Agent 行为追踪能力，覆盖 Agent 决策的四个核心阶段：认知（cognition）→ 规划（planner）→ 调度（scheduler）→ 执行（execution）。这些 tracepoint 通过 AgentsIPC 128B 消息头与用户态审计守护进程对接。
+agent-linux 在 Linux 6.6 ftrace 基础上扩展 Agent 行为追踪能力，覆盖 Agent 决策的四个核心阶段：认知（cognition）→ 规划（planner）→ 调度（scheduler）→ 执行（execution）。这些 tracepoint 通过 AgentsIPC 128B 消息头与用户态审计守护进程对接。
 
 ### 10.2 tracepoint 注册
 
@@ -425,7 +425,7 @@ cat instances/agent_decision/trace_pipe
 
 ### 10.4 与 MicroCoreRT 协同
 
-MicroCoreRT 是 agentrt 的极简内核契约。agentrt-linux 的 ftrace 扩展遵循 MicroCoreRT 的"最小特权态代码"原则：所有 Agent 跟踪代码在 `kernel/trace/airy_trace.c` 单文件内，不污染核心调度路径。该设计体现 IRON-9 同源且部分代码共享（IRON-9 v3）原则——与 agentrt `commons/trace` 同源（语义层共享 trace_event 头布局），但实现独立（内核态 tracepoint vs 用户态 user_events）。
+MicroCoreRT 是 agentrt 的极简内核契约。agent-linux 的 ftrace 扩展遵循 MicroCoreRT 的"最小特权态代码"原则：所有 Agent 跟踪代码在 `kernel/trace/airy_trace.c` 单文件内，不污染核心调度路径。该设计体现 IRON-9 同源且部分代码共享（IRON-9 v3）原则——与 agentrt `commons/trace` 同源（语义层共享 trace_event 头布局），但实现独立（内核态 tracepoint vs 用户态 user_events）。
 
 **OS-KER-105: Agent 跟踪代码体积必须 < 8 KB（编译后 .text 段），超出则视为违反 MicroCoreRT 极简契约。**
 
@@ -443,13 +443,13 @@ MicroCoreRT 是 agentrt 的极简内核契约。agentrt-linux 的 ftrace 扩展�
 | **C-3 记忆卷载** | instances/agent_memory 单独监控 L1→L4 记忆演化 |
 | **M-1 极境内核** | ftrace 零运行时开销（dynamic ftrace nop 化） |
 
-agentrt-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则——每条 OS-OBS 规则都可追溯至至少一条五维原则。IRON-9 同源且部分代码共享（IRON-9 v3）原则要求 ftrace 的内核态实现与 agentrt 用户态可观测性保持语义同源、二进制独立。两端通过 MicroCoreRT 极简内核契约与 AgentsIPC 消息协议实现无适配层互操作。
+agent-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则——每条 OS-OBS 规则都可追溯至至少一条五维原则。IRON-9 同源且部分代码共享（IRON-9 v3）原则要求 ftrace 的内核态实现与 agentrt 用户态可观测性保持语义同源、二进制独立。两端通过 MicroCoreRT 极简内核契约与 AgentsIPC 消息协议实现无适配层互操作。
 
 ---
 
 ## 第 12 章 同源 agentrt 映射
 
-| 维度 | agentrt 用户态 | agentrt-linux 内核态 |
+| 维度 | agentrt 用户态 | agent-linux 内核态 |
 |------|----------------|------------------|
 | 跟踪入口 | `airy_log_write()` | `trace_printk()` / `trace_array_printk()` |
 | 缓冲机制 | 用户态 ring buffer | kernel ring buffer |
@@ -457,14 +457,14 @@ agentrt-linux 在 Linux 6.6 内核基线上严格遵循五维正交 24 原则—
 | 多通道 | agentrt logger channels | trace_instances |
 | 桥接 | user_events | user_events（同协议） |
 
-**OS-STD-006: agentrt-linux ftrace 与 agentrt logger 共享 AgentsIPC 128B 消息头协议，两端事件格式必须一致，便于跨态聚合分析。**
+**OS-STD-006: agent-linux ftrace 与 agentrt logger 共享 AgentsIPC 128B 消息头协议，两端事件格式必须一致，便于跨态聚合分析。**
 
 agentrt 的 `commons/logger` 模块定义了 `airy_log_write(level, tag, fmt, ...)`，与内核 `trace_printk(fmt, ...)` 同源——两者写入的 ring buffer 格式遵循相同的 trace_event 头布局。IRON-9 同源且部分代码共享（IRON-9 v3）原则在此体现为：语义同源（都是结构化事件写入），实现独立（用户态用 `user_events`，内核态用 `trace_printk`）。
 
 ```mermaid
 graph LR
     A[agentrt 用户态] --> B[user_events 桥接]
-    B --> C[agentrt-linux ftrace ring buffer]
+    B --> C[agent-linux ftrace ring buffer]
     D[内核态 Agent tracepoint] --> C
     C --> E[trace_pipe 统一消费]
     style C fill:#fde68a,stroke:#b45309
@@ -474,7 +474,7 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 ### 12.1 IRON-9 v3 四层共享模型
 
-本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确可观测性层在用户态（agentrt）与内核态（agentrt-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 10 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。可观测性层是 5 个卷中**唯一拥有 [SC] 共享头文件**的卷——ftrace Agent 追踪事件通过 `include/uapi/linux/airymax/ipc.h` 定义的 IPC magic 与 128B 消息头跨态上报。
+本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确可观测性层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 10 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。可观测性层是 5 个卷中**唯一拥有 [SC] 共享头文件**的卷——ftrace Agent 追踪事件通过 `include/uapi/linux/airymax/ipc.h` 定义的 IPC magic 与 128B 消息头跨态上报。
 
 #### 12.1.1 三层模型概览表
 
@@ -486,7 +486,7 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 #### 12.1.2 [SC] 共享契约层
 
-`include/uapi/linux/airymax/ipc.h` 是 IRON-9 v3 的 10 个 [SC] 共享头文件之一，定义了 agentrt 用户态与 agentrt-linux 内核态共享的 IPC 契约。ftrace Agent 追踪事件通过此头文件定义的 IPC magic 与 128B 消息头跨态上报，确保两端事件格式一致，便于跨态聚合分析（对应 **OS-STD-006**）。
+`include/uapi/linux/airymax/ipc.h` 是 IRON-9 v3 的 10 个 [SC] 共享头文件之一，定义了 agentrt 用户态与 agent-linux 内核态共享的 IPC 契约。ftrace Agent 追踪事件通过此头文件定义的 IPC magic 与 128B 消息头跨态上报，确保两端事件格式一致，便于跨态聚合分析（对应 **OS-STD-006**）。
 
 ```c
 /* include/uapi/linux/airymax/ipc.h — IRON-9 v3 [SC] 共享契约层 */
@@ -495,7 +495,7 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 #include <linux/types.h>
 
-/* IPC magic：0x41524531 'ARE1' —— agentrt 用户态与 agentrt-linux 内核态共享识别 */
+/* IPC magic：0x41524531 'ARE1' —— agentrt 用户态与 agent-linux 内核态共享识别 */
 #define AIRY_IPC_MAGIC        0x41524531u  /* 'A''R''E''1' */
 
 /* 128B 消息头结构 —— ftrace Agent 追踪事件通过此头统一上报（OS-STD-006 契约） */
@@ -519,11 +519,11 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 > **SSoT 声明**：本节 IPC 128B 消息头不再就地重定义，以 `include/uapi/linux/airymax/ipc.h`（物理宿主见 `50-engineering-standards/120-cross-project-code-sharing.md` §Layout C）为单一数据源。结构体名称为 `struct airy_ipc_msg_hdr`（Layout C）。ftrace 追踪事件专用字段（如 trace 事件 ID）携带于 payload，消息头字段以 SSoT Layout C 为准。
 
-**契约约束**：`include/uapi/linux/airymax/ipc.h` 由 agentrt 用户态与 agentrt-linux 内核态**共同 include**，是两端唯一的源码级共享点。内核态 ftrace Agent 追踪事件按 SSoT `struct airy_ipc_msg_hdr`（Layout C）填充 `opcode`/`trace_id`/`timestamp_ns`（trace 事件 ID 携带于 payload），通过 AgentsIPC 上报；用户态 `commons/trace` 模块按同一结构解析，实现跨态聚合。**OS-STD-006** 要求两端事件格式必须一致，正是此 [SC] 契约的强制化。该头文件的演进必须经 **跨态评审**（agentrt 与 agentrt-linux 双方），任何 ABI 变更（如 `reserved` 调整、字段增删）必须同步两端版本号。
+**契约约束**：`include/uapi/linux/airymax/ipc.h` 由 agentrt 用户态与 agent-linux 内核态**共同 include**，是两端唯一的源码级共享点。内核态 ftrace Agent 追踪事件按 SSoT `struct airy_ipc_msg_hdr`（Layout C）填充 `opcode`/`trace_id`/`timestamp_ns`（trace 事件 ID 携带于 payload），通过 AgentsIPC 上报；用户态 `commons/trace` 模块按同一结构解析，实现跨态聚合。**OS-STD-006** 要求两端事件格式必须一致，正是此 [SC] 契约的强制化。该头文件的演进必须经 **跨态评审**（agentrt 与 agent-linux 双方），任何 ABI 变更（如 `reserved` 调整、字段增删）必须同步两端版本号。
 
 #### 12.1.3 [SS] 语义同源层
 
-| 语义维度 | agentrt 用户态（commons/trace） | agentrt-linux 内核态（ftrace） | 同源语义 |
+| 语义维度 | agentrt 用户态（commons/trace） | agent-linux 内核态（ftrace） | 同源语义 |
 |---------|-------------------------------|-------------------------------|----------|
 | tracepoint 注册 | agentrt event registration API | `DECLARE_TRACE` / `DEFINE_TRACE` 宏 | 声明式追踪点注册 |
 | 多缓冲模式 | agentrt per-agent trace buffer | `trace_instances` 多缓冲实例 | 多通道独立缓冲 |
@@ -533,11 +533,11 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 | 事件桥接 | `user_events` 写入 | `trace_printk` / `trace_array_printk` | 结构化事件写入 |
 | 跨态聚合 | 用户态守护进程聚合 | 内核态透传 trace_event 头 | 跨态事件聚合 |
 
-**语义说明**：agentrt 用户态的 `commons/trace` 模块与 agentrt-linux 内核态的 ftrace 在"追踪点注册 + 流式消费 + 模式切换"这一核心语义上同源——二者均通过**声明式注册**（agentrt event registration / `DECLARE_TRACE`）定义追踪点，通过**流式消费**（agentrt streaming consumer / `trace_pipe`）读取事件，支持**多缓冲实例**（per-agent trace buffer / `trace_instances`）与**动态模式切换**（tracing mode switch / `current_tracer`）。这种同源使追踪事件的组织心智模型在两端可复用：理解了 ftrace 的 `trace_instances` 多缓冲，即理解了 agentrt 的 per-agent trace buffer 语义。但**机制完全独立**——ftrace 的 ring buffer 是 per-CPU 无锁实现，agentrt 的用户态缓冲是进程内实现，二者仅在 [SC] 契约（ipc.h）处共享。
+**语义说明**：agentrt 用户态的 `commons/trace` 模块与 agent-linux 内核态的 ftrace 在"追踪点注册 + 流式消费 + 模式切换"这一核心语义上同源——二者均通过**声明式注册**（agentrt event registration / `DECLARE_TRACE`）定义追踪点，通过**流式消费**（agentrt streaming consumer / `trace_pipe`）读取事件，支持**多缓冲实例**（per-agent trace buffer / `trace_instances`）与**动态模式切换**（tracing mode switch / `current_tracer`）。这种同源使追踪事件的组织心智模型在两端可复用：理解了 ftrace 的 `trace_instances` 多缓冲，即理解了 agentrt 的 per-agent trace buffer 语义。但**机制完全独立**——ftrace 的 ring buffer 是 per-CPU 无锁实现，agentrt 的用户态缓冲是进程内实现，二者仅在 [SC] 契约（ipc.h）处共享。
 
 #### 12.1.4 [IND] 完全独立层
 
-| 独立实现项 | agentrt-linux 内核态（ftrace） | agentrt 用户态 | 独立原因 |
+| 独立实现项 | agent-linux 内核态（ftrace） | agentrt 用户态 | 独立原因 |
 |-----------|-------------------------------|---------------|---------|
 | ring buffer 实现 | per-CPU 无锁 ring buffer | 用户态进程内缓冲 | 内核态无锁特有 |
 | 钩子机制 | `mcount` / `fentry` / `fexit` 钩子 | 无对应（用户态无函数钩子） | 内核态函数插桩特有 |
@@ -556,7 +556,7 @@ graph LR
         A2["per-agent trace buffer<br/>streaming consumer"]
         A3["用户态守护进程<br/>跨态聚合"]
     end
-    subgraph "agentrt-linux 内核态（OS 层）"
+    subgraph "agent-linux 内核态（OS 层）"
         K1["DECLARE_TRACE<br/>tracepoint 注册"]
         K2["ftrace ring buffer<br/>per-CPU 无锁"]
         K3["trace_pipe<br/>透传 trace_event 头"]
@@ -589,7 +589,7 @@ graph LR
     style K3 fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
-**协作说明**：agentrt 用户态 `commons/trace` 模块通过 event registration API 注册追踪点并维护 per-agent trace buffer，agentrt-linux 内核态通过 `DECLARE_TRACE`/`DEFINE_TRACE` 注册 tracepoint 并写入 per-CPU 无锁 ring buffer。两端在 **[SS] 语义同源层** 共享"追踪点注册 + 流式消费 + 模式切换"的设计模式；在 **[IND] 完全独立层** 各自维护 ring buffer 实现、函数钩子、tracefs 文件系统。关键的跨态桥梁是 **[SC] 共享契约层** `include/uapi/linux/airymax/ipc.h`：内核态 ftrace Agent 追踪事件按 `airy_ipc_msg_hdr`（128B）填充 `trace_event_id` 与 `timestamp_ns`，通过 AgentsIPC 上报；用户态守护进程按同一 IPC magic（`0x41524531` 'ARE1'）识别并解析，实现跨态聚合分析，统一 trace_event 时间线（对应 **OS-STD-006**）。内核态仅按 trace_event 头透传 payload，不解析用户态写入内容（MicroCoreRT 极简内核契约）。这正是 **IRON-9 v3 同源且部分代码共享** 在可观测性层的落地——同源语义 + [SC] 共享契约 + 独立实现，靠 IPC 协作跨态聚合。
+**协作说明**：agentrt 用户态 `commons/trace` 模块通过 event registration API 注册追踪点并维护 per-agent trace buffer，agent-linux 内核态通过 `DECLARE_TRACE`/`DEFINE_TRACE` 注册 tracepoint 并写入 per-CPU 无锁 ring buffer。两端在 **[SS] 语义同源层** 共享"追踪点注册 + 流式消费 + 模式切换"的设计模式；在 **[IND] 完全独立层** 各自维护 ring buffer 实现、函数钩子、tracefs 文件系统。关键的跨态桥梁是 **[SC] 共享契约层** `include/uapi/linux/airymax/ipc.h`：内核态 ftrace Agent 追踪事件按 `airy_ipc_msg_hdr`（128B）填充 `trace_event_id` 与 `timestamp_ns`，通过 AgentsIPC 上报；用户态守护进程按同一 IPC magic（`0x41524531` 'ARE1'）识别并解析，实现跨态聚合分析，统一 trace_event 时间线（对应 **OS-STD-006**）。内核态仅按 trace_event 头透传 payload，不解析用户态写入内容（MicroCoreRT 极简内核契约）。这正是 **IRON-9 v3 同源且部分代码共享** 在可观测性层的落地——同源语义 + [SC] 共享契约 + 独立实现，靠 IPC 协作跨态聚合。
 
 ---
 
@@ -612,13 +612,13 @@ graph LR
 
 **OS-STD-008: OS-KER / OS-STD / OS-OBS 规则编号一经分配不得复用；废弃规则标记 `DEPRECATED` 但保留编号。**
 
-**维护责任**：文档负责人为 agentrt-linux 可观测性工程组；代码负责人为 kernel 维护者；每个 LTS 小版本发布前重新核对 ftrace 接口与规则编号有效性。
+**维护责任**：文档负责人为 agent-linux 可观测性工程组；代码负责人为 kernel 维护者；每个 LTS 小版本发布前重新核对 ftrace 接口与规则编号有效性。
 
 ---
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集 ftrace 框架与 agentrt-linux Agent 行为追踪扩展所需的完整 C 接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `kernel/trace/trace.c`、`kernel/trace/ring_buffer.c`、`kernel/trace/ftrace.c`、`include/linux/trace.h`、`include/linux/ftrace.h`、`include/linux/ring_buffer.h` 及 `include/uapi/linux/airymax/trace_types.h`（[SC] 共享契约层）。ftrace 与上游保持源码同源（IRON-9 v3），agentrt-linux 扩展以独立 instance 与独立 tracepoint 形式注入。
+> **附录定位**： 本附录汇集 ftrace 框架与 agent-linux Agent 行为追踪扩展所需的完整 C 接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `kernel/trace/trace.c`、`kernel/trace/ring_buffer.c`、`kernel/trace/ftrace.c`、`include/linux/trace.h`、`include/linux/ftrace.h`、`include/linux/ring_buffer.h` 及 `include/uapi/linux/airymax/trace_types.h`（[SC] 共享契约层）。ftrace 与上游保持源码同源（IRON-9 v3），agent-linux 扩展以独立 instance 与独立 tracepoint 形式注入。
 
 ### A.1 核心数据结构
 
@@ -724,7 +724,7 @@ struct tracer {
  * @cpus:      per-CPU 事件上下文数组
  *
  * 对齐 Linux 6.6 kernel/trace/trace_events.c
- * （agentrt-linux Agent 行为追踪的 tracepoint 经此机制暴露）
+ * （agent-linux Agent 行为追踪的 tracepoint 经此机制暴露）
  */
 struct trace_event {
     const char                *name;
@@ -1090,7 +1090,7 @@ enum print_line_t {
 /* CONFIG_KALLSYMS_BASE_RELATIVE - 相对基址编码（节省空间） */
 
 /**
- * ftrace 错误码（agentrt-linux 专属，对齐 Linux 6.6 errno 语义）
+ * ftrace 错误码（agent-linux 专属，对齐 Linux 6.6 errno 语义）
  */
 #define FTRACE_OK              0          /* 操作成功 */
 #define FTRACE_E_NOENT         (-ENOENT)  /* tracer/函数不存在 */
@@ -1104,4 +1104,4 @@ enum print_line_t {
 
 ---
 
-> **文档结束** | agentrt-linux ftrace 框架详解 v1.0.1
+> **文档结束** | agent-linux ftrace 框架详解 v1.0.1

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）可观测性设计
-> **文档定位**：agentrt-linux（AirymaxOS）可观测性工程体系主索引（eBPF 探针 + tracepoint + user_events + A-ULP 日志观测）\
+# agent-linux（AirymaxOS）可观测性设计
+> **文档定位**：agent-linux（AirymaxOS）可观测性工程体系主索引（eBPF 探针 + tracepoint + user_events + A-ULP 日志观测）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 可观测性体系是系统运行状态可见性的核心保障。它继承 Linux 内核 30+ 年沉淀的多层可观测性哲学（ftrace + eBPF + perf + 4 层文件系统接口），并在其上扩展智能体操作系统专属的 A-ULP 日志观测、调度器状态观测、Token 能效可观测性、Agent 行为追踪、记忆卷载监控等。本目录覆盖四方面职责：
+agent-linux 可观测性体系是系统运行状态可见性的核心保障。它继承 Linux 内核 30+ 年沉淀的多层可观测性哲学（ftrace + eBPF + perf + 4 层文件系统接口），并在其上扩展智能体操作系统专属的 A-ULP 日志观测、调度器状态观测、Token 能效可观测性、Agent 行为追踪、记忆卷载监控等。本目录覆盖四方面职责：
 
 1. **eBPF 探针**：通过 kfunc + BTF + dynamic pointer 提供可编程的内核扩展能力，追踪 Agent 决策路径（认知→规划→调度→执行）。**注意：eBPF 仅用于可观测性探针，不用于安全钩子**（安全钩子由纯 C LSM 承载）。
 2. **tracepoint**：通过 `DECLARE_TRACE` / `trace_*()` 宏暴露内核静态追踪点，覆盖sched_tac 调度类切换、IPC fastpath 入口、Ring Buffer 写入等关键路径。（**规划**：内核当前无任何 airy tracepoint，`include/trace/events/airy.h` 不存在，本节为设计规划）
@@ -28,13 +28,13 @@ agentrt-linux 可观测性体系是系统运行状态可见性的核心保障。
 | L3 | 性能分析 | perf（分析前端） | 性能剖析 |
 | L4 | 文件系统接口 | sysfs/procfs/debugfs/tracefs | 静态信息导出 |
 | L5 | 用户态桥接 | user_events | 用户态事件上报 |
-| **L6** | **A-ULP 日志观测** | **agentrt-linux 专属** | **Ring Buffer + Logger Daemon 观测** |
-| **L7** | **调度器状态观测** | **agentrt-linux 专属** | **sched_tac 调度类状态 + Agent 8 态** |
-| **L8** | **Token 能效监控** | **agentrt-linux 专属** | **Agent Token 消耗追踪** |
-| **L9** | **Agent 行为追踪** | **agentrt-linux 专属** | **Agent 决策路径审计** |
-| **L10** | **记忆卷载监控** | **agentrt-linux 专属** | **L1→L2→L3→L4 记忆演化** |
+| **L6** | **A-ULP 日志观测** | **agent-linux 专属** | **Ring Buffer + Logger Daemon 观测** |
+| **L7** | **调度器状态观测** | **agent-linux 专属** | **sched_tac 调度类状态 + Agent 8 态** |
+| **L8** | **Token 能效监控** | **agent-linux 专属** | **Agent Token 消耗追踪** |
+| **L9** | **Agent 行为追踪** | **agent-linux 专属** | **Agent 决策路径审计** |
+| **L10** | **记忆卷载监控** | **agent-linux 专属** | **L1→L2→L3→L4 记忆演化** |
 
-### 1.2 agentrt-linux 专属扩展
+### 1.2 agent-linux 专属扩展
 
 - **A-ULP 日志观测仪表盘**：实时监控 Ring Buffer 写入速率、Logger Daemon 消费延迟、eventfd 通知频率、Panic 回退触发
 - **调度器状态观测**：通过 tracepoint 暴露sched_tac 三层调度类（`SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF`）的切换事件、Agent 8 态生命周期迁移
@@ -46,7 +46,7 @@ agentrt-linux 可观测性体系是系统运行状态可见性的核心保障。
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0.1 可观测性体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。可观测性体系是五大选型的**运行时见证者**——通过 tracepoint 与 eBPF 探针持续观测五大选型的运行时行为。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0.1 可观测性体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。可观测性体系是五大选型的**运行时见证者**——通过 tracepoint 与 eBPF 探针持续观测五大选型的运行时行为。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -93,9 +93,9 @@ agentrt-linux v1.0.1 可观测性体系在内核调度、IPC 传输、安全钩�
 - `04-sysfs-procfs.md`：sysfs/procfs 接口
 - `05-debugfs-tracefs.md`：debugfs/tracefs 接口
 - `06-user-events.md`：user_events 用户态桥接详解
-- `07-token-efficiency.md`：agentrt-linux 专属 Token 能效监控
-- `08-agent-tracing.md`：agentrt-linux 专属 Agent 行为追踪
-- `09-memory-monitoring.md`：agentrt-linux 专属记忆卷载监控
+- `07-token-efficiency.md`：agent-linux 专属 Token 能效监控
+- `08-agent-tracing.md`：agent-linux 专属 Agent 行为追踪
+- `09-memory-monitoring.md`：agent-linux 专属记忆卷载监控
 
 ---
 
@@ -160,4 +160,4 @@ agentrt-linux v1.0.1 可观测性体系在内核调度、IPC 传输、安全钩�
 
 ---
 
-> **文档结束** | agentrt-linux 可观测性设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 可观测性设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Agent 延迟 SLO 实现方案
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义 Agent 响应延迟的服务等级目标（SLO）与保障机制\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）性能工程体系核心子文档，定义 Agent 响应延迟的服务等级目标（SLO）与保障机制\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 延迟基线（IRON-9 v3 [SS] 语义同源层，延迟 SLO 语义同源）\
 > **理论根基**：sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）延迟调度 + Airymax A-4 完美主义 + S-1 反馈闭环\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[SS] 语义同源层（延迟 SLO 语义与 agentrt 同源）+ [IND] 完全独立层（内核态延迟保障为 agentrt-linux 专属）
+> **IRON-9 v3 层次**：[SS] 语义同源层（延迟 SLO 语义与 agentrt 同源）+ [IND] 完全独立层（内核态延迟保障为 agent-linux 专属）
 
 ---
 
@@ -58,7 +58,7 @@ Agent 应用的延迟由多个阶段叠加而成，每个阶段受不同因素�
 - **规划延迟**：思维链推理、决策延迟
 - **执行延迟**：工具调用、API 请求延迟
 
-传统操作系统不感知这些阶段，无法针对性优化。agentrt-linux 通过 sched_tac 用户态调度器策略与 CoreLoopThree 阶段感知，实现端到端延迟 SLO 保障。
+传统操作系统不感知这些阶段，无法针对性优化。agent-linux 通过 sched_tac 用户态调度器策略与 CoreLoopThree 阶段感知，实现端到端延迟 SLO 保障。
 
 ### 1.3 设计哲学
 
@@ -571,7 +571,7 @@ graph TD
 |------|---------|-----------|
 | [SC] 共享契约层 | `sched.h` SLO 数据结构 + CoreLoopThree 阶段枚举 | 阶段感知与 SLO 结构引用 |
 | [SS] 语义同源层 | 延迟 SLO 语义 | 与 agentrt 用户态延迟基线语义同源 |
-| [IND] 完全独立层 | 内核态延迟保障 + SLO 守护 + 预算管理 | agentrt-linux 专属 |
+| [IND] 完全独立层 | 内核态延迟保障 + SLO 守护 + 预算管理 | agent-linux 专属 |
 
 ---
 

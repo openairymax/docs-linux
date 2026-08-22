@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）ftrace 自测试
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系第 7 卷——ftrace 启动自检（Boot-time ftrace Selftest）。本卷规定 ftrace 自测试框架（`trace_selftest_*` API）、function tracer / function_graph tracer / hwlat tracer 功能验证、agentrt-linux 专属sched_tac 调度延迟追踪，以及与 90-observability 可观测性基础设施的关系。\
+# agent-linux（AirymaxOS）ftrace 自测试
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 7 卷——ftrace 启动自检（Boot-time ftrace Selftest）。本卷规定 ftrace 自测试框架（`trace_selftest_*` API）、function tracer / function_graph tracer / hwlat tracer 功能验证、agent-linux 专属sched_tac 调度延迟追踪，以及与 90-observability 可观测性基础设施的关系。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L7（ftrace 启动自检）+ Linux 6.6 内核基线 `kernel/trace/trace_selftest.c`、`include/linux/trace.h`\
 > **理论根基**：Linux 6.6 内核基线 ftrace 思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——agentrt-linux 专属 ftrace 钩子以独立 `airy_trace_*` 模块注入，禁止改写上游 `kernel/trace/` 代码；ftrace 是可观测性基础设施，本卷自检确保其在生产环境可靠工作。
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属 ftrace 钩子以独立 `airy_trace_*` 模块注入，禁止改写上游 `kernel/trace/` 代码；ftrace 是可观测性基础设施，本卷自检确保其在生产环境可靠工作。
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 测试工程 10 主题文档中的第 7 卷，回答"ftrace 启动自检怎么跑"。它在 06-coverage-metrics（覆盖率度量）与 08-agent-contract-testing（Agent 行为契约测试）之间形成 ftrace 自检层：
+本卷是 agent-linux 测试工程 10 主题文档中的第 7 卷，回答"ftrace 启动自检怎么跑"。它在 06-coverage-metrics（覆盖率度量）与 08-agent-contract-testing（Agent 行为契约测试）之间形成 ftrace 自检层：
 
 - **上游依赖**：README 定义"测试体系分层"——L7 ftrace 启动自检由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 13 层（ftrace 自检层）。
 - **下游依赖**：08-agent-contract-testing 定义"Agent 行为契约测试"——本卷提供 ftrace 作为契约测试的追踪基础设施；90-observability 可观测性层依赖本卷验证的 ftrace 框架。
@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | hwlat tracer | 硬件延迟检测器，检测内核不可调度期 |
 | irqsoff tracer | 中断关闭延迟检测器 |
 | preemptoff tracer | 抢占关闭延迟检测器 |
-| `airy_trace_*` | agentrt-linux 专属 ftrace 扩展 |
+| `airy_trace_*` | agent-linux 专属 ftrace 扩展 |
 | `tracer_selftest:` 前缀 | 自检报告的 `printk` 前缀 |
 
 ---
@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ftrace 自测试是 Linux 6.6 内核基线中"在内核启动时验证 ftrace 框架自身功能正确性"的机制。其设计目标有三：**早期验证**（启动期即验证 ftrace 可用，避免生产环境 ftrace 失效）、**零用户态依赖**（无需 `trace-cmd` 等用户态工具）、**最小开销**（自检完成后 ftrace 静默，不影响生产）。
 
-agentrt-linux 完整继承 Linux 6.6 内核基线的 ftrace 自测试框架（`kernel/trace/trace_selftest.c`、`trace_selftest_startup_*` API），不修改任何上游源文件。agentrt-linux 专属 ftrace 自测试以独立 `airy_trace_selftest.c` 模块形式驻留于 `kernel/airymaxos/trace/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
+agent-linux 完整继承 Linux 6.6 内核基线的 ftrace 自测试框架（`kernel/trace/trace_selftest.c`、`trace_selftest_startup_*` API），不修改任何上游源文件。agent-linux 专属 ftrace 自测试以独立 `airy_trace_selftest.c` 模块形式驻留于 `kernel/airymaxos/trace/`，遵循 IRON-9 v3 [IND] 独立实现层原则。
 
 ```mermaid
 flowchart TB
@@ -65,7 +65,7 @@ flowchart TB
     B3 --> C
     B4 --> C
     B5 --> C
-    subgraph "agentrt-linux 扩展层（[IND]）"
+    subgraph "agent-linux 扩展层（[IND]）"
         D["airy_trace_selftest_cprime<br/>sched_tac 调度延迟追踪"]
         E["airy_trace_selftest_ipc<br/>IPC fastpath 追踪"]
         F["airy_trace_selftest_agent<br/>Agent 状态转换追踪"]
@@ -125,7 +125,7 @@ CONFIG_SCHED_TRACER=y
 CONFIG_BRANCH_TRACER=y
 CONFIG_FTRACE_SELFTEST=y           # 启用 ftrace 自检
 CONFIG_FTRACE_STARTUP_TEST=y       # 启动时运行自检
-CONFIG_AIRY_TRACE_SELFTEST=y       # agentrt-linux 专属 ftrace 自检
+CONFIG_AIRY_TRACE_SELFTEST=y       # agent-linux 专属 ftrace 自检
 ```
 
 ---
@@ -212,7 +212,7 @@ CONFIG_AIRY_TRACE_SELFTEST=y       # agentrt-linux 专属 ftrace 自检
 
 ---
 
-## 6. agentrt-linux 专属 ftrace 自检
+## 6. agent-linux 专属 ftrace 自检
 
 ### 6.1 sched_tac 调度延迟追踪
 
@@ -369,19 +369,19 @@ late_initcall(airy_trace_selftest_agent);
 
 ### 7.1 ftrace 是可观测性基础设施
 
-ftrace 是 agentrt-linux 可观测性体系（90-observability）的基础设施之一，与以下可观测性机制协同：
+ftrace 是 agent-linux 可观测性体系（90-observability）的基础设施之一，与以下可观测性机制协同：
 
 | 机制 | 来源 | 用途 | 与本卷关系 |
 |------|------|------|----------|
 | ftrace | Linux 6.6 内核基线 | 函数级追踪 | 本卷验证其功能正确性 |
-| tracepoint | Linux 6.6 内核基线 | 静态追踪点 | 本卷验证 agentrt-linux 专属 tracepoint |
+| tracepoint | Linux 6.6 内核基线 | 静态追踪点 | 本卷验证 agent-linux 专属 tracepoint |
 | perf | Linux 6.6 内核基线 | 性能采样 | 依赖本卷验证的 ftrace 基础设施 |
-| eBPF | Linux 6.6 内核基线 | 动态追踪 | 独立于 ftrace（agentrt-linux 不使用 BPF LSM） |
+| eBPF | Linux 6.6 内核基线 | 动态追踪 | 独立于 ftrace（agent-linux 不使用 BPF LSM） |
 | A-ULP | Airymax Unify Design | 统一日志 | 通过 ftrace 采集的 tracepoint 注入 A-ULP |
 
 ### 7.2 ftrace → A-ULP 集成
 
-agentrt-linux 的 `airy_trace_to_ulps` 模块将 ftrace tracepoint 事件转换为 A-ULP 128B 日志记录，供 logger_d 统一收集（**规划，未实现**：`kernel/airymaxos/trace/` 目录与 `airy_trace_to_ulps` 模块当前不存在）：
+agent-linux 的 `airy_trace_to_ulps` 模块将 ftrace tracepoint 事件转换为 A-ULP 128B 日志记录，供 logger_d 统一收集（**规划，未实现**：`kernel/airymaxos/trace/` 目录与 `airy_trace_to_ulps` 模块当前不存在）：
 
 ```c
 /* kernel/airymaxos/trace/airy_trace_to_ulps.c（规划，未实现） */
@@ -443,13 +443,13 @@ jobs:
             grep "tracer_selftest:.*FAIL" ftrace.log
             exit 1
           fi
-          # 检查 agentrt-linux 专属 ftrace 自检
+          # 检查 agent-linux 专属 ftrace 自检
           if grep -q "tracer_selftest: airy_.*: FAIL" ftrace.log; then
             echo "::error::airy ftrace selftest FAILED"
             grep "tracer_selftest: airy_.*: FAIL" ftrace.log
             exit 1
           fi
-          # 验证至少 8 个 PASS（5 上游 + 3 agentrt-linux）
+          # 验证至少 8 个 PASS（5 上游 + 3 agent-linux）
           pass_count=$(grep -c "tracer_selftest:.*PASS" ftrace.log || true)
           if [ "$pass_count" -lt 8 ]; then
             echo "::error::Only $pass_count/8 ftrace selftest PASS"
@@ -464,10 +464,10 @@ jobs:
 
 | 阶段 | 运行的自检 | 阻断条件 |
 |------|----------|---------|
-| PR | 上游 function / function_graph + agentrt-linux cprime / ipc / agent | 任一 FAIL |
+| PR | 上游 function / function_graph + agent-linux cprime / ipc / agent | 任一 FAIL |
 | nightly | 全部 8 项 + hwlat + irqsoff + preemptoff | 任一 FAIL |
 
-**OS-TEST-088**：PR 阶段仅运行核心 5 项自检（function / function_graph + 3 项 agentrt-linux 专属），nightly 阶段运行全部 8 项；PR 阶段不运行 hwlat 等耗时自检（避免 CI 拖慢）。
+**OS-TEST-088**：PR 阶段仅运行核心 5 项自检（function / function_graph + 3 项 agent-linux 专属），nightly 阶段运行全部 8 项；PR 阶段不运行 hwlat 等耗时自检（避免 CI 拖慢）。
 
 ---
 
@@ -475,10 +475,10 @@ jobs:
 
 ### 9.1 与 03-kernel-selftests 的关系
 
-03 卷的 agentrt-linux 专属自检（`lib/test_airy_*.c`）与本卷的 ftrace 自检在同一 `late_initcall` 阶段执行，但属于不同模块：
+03 卷的 agent-linux 专属自检（`lib/test_airy_*.c`）与本卷的 ftrace 自检在同一 `late_initcall` 阶段执行，但属于不同模块：
 
-- **03 自检**：验证 agentrt-linux 业务逻辑（调度、IPC、Capability、LSM、[SC] 头文件）。
-- **07 自检**：验证 ftrace 框架本身（function / function_graph / hwlat tracer + agentrt-linux 专属 tracepoint）。
+- **03 自检**：验证 agent-linux 业务逻辑（调度、IPC、Capability、LSM、[SC] 头文件）。
+- **07 自检**：验证 ftrace 框架本身（function / function_graph / hwlat tracer + agent-linux 专属 tracepoint）。
 
 CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前缀的输出。
 
@@ -498,7 +498,7 @@ CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前
 
 1. ftrace 自测试框架（`trace_selftest_*` API）的启用模型。
 2. function tracer / function_graph tracer / hwlat tracer 三大上游 tracer 的验证流程。
-3. agentrt-linux 专属 ftrace 自检 3 项（sched_tac 调度延迟、IPC fastpath、Agent 状态转换）。
+3. agent-linux 专属 ftrace 自检 3 项（sched_tac 调度延迟、IPC fastpath、Agent 状态转换）。
 4. `airy_ftrace_defconfig` 配置定义（**规划，未实现**）。
 5. `ci-kernel` workflow ftrace 自检阶段。
 6. ftrace → A-ULP 集成验证。
@@ -536,8 +536,8 @@ CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义 ftrace 自测试框架（`trace_selftest_*` API）、function / function_graph / hwlat tracer 功能验证；新增 agentrt-linux 专属 ftrace 自检 3 项（sched_tac 调度延迟、IPC fastpath、Agent 状态转换）；定义 `airy_ftrace_defconfig` 与 CI 集成；阐述与 90-observability 可观测性基础设施的关系 |
+| v1.0.1 | 2026-07-18 | 初始版本：定义 ftrace 自测试框架（`trace_selftest_*` API）、function / function_graph / hwlat tracer 功能验证；新增 agent-linux 专属 ftrace 自检 3 项（sched_tac 调度延迟、IPC fastpath、Agent 状态转换）；定义 `airy_ftrace_defconfig` 与 CI 集成；阐述与 90-observability 可观测性基础设施的关系 |
 
 ---
 
-> **文档结束** | agentrt-linux 测试工程体系 v1.0.1 第 7 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试工程体系 v1.0.1 第 7 卷 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

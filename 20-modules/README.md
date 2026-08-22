@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）模块设计总览
+# agent-linux（AirymaxOS）模块设计总览
 
-> **文档定位**：agentrt-linux（AirymaxOS）模块设计层的总览与索引，覆盖 8 子仓核心模块 + A-ULS/A-ULP/A-UCS 三大 Unify Design 模块 + `logger_d`/printk-bridge/unified-config 子模块；声明极境内核标准、v1.0.1 Capability Folding 单平面架构、IRON-9 v3 四层共享模型\
+> **文档定位**：agent-linux（AirymaxOS）模块设计层的总览与索引，覆盖 8 子仓核心模块 + A-ULS/A-ULP/A-UCS 三大 Unify Design 模块 + `logger_d`/printk-bridge/unified-config 子模块；声明极境内核标准、v1.0.1 Capability Folding 单平面架构、IRON-9 v3 四层共享模型\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 总览](../README.md)\
+> **上级文档**：[agent-linux 总览](../README.md)\
 > **极境内核标准**：本目录所有模块遵循"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"定位（[ADR-012](../10-architecture/05-adrs.md#adr-012-微内核化改造技术路线确认基于-linux-改造--sel4-思想非从零开发) 确立技术路线 + [ADR-014](../10-architecture/05-adrs.md#adr-014-微内核设计思想来源单一化仅-sel4不引入-zirconminix3) 确立 seL4 唯一来源）\
 > **核心约束**：IRON-9 v3 同源代码共享——[SC] 共享契约层 12 个头文件落地于 `include/uapi/linux/airymax/`
 
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 极境内核标准声明
 
-agentrt-linux（AirymaxOS）的极境内核定位为 **"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"**：
+agent-linux（AirymaxOS）的极境内核定位为 **"对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造的内核"**：
 
 - **基座**：Linux 6.6 内核（ADR-012）——继承 Linux 30 年积累的硬件支持与生态兼容性
 - **思想来源**：seL4 微内核工程思想（ADR-014）——Liedtke 极简原则、capability 单一安全模型、消息传递 IPC、服务用户态化、形式化验证；**不引入 Zircon/Minix3**
@@ -26,7 +26,7 @@ agentrt-linux（AirymaxOS）的极境内核定位为 **"对 Linux 6.6 进行 seL
 
 ## 2. 模块概述
 
-本文档是 `20-modules/` 目录的总览与索引，定义 agentrt-linux 的模块设计体系：
+本文档是 `20-modules/` 目录的总览与索引，定义 agent-linux 的模块设计体系：
 
 1. **8 子仓核心模块**：kernel / services / security / memory / cognition / cloudnative / system / tests-linux，遵循 seL4 微内核设计思想（机制与策略分离，ADR-014）+ Linux 6.6 内核基线规范 + Airymax 同源传承。
 2. **Unify Design 三大模块**：A-ULS（统一生命周期管理）、A-ULP（统一日志与打印系统）、A-UCS（统一配置管理体系），分别由 `09-kernel-agent-supervisor.md` + `10-user-supervisor-daemon.md`、`12-logger-daemon-module.md` + `13-printk-bridge.md`、`11-unified-config.md` 三个文档组承载。
@@ -38,7 +38,7 @@ agentrt-linux（AirymaxOS）的极境内核定位为 **"对 Linux 6.6 进行 seL
 
 ## 3. 技术选型声明
 
-本目录的模块设计以 agentrt-linux v1.0.1 五大技术选型为基线：
+本目录的模块设计以 agent-linux v1.0.1 五大技术选型为基线：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 模块影响 |
 |---|---------|---------|----------------|---------|
@@ -137,7 +137,7 @@ IRON-9 v3 [SC] 共享契约层包含 12 个头文件，物理宿主于 `kernel/i
 
 ## 8. 12 daemon 完整名单
 
-agentrt-linux 的 12 daemon 完整名单（与 [10-user-supervisor-daemon.md](10-user-supervisor-daemon.md) §1.3 对齐），由 `macro_d` 统一监管：
+agent-linux 的 12 daemon 完整名单（与 [10-user-supervisor-daemon.md](10-user-supervisor-daemon.md) §1.3 对齐），由 `macro_d` 统一监管：
 
 | # | Daemon | 职责 | 关键能力 |
 |---|--------|------|---------|
@@ -183,7 +183,7 @@ agentrt-linux 的 12 daemon 完整名单（与 [10-user-supervisor-daemon.md](10
 
 ## 9. v1.0.1 Capability Folding 单平面架构
 
-自 v1.0.1 起，agentrt-linux 引入 Capability Folding 单平面架构，作为 A-IPC 的第一块基石（详见 [11-unified-config.md](11-unified-config.md) §7）。
+自 v1.0.1 起，agent-linux 引入 Capability Folding 单平面架构，作为 A-IPC 的第一块基石（详见 [11-unified-config.md](11-unified-config.md) §7）。
 
 ### 9.1 Syscall 架构（4 核心 + 20 预留 = 24 槽位）
 
@@ -357,9 +357,9 @@ graph TB
 
 ## 13. 同源 agentrt 模块映射表
 
-agentrt-linux 与 agentrt（AirymaxAgentRT）共享设计理念，每个子仓都能追溯到 agentrt 的对应模块。两端通过 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]）共享契约层代码与降级生存块。
+agent-linux 与 agentrt（AirymaxAgentRT）共享设计理念，每个子仓都能追溯到 agentrt 的对应模块。两端通过 IRON-9 v3 四层模型（[SC]/[SS]/[IND]/[DSL]）共享契约层代码与降级生存块。
 
-| agentrt-linux 子仓 | agentrt 同源模块 | 同源语义 | IRON-9 v3 层次 |
+| agent-linux 子仓 | agentrt 同源模块 | 同源语义 | IRON-9 v3 层次 |
 |----------------|------------------|---------|----------|
 | kernel | atoms/corekern（MicroCoreRT） | sched_tac 调度语义 + IORING_OP_URING_CMD IPC | [SC] sched.h + ipc.h + [SS] 调度/IPC 语义 + [IND] 内核态实现 |
 | services | daemons（12 daemons） | 12 daemons 守护进程模型 + A-IPC | [SC] ipc.h + [SS] 守护进程命名 *_d + [IND] systemd 集成 |
@@ -393,7 +393,7 @@ agentrt-linux 与 agentrt（AirymaxAgentRT）共享设计理念，每个子仓�
 
 ### 14.1 跨模块协作逻辑
 
-agentrt-linux 的 8 子仓与 Unify Design 五模块通过以下 6 条关键协作路径实现端到端功能闭环：
+agent-linux 的 8 子仓与 Unify Design 五模块通过以下 6 条关键协作路径实现端到端功能闭环：
 
 | 协作路径 | 参与模块 | 数据流 | 关键机制 |
 |---------|---------|--------|---------|
@@ -410,7 +410,7 @@ agentrt-linux 的 8 子仓与 Unify Design 五模块通过以下 6 条关键协�
 
 ## 15. 扩展错误码体系
 
-agentrt-linux v1.0.1 扩展错误码体系（权威源 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)）：
+agent-linux v1.0.1 扩展错误码体系（权威源 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)）：
 
 | 错误码/故障码 | 值 | 含义 | 触发场景 |
 |------------|---|------|---------|
@@ -423,7 +423,7 @@ agentrt-linux v1.0.1 扩展错误码体系（权威源 [30-interfaces/08-sc-erro
 
 ## 16. 相关文档
 
-- [agentrt-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
+- [agent-linux 总览](../README.md)：v1.0.1 设计文档体系总览与技术选型声明
 - [架构设计](../10-architecture/README.md)：系统架构 + Unify Design 总纲 + IRON-9 v3 + [DSL] 降级层
 - [微内核策略](../10-architecture/03-microkernel-strategy.md)：seL4 思想 + 改造路径（ADR-014）
 - [ADR 总览](../10-architecture/05-adrs.md)：ADR-012（微内核化改造技术路线）+ ADR-014（微内核设计思想来源单一化：仅 seL4）

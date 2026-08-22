@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）安全加固设计
-> **文档定位**：agentrt-linux（AirymaxOS）安全工程体系主索引（Capability 模型 + 纯 C LSM + IPC 数据面自治 + 控制面 Reconciliation + io_uring 加固）\
+# agent-linux（AirymaxOS）安全加固设计
+> **文档定位**：agent-linux（AirymaxOS）安全工程体系主索引（Capability 模型 + 纯 C LSM + IPC 数据面自治 + 控制面 Reconciliation + io_uring 加固）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 安全加固体系是系统可信运行的核心保障。它继承 Linux 内核 30+ 年沉淀的多层安全哲学（LSM 框架 + Landlock 用户态沙箱 + capability + 模块签名 + Lockdown + 4 层密钥环），并在其上扩展智能体操作系统专属的纯 C `airy_lsm`、IPC 数据面自治、控制面 Reconciliation、io_uring 加固等。本目录覆盖五方面职责：
+agent-linux 安全加固体系是系统可信运行的核心保障。它继承 Linux 内核 30+ 年沉淀的多层安全哲学（LSM 框架 + Landlock 用户态沙箱 + capability + 模块签名 + Lockdown + 4 层密钥环），并在其上扩展智能体操作系统专属的纯 C `airy_lsm`、IPC 数据面自治、控制面 Reconciliation、io_uring 加固等。本目录覆盖五方面职责：
 
 1. **Capability 模型**：seL4 风格 capability + POSIX caps，44 个 capability ID（41 POSIX 0-40 + 3 Airymax 扩展 41-43），7 种派生操作（COPY/MINT/MOVE/MUTATE/REVOKE/DELETE/ROTATE，统一走 `airy_cap_derive` 单一入口），令牌 7 状态生命周期，2 类安全 blob（`airy_task_sec` / `airy_inode_sec`）。
 2. **纯 C LSM**：以纯 C 实现的 `airy_lsm` 模块通过 `security_hook_list` 注册（**不使用 BPF LSM，对齐 openEuler 纯 C 模式**），7 个 LSM 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`：uring_cmd/task_alloc/task_free/task_kill/file_open/inode_alloc_security/inode_free_security）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL=250`，仅规划上界，非全部注册），`DEFINE_LSM(airy)` 骨架，`LSM_ORDER_MUTABLE` + `CONFIG_LSM` 首位共存机制（v1.0.1：不滥用 `LSM_ORDER_FIRST`，OLK 6.6 注释明确仅用于 capabilities）。
@@ -29,12 +29,12 @@ agentrt-linux 安全加固体系是系统可信运行的核心保障。它继承
 | L3 | capability | seL4 风格 capability + POSIX caps | 权限细粒度 |
 | L4 | 模块签名 | 模块签名 + Lockdown | 代码完整性 |
 | L5 | 密钥环 | builtin/secondary/machine/platform 4 层 | 密钥管理 |
-| **L6** | **纯 C `airy_lsm`** | **agentrt-linux 专属（不使用 BPF LSM）** | **Agent 行为约束** |
-| **L7** | **IPC 数据面自治** | **agentrt-linux 专属** | **Ring 生命周期解耦** |
-| **L8** | **控制面 Reconciliation** | **agentrt-linux 专属** | **最终一致性同步** |
-| **L9** | **io_uring 加固** | **agentrt-linux 专属** | **命令白名单 + Ring 冻结** |
+| **L6** | **纯 C `airy_lsm`** | **agent-linux 专属（不使用 BPF LSM）** | **Agent 行为约束** |
+| **L7** | **IPC 数据面自治** | **agent-linux 专属** | **Ring 生命周期解耦** |
+| **L8** | **控制面 Reconciliation** | **agent-linux 专属** | **最终一致性同步** |
+| **L9** | **io_uring 加固** | **agent-linux 专属** | **命令白名单 + Ring 冻结** |
 
-### 1.2 agentrt-linux 扩展
+### 1.2 agent-linux 扩展
 
 - **纯 C `airy_lsm`**：不使用 BPF LSM（对齐 openEuler 纯 C 模式），注册 7 个 LSM 钩子（uring_cmd/task_alloc/task_free/task_kill/file_open/inode_alloc_security/inode_free_security）通过 `security_hook_list` 注册；`lsm_types.h` 定义 `AIRY_LSM_KERNEL_HOOK_TOTAL=250` 为 Linux 6.6 LSM 框架总插槽规划上界（仅文档用途，非全部注册）
 - **IPC 数据面自治**：Ring 生命周期解耦、离线缓存校验、Reconciliation 三原则
@@ -45,7 +45,7 @@ agentrt-linux 安全加固体系是系统可信运行的核心保障。它继承
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。安全体系是五大选型中**纯 C LSM**选型的权威承载者，并以 capability 模型与 io_uring 加固贯穿其余四维度。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。安全体系是五大选型中**纯 C LSM**选型的权威承载者，并以 capability 模型与 io_uring 加固贯穿其余四维度。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -57,7 +57,7 @@ agentrt-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子
 
 ### 2.1 纯 C LSM 权威声明（不使用 BPF LSM，对齐 openEuler）
 
-> **SSoT 声明**：agentrt-linux v1.0 的安全钩子**唯一采用纯 C LSM 模块**（`airy_lsm`），通过 `security_hook_list` 注册，**明确不使用 BPF LSM**。本选型对齐 openEuler 纯 C LSM 模式，保证安全策略的可审计性与形式化验证可行性，避免 BPF 验证器在安全关键路径的语义不确定性。`airy_defconfig` 强制 `# CONFIG_BPF is not set`；`CONFIG_SECURITY_AIRY=y` 编译纯 C LSM 模块（注意：配置名为 `CONFIG_SECURITY_AIRY`，无 `_LSM` 后缀）。
+> **SSoT 声明**：agent-linux v1.0 的安全钩子**唯一采用纯 C LSM 模块**（`airy_lsm`），通过 `security_hook_list` 注册，**明确不使用 BPF LSM**。本选型对齐 openEuler 纯 C LSM 模式，保证安全策略的可审计性与形式化验证可行性，避免 BPF 验证器在安全关键路径的语义不确定性。`airy_defconfig` 强制 `# CONFIG_BPF is not set`；`CONFIG_SECURITY_AIRY=y` 编译纯 C LSM 模块（注意：配置名为 `CONFIG_SECURITY_AIRY`，无 `_LSM` 后缀）。
 
 ### 2.2 IRON-9 v3 四层模型在安全体系的归属
 
@@ -110,7 +110,7 @@ agentrt-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子
 - `08-module-signing.md`：模块签名验证
 - `09-lockdown.md`：内核 Lockdown 模式
 - `10-keyrings.md`：4 层密钥环
-- `11-cupolas-dome.md`：agentrt-linux 专属 Cupolas 安全穹顶
+- `11-cupolas-dome.md`：agent-linux 专属 Cupolas 安全穹顶
 - `12-confidential-computing.md`：机密计算（VirtCCA）
 - `13-cryptography-compliance.md`：国密算法合规
 
@@ -179,4 +179,4 @@ agentrt-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子
 
 ---
 
-> **文档结束** | agentrt-linux 安全加固设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 安全加固设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

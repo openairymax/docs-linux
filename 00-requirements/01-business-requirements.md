@@ -1,18 +1,18 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 业务需求分析
-> **文档定位**：agentrt-linux（AirymaxOS） 业务需求（Business Requirements）的详细分析，回答"agentrt-linux 为谁解决什么问题、带来什么价值"。\
+> **文档定位**：agent-linux（AirymaxOS） 业务需求（Business Requirements）的详细分析，回答"agent-linux 为谁解决什么问题、带来什么价值"。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. 概述
 
-本文档定义 agentrt-linux 的业务需求（BR，Business Requirements），覆盖四大业务来源：
+本文档定义 agent-linux 的业务需求（BR，Business Requirements），覆盖四大业务来源：
 
-1. **Agent 工作负载需求**：面向各行各业的各类 Agent 应用——科研教育、金融服务、医疗健康、工业制造、零售电商、物流交通、能源电力、智慧城市、农业科技、媒体内容、法律合规、软件开发、政务服务、具身智能等领域 Agent 的真实场景需求。agentrt-linux 并非仅支撑某一两类 Agent，而是作为通用 AI Agent 运行底座，覆盖全行业 Agent 应用场景。
+1. **Agent 工作负载需求**：面向各行各业的各类 Agent 应用——科研教育、金融服务、医疗健康、工业制造、零售电商、物流交通、能源电力、智慧城市、农业科技、媒体内容、法律合规、软件开发、政务服务、具身智能等领域 Agent 的真实场景需求。agent-linux 并非仅支撑某一两类 Agent，而是作为通用 AI Agent 运行底座，覆盖全行业 Agent 应用场景。
 2. **AI 原生需求**：参考 Linux 6.6 内核基线（SP3 增强）/ Linux 7.1（2.x.x 基线，ADR-013）的 AI 原生特性
 3. **云原生需求**：K8s、containerd、OCI、CNI 等云原生生态对齐
 4. **Linux 企业级生态对齐**：RPM、dnf、systemd、SELinux、国密、多架构支持
@@ -23,11 +23,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. Agent 工作负载需求
 
-agentrt-linux 作为通用 AI Agent 运行底座，面向各行各业的 Agent 应用。不同行业的 Agent 工作负载可归纳为**四类核心工作负载模式**（按技术特征分类，而非按行业分类），每类模式对应独特的工作负载特性与系统能力需求。同一个行业可能同时涉及多类工作负载模式（例如金融行业既有高并发交互型客服 Agent，也有长序列知识密集型合规分析 Agent）。
+agent-linux 作为通用 AI Agent 运行底座，面向各行各业的 Agent 应用。不同行业的 Agent 工作负载可归纳为**四类核心工作负载模式**（按技术特征分类，而非按行业分类），每类模式对应独特的工作负载特性与系统能力需求。同一个行业可能同时涉及多类工作负载模式（例如金融行业既有高并发交互型客服 Agent，也有长序列知识密集型合规分析 Agent）。
 
 ### 2.0 行业应用范围总览
 
-agentrt-linux 支持的 Agent 应用覆盖以下行业领域（持续扩展，不设上限）：
+agent-linux 支持的 Agent 应用覆盖以下行业领域（持续扩展，不设上限）：
 
 | 行业领域 | 典型 Agent 应用 | 主要工作负载模式 | 对应 BR |
 |---------|---------------|----------------|---------|
@@ -46,7 +46,7 @@ agentrt-linux 支持的 Agent 应用覆盖以下行业领域（持续扩展，�
 | 政务服务 | 政务咨询、审批辅助、政策解读、舆情分析 | 模式二 + 模式一 | BR-002/001 |
 | 具身智能 | 机器人、自动驾驶、无人机、人形机器人 | 模式四（多模态感知） | BR-004 |
 
-> **设计原则**：agentrt-linux 不为某一特定行业定制，而是提供通用的 Agent 运行底座能力（调度、IPC、记忆、认知、安全、云原生），各行业 Agent 通过 agentrt SDK 在用户态构建领域逻辑。底座层行业无关，应用层行业相关。
+> **设计原则**：agent-linux 不为某一特定行业定制，而是提供通用的 Agent 运行底座能力（调度、IPC、记忆、认知、安全、云原生），各行业 Agent 通过 agentrt SDK 在用户态构建领域逻辑。底座层行业无关，应用层行业相关。
 
 ### 2.1 模式一：长序列知识密集型 Agent（BR-001）
 
@@ -140,7 +140,7 @@ agentrt-linux 支持的 Agent 应用覆盖以下行业领域（持续扩展，�
 
 ## 3. AI 原生需求（BR-005）
 
-agentrt-linux 全面参考 Linux 6.6 内核基线（SP3 增强）与 Linux 7.1（2.x.x 基线，ADR-013）的 AI 原生特性，构建 AI 原生操作系统。
+agent-linux 全面参考 Linux 6.6 内核基线（SP3 增强）与 Linux 7.1（2.x.x 基线，ADR-013）的 AI 原生特性，构建 AI 原生操作系统。
 
 ### 3.1 认知循环系统（BR-005-01）
 
@@ -164,7 +164,7 @@ agentrt-linux 全面参考 Linux 6.6 内核基线（SP3 增强）与 Linux 7.1�
 
 ### 3.2 超节点 OS（BR-005-02）
 
-**参考来源**：agentrt-linux 超节点 OS
+**参考来源**：agent-linux 超节点 OS
 
 | 需求项 | 详细描述 | 对应子仓 |
 |---|---|---|
@@ -184,7 +184,7 @@ agentrt-linux 全面参考 Linux 6.6 内核基线（SP3 增强）与 Linux 7.1�
 
 ### 3.3 Token 能效优化（BR-005-03）
 
-**参考来源**：agentrt-linux Token 能效框架（Kernel-Aware Dynamic Computing）
+**参考来源**：agent-linux Token 能效框架（Kernel-Aware Dynamic Computing）
 
 | 需求项 | 详细描述 | 性能目标 |
 |---|---|---|
@@ -226,7 +226,7 @@ agentrt-linux 全面参考 Linux 6.6 内核基线（SP3 增强）与 Linux 7.1�
 
 ## 4. 云原生需求（BR-006）
 
-agentrt-linux 全面支持云原生生态，对齐 Kubernetes、containerd、OCI 等标准。
+agent-linux 全面支持云原生生态，对齐 Kubernetes、containerd、OCI 等标准。
 
 ### 4.1 K8s 容器编排（BR-006-01）
 
@@ -322,7 +322,7 @@ agentrt-linux 全面支持云原生生态，对齐 Kubernetes、containerd、OCI
 
 ## 5. 与 Linux 企业级生态对齐（BR-007）
 
-agentrt-linux 全面参考 Linux 企业级生态标准，确保与企业级 Linux 生态的兼容性。
+agent-linux 全面参考 Linux 企业级生态标准，确保与企业级 Linux 生态的兼容性。
 
 ### 5.1 RPM 包格式兼容（BR-007-01）
 
@@ -436,7 +436,7 @@ agentrt-linux 全面参考 Linux 企业级生态标准，确保与企业级 Linu
 
 ## 6. Agent 应用场景矩阵
 
-下表展示 agentrt-linux 的 Agent 应用场景矩阵，将场景、能力需求、性能要求与子仓支持进行交叉映射：
+下表展示 agent-linux 的 Agent 应用场景矩阵，将场景、能力需求、性能要求与子仓支持进行交叉映射：
 
 | 场景 | 能力需求 | 性能要求 | 主要子仓支持 | 业务需求 |
 |---|---|---|---|---|
@@ -469,7 +469,7 @@ agentrt-linux 全面参考 Linux 企业级生态标准，确保与企业级 Linu
 
 | 优先级 | 业务需求 | 说明 |
 |---|---|---|
-| P0 | BR-001 科研 Agent | agentrt-linux 的核心场景，验证长序列任务能力 |
+| P0 | BR-001 科研 Agent | agent-linux 的核心场景，验证长序列任务能力 |
 | P0 | BR-005 AI 原生 | 区别于通用 OS 的核心差异化能力 |
 | P0 | BR-007 Linux 企业级生态对齐 | 生态兼容的基础，确保可用性 |
 | P1 | BR-002 客服 Agent | 高并发场景，验证云原生能力 |
@@ -491,7 +491,7 @@ agentrt-linux 全面参考 Linux 企业级生态标准，确保与企业级 Linu
 | BR-004 具身智能 | 感知延迟 < 20ms，控制频率 > 1kHz，迁移成功率 > 80% | Sim2Real 测试 |
 | BR-005 AI 原生 | Token 吞吐 +30%，能效 +25%，节点通信 < 10μs | 性能基准测试 |
 | BR-006 云原生 | K8s v1.30+ 兼容，containerd 1.7+，OCI v1.1 | 兼容性测试矩阵 |
-| BR-007 Linux 企业级生态对齐 | RPM 4.x，dnf 4.x，systemd 255+，SELinux，国密 | agentrt-linux 集成测试框架 |
+| BR-007 Linux 企业级生态对齐 | RPM 4.x，dnf 4.x，systemd 255+，SELinux，国密 | agent-linux 集成测试框架 |
 
 ---
 
@@ -547,7 +547,7 @@ graph LR
 - [需求分析概览](README.md)：需求分层模型与追溯框架
 - [功能需求分析](02-functional-requirements.md)：8 子仓功能矩阵与能力清单
 - [非功能需求分析](03-non-functional-requirements.md)：性能、安全、可靠性需求
-- [agentrt-linux 总览](../README.md)：agentrt-linux 整体设计
+- [agent-linux 总览](../README.md)：agent-linux 整体设计
 - [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---

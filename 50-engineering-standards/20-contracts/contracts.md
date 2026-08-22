@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux OS 层契约规范
-> **文档定位**：agentrt-linux（AirymaxOS）OS 层三大契约的统一文档，涵盖 IPC 协议、系统调用 API、日志格式\
+# agent-linux OS 层契约规范
+> **文档定位**：agent-linux（AirymaxOS）OS 层三大契约的统一文档，涵盖 IPC 协议、系统调用 API、日志格式\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux（AirymaxOS）工程标准规范](README.md)
+> **上级文档**：[agent-linux（AirymaxOS）工程标准规范](README.md)
 
 ---
 
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1. IPC 协议设计原则
 
-agentrt-linux（AirymaxOS）IPC 协议与 agentrt AgentsIPC 同源，保留 128 字节定长消息头设计，并在底层升级为基于 io_uring 的零拷贝实现。协议设计遵循以下原则，与五维正交 24 原则对齐：
+agent-linux（AirymaxOS）IPC 协议与 agentrt AgentsIPC 同源，保留 128 字节定长消息头设计，并在底层升级为基于 io_uring 的零拷贝实现。协议设计遵循以下原则，与五维正交 24 原则对齐：
 
 | 原则 | 编号 | 在 IPC 协议中的体现 |
 |------|------|-------------------|
@@ -51,7 +51,7 @@ agentrt-linux（AirymaxOS）IPC 协议与 agentrt AgentsIPC 同源，保留 128 
 | timestamp_ns | 16 | 8 | __u64 | CLOCK_REALTIME 纳秒时间戳 | 对齐北京时间（UTC+8） |
 | src_task | 24 | 8 | __u64 | 源任务 ID（agentrt task token / 内核 task ID） | 内核校验真实性，用户态不可伪造 |
 | dst_task | 32 | 8 | __u64 | 目标任务 ID，0 表示广播 | 内核校验目标可达性 |
-| capability_badge | 40 | 8 | __u64 | [SS] Capability Folding Badge（agentrt-linux 内核由 sec_d 编译，agentrt 用户态始终为 0） | D-9 修复后 8 字节对齐至 offset 40 |
+| capability_badge | 40 | 8 | __u64 | [SS] Capability Folding Badge（agent-linux 内核由 sec_d 编译，agentrt 用户态始终为 0） | D-9 修复后 8 字节对齐至 offset 40 |
 | payload_len | 48 | 4 | __u32 | payload 字节数，0 表示无 payload | 最大 64 MiB |
 | crc32 | 52 | 4 | __u32 | CRC32 覆盖 header[0:52) + payload | 发送方计算填入 |
 | reserved | 56 | 72 | __u8[72] | 保留字段（[56:64) CL1 尾部 + [64:128) CL2） | 填充为 0，未来扩展 |
@@ -233,7 +233,7 @@ IPC 消息优先级与 sched_tac 调度策略优先级对齐（0-139），按任
 ```mermaid
 sequenceDiagram
     participant S as 发送方任务 src_task
-    participant K as agentrt-linux 内核 capability 模块
+    participant K as agent-linux 内核 capability 模块
     participant R as 接收方任务 dst_task
 
     S->>S: 申请 capability 令牌<br/>airy_sys_call(COMPILE_BADGE)
@@ -264,7 +264,7 @@ sequenceDiagram
 
 - 单次 IPC 消息最多携带 1 个 capability 令牌。
 - 令牌传递链最大深度 16 层（防止无限派生）。
-- 令牌传递必须在同一 agentrt-linux 节点内（跨节点传递需通过安全网关）。
+- 令牌传递必须在同一 agent-linux 节点内（跨节点传递需通过安全网关）。
 
 ---
 
@@ -272,7 +272,7 @@ sequenceDiagram
 
 #### 6.1 传输层架构
 
-agentrt-linux IPC 基于 Linux 6.6 内核基线的 io_uring 子系统，在标准 io_uring 之上注册以下 IPC 专用 OP（固定操作码扩展）：
+agent-linux IPC 基于 Linux 6.6 内核基线的 io_uring 子系统，在标准 io_uring 之上注册以下 IPC 专用 OP（固定操作码扩展）：
 
 | OP | 用途 | 零拷贝 | 批量 |
 |----|------|--------|------|
@@ -318,7 +318,7 @@ AIRY_API int airy_sys_ipc_register_ring(int ring_fd, uint64_t dst_task);
 
 #### 7.1 共享范围
 
-agentrt-linux IPC 与 agentrt AgentsIPC 通过 IRON-9 v3 四层契约共享：
+agent-linux IPC 与 agentrt AgentsIPC 通过 IRON-9 v3 四层契约共享：
 
 | IRON-9 v3 分层 | 共享内容 | 共享方式 | 对应 agentrt 模块 |
 |---------------|---------|---------|------------------|
@@ -328,10 +328,10 @@ agentrt-linux IPC 与 agentrt AgentsIPC 通过 IRON-9 v3 四层契约共享：
 
 #### 7.2 同源兼容性
 
-agentrt 在 agentrt-linux 上运行时，IPC 消息头布局完全兼容，无需协议转换层：
+agentrt 在 agent-linux 上运行时，IPC 消息头布局完全兼容，无需协议转换层：
 
-- agentrt 发出的 128B 消息头可直接被 agentrt-linux io_uring 通道接收。
-- agentrt-linux 发出的消息头可被 agentrt 用户态消息队列接收。
+- agentrt 发出的 128B 消息头可直接被 agent-linux io_uring 通道接收。
+- agent-linux 发出的消息头可被 agentrt 用户态消息队列接收。
 - 消息头 magic 字段 0x41524531（'ARE1'）两端一致，用于协议识别。
 - trace_id 和 timestamp_ns 字段语义一致，跨端追踪无缝衔接。
 
@@ -421,7 +421,7 @@ agentrt 在 agentrt-linux 上运行时，IPC 消息头布局完全兼容，无�
 
 ### 1. 系统调用分类
 
-agentrt-linux（AirymaxOS）在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent 感知专用系统调用，统一使用 `airy_` 前缀。v1.0.1 采用 4 核心 syscall + 20 预留的 op-dispatch 模型（编号 548-571），IPC 数据面走 io_uring IORING_OP_URING_CMD（零 syscall），覆盖 8 子仓的内核入口：
+agent-linux（AirymaxOS）在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent 感知专用系统调用，统一使用 `airy_` 前缀。v1.0.1 采用 4 核心 syscall + 20 预留的 op-dispatch 模型（编号 548-571），IPC 数据面走 io_uring IORING_OP_URING_CMD（零 syscall），覆盖 8 子仓的内核入口：
 
 | # | 核心调用 | 编号 | op-dispatch | 核心职责 | 覆盖子仓 | 同源 agentrt |
 |---|---------|------|------------|---------|---------|--------------|
@@ -434,7 +434,7 @@ agentrt-linux（AirymaxOS）在 Linux 6.6 内核基线的标准系统调用之�
 
 #### 1.1 分类设计原则
 
-agentrt-linux 系统调用分类遵循以下原则，与五维正交 24 原则中的 K-1（内核极简）和 K-4（可插拔策略）对齐：
+agent-linux 系统调用分类遵循以下原则，与五维正交 24 原则中的 K-1（内核极简）和 K-4（可插拔策略）对齐：
 
 | 原则 | 编号 | 在系统调用分类中的体现 |
 |------|------|----------------------|
@@ -492,7 +492,7 @@ graph TD
     style G3 fill:#c8e6c9,stroke:#2e7d32
 ```
 
-**图 1**：agentrt-linux 系统调用层级架构。所有用户态调用统一经过参数校验、capability 守卫、审计日志三关，再分发到 4 核心 syscall（IPC 数据面走 io_uring 零 syscall）。
+**图 1**：agent-linux 系统调用层级架构。所有用户态调用统一经过参数校验、capability 守卫、审计日志三关，再分发到 4 核心 syscall（IPC 数据面走 io_uring 零 syscall）。
 
 ---
 
@@ -500,7 +500,7 @@ graph TD
 
 #### 2.1 编号段分配
 
-agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 标准 0-511 编号空间。v1.0.1 采用 4 核心 syscall + 20 预留的 op-dispatch 模型：
+agent-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 标准 0-511 编号空间。v1.0.1 采用 4 核心 syscall + 20 预留的 op-dispatch 模型：
 
 | 编号段 | 分类 | 数量 | 起始编号 | 终止编号 | 已分配 | 预留 |
 |--------|------|------|---------|---------|--------|------|
@@ -508,7 +508,7 @@ agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 
 
 #### 2.2 编号不变性规则
 
-系统调用编号是 agentrt-linux OS 层契约中最严格的 ABI 承诺：
+系统调用编号是 agent-linux OS 层契约中最严格的 ABI 承诺：
 
 1. **编号在 MAJOR 版本内不可变更**：编号一旦分配，永不复用。即使系统调用被废弃，编号保留，返回 `-AIRY_ENOSYS`。
 2. **新增编号只能追加**：新系统调用追加到对应分类段末尾，不可插入已分配编号之间。
@@ -517,7 +517,7 @@ agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 
 
 #### 2.3 命名前缀规范
 
-所有 agentrt-linux 系统调用统一使用以下命名前缀：
+所有 agent-linux 系统调用统一使用以下命名前缀：
 
 | 前缀 | C 符号形式 | 用途 | 示例 |
 |------|-----------|------|------|
@@ -534,7 +534,7 @@ agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 
 
 #### 3.1 寄存器传递约定
 
-agentrt-linux 系统调用遵循 Linux x86_64 标准调用约定（System V AMD64 ABI）：
+agent-linux 系统调用遵循 Linux x86_64 标准调用约定（System V AMD64 ABI）：
 
 | 参数位置 | 寄存器 | 类型约束 | 说明 |
 |---------|--------|---------|------|
@@ -603,7 +603,7 @@ static inline int airy_validate_user_ptr(const void __user *uptr, size_t size)
 
 #### 4.2 错误码定义
 
-agentrt-linux 系统调用错误码对齐 `include/uapi/linux/airymax/error.h`（[SC] SSoT，权威定义见 `180-i18n/03-error-message-i18n.md` §2.2），与 agentrt 同源且部分代码共享（IRON-9 v3 [SC] 层）。`AIRY_E*` 常量采用**正数幅值**（POSIX errno 风格），调用方通过 `return -AIRY_E*` 产生负值错误值（返回值 <0 即失败）：
+agent-linux 系统调用错误码对齐 `include/uapi/linux/airymax/error.h`（[SC] SSoT，权威定义见 `180-i18n/03-error-message-i18n.md` §2.2），与 agentrt 同源且部分代码共享（IRON-9 v3 [SC] 层）。`AIRY_E*` 常量采用**正数幅值**（POSIX errno 风格），调用方通过 `return -AIRY_E*` 产生负值错误值（返回值 <0 即失败）：
 
 | 错误码 | 值 | 含义 | 典型触发场景 | 可重试 |
 |--------|-----|------|-------------|--------|
@@ -638,7 +638,7 @@ agentrt-linux 系统调用错误码对齐 `include/uapi/linux/airymax/error.h`�
 
 #### 5.1 调度类概述
 
-sched_tac 调度策略是 agentrt-linux 通过 sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）实现的 Agent 专用用户态调度策略，与 agentrt MicroCoreRT 调度语义同源（[SS] 语义同源层）。核心系统调用：
+sched_tac 调度策略是 agent-linux 通过 sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）实现的 Agent 专用用户态调度策略，与 agentrt MicroCoreRT 调度语义同源（[SS] 语义同源层）。核心系统调用：
 
 | 编号 | 调用名 | 功能 | 关键参数 |
 |------|--------|------|---------|
@@ -658,12 +658,12 @@ sched_tac 调度策略是 agentrt-linux 通过 sched_tac（SCHED_DEADLINE/SCHED_
 
 #### 5.3 与 agentrt MicroCoreRT 的同源映射
 
-| 维度 | agentrt MicroCoreRT | agentrt-linux sched_tac 调度策略 | IRON-9 v3 分层 |
+| 维度 | agentrt MicroCoreRT | agent-linux sched_tac 调度策略 | IRON-9 v3 分层 |
 |------|--------------------|--------------------------|---------------|
 | 调度策略 | 用户态优先级队列 | sched_tac 用户态调度器 | [SS] 语义同源 |
 | 优先级范围 | 0-139 | 0-139 | [SS] 语义一致 |
-| 延迟预算 | 用户态估算 | 内核态精确控制 | [IND] agentrt-linux 升级 |
-| 调度 ops 表 | 不适用 | `struct airy_sched_ops`（用户态函数表，非 BPF struct_ops） | [IND] agentrt-linux 独立实现 |
+| 延迟预算 | 用户态估算 | 内核态精确控制 | [IND] agent-linux 升级 |
+| 调度 ops 表 | 不适用 | `struct airy_sched_ops`（用户态函数表，非 BPF struct_ops） | [IND] agent-linux 独立实现 |
 
 ---
 
@@ -671,7 +671,7 @@ sched_tac 调度策略是 agentrt-linux 通过 sched_tac（SCHED_DEADLINE/SCHED_
 
 #### 6.1 安全系统调用概述
 
-Cupolas 安全模型是 agentrt-linux 的安全核心，基于 seL4 风格的 capability 系统。核心系统调用：
+Cupolas 安全模型是 agent-linux 的安全核心，基于 seL4 风格的 capability 系统。核心系统调用：
 
 | 编号 | 调用名 | 功能 | 关键参数 |
 |------|--------|------|---------|
@@ -708,7 +708,7 @@ stateDiagram-v2
 
 #### 7.1 记忆系统调用概述
 
-MemoryRovol 是 agentrt-linux 的记忆管理子系统，实现 L1-L4 四层记忆卷载。核心系统调用：
+MemoryRovol 是 agent-linux 的记忆管理子系统，实现 L1-L4 四层记忆卷载。核心系统调用：
 
 | 编号 | 调用名 | 功能 | 对应 MemoryRovol 层级 |
 |------|--------|------|---------------------|
@@ -720,11 +720,11 @@ MemoryRovol 是 agentrt-linux 的记忆管理子系统，实现 L1-L4 四层记�
 
 #### 7.2 与 agentrt MemoryRovol 的同源映射
 
-| 维度 | agentrt MemoryRovol | agentrt-linux MemoryRovol | IRON-9 v3 分层 |
+| 维度 | agentrt MemoryRovol | agent-linux MemoryRovol | IRON-9 v3 分层 |
 |------|--------------------|--------------------------|---------------|
 | 记忆卷载模型 | L1-L4 四层 | L1-L4 四层 | [SS] 语义同源 |
 | 数据结构 | `memory_types.h`（[SC] 共享） | `memory_types.h`（[SC] 共享） | [SC] 代码字面一致 |
-| 存用分离 | 用户态实现 | 内核态 CXL + MGLRU | [IND] agentrt-linux 升级 |
+| 存用分离 | 用户态实现 | 内核态 CXL + MGLRU | [IND] agent-linux 升级 |
 | 遗忘策略 | 用户态可配置 | 内核态 eBPF 可插拔 | [SS] 语义同源 |
 
 ---
@@ -733,7 +733,7 @@ MemoryRovol 是 agentrt-linux 的记忆管理子系统，实现 L1-L4 四层记�
 
 #### 8.1 认知系统调用概述
 
-CoreLoopThree 是 agentrt-linux 的认知运行时，实现"感知-思考-行动"三阶段认知循环。核心系统调用：
+CoreLoopThree 是 agent-linux 的认知运行时，实现"感知-思考-行动"三阶段认知循环。核心系统调用：
 
 | 编号 | 调用名 | 功能 | 对应认知阶段 |
 |------|--------|------|-------------|
@@ -755,7 +755,7 @@ CoreLoopThree 是 agentrt-linux 的认知运行时，实现"感知-思考-行动
 
 #### 9.1 [SC] 层共享
 
-agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`；下表列系统调用相关的子集）：
+agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`；下表列系统调用相关的子集）：
 
 | 头文件 | 共享内容 | 对应系统调用分类 |
 |--------|---------|----------------|
@@ -768,7 +768,7 @@ agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享�
 
 #### 9.2 [SS] 层语义同源
 
-| 核心调用 | agentrt 用户态 | agentrt-linux OS 层 | 同源语义 |
+| 核心调用 | agentrt 用户态 | agent-linux OS 层 | 同源语义 |
 |---------|---------------|-------------------|---------|
 | `airy_sys_call` | MicroCoreRT 用户态调度 / Cupolas 应用权限模型 | `AIRY_SYS_CALL` 内核 op-dispatch | 任务提交、capability 编译/撤销、LSM 策略加载语义一致 |
 | `airy_sys_rovol_ctl` | MemoryRovol 用户态 API | `AIRY_SYS_ROVOL_CTL` 内核态 | 四层卷载、存用分离语义一致 |
@@ -778,7 +778,7 @@ agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享�
 
 #### 9.3 [IND] 层完全独立
 
-agentrt-linux 独有的系统调用维度（如 io_uring 固定 OP 扩展、CXL 内存分层、MGLRU 配置、内核态 eBPF kfunc 注册）属于 [IND] 层，agentrt 不涉及。
+agent-linux 独有的系统调用维度（如 io_uring 固定 OP 扩展、CXL 内存分层、MGLRU 配置、内核态 eBPF kfunc 注册）属于 [IND] 层，agentrt 不涉及。
 
 ---
 
@@ -830,9 +830,9 @@ agentrt-linux 独有的系统调用维度（如 io_uring 固定 OP 扩展、CXL 
 
 #### 1.1 目的与范围
 
-本文档定义了 agentrt-linux（AirymaxOS）的日志格式契约。日志是所有可观测性能力的基石，也是 agentrt-linux（AirymaxOS）五维正交可观测性架构中"可观测性维度"的核心载体。本契约覆盖内核态日志、用户态日志、审计日志三个层面，规定了日志的格式、字段、传输管道、安全策略与保留策略，确保 agentrt-linux 的日志体系在分布式部署、多租户隔离、安全审计等场景下保持一致性。
+本文档定义了 agent-linux（AirymaxOS）的日志格式契约。日志是所有可观测性能力的基石，也是 agent-linux（AirymaxOS）五维正交可观测性架构中"可观测性维度"的核心载体。本契约覆盖内核态日志、用户态日志、审计日志三个层面，规定了日志的格式、字段、传输管道、安全策略与保留策略，确保 agent-linux 的日志体系在分布式部署、多租户隔离、安全审计等场景下保持一致性。
 
-agentrt-linux 的日志系统遵循以下五维正交原则：
+agent-linux 的日志系统遵循以下五维正交原则：
 
 - **维度一（格式正交）**：日志格式与日志内容解耦，JSON 结构化格式对外统一，内部二进制格式对内高效。
 - **维度二（通道正交）**：日志产生路径与传输路径分离，内核态通过 printk → journald，用户态通过 airy_log_write() → ring buffer → collector。
@@ -844,7 +844,7 @@ agentrt-linux 的日志系统遵循以下五维正交原则：
 
 | 术语 | 含义 |
 |------|------|
-| agentrt-linux | agentrt-linux（AirymaxOS）的操作系统内核与运行时环境 |
+| agent-linux | agent-linux（AirymaxOS）的操作系统内核与运行时环境 |
 | 五维正交 | 本日志系统的核心架构哲学，见上文五个维度 |
 | IRON-9 v3 | 同源且部分代码共享的四层共享模型（[SC]/[SS]/[IND]/[DSL]） |
 | airy_log_write() | 用户态日志写入 API |
@@ -857,7 +857,7 @@ agentrt-linux 的日志系统遵循以下五维正交原则：
 
 #### 2.1 等级定义
 
-agentrt-linux（AirymaxOS）定义了六个标准日志等级，与 syslog 标准兼容，同时扩展了 OpenTelemetry 的 SeverityNumber 映射：
+agent-linux（AirymaxOS）定义了六个标准日志等级，与 syslog 标准兼容，同时扩展了 OpenTelemetry 的 SeverityNumber 映射：
 
 | 等级 | 数值 | syslog 等级 | OTel SeverityNumber | 描述 |
 |------|------|-------------|----------------------|------|
@@ -889,7 +889,7 @@ agentrt-linux（AirymaxOS）定义了六个标准日志等级，与 syslog 标�
 
 #### 3.1 JSON 格式规范
 
-所有 agentrt-linux 日志均以 JSON 格式输出，确保与 OpenTelemetry 收集器（otelcol）原生兼容。每条日志为一行 JSON（NDJSON），不含换行符嵌套。
+所有 agent-linux 日志均以 JSON 格式输出，确保与 OpenTelemetry 收集器（otelcol）原生兼容。每条日志为一行 JSON（NDJSON），不含换行符嵌套。
 
 ##### 3.1.1 基础示例
 
@@ -941,7 +941,7 @@ agentrt-linux（AirymaxOS）定义了六个标准日志等级，与 syslog 标�
 示例: 2026-07-07T14:35:22.123456789+08:00
 ```
 
-所有时间戳均通过 `clock_gettime(CLOCK_REALTIME, &ts)` 获取，确保跨节点的事件时序一致性。在 agentrt-linux 内核中，日志时间戳在内核日志环形缓冲区写入时一次性生成，后续传输不再修改，避免时间戳失真。
+所有时间戳均通过 `clock_gettime(CLOCK_REALTIME, &ts)` 获取，确保跨节点的事件时序一致性。在 agent-linux 内核中，日志时间戳在内核日志环形缓冲区写入时一次性生成，后续传输不再修改，避免时间戳失真。
 
 ---
 
@@ -949,7 +949,7 @@ agentrt-linux（AirymaxOS）定义了六个标准日志等级，与 syslog 标�
 
 #### 4.1 printk 集成
 
-agentrt-linux 内核日志通过 `log_write()` 和 `log_write_va()` 两个核心函数输出。这两个函数是 agentrt-linux 对 Linux printk 子系统的扩展封装，实现了以下增强：
+agent-linux 内核日志通过 `log_write()` 和 `log_write_va()` 两个核心函数输出。这两个函数是 agent-linux 对 Linux printk 子系统的扩展封装，实现了以下增强：
 
 1. **结构化字段注入**：自动将 trace_id、module 等字段注入到日志消息中。
 2. **等级路由**：根据日志等级决定输出目标（console / journald / ring buffer）。
@@ -969,7 +969,7 @@ void log_write_va(int level, const char *module, const char *trace_id,
 
 #### 4.2 journald 转发
 
-内核日志通过 `/dev/kmsg` 或 `printk` 环形缓冲区转发至 systemd-journald。agentrt-linux 在 journald 侧配置了专门的转发规则：
+内核日志通过 `/dev/kmsg` 或 `printk` 环形缓冲区转发至 systemd-journald。agent-linux 在 journald 侧配置了专门的转发规则：
 
 - **过滤规则**：仅转发 `_TRANSPORT=kernel` 且 `SYSLOG_IDENTIFIER=agentrt` 的日志。
 - **结构化字段映射**：journald 的 `MESSAGE=` 字段保留原始 JSON，`PRIORITY=` 字段映射日志等级，`_PID=`、`_UID=` 保留进程上下文。
@@ -1014,7 +1014,7 @@ int airy_log_write(int level, const char *module,
 
 #### 6.1 审计日志格式
 
-审计日志是 agentrt-linux 安全体系的核心组成部分，用于记录所有安全相关操作（认证、授权、配置变更、数据访问）。审计日志与普通日志隔离，具有以下特征：
+审计日志是 agent-linux 安全体系的核心组成部分，用于记录所有安全相关操作（认证、授权、配置变更、数据访问）。审计日志与普通日志隔离，具有以下特征：
 
 - **不可变性**：审计日志一旦写入，不可修改、不可删除。
 - **追加写入**：仅支持 append-only 模式。
@@ -1060,7 +1060,7 @@ int airy_log_write(int level, const char *module,
 
 #### 7.1 管道总览
 
-以下 Mermaid 图展示了 agentrt-linux 日志从产生到最终存储的完整数据流：
+以下 Mermaid 图展示了 agent-linux 日志从产生到最终存储的完整数据流：
 
 ```mermaid
 graph TD
@@ -1099,7 +1099,7 @@ graph TD
 
 #### 7.2 日志等级升级流程
 
-以下 Mermaid 图展示了 agentrt-linux 的日志等级动态升级（escalation）流程：
+以下 Mermaid 图展示了 agent-linux 的日志等级动态升级（escalation）流程：
 
 ```mermaid
 stateDiagram-v2
@@ -1130,7 +1130,7 @@ stateDiagram-v2
 
 #### 8.1 敏感数据掩码
 
-agentrt-linux 日志系统在写入路径上集成了敏感数据掩码引擎，在 `log_write_va()` 内部完成格式化之后、写入环形缓冲区之前执行掩码。掩码规则如下：
+agent-linux 日志系统在写入路径上集成了敏感数据掩码引擎，在 `log_write_va()` 内部完成格式化之后、写入环形缓冲区之前执行掩码。掩码规则如下：
 
 | 数据类型 | 检测模式 | 掩码方式 |
 |----------|----------|----------|
@@ -1158,7 +1158,7 @@ agentrt-linux 日志系统在写入路径上集成了敏感数据掩码引擎，
 
 #### 9.1 轮转规则
 
-agentrt-linux 日志轮转由 `agentrt-log-rotator` 守护进程管理，基于 `logrotate` 扩展：
+agent-linux 日志轮转由 `agentrt-log-rotator` 守护进程管理，基于 `logrotate` 扩展：
 
 | 日志类别 | 轮转触发条件 | 保留份数 | 压缩 |
 |----------|-------------|----------|------|
@@ -1182,7 +1182,7 @@ agentrt-linux 日志轮转由 `agentrt-log-rotator` 守护进程管理，基于 
 
 #### 10.1 异步日志架构
 
-agentrt-linux 日志系统采用全异步架构，确保日志 I/O 不会阻塞业务逻辑：
+agent-linux 日志系统采用全异步架构，确保日志 I/O 不会阻塞业务逻辑：
 
 1. **内核态环形缓冲区**：`log_write()` 和 `log_write_va()` 将日志写入内核的 per-CPU 环形缓冲区（默认 256KB/CPU），写入操作无锁（lock-free），仅通过内存屏障保证一致性。
 2. **用户态 Ring Buffer**：`airy_log_write()` 使用共享内存环形缓冲区（默认 4MB），通过原子操作写入，消费者线程异步读取并序列化。
@@ -1210,7 +1210,7 @@ agentrt-linux 日志系统采用全异步架构，确保日志 I/O 不会阻塞�
 
 #### 11.1 收集器配置
 
-agentrt-linux 的日志系统通过 OTLP 协议（gRPC）与 OpenTelemetry Collector 集成。日志在 agentrt-log-collector 中转换为 OpenTelemetry LogRecord 格式后发送。
+agent-linux 的日志系统通过 OTLP 协议（gRPC）与 OpenTelemetry Collector 集成。日志在 agentrt-log-collector 中转换为 OpenTelemetry LogRecord 格式后发送。
 
 关键映射关系：
 

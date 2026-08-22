@@ -1,24 +1,24 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Kconfig 配置系统详解
-> **文档定位**：agentrt-linux（AirymaxOS）构建系统第 2 卷——Kconfig 配置系统详解。本卷剖析 Kconfig 语法（`config`/`menuconfig`/`choice`/`depends on`/`select`）、`CONFIG_*` 宏与 `obj-$(CONFIG_*)` 门控、Kconfig 子目录组织、`Kconfig.airymaxos` 供应商扩展、配置工具（`menuconfig`/`nconfig`/`gconfig`）与 `KCONFIG_ALLCONFIG` 全配置覆盖机制。\
+# agent-linux（AirymaxOS）Kconfig 配置系统详解
+> **文档定位**：agent-linux（AirymaxOS）构建系统第 2 卷——Kconfig 配置系统详解。本卷剖析 Kconfig 语法（`config`/`menuconfig`/`choice`/`depends on`/`select`）、`CONFIG_*` 宏与 `obj-$(CONFIG_*)` 门控、Kconfig 子目录组织、`Kconfig.airymaxos` 供应商扩展、配置工具（`menuconfig`/`nconfig`/`gconfig`）与 `KCONFIG_ALLCONFIG` 全配置覆盖机制。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `cmake/`（用户态选项缓存）+ Linux 6.6 Kconfig 系统（`Kconfig`、`lib/Kconfig`、`lib/Kconfig.debug`、`Kconfig.airymaxos`、`scripts/kconfig/`）\
 > **理论根基**：Linux 6.6 内核基线 Kconfig 工程 + Airymax 五维正交 24 原则（S/K/C/E/A 五维）\
-> **核心约束**：IRON-9 同源且部分代码共享（IRON-9 v3）——agentrt-linux 配置门控沿用 Kconfig 语义但供应商扩展独立维护
+> **核心约束**：IRON-9 同源且部分代码共享（IRON-9 v3）——agent-linux 配置门控沿用 Kconfig 语义但供应商扩展独立维护
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 构建系统 8 卷文档中的第 2 卷，回答"配置如何驱动构建"这一问题。它在 01-kbuild-system.md（递归构建）与 03-makefile-patterns.md（Makefile 惯用法）之间形成配置门控层：
+本卷是 agent-linux 构建系统 8 卷文档中的第 2 卷，回答"配置如何驱动构建"这一问题。它在 01-kbuild-system.md（递归构建）与 03-makefile-patterns.md（Makefile 惯用法）之间形成配置门控层：
 
 - **上游依赖**：01 定义"构建如何被驱动"；本卷定义"构建目标的三态从何而来"——`CONFIG_*` 宏由 Kconfig 求解，再被 `obj-$(CONFIG_*)` 引用决定 `obj-y`/`obj-m`/`obj-n`。
-- **下游依赖**：03 定义 Makefile 如何引用 `CONFIG_*`；04 定义模块构建如何被 `CONFIG_*=m` 驱动；06 定义 agentrt-linux 多仓配置如何与内核 Kconfig 协调。
+- **下游依赖**：03 定义 Makefile 如何引用 `CONFIG_*`；04 定义模块构建如何被 `CONFIG_*=m` 驱动；06 定义 agent-linux 多仓配置如何与内核 Kconfig 协调。
 
-本卷所有强制规则均赋予 **OS-KER** / **OS-STD** / **OS-BUILD** 编号，与 50-engineering-standards/07 维护者制度的"规则编号注册表"对齐。agentrt-linux 配置系统以 **Linux 6.6 内核基线** Kconfig 工程思想为来源，融合 Airymax **五维正交 24 原则** 后重新表述为工程契约。
+本卷所有强制规则均赋予 **OS-KER** / **OS-STD** / **OS-BUILD** 编号，与 50-engineering-standards/07 维护者制度的"规则编号注册表"对齐。agent-linux 配置系统以 **Linux 6.6 内核基线** Kconfig 工程思想为来源，融合 Airymax **五维正交 24 原则** 后重新表述为工程契约。
 
 ### 0.1 关键术语
 
@@ -39,7 +39,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. Kconfig 配置系统总览
 
-agentrt-linux 配置系统继承 **Linux 6.6 内核基线** 的 Kconfig 工程：用一种声明式语言描述配置选项及其依赖，由配置工具（`menuconfig` 等）求解为 `CONFIG_*=y/m/n` 三态宏，写入 `.config` 与 `include/config/auto.conf`，再被 Kbuild 的 `obj-$(CONFIG_*)` 引用驱动构建。
+agent-linux 配置系统继承 **Linux 6.6 内核基线** 的 Kconfig 工程：用一种声明式语言描述配置选项及其依赖，由配置工具（`menuconfig` 等）求解为 `CONFIG_*=y/m/n` 三态宏，写入 `.config` 与 `include/config/auto.conf`，再被 Kbuild 的 `obj-$(CONFIG_*)` 引用驱动构建。
 
 ### 1.1 配置求解流水线
 
@@ -58,25 +58,25 @@ flowchart LR
 
 关键点：Kconfig 不仅求解宏值，还求解**依赖闭包**——当 `select` 强制选中某选项时，其依赖必须同时满足；当 `depends on` 不满足时选项不可见。`syncconfig` 把 `.config` 转化为 make 侧（`auto.conf`）、C 侧（`autoconf.h`）与依赖时间戳（`include/config/*.h`）三套产物，使配置变化能被 `if_changed_dep`/`fixdep` 捕获。
 
-- **OS-KER-030**：agentrt-linux 内核态配置必须以 Kconfig 为唯一描述手段，禁止用 `Makefile` 的 `ifeq`/环境变量绕过 Kconfig 做特性开关（对齐 K-4 可插拔策略）。
+- **OS-KER-030**：agent-linux 内核态配置必须以 Kconfig 为唯一描述手段，禁止用 `Makefile` 的 `ifeq`/环境变量绕过 Kconfig 做特性开关（对齐 K-4 可插拔策略）。
 - **OS-BUILD-021**：所有 `CONFIG_*` 宏必须由 Kconfig 求解并写入 `auto.conf`，禁止在 `Makefile` 中手动 `CONFIG_XXX := y`；手动赋值会绕过依赖求解导致配置不一致。
 
 ---
 
 ## 2. Kconfig 语法
 
-Kconfig 语法在 **Linux 6.6 内核基线** 的 `Documentation/kbuild/kconfig-language.rst` 中定义。本节给出 agentrt-linux 子系统最常用的语法形态。
+Kconfig 语法在 **Linux 6.6 内核基线** 的 `Documentation/kbuild/kconfig-language.rst` 中定义。本节给出 agent-linux 子系统最常用的语法形态。
 
 ### 2.1 config：声明配置选项
 
 ```
 # drivers/airymax/ipc/Kconfig
 config AIRY_IPC
-	bool "agentrt-linux AgentsIPC kernel channel"
+	bool "agent-linux AgentsIPC kernel channel"
 	depends on IO_URING
 	default y
 	help
-	  Enable the agentrt-linux AgentsIPC 128B fixed-length message
+	  Enable the agent-linux AgentsIPC 128B fixed-length message
 	  channel built on io_uring. This is the OS-level transport
 	  for agent runtime messages. Say Y unless you have a
 	  specific reason to disable it.
@@ -92,10 +92,10 @@ config AIRY_IPC
 
 ```
 menuconfig AIRY_IPC_ADVANCED
-	bool "agentrt-linux IPC advanced options"
+	bool "agent-linux IPC advanced options"
 	depends on AIRY_IPC
 	help
-	  Advanced tuning for the agentrt-linux AgentsIPC channel.
+	  Advanced tuning for the agent-linux AgentsIPC channel.
 
 if AIRY_IPC_ADVANCED
 
@@ -122,7 +122,7 @@ endif # AIRY_IPC_ADVANCED
 
 ```
 choice
-	prompt "agentrt-linux agent scheduler policy"
+	prompt "agent-linux agent scheduler policy"
 	default stc_agent
 	depends on SCHED_DEADLINE
 
@@ -141,7 +141,7 @@ config AIRY_SCHED_FIFO
 endchoice
 ```
 
-`choice` 内的选项互斥，只有一个可为 `y`；`default` 指定默认选中项。agentrt-linux 用 `choice` 表达"二选一/多选一"的调度策略、内存模型等决策。
+`choice` 内的选项互斥，只有一个可为 `y`；`default` 指定默认选中项。agent-linux 用 `choice` 表达"二选一/多选一"的调度策略、内存模型等决策。
 
 - **OS-KER-022**：互斥决策（如调度策略、IPC 传输后端）必须用 `choice`，禁止用多个独立 `bool` 模拟互斥；`choice` 在求解时自动保证唯一性（对齐 S-1 单一职责）。
 
@@ -321,28 +321,28 @@ source "Documentation/Kconfig"
 
 每个子系统目录有自己的 `Kconfig`，被父目录的 `Kconfig` 用 `source "path/Kconfig"` 引入。`drivers/Kconfig` 再 `source` 各 `drivers/*/Kconfig`，形成递归结构。
 
-- **OS-KER-026**：agentrt-linux 新增子系统的 `Kconfig` 必须被父目录 `Kconfig` `source` 引入，未 `source` 的 `Kconfig` 不参与求解（对齐 S-2 层次分解）。
+- **OS-KER-026**：agent-linux 新增子系统的 `Kconfig` 必须被父目录 `Kconfig` `source` 引入，未 `source` 的 `Kconfig` 不参与求解（对齐 S-2 层次分解）。
 - **OS-BUILD-023**：`source` 路径使用相对源码树根的相对路径（如 `"drivers/airymax/Kconfig"`），禁止绝对路径，以保证 out-of-tree 构建正确。
 
 ---
 
 ## 5. Kconfig.airymaxos 供应商扩展
 
-agentrt-linux 用 `lib/Kconfig.airymaxos` 取代上游供应商配置聚合文件，作为 agentrt-linux 自身特性的通用配置聚合点。子系统特定配置仍嵌入各原生 `Kconfig`（如 `drivers/airymax/Kconfig`），`Kconfig.airymaxos` 仅聚合跨子系统的供应商级特性。
+agent-linux 用 `lib/Kconfig.airymaxos` 取代上游供应商配置聚合文件，作为 agent-linux 自身特性的通用配置聚合点。子系统特定配置仍嵌入各原生 `Kconfig`（如 `drivers/airymax/Kconfig`），`Kconfig.airymaxos` 仅聚合跨子系统的供应商级特性。
 
 ### 5.1 Kconfig.airymaxos 结构
 
 ```
 # SPDX-License-Identifier: GPL-2.0
-# lib/Kconfig.airymaxos —— agentrt-linux 供应商配置聚合
+# lib/Kconfig.airymaxos —— agent-linux 供应商配置聚合
 
-menu "agentrt-linux vendor extensions"
+menu "agent-linux vendor extensions"
 
 config AIRYMAXOS_LTS
 	int
 	default 0
 	help
-	  agentrt-linux LTS track number. Used by the build to tag
+	  agent-linux LTS track number. Used by the build to tag
 	  release artifacts.
 
 config AIRYMAXOS_KWORKER_NUMA_AFFINITY
@@ -356,13 +356,13 @@ config AIRYMAXOS_KWORKER_NUMA_AFFINITY
 	  NUMA node.
 
 config AIRYMAXOS_GMEM
-	bool "agentrt-linux group memory (GMEM)"
+	bool "agent-linux group memory (GMEM)"
 	depends on MMU
 	select SHMEM
 	help
 	  Enable group memory accounting for agent workloads.
 
-endmenu # agentrt-linux vendor extensions
+endmenu # agent-linux vendor extensions
 ```
 
 ### 5.2 与原生 Kconfig 的边界
@@ -375,7 +375,7 @@ flowchart TD
     TOP --> SRC4[lib/Kconfig]
     TOP --> SRC5[lib/Kconfig.debug]
     TOP --> SRC6[lib/Kconfig.airymaxos]
-    SRC6 --> V1[agentrt-linux 跨子系统特性]
+    SRC6 --> V1[agent-linux 跨子系统特性]
     SRC3 --> D1[drivers/airymax/Kconfig]
     D1 --> D2[子系统特定特性]
     V1 -.聚合.-> VEND[供应商级通用配置]
@@ -384,7 +384,7 @@ flowchart TD
 
 **边界原则**：`Kconfig.airymaxos` 只放跨子系统的供应商级特性（如 `AIRYMAXOS_LTS`、通用 NUMA 亲和、GMEM 等会影响多子系统的开关）；子系统特定特性（如 IPC 环形缓冲大小、Cupolas 策略细节）放在子系统的 `Kconfig`。这符合 S-1（单一职责）与 S-2（层次分解）。
 
-- **OS-KER-027**：`lib/Kconfig.airymaxos` 仅承载 agentrt-linux 跨子系统的供应商级特性；子系统特定配置嵌入该子系统的 `Kconfig`，禁止把子系统细节塞入聚合文件。
+- **OS-KER-027**：`lib/Kconfig.airymaxos` 仅承载 agent-linux 跨子系统的供应商级特性；子系统特定配置嵌入该子系统的 `Kconfig`，禁止把子系统细节塞入聚合文件。
 - **OS-BUILD-024**：`Kconfig.airymaxos` 的 `config` 名字必须以 `AIRYMAXOS_` 前缀开头，与子系统前缀（如 `AIRY_IPC_`）区分，便于在 `.config` 中快速定位归属。
 - **OS-STD-148**（沿用 50 卷）：`Kconfig.airymaxos` 中的 `DEBUG` 类选项必须同时声明对应的测试钩子，确保调试开关与测试同步（对齐 OS-STD-148）。
 
@@ -392,7 +392,7 @@ flowchart TD
 
 ## 6. 配置工具 menuconfig / nconfig / gconfig
 
-Kconfig 提供多种配置工具，agentrt-linux 沿用 **Linux 6.6 内核基线** 的工具集：
+Kconfig 提供多种配置工具，agent-linux 沿用 **Linux 6.6 内核基线** 的工具集：
 
 | 工具 | 界面 | 依赖 | 适用场景 |
 |------|------|------|---------|
@@ -431,12 +431,12 @@ make allmodconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 make allnoconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 ```
 
-`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agentrt-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agentrt-linux 核心特性关掉。
+`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agent-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agent-linux 核心特性关掉。
 
 > **说明**：早期设计中的独立 `airymaxos-base.config` 全配置基线文件并不存在（`kernel/` 下未提供）；其"必须启用的选项基线"角色由各架构 `airy_defconfig` 直接承担，CI 通过 `scripts/kconfig/merge_config.sh` 叠加使用（见 §7.1）。
 
-- **OS-BUILD-026**：agentrt-linux 以各架构 `airy_defconfig` 为全配置基线，列出 OS 核心必须启用的 `CONFIG_*`；CI 的 `allmodconfig`/`allnoconfig` 必须带 `KCONFIG_ALLCONFIG` 引用对应架构的 `airy_defconfig`。
-- **OS-KER-029**：`airy_defconfig` 的变更必须经构建系统评审，新增/移除项需说明理由；该文件是"agentrt-linux 最小可用配置"的契约（对齐 S-2 层次分解与 K-4 可插拔策略）。
+- **OS-BUILD-026**：agent-linux 以各架构 `airy_defconfig` 为全配置基线，列出 OS 核心必须启用的 `CONFIG_*`；CI 的 `allmodconfig`/`allnoconfig` 必须带 `KCONFIG_ALLCONFIG` 引用对应架构的 `airy_defconfig`。
+- **OS-KER-029**：`airy_defconfig` 的变更必须经构建系统评审，新增/移除项需说明理由；该文件是"agent-linux 最小可用配置"的契约（对齐 S-2 层次分解与 K-4 可插拔策略）。
 - **OS-BUILD-027**：CI 必须验证 `make allmodconfig KCONFIG_ALLCONFIG=arch/<arch>/configs/airy_defconfig` 与 `make allnoconfig KCONFIG_ALLCONFIG=arch/<arch>/configs/airy_defconfig` 都能成功求解（无 unsatisfied dependence 警告）。
 
 ### 7.1 defconfig 与 airy_defconfig 的关系
@@ -469,38 +469,38 @@ make ARCH=<arch> olddefconfig
 | **A-1 极简主义** | `select` 仅用于强约束；弱关联用 `depends on`；`choice` 保证互斥唯一性 |
 | **A-2 细节关注** | `config` 名字前缀规范；`obj-$(CONFIG_*)` 拼写必须严格一致；`defconfig` 与 `airy_defconfig` 一致性 |
 
-agentrt-linux 配置系统以 **Linux 6.6 内核基线** Kconfig 工程为来源，但每一项机制都经过 **五维正交 24 原则** 的映射校验。例如 `tristate` 三态门控同时映射 K-4（可插拔策略）与 S-1（单一职责：一个选项一种状态），`select` 的强约束同时映射 A-1（极简主义：避免配置悖论）与 A-4（完美主义：依赖闭包完备）。这种正交映射确保配置决策有原则可循。
+agent-linux 配置系统以 **Linux 6.6 内核基线** Kconfig 工程为来源，但每一项机制都经过 **五维正交 24 原则** 的映射校验。例如 `tristate` 三态门控同时映射 K-4（可插拔策略）与 S-1（单一职责：一个选项一种状态），`select` 的强约束同时映射 A-1（极简主义：避免配置悖论）与 A-4（完美主义：依赖闭包完备）。这种正交映射确保配置决策有原则可循。
 
 ---
 
 ## 9. 同源 agentrt 映射
 
-agentrt-linux 配置系统与 agentrt 配置系统遵循 **IRON-9 同源且部分代码共享（IRON-9 v3）** 原则。agentrt 是 Airymax 智能体运行时（应用层），其配置通过 CMake 缓存（`CMakeCache.txt`）与 `-D<option>=ON/OFF` 选项描述；agentrt-linux 是智能体操作系统（OS 层），内核态配置通过 Kconfig 描述。二者在配置语义上同源（配置驱动构建），在描述手段上独立（Kconfig vs CMake）。
+agent-linux 配置系统与 agentrt 配置系统遵循 **IRON-9 同源且部分代码共享（IRON-9 v3）** 原则。agentrt 是 Airymax 智能体运行时（应用层），其配置通过 CMake 缓存（`CMakeCache.txt`）与 `-D<option>=ON/OFF` 选项描述；agent-linux 是智能体操作系统（OS 层），内核态配置通过 Kconfig 描述。二者在配置语义上同源（配置驱动构建），在描述手段上独立（Kconfig vs CMake）。
 
-| 维度 | agentrt | agentrt-linux 内核态 | 关系 |
+| 维度 | agentrt | agent-linux 内核态 | 关系 |
 |------|---------|------------------|------|
 | 配置语言 | CMake `-D` 选项 | Kconfig `config` 语法 | 同源语义（配置开关），独立语言 |
-| 三态模型 | ON/OFF（二态） | y/m/n（三态：内建/模块/关闭） | agentrt-linux 扩展（模块化能力） |
+| 三态模型 | ON/OFF（二态） | y/m/n（三态：内建/模块/关闭） | agent-linux 扩展（模块化能力） |
 | 依赖求解 | CMake `find_dependency` | Kconfig `depends on`/`select` | 同源思想（依赖闭包），独立机制 |
 | 配置基线 | CMake preset 文件 | `airy_defconfig` + `defconfig` | 同源语义（保底基线），独立格式 |
 | 配置工具 | `ccmake`（终端）/`cmake-gui` | `menuconfig`/`nconfig`/`gconfig` | 同源交互形态，独立实现 |
 | 供应商扩展 | CMake `option()` 聚合 | `lib/Kconfig.airymaxos` 聚合 | 同源聚合点，独立文件 |
 
-**同源红利**：agentrt 在 agentrt-linux 上运行时，配置语义对齐——agentrt 的 `AIRY_*` 选项与 agentrt-linux 的 `CONFIG_AIRY_*` 在概念上一一对应，便于联调时确认特性开关状态；`ccmake` 与 `menuconfig` 的交互形态相似，开发者心智模型可复用。
+**同源红利**：agentrt 在 agent-linux 上运行时，配置语义对齐——agentrt 的 `AIRY_*` 选项与 agent-linux 的 `CONFIG_AIRY_*` 在概念上一一对应，便于联调时确认特性开关状态；`ccmake` 与 `menuconfig` 的交互形态相似，开发者心智模型可复用。
 
-**独立性**：agentrt-linux 内核态配置为 OS 层 Kconfig（求解 `CONFIG_*` 三态宏），agentrt 用户态配置为应用层 CMake（求解 CMake 变量），二者通过产物契约解耦。当 agentrt 配置工具演进时，agentrt-linux 通过配置评审决定是否同步，避免被动跟随。这种"同源思想 + 独立实现"的双层结构，正是 **IRON-9 同源且部分代码共享（IRON-9 v3）** 在配置系统层的落实——同源语义，独立工具链。
+**独立性**：agent-linux 内核态配置为 OS 层 Kconfig（求解 `CONFIG_*` 三态宏），agentrt 用户态配置为应用层 CMake（求解 CMake 变量），二者通过产物契约解耦。当 agentrt 配置工具演进时，agent-linux 通过配置评审决定是否同步，避免被动跟随。这种"同源思想 + 独立实现"的双层结构，正是 **IRON-9 同源且部分代码共享（IRON-9 v3）** 在配置系统层的落实——同源语义，独立工具链。
 
-agentrt-linux 配置系统在 **Linux 6.6 内核基线** 上构建，其 `config`/`menuconfig`/`choice`/`depends on`/`select` 语法、`obj-$(CONFIG_*)` 门控、`syncconfig` 产物链均直接源自上游沉淀；agentrt-linux 的扩展（`lib/Kconfig.airymaxos`、各架构 `airy_defconfig`、`AIRYMAXOS_`/`AIRY_` 命名前缀）以 **五维正交 24 原则** 为设计准绳，确保扩展不破坏上游 Kconfig 的依赖求解可预测性。这一双层结构与构建系统卷（01）的"上游 Kbuild 思想 + agentrt-linux 供应商扩展"形成对称，共同构成 agentrt-linux 内核态构建的配置与执行双轮。
+agent-linux 配置系统在 **Linux 6.6 内核基线** 上构建，其 `config`/`menuconfig`/`choice`/`depends on`/`select` 语法、`obj-$(CONFIG_*)` 门控、`syncconfig` 产物链均直接源自上游沉淀；agent-linux 的扩展（`lib/Kconfig.airymaxos`、各架构 `airy_defconfig`、`AIRYMAXOS_`/`AIRY_` 命名前缀）以 **五维正交 24 原则** 为设计准绳，确保扩展不破坏上游 Kconfig 的依赖求解可预测性。这一双层结构与构建系统卷（01）的"上游 Kbuild 思想 + agent-linux 供应商扩展"形成对称，共同构成 agent-linux 内核态构建的配置与执行双轮。
 
 ### 9.1 IRON-9 v3 四层共享模型
 
-本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确配置系统层在用户态（agentrt）与内核态（agentrt-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
+本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确配置系统层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
 
 #### 9.1.1 三层模型概览表
 
 | 层次 | 共享程度 | 配置系统层内容 |
 |------|---------|---------------|
-| **[SC] 共享契约层** | 无 | 无 [SC] 层——配置系统为 agentrt-linux 内核态专属，不与 agentrt 用户态共享代码 |
+| **[SC] 共享契约层** | 无 | 无 [SC] 层——配置系统为 agent-linux 内核态专属，不与 agentrt 用户态共享代码 |
 | **[SS] 语义同源层** | 设计模式同源 | `CONFIG_AIRY_*` 命名约定、`y/m/n` 三态选择逻辑、`depends on`/`select` 关联、`choice` 互斥——与 agentrt `airy_config_t` 在"声明式配置 + 依赖关系"语义上同源 |
 | **[IND] 完全独立层** | 完全独立 | Kconfig 解析器（`scripts/kconfig/`）、`defconfig` 基线、`savedefconfig` 精简、`CONFIG_` 宏展开为 cpp 宏 |
 
@@ -508,11 +508,11 @@ agentrt-linux 配置系统在 **Linux 6.6 内核基线** 上构建，其 `config
 
 **无直接 [SC] 共享头文件**。
 
-配置系统层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。配置系统是编译期/运行期基础设施，其产物（`CONFIG_*` 宏 / CMake 变量）通过宏展开与变量传递解耦，而源码层无共享头文件依赖。这一约束确保 agentrt 用户态配置参数演进时不会被动牵连 agentrt-linux Kconfig，反之亦然——配置系统层的演进由各自的 **OS-KER 配置评审** 独立裁决。
+配置系统层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。配置系统是编译期/运行期基础设施，其产物（`CONFIG_*` 宏 / CMake 变量）通过宏展开与变量传递解耦，而源码层无共享头文件依赖。这一约束确保 agentrt 用户态配置参数演进时不会被动牵连 agent-linux Kconfig，反之亦然——配置系统层的演进由各自的 **OS-KER 配置评审** 独立裁决。
 
 #### 9.1.3 [SS] 语义同源层
 
-| 语义维度 | agentrt 用户态（airy_config_t / CMake） | agentrt-linux 内核态（Kconfig） | 同源语义 |
+| 语义维度 | agentrt 用户态（airy_config_t / CMake） | agent-linux 内核态（Kconfig） | 同源语义 |
 |---------|-------------------------------------------|-------------------------------|----------|
 | 配置命名 | `AIRY_*` 运行时参数键 | `CONFIG_AIRY_*` 编译期宏 | 声明式配置项命名约定 |
 | 状态选择 | ON/OFF（二态） | y/m/n（三态：内建/模块/关闭） | 离散状态选择逻辑 |
@@ -522,11 +522,11 @@ agentrt-linux 配置系统在 **Linux 6.6 内核基线** 上构建，其 `config
 | 配置工具 | `ccmake` / `cmake-gui` | `menuconfig` / `nconfig` / `gconfig` | 交互式配置 UI |
 | 供应商聚合 | CMake `option()` 聚合点 | `lib/Kconfig.airymaxos` 聚合 | 跨特性配置聚合 |
 
-**语义说明**：agentrt 用户态的运行时配置参数（`airy_config_t`）与 agentrt-linux 内核态的 Kconfig 在"声明式配置 + 依赖关系"这一核心语义上同源——二者均通过**声明式描述**（CMake `-D` 选项 / Kconfig `config` 块）定义配置项及其依赖关系，由底层求解器（CMake 变量求解 / Kconfig 依赖闭包求解）决定最终生效值。这种同源使配置项在两端的概念可一一对应：`AIRY_*` 与 `CONFIG_AIRY_*` 在概念上对齐，便于联调时确认特性开关状态。但**机制完全独立**——Kconfig 是编译期求解生成 cpp 宏，airy_config_t 是运行期求解生成结构体字段，二者无代码共享。
+**语义说明**：agentrt 用户态的运行时配置参数（`airy_config_t`）与 agent-linux 内核态的 Kconfig 在"声明式配置 + 依赖关系"这一核心语义上同源——二者均通过**声明式描述**（CMake `-D` 选项 / Kconfig `config` 块）定义配置项及其依赖关系，由底层求解器（CMake 变量求解 / Kconfig 依赖闭包求解）决定最终生效值。这种同源使配置项在两端的概念可一一对应：`AIRY_*` 与 `CONFIG_AIRY_*` 在概念上对齐，便于联调时确认特性开关状态。但**机制完全独立**——Kconfig 是编译期求解生成 cpp 宏，airy_config_t 是运行期求解生成结构体字段，二者无代码共享。
 
 #### 9.1.4 [IND] 完全独立层
 
-| 独立实现项 | agentrt-linux 内核态 | agentrt 用户态 | 独立原因 |
+| 独立实现项 | agent-linux 内核态 | agentrt 用户态 | 独立原因 |
 |-----------|---------------------|---------------|---------|
 | Kconfig 解析器 | `scripts/kconfig/`（kconfig-mconf/gconf） | 无对应（CMake 内置） | Kconfig 语言解析特有 |
 | `defconfig` 基线 | `arch/*/configs/*_defconfig` | CMake preset 文件 | 基线格式与机制不同 |
@@ -544,7 +544,7 @@ graph LR
         A2["CMake 选项求解<br/>ON/OFF 二态"]
         A3["运行期生效<br/>结构体字段"]
     end
-    subgraph "agentrt-linux 内核态（OS 层）"
+    subgraph "agent-linux 内核态（OS 层）"
         K1["Kconfig config 块<br/>声明式配置"]
         K2["依赖闭包求解<br/>y/m/n 三态"]
         K3["编译期生效<br/>CONFIG_ cpp 宏"]
@@ -572,7 +572,7 @@ graph LR
     style K3 fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
-**协作说明**：agentrt 用户态通过 `airy_config_t` 描述运行时配置参数，agentrt-linux 内核态通过 Kconfig 描述编译期配置。两端在 **[SS] 语义同源层** 共享"声明式配置 + 依赖关系"的设计模式（命名约定 / 状态选择 / 依赖关联 / 互斥决策），使 `AIRY_*` 与 `CONFIG_AIRY_*` 在概念上对齐，便于联调时确认特性开关状态；但在 **[IND] 完全独立层** 各自维护解析器、产物链、状态模型（三态 vs 二态）。最终两端配置**独立生效**：agentrt-linux 的 `CONFIG_` cpp 宏在编译期决定内核特性，agentrt 的运行期配置参数在运行时决定应用行为，二者无源码层依赖，无 [SC] 共享头文件。这正是 **IRON-9 v3 同源且部分代码共享** 在配置系统层的落地——同源语义，独立工具链，无共享契约。
+**协作说明**：agentrt 用户态通过 `airy_config_t` 描述运行时配置参数，agent-linux 内核态通过 Kconfig 描述编译期配置。两端在 **[SS] 语义同源层** 共享"声明式配置 + 依赖关系"的设计模式（命名约定 / 状态选择 / 依赖关联 / 互斥决策），使 `AIRY_*` 与 `CONFIG_AIRY_*` 在概念上对齐，便于联调时确认特性开关状态；但在 **[IND] 完全独立层** 各自维护解析器、产物链、状态模型（三态 vs 二态）。最终两端配置**独立生效**：agent-linux 的 `CONFIG_` cpp 宏在编译期决定内核特性，agentrt 的运行期配置参数在运行时决定应用行为，二者无源码层依赖，无 [SC] 共享头文件。这正是 **IRON-9 v3 同源且部分代码共享** 在配置系统层的落地——同源语义，独立工具链，无共享契约。
 
 ---
 
@@ -617,7 +617,7 @@ graph LR
 - `01-kbuild-system.md`（Kbuild 递归构建——obj-$(CONFIG_*) 的消费者）
 - `03-makefile-patterns.md`（Makefile 引用 CONFIG_* 的惯用法）
 - `04-module-building.md`（CONFIG_*=m 驱动的模块构建）
-- `06-airymaxos-build.md`（agentrt-linux 多仓配置协调）
+- `06-airymaxos-build.md`（agent-linux 多仓配置协调）
 
 ### 11.2 上游与跨卷文档
 
@@ -639,9 +639,9 @@ graph LR
 ## 12. 文档版本与维护
 
 - **当前版本**: v1.0.1
-- **维护者**: agentrt-linux 构建系统 SIG（待成立，详见 07 卷维护者制度）
+- **维护者**: agent-linux 构建系统 SIG（待成立，详见 07 卷维护者制度）
 - **变更流程**: 本卷变更必须经过 RFC → 评审 → ACC 验收流程；Kconfig 语法层变更需同步评估对 `airy_defconfig` 与各架构 `defconfig` 的影响。
-- **回顾周期**: 随 Linux 6.6 内核基线 LTS 更新季度回顾 + agentrt-linux 大版本年度回顾。
+- **回顾周期**: 随 Linux 6.6 内核基线 LTS 更新季度回顾 + agent-linux 大版本年度回顾。
 - **0.1.1 范围**: README + 01 + 02（3 文档）。
 - **1.0.1 范围**: 完成全部 8 文档并实施构建系统工程标准。
 
@@ -649,7 +649,7 @@ graph LR
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集 Kconfig 配置系统所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `scripts/kconfig/`（解析器与配置工具）、`init/Kconfig`、`lib/Kconfig.airymaxos` 及 `include/airymax/kconfig_types.h`（agentrt-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。A.1 以 C 结构体建模 Kconfig 符号/菜单的内部表示，A.2 以解析器入口函数为主，A.3 给出 `CONFIG_AIRY_*` 完整清单与三态语义。
+> **附录定位**： 本附录汇集 Kconfig 配置系统所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 `scripts/kconfig/`（解析器与配置工具）、`init/Kconfig`、`lib/Kconfig.airymaxos` 及 `include/airymax/kconfig_types.h`（agent-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。A.1 以 C 结构体建模 Kconfig 符号/菜单的内部表示，A.2 以解析器入口函数为主，A.3 给出 `CONFIG_AIRY_*` 完整清单与三态语义。
 
 ### A.1 核心数据结构
 
@@ -905,7 +905,7 @@ int conf_read(struct kconfig_symbol *symbols, const char *config);
 
 ```c
 /**
- * CONFIG_AIRY_* - agentrt-linux 子系统级配置项（嵌入子系统 Kconfig）
+ * CONFIG_AIRY_* - agent-linux 子系统级配置项（嵌入子系统 Kconfig）
  *
  * 对齐 drivers/airymax/Kconfig 等；以下为关键配置项清单。
  */
@@ -935,7 +935,7 @@ int conf_read(struct kconfig_symbol *symbols, const char *config);
 #define CONFIG_AIRY_AGENT_TRACING     /* tristate: Agent 行为追踪 */
 
 /* —— 调试 —— */
-#define CONFIG_AIRY_DEBUG            /* bool: agentrt-linux 调试总开关 */
+#define CONFIG_AIRY_DEBUG            /* bool: agent-linux 调试总开关 */
 #define CONFIG_AIRY_DEBUG_IPC        /* bool: IPC 调试桩 */
 
 /* 以上为子系统前缀（AIRY_*）；供应商级聚合见 CONFIG_AIRYMAXOS_* */
@@ -965,16 +965,16 @@ int conf_read(struct kconfig_symbol *symbols, const char *config);
 #  *   Kconfig 先读取此变量指向的 .config 片段作为基线，
 #  *   再应用"全部设为 m/y/n"策略。
 #  *
-#  * agentrt-linux 以各架构 airy_defconfig 作为全配置基线（OS-BUILD-026）：
+#  * agent-linux 以各架构 airy_defconfig 作为全配置基线（OS-BUILD-026）：
 #  *   make allmodconfig KCONFIG_ALLCONFIG=arch/<arch>/configs/airy_defconfig
 #  *   make allnoconfig KCONFIG_ALLCONFIG=arch/<arch>/configs/airy_defconfig
 #  *
 #  * 这样 allnoconfig 也会保留 OS 核心必须启用的 CONFIG_*，
-#  * 避免"最小内核"关闭 agentrt-linux 核心特性。
+#  * 避免"最小内核"关闭 agent-linux 核心特性。
 #  *
 #  * 对齐 Linux 6.6 scripts/kconfig/conf.c 的 allconfig 处理
 #  */
-# 语义常量（agentrt-linux 专属建模）
+# 语义常量（agent-linux 专属建模）
 #define KCONFIG_ALLCONFIG_DEFAULT  "arch/x86/configs/airy_defconfig"
 # KCONFIG_ALLCONFIG=1 时使用 randconfig 生成的种子；=文件路径则读取该文件
 ```
@@ -983,7 +983,7 @@ int conf_read(struct kconfig_symbol *symbols, const char *config);
 
 ```c
 /**
- * Kconfig 错误码（agentrt-linux 专属，对齐 Linux 6.6 errno 语义）
+ * Kconfig 错误码（agent-linux 专属，对齐 Linux 6.6 errno 语义）
  */
 #define KCONFIG_OK            0          /* 求解成功 */
 #define KCONFIG_E_NOENT       (-ENOENT)  /* Kconfig 文件缺失 */
@@ -996,4 +996,4 @@ int conf_read(struct kconfig_symbol *symbols, const char *config);
 
 ---
 
-> **文档结束** | agentrt-linux 构建系统第 2 卷 | Kconfig 配置系统详解 | 共 12 章节 + 规则编号汇总
+> **文档结束** | agent-linux 构建系统第 2 卷 | Kconfig 配置系统详解 | 共 12 章节 + 规则编号汇总

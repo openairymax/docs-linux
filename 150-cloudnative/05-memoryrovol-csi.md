@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # MemoryRovol CSI 驱动实现方案
-> **文档定位**：agentrt-linux（AirymaxOS）MemoryRovol CSI（Container Storage Interface）驱动的完整实现方案，定义将记忆卷载 L1-L4 四层作为 CSI 卷挂载到 Agent 容器的协议、接口与生命周期\
+> **文档定位**：agent-linux（AirymaxOS）MemoryRovol CSI（Container Storage Interface）驱动的完整实现方案，定义将记忆卷载 L1-L4 四层作为 CSI 卷挂载到 Agent 容器的协议、接口与生命周期\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：MemoryRovol L1-L4 数据结构 [SC] 共享 + CSI v1.9 规范 [IND] 独立实现\
 > **文档性质**：实现方案文档（非设计文档）。本方案在 [20-modules/06-cloudnative.md](../20-modules/06-cloudnative.md) §4.3 容器快照与 [40-dataflows/02-memory-flow.md](../40-dataflows/02-memory-flow.md) MemoryRovol L1-L4 数据结构的基础上，补充完整的 CSI 驱动实现\
 > **设计参考**：CSI v1.9 规范（container-storage-interface spec）+ Linux 6.6 `drivers/cxl/`（CXL 持久化）+ `include/uapi/linux/airymax/memory_types.h`（[SC] 共享契约层）\
@@ -69,7 +69,7 @@ MemoryRovol CSI 驱动遵循 CSI v1.9 规范，实现三阶段 gRPC 服务：
                               │
                    ┌──────────▼──────────┐
                    │ memoryrovol-csi     │
-                   │ (agentrt-linux 专属)│
+                   │ (agent-linux 专属)│
                    │  [IND]              │
                    ├─────────────────────┤
                    │ 内核系统调用         │
@@ -561,7 +561,7 @@ func retryCreateVolume(req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse,
 |------|---------|-----------------|
 | **[SC] 共享契约层** | `include/uapi/linux/airymax/memory_types.h` L1-L4 数据结构 | 卷存储使用 [SC] 数据结构 |
 | **[SC] 共享契约层** | `include/uapi/linux/airymax/security_types.h` capability 44 ID（41 POSIX + 3 Airymax 扩展） | 卷操作的 capability 守卫 |
-| **[IND] 完全独立层** | CSI gRPC 实现、卷生命周期、挂载协议 | agentrt-linux 专属 |
+| **[IND] 完全独立层** | CSI gRPC 实现、卷生命周期、挂载协议 | agent-linux 专属 |
 
 ---
 

@@ -1,24 +1,24 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Kbuild 递归构建系统详解
-> **文档定位**：agentrt-linux（AirymaxOS）构建系统第 1 卷——Kbuild 递归构建机制详解。本卷剖析顶层 `Kbuild` descending 机制、`obj-y`/`obj-m`/`obj-n` 三态门控、子系统 Makefile 编写规范、`if_changed` 增量构建原理、`filechk` 版本注入与 `Makefile.airymaxos` 供应商扩展，并给出 agentrt-linux 构建依赖图。\
+# agent-linux（AirymaxOS）Kbuild 递归构建系统详解
+> **文档定位**：agent-linux（AirymaxOS）构建系统第 1 卷——Kbuild 递归构建机制详解。本卷剖析顶层 `Kbuild` descending 机制、`obj-y`/`obj-m`/`obj-n` 三态门控、子系统 Makefile 编写规范、`if_changed` 增量构建原理、`filechk` 版本注入与 `Makefile.airymaxos` 供应商扩展，并给出 agent-linux 构建依赖图。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `cmake/`（agentrt 管理仓直属 5 模块，v0.1.2 起自伞仓迁入）+ Linux 6.6 Kbuild 系统（`Kbuild`、`Makefile`、`scripts/Kbuild.include`、`scripts/Makefile.build`、`scripts/Makefile.lib`）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则（S/K/C/E/A 五维）\
-> **核心约束**：IRON-9 v3 同源且部分代码共享——agentrt-linux 内核态构建沿用 Kbuild 思想但与上游保持独立演进节奏
+> **核心约束**：IRON-9 v3 同源且部分代码共享——agent-linux 内核态构建沿用 Kbuild 思想但与上游保持独立演进节奏
 
 ---
 
 ## 0. 章节定位
 
-本卷是 agentrt-linux 构建系统 8 卷文档中的第 1 卷，回答"内核态代码如何被编译成 vmlinux 与模块"这一问题。它在 README（模块主索引）与 02-kconfig-system.md（配置系统）之间形成构建执行层：
+本卷是 agent-linux 构建系统 8 卷文档中的第 1 卷，回答"内核态代码如何被编译成 vmlinux 与模块"这一问题。它在 README（模块主索引）与 02-kconfig-system.md（配置系统）之间形成构建执行层：
 
 - **上游依赖**：README 定义构建系统的机制总览与设计原则；本卷定义"递归构建如何被驱动"——顶层 descending、三态门控、增量构建。
 - **下游依赖**：02 定义"配置如何驱动构建门控"；03-makefile-patterns.md（规划中，未实现）定义"子系统 Makefile 的具体惯用法"；04-module-building.md（规划中，未实现）定义"可加载模块的构建链"。
 
-本卷所有强制规则均赋予 **OS-KER** / **OS-BUILD** 编号，与 50-engineering-standards/07 维护者制度的"规则编号注册表"对齐。agentrt-linux 构建系统以 **Linux 6.6 内核基线** 为工程思想来源，融合 Airymax **五维正交 24 原则** 后重新表述为工程契约。
+本卷所有强制规则均赋予 **OS-KER** / **OS-BUILD** 编号，与 50-engineering-standards/07 维护者制度的"规则编号注册表"对齐。agent-linux 构建系统以 **Linux 6.6 内核基线** 为工程思想来源，融合 Airymax **五维正交 24 原则** 后重新表述为工程契约。
 
 ### 0.1 关键术语
 
@@ -37,7 +37,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. Kbuild 递归构建总览
 
-agentrt-linux 内核态构建继承 **Linux 6.6 内核基线** 沉淀的 Kbuild 工程思想：顶层 `Kbuild` 文件声明子系统编译入口顺序，`make` 据此递归 descending 到每个子目录，每个子目录通过自身的 `Kbuild`/`Makefile` 声明本目录的 `obj-y`/`obj-m`，最终把所有 `.o` 归并为 `built-in.a`，再链接为 `vmlinux`。
+agent-linux 内核态构建继承 **Linux 6.6 内核基线** 沉淀的 Kbuild 工程思想：顶层 `Kbuild` 文件声明子系统编译入口顺序，`make` 据此递归 descending 到每个子目录，每个子目录通过自身的 `Kbuild`/`Makefile` 声明本目录的 `obj-y`/`obj-m`，最终把所有 `.o` 归并为 `built-in.a`，再链接为 `vmlinux`。
 
 ### 1.1 构建流水线全景
 
@@ -60,9 +60,9 @@ flowchart TD
     E --> G[bzImage / vmlinux]
 ```
 
-agentrt-linux 在此之上扩展了多语言、多仓的协调层（见 06-airymaxos-build.md），但内核态构建内核仍是 Kbuild 递归 descending。
+agent-linux 在此之上扩展了多语言、多仓的协调层（见 06-airymaxos-build.md），但内核态构建内核仍是 Kbuild 递归 descending。
 
-- **OS-BUILD-001**：agentrt-linux 内核态构建必须以顶层 `Kbuild` 为 descending 入口，禁止在子系统 Makefile 中跨层引用顶层目标；违反者禁止合并（对齐 S-2 层次分解）。
+- **OS-BUILD-001**：agent-linux 内核态构建必须以顶层 `Kbuild` 为 descending 入口，禁止在子系统 Makefile 中跨层引用顶层目标；违反者禁止合并（对齐 S-2 层次分解）。
 - **OS-KER-090**：顶层 `Kbuild` 的 descending 顺序必须与 Linux 6.6 基线一致（init → usr → arch → kernel → certs → mm → fs → ... → virt），任何顺序调整必须经构建系统评审。
 
 ### 1.2 顶层 Kbuild 文件结构
@@ -151,7 +151,7 @@ airymax-ipc-$(CONFIG_AIRY_IPC_DEBUG) += ipc_debug.o
 
 ## 3. 子系统 Makefile 编写规范
 
-agentrt-linux 子系统 Makefile 遵循 Linux 6.6 内核基线的 `Kbuild`/`Makefile` 双文件约定：若目录同时存在 `Kbuild` 与 `Makefile`，`scripts/Kbuild.include` 的 `kbuild-file` 宏优先选 `Kbuild`。agentrt-linux 推荐新子系统统一使用 `Kbuild` 命名以避免歧义。
+agent-linux 子系统 Makefile 遵循 Linux 6.6 内核基线的 `Kbuild`/`Makefile` 双文件约定：若目录同时存在 `Kbuild` 与 `Makefile`，`scripts/Kbuild.include` 的 `kbuild-file` 宏优先选 `Kbuild`。agent-linux 推荐新子系统统一使用 `Kbuild` 命名以避免歧义。
 
 ### 3.1 标准子系统 Makefile 骨架
 
@@ -159,7 +159,7 @@ agentrt-linux 子系统 Makefile 遵循 Linux 6.6 内核基线的 `Kbuild`/`Make
 # SPDX-License-Identifier: GPL-2.0
 # drivers/airymax/ipc/Kbuild
 #
-# agentrt-linux（AirymaxOS）AgentsIPC 内核态通道构建规则
+# agent-linux（AirymaxOS）AgentsIPC 内核态通道构建规则
 
 obj-$(CONFIG_AIRY_IPC) += airymax-ipc.o
 
@@ -205,7 +205,7 @@ $(obj)/built-in.a: $(real-obj-y) FORCE
 
 ## 4. if_changed 增量构建原理
 
-`if_changed` 是 Kbuild 增量构建的核心宏，agentrt-linux 沿用并要求所有生成物规则通过它保护。其设计哲学与 Airymax **五维正交 24 原则** 中的 A-4（完美主义：仅重建真正需要的）与 E-3（资源确定性：可重现）高度契合。
+`if_changed` 是 Kbuild 增量构建的核心宏，agent-linux 沿用并要求所有生成物规则通过它保护。其设计哲学与 Airymax **五维正交 24 原则** 中的 A-4（完美主义：仅重建真正需要的）与 E-3（资源确定性：可重现）高度契合。
 
 ### 4.1 if_changed 的判定逻辑
 
@@ -254,7 +254,7 @@ flowchart LR
 
 ## 5. filechk 版本注入与 Makefile.airymaxos
 
-版本号的注入是 Kbuild 中 `filechk` 宏的典型应用场景。agentrt-linux 规划把上游的供应商版本文件改写为 `Makefile.airymaxos`，定义自身的 LTS/主/次/发布四元版本，并通过 `filechk_version.h` 注入到 `include/generated/uapi/linux/version.h`。
+版本号的注入是 Kbuild 中 `filechk` 宏的典型应用场景。agent-linux 规划把上游的供应商版本文件改写为 `Makefile.airymaxos`，定义自身的 LTS/主/次/发布四元版本，并通过 `filechk_version.h` 注入到 `include/generated/uapi/linux/version.h`。
 
 > **未实现标注**：`Makefile.airymaxos` 目前**不存在**——`kernel/` 根目录仅含上游 `Makefile`（版本由上游 `VERSION=6` / `PATCHLEVEL=6` / `SUBLEVEL=149` 决定）。本节为规划描述：1.0.1+ 将引入独立的 Airymax 版本四元组注入，当前版本号直接沿用上游 6.6.149。
 
@@ -281,11 +281,11 @@ endef
 
 ### 5.2 Makefile.airymaxos 供应商版本注入（规划）
 
-agentrt-linux 规划用 `Makefile.airymaxos` 取代上游供应商版本文件，定义四元版本号（当前未实现，见 §5 未实现标注）：
+agent-linux 规划用 `Makefile.airymaxos` 取代上游供应商版本文件，定义四元版本号（当前未实现，见 §5 未实现标注）：
 
 ```makefile
 # SPDX-License-Identifier: GPL-2.0
-# Makefile.airymaxos —— agentrt-linux 供应商版本定义
+# Makefile.airymaxos —— agent-linux 供应商版本定义
 AIRYMAXOS_LTS = 0
 AIRYMAXOS_MAJOR = 9999
 AIRYMAXOS_MINOR = 0
@@ -332,7 +332,7 @@ $(version_h): FORCE
 
 ## 6. 构建依赖图与阶段划分
 
-agentrt-linux 把内核构建分为若干阶段，每个阶段有明确的先决与产物。理解阶段划分是编写正确子系统 Makefile 的前提。
+agent-linux 把内核构建分为若干阶段，每个阶段有明确的先决与产物。理解阶段划分是编写正确子系统 Makefile 的前提。
 
 ```mermaid
 flowchart TD
@@ -438,15 +438,15 @@ stateDiagram-v2
 | **A-1 极简主义** | `if_changed` 仅重建真正需要的；`FORCE` + 判定宏避免裸命令全量重建 |
 | **A-4 完美主义** | 增量构建精确到命令行参数变化；`cmd-check` 捕获编译选项漂移 |
 
-agentrt-linux 构建系统以 **Linux 6.6 内核基线** 为工程思想来源，但每一项机制都经过 **五维正交 24 原则** 的映射校验，确保工程决策有原则可循而非照搬上游。
+agent-linux 构建系统以 **Linux 6.6 内核基线** 为工程思想来源，但每一项机制都经过 **五维正交 24 原则** 的映射校验，确保工程决策有原则可循而非照搬上游。
 
 ---
 
 ## 8. 同源 agentrt 映射
 
-agentrt-linux 构建系统与 agentrt 构建系统遵循 **IRON-9 v3 同源且部分代码共享** 原则。agentrt 是 Airymax 智能体运行时（应用层），其 `cmake/` 目录提供 5 模块的跨模块共享 CMake 工具链；agentrt-linux 是智能体操作系统（OS 层），内核态使用 Kbuild。二者在分层与工具链上独立，在工程思想与原则上映射同源。
+agent-linux 构建系统与 agentrt 构建系统遵循 **IRON-9 v3 同源且部分代码共享** 原则。agentrt 是 Airymax 智能体运行时（应用层），其 `cmake/` 目录提供 5 模块的跨模块共享 CMake 工具链；agent-linux 是智能体操作系统（OS 层），内核态使用 Kbuild。二者在分层与工具链上独立，在工程思想与原则上映射同源。
 
-| 维度 | agentrt | agentrt-linux 内核态 | 关系 |
+| 维度 | agentrt | agent-linux 内核态 | 关系 |
 |------|---------|------------------|------|
 | 构建系统 | CMake（用户态） | Kbuild（内核态） | 同源思想（递归/增量/配置门控），独立工具链 |
 | 配置门控 | CMake `-D<option>=ON` | `obj-$(CONFIG_*)` | 语义同源（配置驱动构建），机制独立 |
@@ -454,21 +454,21 @@ agentrt-linux 构建系统与 agentrt 构建系统遵循 **IRON-9 v3 同源且�
 | 版本注入 | CMake `project(VERSION ...)` | `Makefile.airymaxos` + `filechk` | 同源语义，独立注入路径 |
 | 多语言协调 | cargo/poetry/tsc 各自 CMake 集成 | Kbuild（C）+ 外部多语言协调层 | 同源多语言目标，独立集成层 |
 
-**同源红利**：agentrt 在 agentrt-linux 上运行时，构建产物的版本号语义对齐（`AIRYMAXOS_*` 与 agentrt `project(VERSION)` 的 MAJOR/MINOR 同源），便于联调时定位版本漂移；增量构建思想一致，开发者心智模型可复用。
+**同源红利**：agentrt 在 agent-linux 上运行时，构建产物的版本号语义对齐（`AIRYMAXOS_*` 与 agentrt `project(VERSION)` 的 MAJOR/MINOR 同源），便于联调时定位版本漂移；增量构建思想一致，开发者心智模型可复用。
 
-**独立性**：agentrt-linux 内核态构建为 OS 层 Kbuild，agentrt 用户态构建为应用层 CMake，二者通过产物契约（`.ko`/`vmlinux` 与可执行文件）解耦。当 agentrt 构建工具链演进时，agentrt-linux 通过构建评审决定是否同步，避免被动跟随。这一独立性正是 **IRON-9 v3 同源且部分代码共享** 在构建系统层的体现——同源思想，独立演进。
+**独立性**：agent-linux 内核态构建为 OS 层 Kbuild，agentrt 用户态构建为应用层 CMake，二者通过产物契约（`.ko`/`vmlinux` 与可执行文件）解耦。当 agentrt 构建工具链演进时，agent-linux 通过构建评审决定是否同步，避免被动跟随。这一独立性正是 **IRON-9 v3 同源且部分代码共享** 在构建系统层的体现——同源思想，独立演进。
 
-agentrt-linux 构建系统在 **Linux 6.6 内核基线** 上构建，其递归 descending、三态门控、`if_changed`、`filechk` 等机制均直接源自上游沉淀；agentrt-linux 的扩展（`Makefile.airymaxos`、多语言协调层、多仓集成）以 **五维正交 24 原则** 为设计准绳，确保扩展不破坏上游机制的可预测性。这种"上游思想 + 自身原则"的双层结构，是 **IRON-9 v3 同源且部分代码共享** 在工程实现层的落实。
+agent-linux 构建系统在 **Linux 6.6 内核基线** 上构建，其递归 descending、三态门控、`if_changed`、`filechk` 等机制均直接源自上游沉淀；agent-linux 的扩展（`Makefile.airymaxos`、多语言协调层、多仓集成）以 **五维正交 24 原则** 为设计准绳，确保扩展不破坏上游机制的可预测性。这种"上游思想 + 自身原则"的双层结构，是 **IRON-9 v3 同源且部分代码共享** 在工程实现层的落实。
 
 ### 8.1 IRON-9 v3 四层共享模型
 
-本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确构建系统层在用户态（agentrt）与内核态（agentrt-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
+本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确构建系统层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。
 
 #### 8.1.1 三层模型概览表
 
 | 层次 | 共享程度 | 构建系统层内容 |
 |------|---------|---------------|
-| **[SC] 共享契约层** | 无 | 无 [SC] 层——构建系统为 agentrt-linux 内核态专属，不与 agentrt 用户态共享代码 |
+| **[SC] 共享契约层** | 无 | 无 [SC] 层——构建系统为 agent-linux 内核态专属，不与 agentrt 用户态共享代码 |
 | **[SS] 语义同源层** | 设计模式同源 | Makefile 目标模式、Kbuild 目录递归构建模式、`obj-y/m-$(CONFIG_*)` 条件编译——与 agentrt CMake/Meson 在"声明式构建描述"语义上同源 |
 | **[IND] 完全独立层** | 完全独立 | 8 子仓 Kbuild 系统、交叉编译工具链配置、Kbuild Makefile include 机制、`scripts/Makefile.*` 模块化 |
 
@@ -476,11 +476,11 @@ agentrt-linux 构建系统在 **Linux 6.6 内核基线** 上构建，其递归 d
 
 **无直接 [SC] 共享头文件**。
 
-构建系统层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。构建系统是工程基础设施，其产物（`.ko` / `vmlinux` / 可执行文件）通过二进制契约解耦，而源码层无共享头文件依赖。这一约束确保 agentrt 用户态构建工具链演进时不会被动牵连 agentrt-linux Kbuild，反之亦然——构建系统层的演进由各自的 **OS-BUILD 评审** 独立裁决。
+构建系统层不属于 IRON-9 v3 的 12 个 [SC] 共享头文件清单（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h`）。构建系统是工程基础设施，其产物（`.ko` / `vmlinux` / 可执行文件）通过二进制契约解耦，而源码层无共享头文件依赖。这一约束确保 agentrt 用户态构建工具链演进时不会被动牵连 agent-linux Kbuild，反之亦然——构建系统层的演进由各自的 **OS-BUILD 评审** 独立裁决。
 
 #### 8.1.3 [SS] 语义同源层
 
-| 语义维度 | agentrt 用户态（CMake/Meson） | agentrt-linux 内核态（Kbuild） | 同源语义 |
+| 语义维度 | agentrt 用户态（CMake/Meson） | agent-linux 内核态（Kbuild） | 同源语义 |
 |---------|------------------------------|-------------------------------|----------|
 | 目标模式 | `all` / `install` / `test` / `clean` | `all` / `modules` / `install` / `clean` | 声明式构建目标，`make <target>` 触发 |
 | 目录递归 | `add_subdirectory()` 递归 | Kbuild `subdir-$(CONFIG_*)` + descending | 按目录层次递归构建 |
@@ -489,11 +489,11 @@ agentrt-linux 构建系统在 **Linux 6.6 内核基线** 上构建，其递归 d
 | 版本注入 | `project(VERSION x.y.z)` | `Makefile.airymaxos` + `filechk` | 构建期版本号注入产物 |
 | 多语言协调 | cargo / poetry / tsc CMake 集成 | Kbuild（C）+ 外部协调层 | 多语言目标统一编排 |
 
-**语义说明**：agentrt 用户态的 CMake/Meson 构建模式与 agentrt-linux 内核态的 Kbuild 在"声明式构建描述"这一核心语义上同源——二者均通过**声明式描述**（CMakeLists.txt / Kbuild）告知构建系统"做什么"，而非"怎么做"，由底层工具链（Ninja / Make）决定执行细节。这种同源使开发者在两端的心智模型可复用：理解了 Kbuild 的 `obj-$(CONFIG_*)` 三态门控，即理解了 CMake 的 `if(OPTION)` 条件编译语义。但**机制完全独立**——CMake 使用 Ninja 依赖图，Kbuild 使用 `if_changed` 命令行证据链，二者无代码共享。
+**语义说明**：agentrt 用户态的 CMake/Meson 构建模式与 agent-linux 内核态的 Kbuild 在"声明式构建描述"这一核心语义上同源——二者均通过**声明式描述**（CMakeLists.txt / Kbuild）告知构建系统"做什么"，而非"怎么做"，由底层工具链（Ninja / Make）决定执行细节。这种同源使开发者在两端的心智模型可复用：理解了 Kbuild 的 `obj-$(CONFIG_*)` 三态门控，即理解了 CMake 的 `if(OPTION)` 条件编译语义。但**机制完全独立**——CMake 使用 Ninja 依赖图，Kbuild 使用 `if_changed` 命令行证据链，二者无代码共享。
 
 #### 8.1.4 [IND] 完全独立层
 
-| 独立实现项 | agentrt-linux 内核态 | agentrt 用户态 | 独立原因 |
+| 独立实现项 | agent-linux 内核态 | agentrt 用户态 | 独立原因 |
 |-----------|---------------------|---------------|---------|
 | 8 子仓 Kbuild 系统 | `Makefile` + 8 子仓 Kbuild 递归 | CMake 单仓或独立多仓 | 内核态必须分仓 Kbuild；用户态无此约束 |
 | 交叉编译工具链配置 | `CROSS_COMPILE` / `ARCH` / `LLVM=1` | CMake toolchain file | 内核交叉编译语义特有 |
@@ -511,7 +511,7 @@ graph LR
         A2["CMake/Ninja<br/>构建引擎"]
         A3["agentrt 可执行文件<br/>+ .so"]
     end
-    subgraph "agentrt-linux 内核态（OS 层）"
+    subgraph "agent-linux 内核态（OS 层）"
         K1["Kbuild<br/>声明式描述"]
         K2["if_changed + .cmd<br/>构建引擎"]
         K3["vmlinux + .ko<br/>+ built-in.a"]
@@ -539,11 +539,11 @@ graph LR
     style K3 fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
-**协作说明**：agentrt 用户态通过 CMake/Ninja 构建可执行文件与共享库，agentrt-linux 内核态通过 Kbuild + `if_changed` 构建内核镜像与模块。两端在 **[SS] 语义同源层** 共享"声明式构建描述"的设计模式（目标模式 / 目录递归 / 条件编译 / 增量构建），使开发者在两端的心智模型可复用；但在 **[IND] 完全独立层** 各自维护工具链配置、产物格式、版本注入路径。最终通过**二进制契约**解耦：agentrt 用户态产物（可执行文件）运行于 agentrt-linux 内核态产物（vmlinux）之上，二者无源码层依赖，无 [SC] 共享头文件。这正是 **IRON-9 v3 同源且部分代码共享** 在构建系统层的落地——同源思想，独立演进，无共享契约。
+**协作说明**：agentrt 用户态通过 CMake/Ninja 构建可执行文件与共享库，agent-linux 内核态通过 Kbuild + `if_changed` 构建内核镜像与模块。两端在 **[SS] 语义同源层** 共享"声明式构建描述"的设计模式（目标模式 / 目录递归 / 条件编译 / 增量构建），使开发者在两端的心智模型可复用；但在 **[IND] 完全独立层** 各自维护工具链配置、产物格式、版本注入路径。最终通过**二进制契约**解耦：agentrt 用户态产物（可执行文件）运行于 agent-linux 内核态产物（vmlinux）之上，二者无源码层依赖，无 [SC] 共享头文件。这正是 **IRON-9 v3 同源且部分代码共享** 在构建系统层的落地——同源思想，独立演进，无共享契约。
 
 ### 8.2 8 子仓构建依赖与交叉构建矩阵
 
-agentrt-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）在构建层存在严格的依赖闭包：kernel 是基础，上层子仓的构建必须等待下层子仓产物就绪后方可触发 descending，违反依赖顺序将导致符号缺失或 ABI 断裂。
+agent-linux 的 8 子仓（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）在构建层存在严格的依赖闭包：kernel 是基础，上层子仓的构建必须等待下层子仓产物就绪后方可触发 descending，违反依赖顺序将导致符号缺失或 ABI 断裂。
 
 #### 8.2.1 8 子仓构建依赖图
 
@@ -594,7 +594,7 @@ graph TD
 
 #### 8.2.2 交叉构建配置矩阵
 
-agentrt-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的内核态）、Rust（cognition 的 CoreLoopThree）、Go（cloudnative 的云原生 Agent）、Python（tests-linux 的测试脚本）四种语言生态，对应四套构建系统。下表给出目标平台 × 编译器 × 构建系统的完整交叉构建矩阵：
+agent-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的内核态）、Rust（cognition 的 CoreLoopThree）、Go（cloudnative 的云原生 Agent）、Python（tests-linux 的测试脚本）四种语言生态，对应四套构建系统。下表给出目标平台 × 编译器 × 构建系统的完整交叉构建矩阵：
 
 | 目标平台 | 编译器 | 构建系统 | 适用子仓 | 关键环境变量 | 产物 |
 |---------|--------|---------|---------|-------------|------|
@@ -657,7 +657,7 @@ agentrt-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的�
 - `02-kconfig-system.md`（Kconfig 配置系统——CONFIG_* 宏的来源）
 - `03-makefile-patterns.md`（Makefile 模式与惯用法——**规划中，未实现**）
 - `04-module-building.md`（可加载模块构建链——**规划中，未实现**）
-- `06-airymaxos-build.md`（agentrt-linux 多仓多语言构建——**规划中，未实现**）
+- `06-airymaxos-build.md`（agent-linux 多仓多语言构建——**规划中，未实现**）
 
 ### 10.2 上游与跨卷文档
 
@@ -679,9 +679,9 @@ agentrt-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的�
 ## 11. 文档版本与维护
 
 - **当前版本**: v1.0.1
-- **维护者**: agentrt-linux 构建系统 SIG（待成立，详见 07 卷维护者制度）
+- **维护者**: agent-linux 构建系统 SIG（待成立，详见 07 卷维护者制度）
 - **变更流程**: 本卷变更必须经过 RFC → 评审 → ACC 验收流程；Kbuild 机制层变更需同步评估对 8 子仓构建链的影响。
-- **回顾周期**: 随 Linux 6.6 内核基线 LTS 更新季度回顾 + agentrt-linux 大版本年度回顾。
+- **回顾周期**: 随 Linux 6.6 内核基线 LTS 更新季度回顾 + agent-linux 大版本年度回顾。
 - **0.1.1 范围**: README + 01 + 02（3 文档）。
 - **1.0.1 范围**: 完成全部 8 文档并实施构建系统工程标准。
 
@@ -689,7 +689,7 @@ agentrt-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的�
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集 Kbuild 递归构建系统所需的完整接口契约，供直接参照实现。所有数据结构与构建规则对齐 Linux 6.6 `Kbuild`、`Makefile`、`scripts/Kbuild.include`、`scripts/Makefile.build`、`scripts/Makefile.lib` 及 `include/airymax/build_types.h`（agentrt-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。Kbuild 本质为 Make 宏与规则体系，故 A.1 以 C 结构体建模构建目标内部表示，A.2/A.3 以 Make 宏签名与变量定义为主。
+> **附录定位**： 本附录汇集 Kbuild 递归构建系统所需的完整接口契约，供直接参照实现。所有数据结构与构建规则对齐 Linux 6.6 `Kbuild`、`Makefile`、`scripts/Kbuild.include`、`scripts/Makefile.build`、`scripts/Makefile.lib` 及 `include/airymax/build_types.h`（agent-linux 内核内部头文件，[IND] 独立层，agentrt 用户态不共享）。Kbuild 本质为 Make 宏与规则体系，故 A.1 以 C 结构体建模构建目标内部表示，A.2/A.3 以 Make 宏签名与变量定义为主。
 
 ### A.1 核心数据结构
 
@@ -708,7 +708,7 @@ agentrt-linux 的 8 子仓跨越 C（kernel/services/security/memory/system 的�
  * @flags:      目标标志位（BUILD_FL_FORCE 等对应 FORCE 伪目标）
  *
  * 对齐 Linux 6.6 scripts/Makefile.build 的目标求值模型
- * （agentrt-linux 专属建模，描述 Make 规则在 C 侧的等价表示）
+ * （agent-linux 专属建模，描述 Make 规则在 C 侧的等价表示）
  */
 enum build_target_type {
     BUILD_T_BUILTIN = 0,  /* obj-y 内建目标，归入 built-in.a */
@@ -745,7 +745,7 @@ struct build_target {
  * @is_multi:    是否为多部分目标（airymax-ipc-y 形式）
  *
  * 对齐 Linux 6.6 scripts/Makefile.lib 的 modname/multi-objs 规范化
- * （agentrt-linux 专属建模）
+ * （agent-linux 专属建模）
  */
 struct kbuild_module {
     const char        *name;
@@ -929,7 +929,7 @@ int kbuild_recursive(const char *subdir, struct build_context *ctx);
 #  *
 #  * 对齐 Linux 6.6 scripts/Makefile.lib
 #  */
-# 门控语义常量（agentrt-linux 专属建模）
+# 门控语义常量（agent-linux 专属建模）
 #define OBJ_STATE_BUILTIN  'y'  /* 内建 */
 #define OBJ_STATE_MODULE   'm'  /* 模块 */
 #define OBJ_STATE_DISABLED 'n'  /* 不构建 */
@@ -972,7 +972,7 @@ KBUILD_BUILTIN :=
 ```makefile
 # SPDX-License-Identifier: GPL-2.0
 # /**
-#  * Makefile.airymaxos - agentrt-linux 供应商版本定义
+#  * Makefile.airymaxos - agent-linux 供应商版本定义
 #  *
 #  * 仅承载版本四元组（OS-STD-049）；特性开关走 Kconfig，禁止塞入此文件。
 #  * 顶层 Makefile 经 `include $(srctree)/Makefile.airymaxos` 引入，
@@ -999,7 +999,7 @@ AIRYMAXOS_RELEASE = ""
 
 ```c
 /**
- * Kbuild 构建错误码（agentrt-linux 专属，对齐 Linux 6.6 errno 语义）
+ * Kbuild 构建错误码（agent-linux 专属，对齐 Linux 6.6 errno 语义）
  *
  * 构建失败以 Make 退出码形式上抛；以下为 C 侧建模的语义错误码。
  */
@@ -1014,4 +1014,4 @@ AIRYMAXOS_RELEASE = ""
 
 ---
 
-> **文档结束** | agentrt-linux 构建系统第 1 卷 | Kbuild 递归构建详解 | 共 11 章节 + 规则编号汇总
+> **文档结束** | agent-linux 构建系统第 1 卷 | Kbuild 递归构建详解 | 共 11 章节 + 规则编号汇总

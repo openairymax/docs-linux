@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）配置管理
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）运维体系第 2 卷——配置工程。本文档规定从内核运行时参数到 Agent 级配置的完整配置栈：sysctl 内核运行时参数、`/etc/sysctl.d/` 组织、`/etc/agentrt/` 配置目录、systemd 单元配置、12 daemons 配置文件、环境变量、配置验证、配置版本控制、agentrt-linux 三级配置分层（系统级 / 用户级 / Agent 级）。\
+# agent-linux（AirymaxOS）配置管理
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）运维体系第 2 卷——配置工程。本文档规定从内核运行时参数到 Agent 级配置的完整配置栈：sysctl 内核运行时参数、`/etc/sysctl.d/` 组织、`/etc/agentrt/` 配置目录、systemd 单元配置、12 daemons 配置文件、环境变量、配置验证、配置版本控制、agent-linux 三级配置分层（系统级 / 用户级 / Agent 级）。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt daemons（12 个用户态服务配置）+ Linux 6.6 sysctl + systemd 单元配置\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 五维正交 24 原则 + S-1 反馈闭环\
-> **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 同源配置语义，agentrt-linux 独立承担内核与系统级配置责任
+> **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 同源配置语义，agent-linux 独立承担内核与系统级配置责任
 
 ---
 
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 配置栈总览
 
-agentrt-linux 配置管理继承 Linux 6.6 内核基线沉淀的配置哲学——内核运行时参数（sysctl）+ 持久化配置目录（`/etc/`）+ 服务单元配置（systemd drop-in）——并在其上扩展智能体操作系统的专属配置层：`/etc/agentrt/`（12 daemons 配置）与 Agent 级配置（`~/.agentrt/`）。配置栈自底向上分七层：**L1** 内核编译期（`.config`，构建时固化）→ **L2** 内核启动期（内核命令行参数）→ **L3** 内核运行时（sysctl，`/proc/sys/` + `/etc/sysctl.d/`）→ **L4** 系统服务（systemd 单元）→ **L5** agentrt-linux 系统级（`/etc/agentrt/`，12 daemons）→ **L6** 用户级（`~/.config/agentrt/`）→ **L7** Agent 级（Agent 应用自带，SDK 注入）。
+agent-linux 配置管理继承 Linux 6.6 内核基线沉淀的配置哲学——内核运行时参数（sysctl）+ 持久化配置目录（`/etc/`）+ 服务单元配置（systemd drop-in）——并在其上扩展智能体操作系统的专属配置层：`/etc/agentrt/`（12 daemons 配置）与 Agent 级配置（`~/.agentrt/`）。配置栈自底向上分七层：**L1** 内核编译期（`.config`，构建时固化）→ **L2** 内核启动期（内核命令行参数）→ **L3** 内核运行时（sysctl，`/proc/sys/` + `/etc/sysctl.d/`）→ **L4** 系统服务（systemd 单元）→ **L5** agent-linux 系统级（`/etc/agentrt/`，12 daemons）→ **L6** 用户级（`~/.config/agentrt/`）→ **L7** Agent 级（Agent 应用自带，SDK 注入）。
 
 **OS-OPS-101**：所有可运行时调整的配置必须落在 L3-L7，禁止依赖重新编译内核来调整运行时行为；L1/L2 仅用于不可运行时变更的硬约束（K-1 内核极简）。
 
@@ -48,17 +48,17 @@ flowchart TD
 
 ### 2.1 sysctl 机制
 
-sysctl 是 Linux 6.6 内核基线提供的运行时内核参数调整机制，通过 `/proc/sys/` 目录暴露可读可写的内核参数。agentrt-linux 将 sysctl 作为内核运行时配置的唯一入口，覆盖调度、内存、网络、文件系统、IPC 五大子系统。
+sysctl 是 Linux 6.6 内核基线提供的运行时内核参数调整机制，通过 `/proc/sys/` 目录暴露可读可写的内核参数。agent-linux 将 sysctl 作为内核运行时配置的唯一入口，覆盖调度、内存、网络、文件系统、IPC 五大子系统。
 
 `/proc/sys/` 的子目录与子系统对应：`kernel/`（全局内核参数）、`vm/`（内存管理）、`net/`（网络）、`fs/`（文件系统）、`kernel/`（IPC 与调度）、`user/`（用户级限制）。
 
-**OS-OPS-139**：任何 agentrt-linux 自定义内核参数（`kernel.airy_*`）必须在 `Documentation/admin-guide/sysctl/kernel.rst` 等价文档中登记，并遵循 Linux sysctl 文档规范（E-7 文档即代码）。
+**OS-OPS-139**：任何 agent-linux 自定义内核参数（`kernel.airy_*`）必须在 `Documentation/admin-guide/sysctl/kernel.rst` 等价文档中登记，并遵循 Linux sysctl 文档规范（E-7 文档即代码）。
 
 **OS-OPS-123**：sysctl 参数的读取与写入必须通过 `sysctl` 命令或 `/proc/sys/` 文件接口，禁止直接操作内核内部数据结构；这是 K-2 接口契约化在内核配置层的体现。
 
 ### 2.2 关键 sysctl 参数清单
 
-agentrt-linux 关心的 sysctl 参数按子系统分组：
+agent-linux 关心的 sysctl 参数按子系统分组：
 
 | 子系统 | 参数 | 默认值 | 说明 |
 |--------|------|--------|------|
@@ -85,7 +85,7 @@ agentrt-linux 关心的 sysctl 参数按子系统分组：
 
 ### 3.1 目录组织规则
 
-`/etc/sysctl.d/` 是 sysctl 持久化配置的标准目录，文件按数字前缀排序加载。agentrt-linux 采用以下命名约定：
+`/etc/sysctl.d/` 是 sysctl 持久化配置的标准目录，文件按数字前缀排序加载。agent-linux 采用以下命名约定：
 
 | 文件 | 范围 | 优先级 |
 |------|------|--------|
@@ -102,7 +102,7 @@ agentrt-linux 关心的 sysctl 参数按子系统分组：
 
 ```conf
 # /etc/sysctl.d/99-airymaxos-microcorert.conf
-# agentrt-linux（AirymaxOS）MicroCoreRT 内核运行时参数
+# agent-linux（AirymaxOS）MicroCoreRT 内核运行时参数
 # 理论根基: Linux 6.6 内核基线 + MicroCoreRT 契约
 # 维护: airymaxos-kernel 包，禁止手动覆盖
 
@@ -143,7 +143,7 @@ fs.inotify.max_user_watches = 524288
 
 ### 4.1 目录结构
 
-`/etc/agentrt/` 是 agentrt-linux 12 daemons 的系统级配置根目录，与 agentrt 用户态运行时同源（IRON-9 v3 同源且部分代码共享）。目录包含：`agentrt.conf`（全局配置，日志等级/IPC 端口/运行模式）、12 个 daemon 配置（`macro-superv.conf`/`logger.conf`/`config.conf`/`gateway.conf`/`sched.conf`/`vfs.conf`/`net.conf`/`mem.conf`/`cogn.conf`/`sec.conf`/`audit.conf`/`dev.conf`）、`airy_ipc.conf`（AgentsIPC 协议参数）、`microcorert.conf`（MicroCoreRT 用户态适配参数）、`keys/`（密钥目录，`0600`）与 `conf.d/`（drop-in 覆盖目录）。
+`/etc/agentrt/` 是 agent-linux 12 daemons 的系统级配置根目录，与 agentrt 用户态运行时同源（IRON-9 v3 同源且部分代码共享）。目录包含：`agentrt.conf`（全局配置，日志等级/IPC 端口/运行模式）、12 个 daemon 配置（`macro-superv.conf`/`logger.conf`/`config.conf`/`gateway.conf`/`sched.conf`/`vfs.conf`/`net.conf`/`mem.conf`/`cogn.conf`/`sec.conf`/`audit.conf`/`dev.conf`）、`airy_ipc.conf`（AgentsIPC 协议参数）、`microcorert.conf`（MicroCoreRT 用户态适配参数）、`keys/`（密钥目录，`0600`）与 `conf.d/`（drop-in 覆盖目录）。
 
 **OS-OPS-126**：每个 daemon 必须有独立的 `<daemon>.conf`，禁止共用配置文件；配置文件名与二进制名一一对应（`*_d` 守护进程取基础名，`macro_d`/`logger_d`/`config_d` 取去 `_daemon` 后缀的短名，K-1 内核极简的延伸：配置职责单一）。
 
@@ -155,7 +155,7 @@ fs.inotify.max_user_watches = 524288
 
 ```conf
 # /etc/agentrt/gateway.conf
-# agentrt-linux（AirymaxOS）gateway_d 配置（IRON-9 v3 同源且部分代码共享于 agentrt 用户态）
+# agent-linux（AirymaxOS）gateway_d 配置（IRON-9 v3 同源且部分代码共享于 agentrt 用户态）
 # 维护: airymaxos-services-core 包
 
 [main]
@@ -203,7 +203,7 @@ systemd 单元配置分三层，优先级从低到高：**包提供单元**（`/
 
 ```ini
 # /etc/systemd/system/agentrt-cogn.service.d/override.conf
-# agentrt-linux（AirymaxOS）cogn_d 资源限制覆盖（本地定制）
+# agent-linux（AirymaxOS）cogn_d 资源限制覆盖（本地定制）
 [Service]
 MemoryMax=8G
 TasksMax=2048
@@ -253,7 +253,7 @@ Environment=AIRY_COGN_CACHE_SIZE=8192
 
 ```conf
 # /etc/agentrt/airy_ipc.conf
-# agentrt-linux（AirymaxOS）AgentsIPC 协议参数（与 agentrt 同源）
+# agent-linux（AirymaxOS）AgentsIPC 协议参数（与 agentrt 同源）
 # 维护: airymaxos-services-common 包
 
 [protocol]
@@ -280,7 +280,7 @@ token_file = /etc/agentrt/keys/airy_ipc.token
 
 ### 7.1 环境变量分层
 
-agentrt-linux 环境变量分三层，优先级从低到高：**包默认环境变量**（systemd unit 中的 `Environment=`，`/usr/lib/systemd/system/`）→ **系统级环境变量**（`/etc/agentrt/agentrt.env`，由 `airymaxos-services-common` 提供）→ **单元级环境变量**（systemd drop-in 中的 `Environment=` 或 `EnvironmentFile=`）。
+agent-linux 环境变量分三层，优先级从低到高：**包默认环境变量**（systemd unit 中的 `Environment=`，`/usr/lib/systemd/system/`）→ **系统级环境变量**（`/etc/agentrt/agentrt.env`，由 `airymaxos-services-common` 提供）→ **单元级环境变量**（systemd drop-in 中的 `Environment=` 或 `EnvironmentFile=`）。
 
 **OS-OPS-132**：环境变量仅用于传递非敏感的运行时参数（日志级别、端口、缓存大小）；禁止通过环境变量传递密钥、令牌、密码——这些必须通过配置文件引用（OS-OPS-122）。
 
@@ -288,7 +288,7 @@ agentrt-linux 环境变量分三层，优先级从低到高：**包默认环境�
 
 ```bash
 # /etc/agentrt/agentrt.env
-# agentrt-linux（AirymaxOS）12 daemons 全局环境变量（非敏感参数）
+# agent-linux（AirymaxOS）12 daemons 全局环境变量（非敏感参数）
 # 维护: airymaxos-services-common 包
 
 AIRY_LOG_LEVEL=info
@@ -314,7 +314,7 @@ AIRY_COGN_CACHE_DIR=/var/cache/agentrt/cogn
 
 ### 8.1 验证工具链
 
-agentrt-linux 提供 `airymaxos-config-check` 工具，对全栈配置执行静态验证。支持 `--all`（全栈）、`--sysctl`（仅 sysctl）、`--agentrt`（仅 agentrt 配置）、`--units`（仅 systemd 单元）四种模式。
+agent-linux 提供 `airymaxos-config-check` 工具，对全栈配置执行静态验证。支持 `--all`（全栈）、`--sysctl`（仅 sysctl）、`--agentrt`（仅 agentrt 配置）、`--units`（仅 systemd 单元）四种模式。
 
 验证内容覆盖：(1) sysctl 参数范围与重复声明检测（OS-OPS-125）；(2) `/etc/agentrt/*.conf` 语法与必填字段；(3) systemd drop-in 与包默认值的差异检测（OS-OPS-109）；(4) AgentsIPC `header_size` 契约校验（OS-OPS-131）。
 
@@ -411,7 +411,7 @@ stateDiagram-v2
 
 ### 9.1 配置即代码
 
-agentrt-linux 推崇"配置即代码"（E-7 文档即代码的延伸）：`/etc/agentrt/`、`/etc/sysctl.d/`、`/etc/systemd/system/*.d/` 的全部配置必须纳入 git 仓库管理。仓库结构按配置类型分目录：`sysctl/`（sysctl 配置）、`agentrt/`（`agentrt.conf` + 12 daemons 配置）、`systemd/`（unit drop-in 覆盖）、`env/`（`agentrt.env`）。
+agent-linux 推崇"配置即代码"（E-7 文档即代码的延伸）：`/etc/agentrt/`、`/etc/sysctl.d/`、`/etc/systemd/system/*.d/` 的全部配置必须纳入 git 仓库管理。仓库结构按配置类型分目录：`sysctl/`（sysctl 配置）、`agentrt/`（`agentrt.conf` + 12 daemons 配置）、`systemd/`（unit drop-in 覆盖）、`env/`（`agentrt.env`）。
 
 **OS-OPS-116**：生产环境 `/etc/agentrt/`、`/etc/sysctl.d/99-*.conf`、`/etc/systemd/system/agentrt-*.service.d/` 必须纳入 git 管理，仓库托管在内网 GitLab；任何手工修改未提交 git 视为配置漂移（E-6 错误可追溯）。
 
@@ -431,11 +431,11 @@ agentrt-linux 推崇"配置即代码"（E-7 文档即代码的延伸）：`/etc/
 
 ---
 
-## 第 10 章 agentrt-linux 配置分层
+## 第 10 章 agent-linux 配置分层
 
 ### 10.1 三级配置分层
 
-agentrt-linux 配置自顶向下分三级，每级有明确的所有者与作用域：
+agent-linux 配置自顶向下分三级，每级有明确的所有者与作用域：
 
 | 级别 | 作用域 | 路径 | 所有者 | 优先级 |
 |------|--------|------|--------|--------|
@@ -499,7 +499,7 @@ flowchart TB
 
 ## 第 11 章 五维原则映射
 
-agentrt-linux 配置管理是 Airymax 五维正交 24 原则在配置栈的具体落地：
+agent-linux 配置管理是 Airymax 五维正交 24 原则在配置栈的具体落地：
 
 | 原则 | 在配置管理的体现 | 落地规则 |
 |------|----------------|---------|
@@ -517,11 +517,11 @@ agentrt-linux 配置管理是 Airymax 五维正交 24 原则在配置栈的具�
 
 ### 12.1 同源关系
 
-agentrt-linux 配置管理与 agentrt 遵循 IRON-9 v3 同源且部分代码共享原则：**同源**——`/etc/agentrt/` 配置目录与 agentrt 用户态 `~/.agentrt/` 共享配置文件名与语义（`gateway.conf`、`cogn.conf` 等），AgentsIPC 128B 消息头协议参数两端共享，MicroCoreRT 用户态适配参数两端共享；**独立**——agentrt-linux 独立承担内核 sysctl 配置（agentrt 无权调整内核参数）、systemd 单元配置、系统级强制白名单，这些是发行版的固有责任；**互操作**——agentrt SDK 通过 `airy_config_load()` 注入 Agent 级配置，agentrt-linux 系统级加载器校验并记录，两端通过同源配置语义实现无适配层互操作。
+agent-linux 配置管理与 agentrt 遵循 IRON-9 v3 同源且部分代码共享原则：**同源**——`/etc/agentrt/` 配置目录与 agentrt 用户态 `~/.agentrt/` 共享配置文件名与语义（`gateway.conf`、`cogn.conf` 等），AgentsIPC 128B 消息头协议参数两端共享，MicroCoreRT 用户态适配参数两端共享；**独立**——agent-linux 独立承担内核 sysctl 配置（agentrt 无权调整内核参数）、systemd 单元配置、系统级强制白名单，这些是发行版的固有责任；**互操作**——agentrt SDK 通过 `airy_config_load()` 注入 Agent 级配置，agent-linux 系统级加载器校验并记录，两端通过同源配置语义实现无适配层互操作。
 
 ### 12.2 同源映射表
 
-| 维度 | agentrt（用户态运行时） | agentrt-linux（发行版配置） |
+| 维度 | agentrt（用户态运行时） | agent-linux（发行版配置） |
 |------|------------------------|------------------------|
 | 配置根目录 | `~/.agentrt/` 或环境变量 | `/etc/agentrt/`（系统级） |
 | 配置文件名 | `<daemon>.conf`（同源） | `<daemon>.conf`（同源，IRON-9） |
@@ -531,11 +531,11 @@ agentrt-linux 配置管理与 agentrt 遵循 IRON-9 v3 同源且部分代码共�
 | 配置验证 | 应用层校验 | `airymaxos-config-check` 全栈校验 |
 | 版本控制 | 应用 git | 配置即代码仓库（OS-OPS-116） |
 
-**OS-OPS-121**：agentrt-linux 系统级配置的 `airy_ipc.header_size` 必须与同版本 agentrt 用户态 SDK 的协议版本一致；版本不一致时 `airymaxos-config-check` 报错并阻止 daemon 启动（IRON-9 v3 同源且部分代码共享在配置层的强制）。
+**OS-OPS-121**：agent-linux 系统级配置的 `airy_ipc.header_size` 必须与同版本 agentrt 用户态 SDK 的协议版本一致；版本不一致时 `airymaxos-config-check` 报错并阻止 daemon 启动（IRON-9 v3 同源且部分代码共享在配置层的强制）。
 
 ### 12.3 IRON-9 v3 四层共享模型
 
-IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux（发行版配置）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦配置管理的三层映射。
+IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agent-linux（发行版配置）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦配置管理的三层映射。
 
 #### 12.3.1 三层模型概览
 
@@ -543,7 +543,7 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 |------|---------|-------------|
 | **[SC] 共享契约层** | 头文件级代码共享 | `include/uapi/linux/airymax/sched.h`（调度参数：优先级、vtime、时间片）、`include/uapi/linux/airymax/ipc.h`（IPC 配置：ring 大小、操作码） |
 | **[SS] 语义同源层** | 语义两端一致，实现独立 | 配置文件格式（TOML key=value）、配置层级覆盖、运行时热更新、配置校验 |
-| **[IND] 完全独立层** | agentrt-linux 独有 | `/etc/agentrt/` 内核态配置目录、sysctl 内核参数接口、procfs 状态导出、配置变更审计日志 |
+| **[IND] 完全独立层** | agent-linux 独有 | `/etc/agentrt/` 内核态配置目录、sysctl 内核参数接口、procfs 状态导出、配置变更审计日志 |
 
 #### 12.3.2 [SC] 共享契约层
 
@@ -567,9 +567,9 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 
 #### 12.3.3 [SS] 语义同源层
 
-[SS] 层的配置语义两端一致，但实现载体不同：agentrt 用户态使用 TOML/JSON 配置文件 + 应用层校验，agentrt-linux 使用 TOML 配置文件 + `airymaxos-config-check` 全栈校验。两端语义映射如下：
+[SS] 层的配置语义两端一致，但实现载体不同：agentrt 用户态使用 TOML/JSON 配置文件 + 应用层校验，agent-linux 使用 TOML 配置文件 + `airymaxos-config-check` 全栈校验。两端语义映射如下：
 
-| 语义维度 | agentrt（用户态运行时） | agentrt-linux（发行版配置） |
+| 语义维度 | agentrt（用户态运行时） | agent-linux（发行版配置） |
 |------|------------------------|------------------------|
 | 配置文件格式 | TOML key=value（`<daemon>.conf`） | TOML key=value（同源文件名） |
 | 配置层级覆盖 | 全局→用户→Agent→实例（4 级） | 系统级→用户级→Agent 级→实例（4 级，同源语义） |
@@ -578,11 +578,11 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 | 配置版本控制 | 应用 git 仓库 | 配置即代码仓库（OS-OPS-116） |
 | 配置漂移检测 | 应用层对比 | 配置漂移检测 + 告警路由（OS-OPS-109） |
 
-两端在配置语义上完全同源——文件名（`gateway.conf`、`cogn.conf` 等）、字段名、层级覆盖优先级、热更新触发的概念模型一致——但 agentrt-linux 将配置语义落地为系统级强制（`/etc/agentrt/` 系统目录、sysctl 内核接口、白名单校验），而 agentrt 用户态运行时保持 `~/.agentrt/` 用户目录的轻量实现。这种语义同源使得 Agent 配置在两端迁移时无需字段级转换，仅路径前缀从 `~/.agentrt/` 变为 `/etc/agentrt/`。
+两端在配置语义上完全同源——文件名（`gateway.conf`、`cogn.conf` 等）、字段名、层级覆盖优先级、热更新触发的概念模型一致——但 agent-linux 将配置语义落地为系统级强制（`/etc/agentrt/` 系统目录、sysctl 内核接口、白名单校验），而 agentrt 用户态运行时保持 `~/.agentrt/` 用户目录的轻量实现。这种语义同源使得 Agent 配置在两端迁移时无需字段级转换，仅路径前缀从 `~/.agentrt/` 变为 `/etc/agentrt/`。
 
 #### 12.3.4 [IND] 完全独立层
 
-[IND] 层是 agentrt-linux 发行版配置管理的固有责任，agentrt 用户态运行时不涉及：
+[IND] 层是 agent-linux 发行版配置管理的固有责任，agentrt 用户态运行时不涉及：
 
 | 独立实现项 | 说明 | agentrt 是否涉及 |
 |------|------|------|
@@ -602,7 +602,7 @@ graph LR
         S1["sched.h<br/>调度参数 prio/vtime/time_slice"]
         S2["ipc.h<br/>IPC 参数 ring/opcode/header_size"]
     end
-    SC -->|"参数边界约束"| D["agentrt-linux /etc/agentrt/<br/>内核态配置目录"]
+    SC -->|"参数边界约束"| D["agent-linux /etc/agentrt/<br/>内核态配置目录"]
     D -->|"sysctl 热更新"| E["sysctl kernel.airy.*<br/>运行时参数热更新"]
     style SC fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style A fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
@@ -610,7 +610,7 @@ graph LR
     style E fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
-配置协作流：agentrt 用户态使用 TOML 格式配置 daemons（`gateway.conf`、`cogn.conf` 等），配置参数的字段名与取值范围由 [SC] 层的 `sched.h`（调度参数）和 `ipc.h`（IPC 参数）头文件约束。agentrt-linux 在 `/etc/agentrt/` 系统级目录加载同源配置文件（[SS] 语义同源——文件名与字段名两端一致），通过 `airymaxos-config-check` 校验 [SC] 参数边界后，将内核态参数映射到 sysctl 接口（`kernel.airy.*`）实现运行时热更新（[IND] 完全独立——sysctl/procfs/审计日志为发行版固有责任）。两端通过同源配置语义实现无适配层互操作。
+配置协作流：agentrt 用户态使用 TOML 格式配置 daemons（`gateway.conf`、`cogn.conf` 等），配置参数的字段名与取值范围由 [SC] 层的 `sched.h`（调度参数）和 `ipc.h`（IPC 参数）头文件约束。agent-linux 在 `/etc/agentrt/` 系统级目录加载同源配置文件（[SS] 语义同源——文件名与字段名两端一致），通过 `airymaxos-config-check` 校验 [SC] 参数边界后，将内核态参数映射到 sysctl 接口（`kernel.airy.*`）实现运行时热更新（[IND] 完全独立——sysctl/procfs/审计日志为发行版固有责任）。两端通过同源配置语义实现无适配层互操作。
 
 ---
 
@@ -636,7 +636,7 @@ graph LR
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集配置管理所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核基线 sysctl 接口、systemd（v254+）单元配置、主流 Linux 发行版配置管理工程实践，以及 agentrt-linux 三级配置分层专属契约（`include/uapi/linux/airymax/config_types.h`）。
+> **附录定位**： 本附录汇集配置管理所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核基线 sysctl 接口、systemd（v254+）单元配置、主流 Linux 发行版配置管理工程实践，以及 agent-linux 三级配置分层专属契约（`include/uapi/linux/airymax/config_types.h`）。
 
 ### A.1 核心数据结构
 
@@ -650,7 +650,7 @@ graph LR
  * 每个配置项必须有对应的 schema 条目（OS-OPS-130）。
  *
  * 对齐 Linux 6.6 内核基线 sysctl 模式 + 主流 Linux 发行版配置校验规范
- * 对齐 agentrt-linux OS-OPS-123 / OS-OPS-134
+ * 对齐 agent-linux OS-OPS-123 / OS-OPS-134
  */
 struct config_schema {
     const char *key;              /* @field: 配置项键名（如 "vm.max_map_count"） */
@@ -679,7 +679,7 @@ struct config_schema {
  * 由 /etc/sysctl.d/ 加载器解析后填充。
  *
  * 对齐 Linux 6.6 内核 Documentation/admin-guide/sysctl/ 规范
- * 对齐 agentrt-linux OS-OPS-138 / OS-OPS-124
+ * 对齐 agent-linux OS-OPS-138 / OS-OPS-124
  */
 struct sysctl_entry {
     const char *key;              /* @field: sysctl 键名（如 "kernel.sched_latency_ns"） */
@@ -711,12 +711,12 @@ struct sysctl_entry {
 
 ```c
 /**
- * struct config_layer - 配置层定义（agentrt-linux 专属）
+ * struct config_layer - 配置层定义（agent-linux 专属）
  *
- * 描述 agentrt-linux 三级配置分层（系统级/用户级/Agent 级）。
+ * 描述 agent-linux 三级配置分层（系统级/用户级/Agent 级）。
  * 系统级强制 > 用户级偏好 > Agent 级默认（OS-OPS-136）。
  *
- * agentrt-linux 专属（对齐 §10 三级配置分层）
+ * agent-linux 专属（对齐 §10 三级配置分层）
  */
 struct config_layer {
     int          layer_id;       /* @field: CONFIG_LAYER_SYSTEM/USER/RUNTIME 枚举 */
@@ -744,12 +744,12 @@ struct config_layer {
 
 ```c
 /**
- * struct airy_config - /etc/agentrt/ 主配置（agentrt-linux 专属）
+ * struct airy_config - /etc/agentrt/ 主配置（agent-linux 专属）
  *
  * 描述 agentrt 全局配置 + 12 daemons 配置的聚合结构。
  * 由配置加载器从 agentrt.conf + <daemon>.conf + conf.d/ 合并填充。
  *
- * agentrt-linux 专属（IRON-9 v3 同源，对齐 §4 配置目录）
+ * agent-linux 专属（IRON-9 v3 同源，对齐 §4 配置目录）
  */
 struct airy_config {
     /* 全局配置（agentrt.conf） */
@@ -792,7 +792,7 @@ struct airy_config {
  * 由 airymaxos-config-check 产出，描述每项校验的通过/失败状态。
  * 失败时包含具体规则编号与诊断信息（OS-OPS-115）。
  *
- * 对齐 agentrt-linux OS-OPS-114 / OS-OPS-134
+ * 对齐 agent-linux OS-OPS-114 / OS-OPS-134
  */
 struct config_validation_result {
     int          overall_status;   /* @field: 总体状态（CONFIG_OK/CONFIG_WARN/CONFIG_FAIL） */
@@ -839,7 +839,7 @@ struct config_validation_result {
  * @return: 校验结果结构指针（调用方负责释放），NULL 表示内存不足
  * @since 0.1.1
  *
- * 对齐 agentrt-linux OS-OPS-114 / OS-OPS-134
+ * 对齐 agent-linux OS-OPS-114 / OS-OPS-134
  */
 struct config_validation_result *
 config_validate(const struct airy_config *config,
@@ -866,7 +866,7 @@ config_validate(const struct airy_config *config,
  * @return: 0 成功，<0 失败（见 CONFIG_* 错误码）
  * @since 0.1.1
  *
- * 对齐 agentrt-linux OS-OPS-117 / S-1 反馈闭环
+ * 对齐 agent-linux OS-OPS-117 / S-1 反馈闭环
  */
 int config_apply(const struct airy_config *config,
                  bool dry_run,
@@ -888,7 +888,7 @@ int config_apply(const struct airy_config *config,
  * @return: 0 成功，<0 失败（见 CONFIG_* 错误码）
  * @since 0.1.1
  *
- * 对齐 systemd ExecReload= 机制 + agentrt-linux OS-OPS-108
+ * 对齐 systemd ExecReload= 机制 + agent-linux OS-OPS-108
  */
 int config_reload(const struct airy_config *config);
 ```
@@ -945,7 +945,7 @@ int sysctl_get(const char *key, char *buf, int buf_size);
  * @return: 0 成功，<0 失败（见 CONFIG_* 错误码）
  * @since 0.1.1
  *
- * agentrt-linux 专属（对齐 §10 三级配置分层）
+ * agent-linux 专属（对齐 §10 三级配置分层）
  */
 int config_layer_merge(const struct config_layer *layers,
                        int count,
@@ -960,7 +960,7 @@ int config_layer_merge(const struct config_layer *layers,
 /**
  * CONFIG_* - 配置校验错误码
  *
- * agentrt-linux 专属，对齐 airymaxos-config-check 校验场景
+ * agent-linux 专属，对齐 airymaxos-config-check 校验场景
  * 对齐 errno 语义（负值表示失败）
  */
 #define CONFIG_OK                  0     /* 校验通过 */
@@ -981,7 +981,7 @@ int config_layer_merge(const struct config_layer *layers,
 
 ```c
 /**
- * SYSCTL_* - agentrt-linux 关键 sysctl 参数常量
+ * SYSCTL_* - agent-linux 关键 sysctl 参数常量
  *
  * 对齐 Linux 6.6 内核 Documentation/admin-guide/sysctl/ 规范
  * 对齐 §2.2 关键 sysctl 参数清单
@@ -1050,7 +1050,7 @@ int config_layer_merge(const struct config_layer *layers,
 
 ```c
 /**
- * 配置文件路径常量（agentrt-linux 专属）
+ * 配置文件路径常量（agent-linux 专属）
  *
  * 对齐 §4 配置目录组织 + /etc/sysctl.d/ 规范
  */

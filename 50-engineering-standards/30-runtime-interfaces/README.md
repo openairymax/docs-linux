@@ -1,8 +1,8 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 "From data intelligence emerges."
 
-# agentrt-linux ARE Standards 总览
-> **文档定位**：agentrt-linux ARE Standards 总览\
+# agent-linux ARE Standards 总览
+> **文档定位**：agent-linux ARE Standards 总览\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[工程标准规范手册](../00-engineering-standards-handbook.md)\
@@ -14,13 +14,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 引言
 
-agentrt-linux（AirymaxOS）作为面向智能体协作的操作系统发行版，需要一套开放、分层、可演进的标准体系来定义 OS 层与用户态、OS 层与硬件、OS 组件之间的交互契约。这套标准体系被称为 **ARE Standards（Agent Runtime Environment Standards）**，是 agentrt-linux（AirymaxOS）开放生态的基石。
+agent-linux（AirymaxOS）作为面向智能体协作的操作系统发行版，需要一套开放、分层、可演进的标准体系来定义 OS 层与用户态、OS 层与硬件、OS 组件之间的交互契约。这套标准体系被称为 **ARE Standards（Agent Runtime Environment Standards）**，是 agent-linux（AirymaxOS）开放生态的基石。
 
-ARE Standards 在 agentrt-linux（AirymaxOS）体系中的定位可以从两个维度理解：
+ARE Standards 在 agent-linux（AirymaxOS）体系中的定位可以从两个维度理解：
 
 ### 1.1 与 agentrt 用户态 ARE Standards 的关系
 
-agentrt（AirymaxAgentRT）本身定义了一套用户态运行时的 ARE Standards，面向智能体应用开发者和 SDK 使用者。而 agentrt-linux（AirymaxOS）的 ARE Standards 则聚焦于 OS 层，面向内核开发者、驱动开发者和系统集成商。两者通过 IRON-9 v3 四层模型实现有序协作：
+agentrt（AirymaxAgentRT）本身定义了一套用户态运行时的 ARE Standards，面向智能体应用开发者和 SDK 使用者。而 agent-linux（AirymaxOS）的 ARE Standards 则聚焦于 OS 层，面向内核开发者、驱动开发者和系统集成商。两者通过 IRON-9 v3 四层模型实现有序协作：
 
 | IRON-9 v3 分层 | 与 agentrt 关系 | 内容范围 |
 |----------------|----------------|----------|
@@ -28,11 +28,11 @@ agentrt（AirymaxAgentRT）本身定义了一套用户态运行时的 ARE Standa
 | [SS] 语义同源层 | 语义相同，实现独立 | 核心接口签名、协议格式、安全模型 |
 | [IND] 完全独立层 | 完全独立，按需适配 | OS 专属实现、内核机制、驱动模型 |
 
-agentrt-linux（AirymaxOS）ARE Standards 与 agentrt ARE Standards 形成**互补而非重复**的关系：用户态关注应用级契约，OS 层关注内核级契约；用户态关注可移植性，OS 层关注性能和安全；用户态关注多平台兼容，OS 层关注 Linux 内核特性深度整合。
+agent-linux（AirymaxOS）ARE Standards 与 agentrt ARE Standards 形成**互补而非重复**的关系：用户态关注应用级契约，OS 层关注内核级契约；用户态关注可移植性，OS 层关注性能和安全；用户态关注多平台兼容，OS 层关注 Linux 内核特性深度整合。
 
 ### 1.2 开放标准的意义
 
-开放标准对于 agentrt-linux（AirymaxOS）生态的重要性体现在：
+开放标准对于 agent-linux（AirymaxOS）生态的重要性体现在：
 
 1. **互操作性**：不同厂商、不同社区贡献的组件可以通过标准接口无缝集成
 2. **可替换性**：符合标准的组件可以独立演进，不破坏整体一致性
@@ -44,7 +44,7 @@ agentrt-linux（AirymaxOS）ARE Standards 与 agentrt ARE Standards 形成**互�
 
 ### 1.3 ARE Standards 在 OS 层的定位
 
-agentrt-linux（AirymaxOS）ARE Standards 在 OS 技术栈中处于关键位置，连接硬件抽象层、内核运行时、用户态服务和智能体应用四个层面：
+agent-linux（AirymaxOS）ARE Standards 在 OS 技术栈中处于关键位置，连接硬件抽象层、内核运行时、用户态服务和智能体应用四个层面：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -52,7 +52,7 @@ agentrt-linux（AirymaxOS）ARE Standards 在 OS 技术栈中处于关键位置�
 │         (遵循 agentrt 用户态 ARE Standards)                      │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │              agentrt-linux ARE Standards                   │  │
+│  │              agent-linux ARE Standards                   │  │
 │  │  ┌──────────────┬──────────────┬──────────────────────┐  │  │
 │  │  │ L1 运行时接口 │ L2 通信协议  │ L3 安全与治理        │  │  │
 │  │  │ (syscall)    │ (AgentsIPC)  │ (Cupolas/Sandbox)    │  │  │
@@ -76,7 +76,7 @@ ARE Standards 的三个层级在 OS 栈中的位置各不相同：
 
 ### 1.4 与参考发行版的对比
 
-| 特性 | 参考发行版 | agentrt-linux（AirymaxOS） |
+| 特性 | 参考发行版 | agent-linux（AirymaxOS） |
 |------|-----------|---------------------------|
 | 标准体系 | 发行版自有规范 | ARE Standards 开放标准 |
 | 运行时接口 | POSIX 兼容 | POSIX + Agent 专属 syscall |
@@ -86,19 +86,19 @@ ARE Standards 的三个层级在 OS 栈中的位置各不相同：
 | 供应链 | RPM 签名 | SBOM + 签名 |
 | 治理 | 社区主导 | 开放治理 + 工程规范委员会 |
 
-agentrt-linux（AirymaxOS）在继承参考发行版工程基线的基础上，针对智能体工作负载进行了深度定制，ARE Standards 正是这一定制化的形式化表达。
+agent-linux（AirymaxOS）在继承参考发行版工程基线的基础上，针对智能体工作负载进行了深度定制，ARE Standards 正是这一定制化的形式化表达。
 
 ---
 
 ## 2. 三层标准架构
 
-agentrt-linux（AirymaxOS）ARE Standards 采用三层架构设计，从底层核心到上层安全治理逐层抽象，每层职责清晰，符合五维正交24原则中 K-2（接口契约化原则）。
+agent-linux（AirymaxOS）ARE Standards 采用三层架构设计，从底层核心到上层安全治理逐层抽象，每层职责清晰，符合五维正交24原则中 K-2（接口契约化原则）。
 
 ### 2.1 三层架构概述
 
 ```mermaid
 graph TB
-    subgraph "agentrt-linux ARE Standards 三层架构"
+    subgraph "agent-linux ARE Standards 三层架构"
         direction TB
         L1["L1 核心运行时接口<br/>Core Runtime Interface"]
         L2["L2 服务通信协议<br/>Service Communication Protocol"]
@@ -129,7 +129,7 @@ graph TB
     style L3 fill:#fff3e0
 ```
 
-**图1: agentrt-linux ARE Standards 三层标准架构**
+**图1: agent-linux ARE Standards 三层标准架构**
 
 ### 2.2 L1 核心运行时接口
 
@@ -201,7 +201,7 @@ ARE Standards 采用语义版本命名：
 
 ## 4. 与 agentrt ARE Standards 的共享关系
 
-根据 IRON-9 v3 同源且部分代码共享原则，agentrt-linux ARE Standards 与 agentrt ARE Standards 保持以下共享关系：
+根据 IRON-9 v3 同源且部分代码共享原则，agent-linux ARE Standards 与 agentrt ARE Standards 保持以下共享关系：
 
 ### 4.1 [SC] 共享契约层完全共享
 
@@ -233,7 +233,7 @@ ARE Standards 采用语义版本命名：
 
 ### 4.4 同步流程
 
-当 agentrt ARE Standards 发生变更时，agentrt-linux ARE Standards 需要按以下流程同步：
+当 agentrt ARE Standards 发生变更时，agent-linux ARE Standards 需要按以下流程同步：
 1. [SC] 层变更必须在一个版本周期内同步
 2. [SS] 层语义变更需要评估影响，按需同步
 3. [IND] 层变更不受影响，保持自主
@@ -248,7 +248,7 @@ ARE Standards 采用语义版本命名：
 
 ### 5.1 独立仓库的优势
 
-1. **跨项目引用**：agentrt、agentrt-linux、第三方项目都可以引用同一套标准，避免分叉
+1. **跨项目引用**：agentrt、agent-linux、第三方项目都可以引用同一套标准，避免分叉
 2. **版本独立**：标准可以独立于实现版本化演进
 3. **社区治理**：标准可以成立独立的工程规范委员会进行治理
 4. **清晰边界**：标准与实现分离，更符合开放标准的惯例
@@ -262,7 +262,7 @@ ARE Standards 采用语义版本命名：
 
 ### 5.3 当前结论
 
-在 v0.1.1 草案阶段，ARE Standards 保留在 agentrt-linux 仓库的 `docs/AirymaxOS/50-engineering-standards/30-runtime-interfaces/` 目录下，不独立仓库。原因：
+在 v0.1.1 草案阶段，ARE Standards 保留在 agent-linux 仓库的 `docs/AirymaxOS/50-engineering-standards/30-runtime-interfaces/` 目录下，不独立仓库。原因：
 - 标准尚未稳定，独立会增加变更成本
 - 当前共享模型（IRON-9 v3）已经解决大部分一致性问题
 - 等标准进入候选阶段（v1.0.1）后，再重新评估独立仓库的必要性
@@ -273,7 +273,7 @@ ARE Standards 采用语义版本命名：
 
 ## 6. 治理模型
 
-ARE Standards 遵循 agentrt-linux（AirymaxOS）统一治理模型，核心要点如下：
+ARE Standards 遵循 agent-linux（AirymaxOS）统一治理模型，核心要点如下：
 
 ### 6.1 修改流程
 
@@ -320,13 +320,13 @@ ARE Standards 一旦正式发布，其核心接口不能轻易删除或不兼容
 
 ## 7. OS 层 ARE Standards 的独特定位
 
-agentrt-linux（AirymaxOS）ARE Standards 不同于一般的 OS 接口规范，它具有以下独特定位：
+agent-linux（AirymaxOS）ARE Standards 不同于一般的 OS 接口规范，它具有以下独特定位：
 
 ### 7.1 智能体操作系统的标准需求
 
-传统操作系统标准（如 POSIX、LSB）面向通用计算，而 agentrt-linux（AirymaxOS）作为智能体操作系统，需要额外的标准覆盖：
+传统操作系统标准（如 POSIX、LSB）面向通用计算，而 agent-linux（AirymaxOS）作为智能体操作系统，需要额外的标准覆盖：
 
-| 标准需求 | 传统 OS 标准 | agentrt-linux ARE Standards |
+| 标准需求 | 传统 OS 标准 | agent-linux ARE Standards |
 |----------|-------------|---------------------------|
 | 进程间通信 | POSIX IPC / D-Bus | AgentsIPC 128B 消息头 + 服务发现 |
 | 调度接口 | nice / sched_setscheduler | sched_tac（SCHED_FIFO/SCHED_DEADLINE） |
@@ -337,7 +337,7 @@ agentrt-linux（AirymaxOS）ARE Standards 不同于一般的 OS 接口规范，�
 
 ### 7.2 与内核上游的关系
 
-agentrt-linux（AirymaxOS）ARE Standards 的设计遵循以下上游优先原则：
+agent-linux（AirymaxOS）ARE Standards 的设计遵循以下上游优先原则：
 
 1. **优先使用 Linux 内核上游接口**：当 Linux 内核上游已经提供标准接口时（如 io_uring、SCHED_DEADLINE、SCHED_FIFO），ARE Standards 直接引用，不重复定义
 2. **扩展而非替代**：ARE Standards 在 Linux 标准接口之上增加 Agent 专属语义，而不是替代它们
@@ -445,7 +445,7 @@ graph TB
 
 ### 9.2 参考实现
 
-agentrt-linux（AirymaxOS）本身是 ARE Standards 的参考实现。参考实现的作用：
+agent-linux（AirymaxOS）本身是 ARE Standards 的参考实现。参考实现的作用：
 - 验证标准接口的可行性和合理性
 - 为标准讨论提供可运行的示例
 - 作为一致性测试的基准
@@ -490,7 +490,7 @@ ARE Standards 的设计全程遵循五维正交24原则，关键映射如下：
 ## 11. 参考文献
 
 1. [工程标准规范手册](../00-engineering-standards-handbook.md)
-2. [agentrt-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
+2. [agent-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
 3. [体系并行论](../../../AirymaxRT/00-requirements/01-mcis-cn.md)
 4. [系统设计原则](../../../AirymaxRT/00-requirements/04-design-principles-cn.md)
 5. IRON-9 v3 工程铁律

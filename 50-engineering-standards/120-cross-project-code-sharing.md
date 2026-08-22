@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）IRON-9 v3 四层共享模型落地规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）与 agentrt（微核心用户态运行时）之间的 IRON-9 v3 四层代码共享模型落地规范。详细说明 \[SC] 共享契约层（10 个头文件）、\[SS] 语义同源层、\[IND] 完全独立层、\[DSL] 降级生存层的实施细节，含双向 CI 校验机制与 magic 设计原理。本文件落地 **IRON-9 v3 四层模型（[SC]+[SS]+[IND]+[DSL]）**，权威源为 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。\
+# agent-linux（AirymaxOS）IRON-9 v3 四层共享模型落地规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）与 agentrt（微核心用户态运行时）之间的 IRON-9 v3 四层代码共享模型落地规范。详细说明 \[SC] 共享契约层（10 个头文件）、\[SS] 语义同源层、\[IND] 完全独立层、\[DSL] 降级生存层的实施细节，含双向 CI 校验机制与 magic 设计原理。本文件落地 **IRON-9 v3 四层模型（[SC]+[SS]+[IND]+[DSL]）**，权威源为 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[10-unify-design.md](../10-architecture/10-unify-design.md)（Unify Design 总纲）\
@@ -16,18 +16,18 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 0.1 目的与范围
 
-本文件是 **IRON-9 v3 四层共享模型（[SC]+[SS]+[IND]+[DSL]）**的工程落地规范，定义 agentrt（用户态微核心）与 agentrt-linux（内核微内核发行版）之间的代码共享边界、契约内容、校验机制。四层模型的权威定义见 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)，[DSL] 降级生存层的详细设计见 [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md)。
+本文件是 **IRON-9 v3 四层共享模型（[SC]+[SS]+[IND]+[DSL]）**的工程落地规范，定义 agentrt（用户态微核心）与 agent-linux（内核微内核发行版）之间的代码共享边界、契约内容、校验机制。四层模型的权威定义见 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)，[DSL] 降级生存层的详细设计见 [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md)。
 
 ### 0.2 术语约束（硬性）
 
 - **agentrt**（用户态）= **微核心**（micro-core）。描述 agentrt 时使用"微核心"，其原语称"微核心原语"。**禁止**用"微内核原语"描述 agentrt。
-- **agentrt-linux**（OS 发行版）= **微内核**（micro-kernel）。描述 agentrt-linux 时使用"微内核"。
+- **agent-linux**（OS 发行版）= **微内核**（micro-kernel）。描述 agent-linux 时使用"微内核"。
 - **禁止**使用特定上游发行版名称，统一用"主流 Linux 发行版"。
-- 产品全称"agentrt-linux（AirymaxOS，极境智能体操作系统）"，简称"agentrt-linux"或"AirymaxOS"。
+- 产品全称"agent-linux（AirymaxOS，极境智能体操作系统）"，简称"agent-linux"或"AirymaxOS"。
 
 ### 0.3 Linux 6.6 基线约束
 
-- **sched_tac 调度类约束**：使用 Linux 6.6 内核基线 原生调度类（SCHED\_NORMAL=0 / SCHED\_FIFO=1 / SCHED\_RR=2 / SCHED\_BATCH=3 / SCHED\_IDLE=5 / SCHED\_DEADLINE=6，`include/uapi/linux/sched.h:114-123`）。agentrt-linux 通过 sched_tac 复用这些原生调度类，**禁止**定义 `SCHED_AGENT` 内核调度类宏（避免与内核调度类编号冲突），**禁止**使用 `SCHED_EXT=7`（OLK 6.6 已 backport sched_ext（`kernel/sched/ext.c`，215KB），但选择不使用：依赖 BPF_SYSCALL && BPF_JIT && DEBUG_INFO_BTF，与纯 C LSM 原则冲突；vanilla 6.6 主线不含 sched_ext 框架）。
+- **sched_tac 调度类约束**：使用 Linux 6.6 内核基线 原生调度类（SCHED\_NORMAL=0 / SCHED\_FIFO=1 / SCHED\_RR=2 / SCHED\_BATCH=3 / SCHED\_IDLE=5 / SCHED\_DEADLINE=6，`include/uapi/linux/sched.h:114-123`）。agent-linux 通过 sched_tac 复用这些原生调度类，**禁止**定义 `SCHED_AGENT` 内核调度类宏（避免与内核调度类编号冲突），**禁止**使用 `SCHED_EXT=7`（OLK 6.6 已 backport sched_ext（`kernel/sched/ext.c`，215KB），但选择不使用：依赖 BPF_SYSCALL && BPF_JIT && DEBUG_INFO_BTF，与纯 C LSM 原则冲突；vanilla 6.6 主线不含 sched_ext 框架）。
 - 内核态禁 float（`arch/x86/Makefile:137` `-mno-80387`），用 Q16.16 定点数 `airy_q16_t`（= `int32_t`）。
 - kthread 间通信用 `kfifo` + `wait_event_interruptible`。
 
@@ -49,7 +49,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | ----------- | ------ | ------------------ | --------------------------------------------------------- | -------------------------------- |
 | **共享契约层**   | \[SC]  | 完全共享代码             | 10 个头文件，定义数据结构、magic、操作码、枚举                                | `include/uapi/linux/airymax/` 独立 UAPI 头文件库（D-8 对齐 OLK 6.6），两端共同依赖 |
 | **语义同源层**   | \[SS]  | 高层 API 语义同源，签名独立演进 | 调度语义、安全模型、IPC 传输、记忆模型                                     | 各自独立实现，通过 \[SC] 保证互操作            |
-| **完全独立层**   | \[IND] | 完全独立               | 内核驱动/Kbuild/内核 API（agentrt-linux）；跨平台用户态/SDK 四语言（agentrt） | 各自独立仓库，无依赖                       |
+| **完全独立层**   | \[IND] | 完全独立               | 内核驱动/Kbuild/内核 API（agent-linux）；跨平台用户态/SDK 四语言（agentrt） | 各自独立仓库，无依赖                       |
 | **降级生存层**   | \[DSL] | 自包含降级块（[SC] 头文件内）   | `#ifdef AIRY_SC_FALLBACK` 降级块；[SC] 损坏时的最小可运行子集（38 POSIX 码 + 最简 IPC + EEVDF 默认调度） | 详见 [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md) |
 
 ### 1.2 与旧版 IRON-9 的差异
@@ -67,7 +67,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 10 个 \[SC] 头文件清单
 
-\[SC] 层包含**10 个**核心共享头文件，**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-dual-ci 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agentrt-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
+\[SC] 层包含**10 个**核心共享头文件，**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-dual-ci 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agent-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
 
 | 序号 | 文件                  | 共享内容                                                                                                    | magic 值               | 落地路径                                |
 | -- | ------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------- |
@@ -144,7 +144,7 @@ struct bpf_struct_ops_common_val {
  * @_reserved: padding to 128 bytes
  *
  * Shared between agentrt (user-space BPF loader) and
- * agentrt-linux (kernel struct_ops framework). The `common` field
+ * agent-linux (kernel struct_ops framework). The `common` field
  * MUST be first to satisfy the kernel bpf_struct_ops framework layout.
  */
 struct airy_struct_ops_value {
@@ -158,13 +158,13 @@ struct airy_struct_ops_value {
 #endif /* _UAPI_AIRYMAX_BPF_STRUCT_OPS_H */
 ```
 
-> **定位说明**：`bpf_struct_ops.h` 是 agentrt 与 agentrt-linux 之间的**补充共享文件**（SDK 网关状态管理共享结构），两端共享代码但**不属于 10 个 [SC] 核心头文件**。其 `struct airy_struct_ops_value` 和 `enum airy_struct_ops_state` 用于 agentrt 用户态 BPF loader 与 agentrt-linux 内核 struct_ops 框架之间的状态同步。
+> **定位说明**：`bpf_struct_ops.h` 是 agentrt 与 agent-linux 之间的**补充共享文件**（SDK 网关状态管理共享结构），两端共享代码但**不属于 10 个 [SC] 核心头文件**。其 `struct airy_struct_ops_value` 和 `enum airy_struct_ops_state` 用于 agentrt 用户态 BPF loader 与 agent-linux 内核 struct_ops 框架之间的状态同步。
 
 ### 2.3 [SC] 核心头文件：uapi\_compat.h（三路类型桥接）
 
 > **定位说明**：`uapi_compat.h` 是 [SC] 10 个核心头文件之一（IRON-9 v3 升级），提供三路类型桥接：内核态（`__u32` 等，通过 `<linux/types.h>`）、Linux 用户态（`__u32` 等，通过 `<linux/types.h>`）、非 Linux 用户态（`uint32_t` 等，通过 `<stdint.h>` + typedef 映射为 `__u32`）。
 
-所有 10 个 [SC] 核心头文件 + `bpf_struct_ops.h`（补充）均通过 `#include <linux/airymax/uapi_compat.h>` 获取 `__u8`/`__u16`/`__u32`/`__u64`/`__s32`/`__s64` 等 UAPI 类型。该文件在 Linux 内核态和 Linux 用户态均直接包含 `<linux/types.h>` 复用系统定义（避免 typedef 冲突），在 macOS/Windows 上通过 `<stdint.h>` + typedef 提供等价类型，确保 [SC] 头文件在 agentrt 用户态跨平台（Linux/macOS/Windows）和 agentrt-linux 内核态均能逐字节相同地编译。
+所有 10 个 [SC] 核心头文件 + `bpf_struct_ops.h`（补充）均通过 `#include <linux/airymax/uapi_compat.h>` 获取 `__u8`/`__u16`/`__u32`/`__u64`/`__s32`/`__s64` 等 UAPI 类型。该文件在 Linux 内核态和 Linux 用户态均直接包含 `<linux/types.h>` 复用系统定义（避免 typedef 冲突），在 macOS/Windows 上通过 `<stdint.h>` + typedef 提供等价类型，确保 [SC] 头文件在 agentrt 用户态跨平台（Linux/macOS/Windows）和 agent-linux 内核态均能逐字节相同地编译。
 
 > **设计约束**：[SC] 头文件中**禁止**直接 `#include <linux/types.h>`（macOS/Windows 无此头文件），**必须**通过 `<linux/airymax/uapi_compat.h>` 间接获取 UAPI 类型。
 
@@ -356,7 +356,7 @@ airy_vtime_decay(airy_vtime_t vtime, __u64 consumed_slice, __u32 weight)
  * @prio: Priority in [AIRY_PRIO_MIN, AIRY_PRIO_MAX].
  * @vtime: Virtual time for fair scheduling (Q16.16).
  *
- * Shared between agentrt (user-space) and agentrt-linux (kernel).
+ * Shared between agentrt (user-space) and agent-linux (kernel).
  * The magic field validates descriptor integrity across the boundary.
  */
 struct airy_task_desc {
@@ -377,7 +377,7 @@ struct airy_task_desc {
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * kernel/include/uapi/linux/airymax/ipc.h —— [SC] 共享契约层，物理宿主
- * IRON-9 v3 [SC] 层：agentrt 与 agentrt-linux 共享数据结构定义
+ * IRON-9 v3 [SC] 层：agentrt 与 agent-linux 共享数据结构定义
  * 校验机制属于 [SS] 语义同源层，不在本头文件中定义
  */
 #ifndef _UAPI_AIRYMAX_IPC_H
@@ -410,7 +410,7 @@ extern "C" {
 
 /* flags 定义 */
 #define AIRY_IPC_FLAG_ZEROCOPY		0x0001
-#define AIRY_IPC_FLAG_CAP_CARRY		0x0002  /* 携带 Badge（agentrt-linux 内核必置） */
+#define AIRY_IPC_FLAG_CAP_CARRY		0x0002  /* 携带 Badge（agent-linux 内核必置） */
 #define AIRY_IPC_FLAG_ENCRYPT		0x0004  /* 保留，0.1.1 不启用 */
 #define AIRY_IPC_FLAG_COMPRESS		0x0008  /* 保留，0.1.1 不启用 */
 #define AIRY_IPC_FLAG_BATCH_TAIL		0x0010  /* SEND_BATCH 的最后一个 SQE */
@@ -436,14 +436,14 @@ extern "C" {
  * @timestamp_ns:     CLOCK_REALTIME nanoseconds, sender fills.
  * @src_task:         Source Agent/daemon task_id, bound to Badge at compile.
  * @dst_task:         Destination task_id, decides kfifo routing.
- * @capability_badge: [SS] semantic-aligned: agentrt-linux uses (compiled by
+ * @capability_badge: [SS] semantic-aligned: agent-linux uses (compiled by
  *                    sec_d), agentrt user-space always 0 (H3).
  * @payload_len:      Payload length, excluding header.
  * @crc32:            CRC32 over header[0:52) + payload.
  * @reserved:         Reserved, must be zero (C-S4 checks).
  *
  * Layout C v4 — 128-byte fixed header. Shared between agentrt and
- * agentrt-linux via [SC] contract layer. magic is frozen post-release.
+ * agent-linux via [SC] contract layer. magic is frozen post-release.
  *
  * Alignment design (D-9 fix, mirrors OLK 6.6 kernel protocol headers like
  * struct ethhdr/iphdr/udphdr which do NOT use __attribute__((packed))):
@@ -462,7 +462,7 @@ struct airy_ipc_msg_hdr {
 	__u64	timestamp_ns;		/* offset 16, CLOCK_REALTIME nanoseconds */
 	__u64	src_task;		/* offset 24, source Agent/daemon task_id */
 	__u64	dst_task;		/* offset 32, destination Agent/daemon task_id */
-	__u64	capability_badge;	/* offset 40, [SS] agentrt-linux uses, agentrt=0 */
+	__u64	capability_badge;	/* offset 40, [SS] agent-linux uses, agentrt=0 */
 	__u32	payload_len;		/* offset 48, payload length (excluding header) */
 	__u32	crc32;			/* offset 52, CRC32 over header[0:52) + payload */
 	__u8	reserved[72];		/* offset 56, must be zero (CL1 [56:64) + CL2 [64:128)) */
@@ -477,7 +477,7 @@ _Static_assert(offsetof(struct airy_ipc_msg_hdr, crc32) == 52,
 
 /* ===== Badge 位布局（仅 [SS] 语义同源，定义在内核实现侧）===== */
 /* agentrt 用户态：capability_badge 始终为 0（H3） */
-/* agentrt-linux 内核：capability_badge 由 sec_d 编译（H4） */
+/* agent-linux 内核：capability_badge 由 sec_d 编译（H4） */
 /* [DSL] 降级模式：capability_badge = 0，跳过 C-S9（H6） */
 
 #define AIRY_BADGE_EPOCH_SHIFT		48
@@ -519,18 +519,18 @@ _Static_assert(offsetof(struct airy_ipc_msg_hdr, crc32) == 52,
 
 - **[SC] 共享契约层（本头文件）**：`struct airy_ipc_msg_hdr` 数据结构、字段偏移与大小、magic 值、opcode 枚举、flags 位定义、Badge 位布局宏、Capability 权限位、`_Static_assert(sizeof == 128)`。
 - **[SS] 语义同源层（不在本头文件）**：`airy_cap_badge_ok()` 内联函数、`agent_caps[]` 静态数组、`airy_cap_global_epoch` atomic_t、Random Tag 生成、C-S9 校验逻辑、sec_d Badge 编译流程。
-- **[IND] 完全独立层**：agentrt 用户态不使用 `capability_badge`（始终为 0），使用传统 `cap_t` 引用；agentrt-linux 内核使用 `capability_badge` + C-S9 内联校验。
+- **[IND] 完全独立层**：agentrt 用户态不使用 `capability_badge`（始终为 0），使用传统 `cap_t` 引用；agent-linux 内核使用 `capability_badge` + C-S9 内联校验。
 - **[DSL] 降级生存层**：`capability_badge` 字段存在但被忽略（值=0），C-S9 跳过，退化到 `airy_cap_check()` slowpath 兜底路径（基于 `agent_caps[1024]` 静态数组）。
 
 ### 2.10 [SC] 核心头文件：syscalls.h
 
-> **SSoT 权威源声明**：本头文件为 agentrt-linux syscall 接口的 [SC] 共享契约层物理宿主。Capability Folding 单平面架构将原 12 syscall 精简为 4 syscall（IPC 数据传递全部走 io_uring 数据面），权威源为 [01-syscalls.md §1](../30-interfaces/01-syscalls.md)。
+> **SSoT 权威源声明**：本头文件为 agent-linux syscall 接口的 [SC] 共享契约层物理宿主。Capability Folding 单平面架构将原 12 syscall 精简为 4 syscall（IPC 数据传递全部走 io_uring 数据面），权威源为 [01-syscalls.md §1](../30-interfaces/01-syscalls.md)。
 
 ```c
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * kernel/include/uapi/linux/airymax/syscalls.h —— [SC] 共享契约层，物理宿主
- * IRON-9 v3 [SC] 层：agentrt 与 agentrt-linux 共享数据结构定义
+ * IRON-9 v3 [SC] 层：agentrt 与 agent-linux 共享数据结构定义
  */
 #ifndef _UAPI_AIRYMAX_SYSCALLS_H
 #define _UAPI_AIRYMAX_SYSCALLS_H
@@ -648,7 +648,7 @@ extern "C" {
 
 1. **可识别性**：'ARE1' 是人类可读的 ASCII，便于 hexdump 调试时识别 IPC 消息
 2. **版本化**：末尾 '1' 表示协议版本 1，未来 breaking change 升级为 'ARE2'
-3. **跨端一致**：agentrt 与 agentrt-linux 两端字节相同，无字节序转换（host byte order 内部传输）
+3. **跨端一致**：agentrt 与 agent-linux 两端字节相同，无字节序转换（host byte order 内部传输）
 4. **不可变更**：magic 一经发布即冻结，变更必须升级版本号
 
 **P0-05 收敛（0.1.1）**：agentrt 内全部 IPC 传输层 magic 统一引用 `AIRY_IPC_MAGIC`，禁止本地硬编码十六进制值。收敛映射表：
@@ -694,11 +694,11 @@ extern "C" {
 
 ### 5.1 \[SS] 层定义
 
-\[SS] 层中，agentrt 与 agentrt-linux 的高层 API 语义同源（概念操作一致）；SDK 层签名同源（同一份源码两端编译），其他层签名因抽象层级不同而独立演进。两端通过 \[SC] 契约层保证语义一致，无需适配层。
+\[SS] 层中，agentrt 与 agent-linux 的高层 API 语义同源（概念操作一致）；SDK 层签名同源（同一份源码两端编译），其他层签名因抽象层级不同而独立演进。两端通过 \[SC] 契约层保证语义一致，无需适配层。
 
 ### 5.2 四大语义同源映射
 
-| 语义域                   | agentrt（用户态微核心）实现             | agentrt-linux（内核微内核）实现            | \[SC] 契约依据                              |
+| 语义域                   | agentrt（用户态微核心）实现             | agent-linux（内核微内核）实现            | \[SC] 契约依据                              |
 | --------------------- | ----------------------------- | --------------------------------- | --------------------------------------- |
 | **调度语义**（MicroCoreRT） | 用户态调度器（协程/线程池）                | sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF，不含 sched\_ext）  | `sched.h`：任务描述符 + vtime + 优先级           |
 | **安全模型**（Cupolas）     | 用户态策略引擎（seccomp + capability） | 纯 C LSM 钩子（250 ID） + capability 44 ID（41 POSIX + 3 Airymax 扩展） | `security_types.h`：capability + verdict |
@@ -743,7 +743,7 @@ static void test_ipc_hdr_serialize(void)
 
 > **权威源声明**：[IND] 层的权威定义见 [06-iron9-shared-model.md §4](../10-architecture/06-iron9-shared-model.md)。本节列出两端 [IND] 层的工程落地细节，含 io_uring + IORING_OP_URING_CMD（不使用 page flipping）、alloc_pages + mmap（不使用 DMA 一致性内存）、纯 C LSM（不使用 BPF LSM）三项关键技术选型。
 
-### 6.1 agentrt-linux 专属（\[IND]）
+### 6.1 agent-linux 专属（\[IND]）
 
 | 模块               | 内容                                     | 理由                      |
 | ---------------- | -------------------------------------- | ----------------------- |
@@ -753,17 +753,17 @@ static void test_ipc_hdr_serialize(void)
 | systemd 集成       | `systemd/airymax-*.service`            | 发行版集成专属                 |
 | LSM 实现           | 纯 C LSM 模块（`security/airy/`）       | 内核安全模块专属，**不使用 BPF LSM**（纯 C 实现，对齐 openEuler 250 钩子） |
 | eBPF struct\_ops | `kernel/bpf/airymax/`                  | 内核 BPF 框架专属             |
-| io\_uring 命令路径    | `IORING_OP_URING_CMD`（agentrt-linux 内核驱动） | 内核态专属，IPC fastpath 载体，**不使用 page flipping**（zero-copy via registered buffer + uring_cmd） |
-| 物理内存分配           | `alloc_pages` + `mmap`（agentrt-linux 内核） | 内核态专属，日志 Ring Buffer / IPC 共享内存方案，**不使用 DMA 一致性内存**（streaming DMA via page mapping，对齐 Linux 6.6 DMA API） |
+| io\_uring 命令路径    | `IORING_OP_URING_CMD`（agent-linux 内核驱动） | 内核态专属，IPC fastpath 载体，**不使用 page flipping**（zero-copy via registered buffer + uring_cmd） |
+| 物理内存分配           | `alloc_pages` + `mmap`（agent-linux 内核） | 内核态专属，日志 Ring Buffer / IPC 共享内存方案，**不使用 DMA 一致性内存**（streaming DMA via page mapping，对齐 Linux 6.6 DMA API） |
 
 ### 6.2 agentrt 专属（\[IND]）
 
 | 模块        | 内容                                                   | 理由                                             |
 | --------- | ---------------------------------------------------- | ---------------------------------------------- |
-| 跨平台用户态运行时 | `runtime/`（C/Rust 实现）                                | 跨平台（Linux/macOS/Windows），agentrt-linux 仅 Linux |
-| SDK 四语言   | `sdk/python/`、`sdk/rust/`、`sdk/typescript/`、`sdk/c/` | 多语言绑定，agentrt-linux 仅 C                        |
-| CLI/TUI   | `cli/`、`tui/`                                        | 用户交互工具，agentrt-linux 无                         |
-| 用户态内存管理   | `runtime/heapstore`                                  | 用户态 malloc/mmap，agentrt-linux 用内核 kmalloc      |
+| 跨平台用户态运行时 | `runtime/`（C/Rust 实现）                                | 跨平台（Linux/macOS/Windows），agent-linux 仅 Linux |
+| SDK 四语言   | `sdk/python/`、`sdk/rust/`、`sdk/typescript/`、`sdk/c/` | 多语言绑定，agent-linux 仅 C                        |
+| CLI/TUI   | `cli/`、`tui/`                                        | 用户交互工具，agent-linux 无                         |
+| 用户态内存管理   | `runtime/heapstore`                                  | 用户态 malloc/mmap，agent-linux 用内核 kmalloc      |
 
 ***
 
@@ -774,28 +774,28 @@ static void test_ipc_hdr_serialize(void)
 \[SC] 层（10 个头文件）的任何变更必须经过**双向 CI 校验**，确保两端均能编译通过：
 
 ```
-开发者提交 [SC] 变更 MR（agentrt-linux 仓库）
+开发者提交 [SC] 变更 MR（agent-linux 仓库）
    ↓
-步骤 1: agentrt-linux CI 校验
-  - 编译 agentrt-linux 内核
+步骤 1: agent-linux CI 校验
+  - 编译 agent-linux 内核
   - 运行 [SC] 行为契约测试
   - checkpatch + clang-format + kernel-doc 校验
    ↓ pass
 步骤 2: 镜像 PR 到 agentrt 仓库
   - 自动创建 agentrt 仓库的镜像 PR
   - agentrt CI 校验：编译 agentrt 用户态
-  - 运行 [SC] 行为契约测试（与 agentrt-linux 同一套测试套件）
+  - 运行 [SC] 行为契约测试（与 agent-linux 同一套测试套件）
    ↓ pass
 步骤 3: L1 子系统维护者审查（airymax-shared-contract）
    ↓ approve
 步骤 4: L3 总维护者（SPHARX Engineering）最终审批
    ↓ approve
-合并至 agentrt-linux main
+合并至 agent-linux main
    ↓
 步骤 5: 自动合并至 agentrt main（镜像同步）
 ```
 
-### 7.2 CI 配置（agentrt-linux 侧）
+### 7.2 CI 配置（agent-linux 侧）
 
 ```yaml
 # 文件: .github/workflows/sc-contract.yml
@@ -820,7 +820,7 @@ sc-contract-bidirectional:
 
 ### 7.3 校验失败处理
 
-- **agentrt-linux CI 失败**：直接拒绝合并，开发者修复
+- **agent-linux CI 失败**：直接拒绝合并，开发者修复
 - **agentrt CI 失败**：拒绝合并，开发者需同时考虑两端兼容性
 - **测试结果不一致**：拒绝合并，需对齐两端实现
 
@@ -850,7 +850,7 @@ sc-contract-bidirectional:
 
 ### 8.1 Linux 6.6 内核基线 基线约束
 
-agentrt-linux 内核态 kthread 间通信**必须**使用 `kfifo` + `wait_event_interruptible`，禁止使用浮点（用 `airy_q16_t`）：
+agent-linux 内核态 kthread 间通信**必须**使用 `kfifo` + `wait_event_interruptible`，禁止使用浮点（用 `airy_q16_t`）：
 
 ```c
 #include <linux/kfifo.h>
@@ -922,7 +922,7 @@ static int airy_kthread_recv(struct airy_kthread_chan *chan,
 
 OLK 6.6 广泛使用 KABI 宏（`KABI_RESERVE` / `KABI_USE` / `KABI_REPLACE` / `KABI_EXTEND` / `KABI_BROKEN_INSERT` / `KABI_BROKEN_REMOVE` / `KABI_AUX_PTR`）确保内核 ABI 稳定性。
 
-agentrt-linux 的 [SC] 共享头文件可借鉴此机制，在结构体中预留 KABI_RESERVE 字段：
+agent-linux 的 [SC] 共享头文件可借鉴此机制，在结构体中预留 KABI_RESERVE 字段：
 
 ```c
 struct airy_ipc_msg_hdr {

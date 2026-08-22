@@ -1,24 +1,24 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 系统调用接口
-> **文档定位**：agentrt-linux（AirymaxOS） 内核系统调用的分类、编号、C 接口、清单、性能约束与错误码\
+> **文档定位**：agent-linux（AirymaxOS） 内核系统调用的分类、编号、C 接口、清单、性能约束与错误码\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
 > **v3.5 修复说明**：P0-I6/I9~I11——日志级别前缀 `LOG_*` → `AIRY_LOG_*`（对齐 SSoT `log_types.h` L37-44）；UAPI 头文件路径 `kernel/include/uapi/airy_syscalls.h` → `kernel/include/uapi/linux/airymax/syscalls.h`（对齐 SSoT 物理宿主）；`AIRY_ETIMEDOUT`（不在 SSoT）→ `AIRY_ESCHED_DEADLINE`（-123，对齐 SSoT `error.h:101` A-ULS 子空间）\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **SSoT**：[120-cross-project-code-sharing.md §2.8](../50-engineering-standards/120-cross-project-code-sharing.md)（syscall 编号权威来源）
 
 ---
 
 > **Capability Folding 工程定义**（v1.0.1 新增）：A-IPC 采用 Capability Folding 设计模式——将 capability check 从独立控制面 syscall"折叠"到 IPC 数据面 fastpath 中。物理载体是 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段（64-bit Native Word：Epoch + Random Tag + Perms）；执行点是 fastpath C-S9 内联校验 `airy_cap_badge_ok()`（~10ns，3 个 `READ_ONCE` + 位运算 + 比较，详见 [07-ipc-fastpath.md §3.1.1](07-ipc-fastpath.md)）。本设计直接后果：syscall 数从 12 精简为 4，8 个 seL4 风格 IPC 原语全部移除，IPC 数据传递完全由 io_uring 数据面承载。
 >
-> **6 条硬约束 H1-H6**（v1.0.1 新增，源自 Capability Folding 决策）：H1 Layout C v4 总长 128B/magic 0x41524531；H2 `capability_badge` 进 [SC] 但校验属 [SS]；H3 agentrt 用户态 `capability_badge=0`；H4 agentrt-linux 内核 Badge 由 sec_d 编译、C-S9 校验；H5 纯 C LSM 职责不变、Badge 校验是 fastpath 内联；H6 [DSL] 降级模式 `capability_badge=0` 跳过 C-S9。详见 [02-ipc-protocol.md §2.6](02-ipc-protocol.md)。
+> **6 条硬约束 H1-H6**（v1.0.1 新增，源自 Capability Folding 决策）：H1 Layout C v4 总长 128B/magic 0x41524531；H2 `capability_badge` 进 [SC] 但校验属 [SS]；H3 agentrt 用户态 `capability_badge=0`；H4 agent-linux 内核 Badge 由 sec_d 编译、C-S9 校验；H5 纯 C LSM 职责不变、Badge 校验是 fastpath 内联；H6 [DSL] 降级模式 `capability_badge=0` 跳过 C-S9。详见 [02-ipc-protocol.md §2.6](02-ipc-protocol.md)。
 
 ---
 
 ## 1. 系统调用分类
 
-agentrt-linux 在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent 感知专用系统调用。v1.0.1 起，A-IPC 采用 **Capability Folding 单平面架构**：控制面仅保留 4 个低频管理 syscall，IPC 数据传递与能力校验全部折叠到 io_uring 数据面 fastpath（C-S9 内联 Badge 校验）。
+agent-linux 在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent 感知专用系统调用。v1.0.1 起，A-IPC 采用 **Capability Folding 单平面架构**：控制面仅保留 4 个低频管理 syscall，IPC 数据传递与能力校验全部折叠到 io_uring 数据面 fastpath（C-S9 内联 Badge 校验）。
 
 ### 1.1 控制面（4 核心 syscall）
 
@@ -67,7 +67,7 @@ agentrt-linux 在 Linux 6.6 内核基线的标准系统调用之上，新增 Age
 /* v1.0.1: airy_sys_call 仅用于 sec_d 专属管理操作 */
 /* 操作类型由 capability 类型决定（cap-type dispatch） */
 
-/* sec_d 编译 Badge（H4：agentrt-linux 内核 Badge 由 sec_d 编译） */
+/* sec_d 编译 Badge（H4：agent-linux 内核 Badge 由 sec_d 编译） */
 int ret = airy_sys_call(sec_d_cap, &msg);
 /* msg.opcode = AIRY_IPC_OP_CAP_RESPONSE
  * msg.capability_badge = AIRY_BADGE_COMPILE(epoch, randtag, perms)
@@ -88,7 +88,7 @@ int ret = airy_sys_call(sec_d_cap, &msg);
 
 **重构示例：应用 OS-KER-225 校验优先于修改**
 
-以下将 agentrt-linux 的 `airy_sys_call` 内部 `decode_and_invoke` 函数按 OS-KER-225 原则重构——十一项校验全部完成后方执行 capability invocation，校验阶段零副作用：
+以下将 agent-linux 的 `airy_sys_call` 内部 `decode_and_invoke` 函数按 OS-KER-225 原则重构——十一项校验全部完成后方执行 capability invocation，校验阶段零副作用：
 
 ```c
 /*
@@ -97,7 +97,7 @@ int ret = airy_sys_call(sec_d_cap, &msg);
  * @msg:    IPC 消息（128B 头 + payload）
  *
  * 本函数是 airy_sys_call 的内部实现，展示 OS-KER-225 校验优先于修改的
- * agentrt-linux 落地模式。继承 seL4 decodeUntypedInvocation 的工程思想——
+ * agent-linux 落地模式。继承 seL4 decodeUntypedInvocation 的工程思想——
  * 全部校验在前、零副作用，修改在后、goto 清理。
  *
  * v1.0.1 适用范围：仅 sec_d 调用（COMPILE_BADGE/REVOKE_BADGE/LSM_CTL/WASM_LOAD）
@@ -254,7 +254,7 @@ static int airy_decode_and_invoke(cap_t cap,
 
 ### 2.1 命名前缀
 
-所有 agentrt-linux 专用系统调用 C 符号使用小写 `airy_sys_` 前缀，编号宏使用 `AIRY_SYS_` 前缀（SSoT 定义于 `120-cross-project-code-sharing.md §2.8`）。
+所有 agent-linux 专用系统调用 C 符号使用小写 `airy_sys_` 前缀，编号宏使用 `AIRY_SYS_` 前缀（SSoT 定义于 `120-cross-project-code-sharing.md §2.8`）。
 
 | 前缀 | 用途 | 示例 |
 |------|------|------|
@@ -265,7 +265,7 @@ static int airy_decode_and_invoke(cap_t cap,
 
 ### 2.2 编号分配（v1.0.1：4 核心 + 20 预留 = 24 槽位）
 
-agentrt-linux 专用系统调用采用 **4 核心 + 20 预留 = 24 槽位** 方案：
+agent-linux 专用系统调用采用 **4 核心 + 20 预留 = 24 槽位** 方案：
 
 | 编号 | 符号 | 分类 | 说明 |
 |------|------|------|------|
@@ -277,9 +277,9 @@ agentrt-linux 专用系统调用采用 **4 核心 + 20 预留 = 24 槽位** 方�
 
 **内部编号 → Linux syscall_64.tbl 注册号映射**：
 
-agentrt-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.tbl` 中注册于 548 起始的预留区间，`AIRY_SYS_*` 编号宏直接等于 Linux 注册号（不再使用 0-3 内部编号）。
+agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.tbl` 中注册于 548 起始的预留区间，`AIRY_SYS_*` 编号宏直接等于 Linux 注册号（不再使用 0-3 内部编号）。
 
-> **编号起点选择理由（v1.0.1 修正）**：x86_64 架构的 512-547 是 x32 历史遗留区域（`syscall_64.tbl` L384-388 明确标注 "Do not add new syscalls to this range. Numbers 548 and above are available for non-x32 use"）。因此 agentrt-linux 统一使用 548 起始，确保在 x86_64/arm64/riscv 所有架构上编号一致，实现跨架构二进制兼容。原 0.1.1 阶段设计的 512 起始方案在 x86_64 上不可用，v1.0.1 修正为 548 起始。
+> **编号起点选择理由（v1.0.1 修正）**：x86_64 架构的 512-547 是 x32 历史遗留区域（`syscall_64.tbl` L384-388 明确标注 "Do not add new syscalls to this range. Numbers 548 and above are available for non-x32 use"）。因此 agent-linux 统一使用 548 起始，确保在 x86_64/arm64/riscv 所有架构上编号一致，实现跨架构二进制兼容。原 0.1.1 阶段设计的 512 起始方案在 x86_64 上不可用，v1.0.1 修正为 548 起始。
 
 下表为编号与 Linux 注册号的完整映射：
 
@@ -328,7 +328,7 @@ Capability Folding 决策将 0.1.1 的 12 核心 syscall 精简为 v1.0.1 的 4 
 > 1. **消除控制面/数据面双平面**：0.1.1 的 12 syscall 中 8 个是 seL4 风格同步阻塞 IPC，与 io_uring 异步数据面形成双平面架构，导致死锁、不可通约、排序丢失、OP 码不对齐（详见 [10-unify-design.md §8](../10-architecture/10-unify-design.md)）。
 > 2. **IPC 数据传递即能力校验**：v1.0.1 Capability Folding 将能力校验折叠到 fastpath C-S9（~10ns 内联），无需独立 IPC syscall 承载能力校验。
 > 3. **io_uring 唯一平面**：所有 IPC 数据传递走 `IORING_OP_URING_CMD + cmd_op`，fastpath ~158ns vs 旧 syscall ~1μs，性能提升 6.3 倍。
-> 4. **seL4 master 8 原语模型不再适用**：seL4 的 8 IPC 原语基于同步阻塞 rendezvous 语义，与 io_uring 异步 CQE 语义不可通约；agentrt-linux 选择 io_uring 异步模型作为唯一平面。
+> 4. **seL4 master 8 原语模型不再适用**：seL4 的 8 IPC 原语基于同步阻塞 rendezvous 语义，与 io_uring 异步 CQE 语义不可通约；agent-linux 选择 io_uring 异步模型作为唯一平面。
 
 **总计：1 Capability Invocation + 3 控制原语 = 4 核心 syscall**，符合 §2.2 "4 核心 + 20 预留 = 24 槽位"分配（从 0.1.1 的 12 核心缩减 67%）。
 
@@ -499,7 +499,7 @@ AIRY_API int airy_sys_clt_notify(int task_id, __u32 phase);
 
 ### 5.5 优先级与延迟预算
 
-agentrt-linux 为不同 Agent 任务类别定义延迟预算（latency budget），由用户态调度器策略（sched_tac）强制：
+agent-linux 为不同 Agent 任务类别定义延迟预算（latency budget），由用户态调度器策略（sched_tac）强制：
 
 | 任务类别 | cgroup | 优先级范围 | 延迟预算（P99） | 典型场景 |
 |---------|---------|-----------|----------------|---------|
@@ -655,15 +655,15 @@ if (ret < 0) {
 
 ## 8. IRON-9 v3 四层共享模型
 
-> **OS-IFACE-001**： 系统调用接口遵循 IRON-9 v3 四层共享模型——agentrt 用户态 `syscalls.h` 与 agentrt-linux 内核 `airy_syscalls.h` 的编号、签名、错误码通过 [SC] 共享契约层头文件同源；syscall 表注册、`SYSCALL_DEFINE*` 宏、capability 守卫实现各自独立。禁止在用户态与内核态之间引入 syscall 号映射表或编号转换层。
+> **OS-IFACE-001**： 系统调用接口遵循 IRON-9 v3 四层共享模型——agentrt 用户态 `syscalls.h` 与 agent-linux 内核 `airy_syscalls.h` 的编号、签名、错误码通过 [SC] 共享契约层头文件同源；syscall 表注册、`SYSCALL_DEFINE*` 宏、capability 守卫实现各自独立。禁止在用户态与内核态之间引入 syscall 号映射表或编号转换层。
 
 ### 8.1 四层模型概览（v1.0.1 Capability Folding 集成版）
 
 | 层次 | 共享程度 | 本接口涉及内容 |
 |------|---------|---------------|
 | **[SC] 共享契约层** | 完全共享代码 | `syscalls.h`（4 核心 + 20 预留 = 24 槽位编号）+ `sched.h`（任务描述符 magic 0x41475453 'AGTS'、优先级 0-139）+ `ipc.h`（IPC magic 0x41524531 'ARE1'、`struct airy_ipc_msg_hdr` Layout C v4 含 `capability_badge` 字段）+ `security_types.h`（capability 44 ID（41 POSIX + 3 Airymax 扩展） + cap_op 7 操作 + Badge 位布局宏 + Capability 权限位）+ `memory_types.h`（MemoryRovol L1-L4）+ `cognition_types.h`（三阶段枚举）+ `error.h`（POSIX/IPC/Capability/[SC]/[DSL]/Fault 码空间） |
-| **[SS] 语义同源层** | 操作模式同源，签名独立演进 | agentrt `syscalls.h`（用户态 libc syscall 包装）↔ agentrt-linux `airy_syscalls.h`（内核 `SYSCALL_DEFINE*`）4 核心同源；Badge 校验机制（`airy_cap_badge_ok()` 内联函数、`agent_caps[]` 静态数组、per-agent `agent_caps[agent_id].epoch`（K9-1 主要撤销机制）+ `airy_cap_global_epoch` atomic_t（补充性全局计数器，UNFREEZE 时使用））由 agentrt-linux 内核侧实现，agentrt 用户态不感知（H3） |
-| **[IND] 完全独立层** | 完全独立 | agentrt 跨平台 syscall 封装（Linux/macOS/Windows 三平台）↔ agentrt-linux 内核 syscall 表注册（`arch/x86/entry/syscalls/syscall_64.tbl` 新增段）；agentrt 用户态 `capability_badge=0`，agentrt-linux 内核 `capability_badge` 由 sec_d 编译 |
+| **[SS] 语义同源层** | 操作模式同源，签名独立演进 | agentrt `syscalls.h`（用户态 libc syscall 包装）↔ agent-linux `airy_syscalls.h`（内核 `SYSCALL_DEFINE*`）4 核心同源；Badge 校验机制（`airy_cap_badge_ok()` 内联函数、`agent_caps[]` 静态数组、per-agent `agent_caps[agent_id].epoch`（K9-1 主要撤销机制）+ `airy_cap_global_epoch` atomic_t（补充性全局计数器，UNFREEZE 时使用））由 agent-linux 内核侧实现，agentrt 用户态不感知（H3） |
+| **[IND] 完全独立层** | 完全独立 | agentrt 跨平台 syscall 封装（Linux/macOS/Windows 三平台）↔ agent-linux 内核 syscall 表注册（`arch/x86/entry/syscalls/syscall_64.tbl` 新增段）；agentrt 用户态 `capability_badge=0`，agent-linux 内核 `capability_badge` 由 sec_d 编译 |
 | **[DSL] 降级生存层** | 降级模式生存 | [DSL] 模式下 `capability_badge=0`，fastpath C-S9 跳过 Badge 校验（H6）；IPC 数据面 fastpath 仍可用，控制面 `airy_sys_call` 降级为传统 cap_t 引用模式 |
 
 ### 8.2 [SC] 共享契约层——头文件在系统调用接口中的角色
@@ -678,20 +678,20 @@ if (ret < 0) {
 | `cognition_types.h` | CoreLoopThree 三阶段枚举（PERCEPT/THINK/ACT） | `airy_sys_clt_notify` |
 | `error.h` | POSIX [-1,-40] + IPC [-41,-70] + Capability [-71,-100] + Config [-101,-120] + A-ULS [-121,-140] + MemoryRoVol [-141,-160] + Cognition [-161,-180] + Log [-181,-200] + Object [-201,-220] + Syscall [-221,-240] + Fault [0x1000,0x1FFF] | 全部 4 个 syscall + fastpath C-S0~C-S12 |
 
-### 8.3 [SS] 语义同源层——agentrt ↔ agentrt-linux 系统调用映射
+### 8.3 [SS] 语义同源层——agentrt ↔ agent-linux 系统调用映射
 
-| agentrt 用户态（syscalls.h） | agentrt-linux 内核（SYSCALL_DEFINE） | 同源签名 | 实现差异 |
+| agentrt 用户态（syscalls.h） | agent-linux 内核（SYSCALL_DEFINE） | 同源签名 | 实现差异 |
 |------------------------------|--------------------------------------|---------|---------|
-| `airy_sys_call()` | `SYSCALL_DEFINE2(airy_sys_call, ...)` | `(cap_t, const struct airy_ipc_msg_hdr *) -> int` | 用户态 libc syscall() vs 内核 capability dispatch；v1.0.1：agentrt 用户态 `capability_badge=0`，agentrt-linux 内核由 sec_d 编译 Badge（H3/H4） |
+| `airy_sys_call()` | `SYSCALL_DEFINE2(airy_sys_call, ...)` | `(cap_t, const struct airy_ipc_msg_hdr *) -> int` | 用户态 libc syscall() vs 内核 capability dispatch；v1.0.1：agentrt 用户态 `capability_badge=0`，agent-linux 内核由 sec_d 编译 Badge（H3/H4） |
 | `airy_sys_rovol_ctl()` | `SYSCALL_DEFINE3(airy_sys_rovol_ctl, ...)` | `(__u32, __u32, __u64) -> int` | 用户态 mmap+msync vs 内核 PMEM |
 | `airy_sys_sched_ctl()` | `SYSCALL_DEFINE3(airy_sys_sched_ctl, ...)` | `(__u32, const char *, const char *) -> int` | 用户态 cgroup fs vs 内核 sched_tac 策略 |
 | `airy_sys_clt_notify()` | `SYSCALL_DEFINE2(airy_sys_clt_notify, ...)` | `(int, __u32) -> int` | 用户态 event loop vs 内核 kthread |
 
-> **v1.0.1 移除的 [SS] 映射**：`airy_sys_send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify` 共 8 个 IPC 原语在 agentrt 用户态仍保留为 libc 包装函数（内部调用 io_uring `IORING_OP_URING_CMD`），但在 agentrt-linux 内核侧不再注册为独立 syscall。这种"用户态包装存在、内核 syscall 不存在"的不对称是 IRON-9 v3 [IND] 完全独立层的合法形态。
+> **v1.0.1 移除的 [SS] 映射**：`airy_sys_send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify` 共 8 个 IPC 原语在 agentrt 用户态仍保留为 libc 包装函数（内部调用 io_uring `IORING_OP_URING_CMD`），但在 agent-linux 内核侧不再注册为独立 syscall。这种"用户态包装存在、内核 syscall 不存在"的不对称是 IRON-9 v3 [IND] 完全独立层的合法形态。
 
 ### 8.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | syscall 表注册 | 无（用户态直接 libc syscall() 或 io_uring） | `syscall_64.tbl` 新增段（4 个注册号 548-551） | 跨平台约束 |
 | ABI 稳定性 | 编译期符号绑定 | 内核 syscall 号绑定（MAJOR 锁定） | 工具链差异 |
@@ -702,7 +702,7 @@ if (ret < 0) {
 
 ### 8.5 [DSL] 降级生存层（v1.0.1 新增）
 
-| 降级场景 | agentrt 用户态行为 | agentrt-linux 内核行为 | 生存保证 |
+| 降级场景 | agentrt 用户态行为 | agent-linux 内核行为 | 生存保证 |
 |---------|-------------------|----------------------|---------|
 | sec_d 不可用 | `capability_badge=0`（H3） | fastpath C-S9 跳过 Badge 校验（H6） | IPC 数据面 fastpath 仍可用，传统 cap_t 引用模式 |
 | Badge Epoch 溢出 | 不感知（H3） | per-agent epoch 回绕，触发 `AIRY_ECAP_EPOCH` (-79) 重新编译 Badge | 短暂 IPC 失败，sec_d 重编译后恢复 |
@@ -718,7 +718,7 @@ graph TB
         RT_BADGE[capability_badge=0<br/>H3: agentrt 用户态不感知 Badge]
     end
 
-    subgraph "agentrt-linux 内核态"
+    subgraph "agent-linux 内核态"
         OS_TBL[syscall_64.tbl<br/>新增段 548-551]
         OS_DEF[SYSCALL_DEFINE*<br/>4 核心调用]
         OS_FP[io_uring fastpath<br/>C-S9 Badge 校验 ~10ns]
@@ -776,9 +776,9 @@ graph TB
     style DSL_SKIP fill:#fff9c4,stroke:#f57c00
 ```
 
-> **OS-IFACE-002**： 系统调用编号 0-3 段在 agentrt 用户态（`syscalls.h` 宏定义）与 agentrt-linux 内核态（`syscall_64.tbl` 表项）保持二进制一致——同一编号在两侧语义完全相同，禁止在用户态引入编号重映射。`AIRY_E*` 错误码在两侧同源，用户态通过 `airy_errno_to_linux()` 互转，但 syscall 返回值本身不转换。
+> **OS-IFACE-002**： 系统调用编号 0-3 段在 agentrt 用户态（`syscalls.h` 宏定义）与 agent-linux 内核态（`syscall_64.tbl` 表项）保持二进制一致——同一编号在两侧语义完全相同，禁止在用户态引入编号重映射。`AIRY_E*` 错误码在两侧同源，用户态通过 `airy_errno_to_linux()` 互转，但 syscall 返回值本身不转换。
 >
-> **OS-IFACE-003**（v1.0.1 新增）： IPC 数据传递不经过 syscall——agentrt 用户态通过 io_uring `IORING_OP_URING_CMD + cmd_op` 提交 IPC 请求，agentrt-linux 内核 fastpath `airy_uring_cmd()` 完成 C-S0~C-S12 校验链（含 C-S9 Badge 校验）后投递消息。此设计是 Capability Folding 的直接体现：IPC 数据传递即能力校验，无双平面、无独立 capability syscall。
+> **OS-IFACE-003**（v1.0.1 新增）： IPC 数据传递不经过 syscall——agentrt 用户态通过 io_uring `IORING_OP_URING_CMD + cmd_op` 提交 IPC 请求，agent-linux 内核 fastpath `airy_uring_cmd()` 完成 C-S0~C-S12 校验链（含 C-S9 Badge 校验）后投递消息。此设计是 Capability Folding 的直接体现：IPC 数据传递即能力校验，无双平面、无独立 capability syscall。
 
 ---
 

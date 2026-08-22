@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 超节点 OS 实现方案
-> **文档定位**：agentrt-linux（AirymaxOS）超节点 OS 的完整实现方案，定义超节点拓扑模型、NUMA 感知调度、跨 die 迁移协议、CXL 内存分层、超节点级 Token 预算池与整机快照恢复\
+> **文档定位**：agent-linux（AirymaxOS）超节点 OS 的完整实现方案，定义超节点拓扑模型、NUMA 感知调度、跨 die 迁移协议、CXL 内存分层、超节点级 Token 预算池与整机快照恢复\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt gateway（Agent 网关多节点协调）[SS] + Linux 6.6 NUMA 调度与内存分层 [IND]\
 > **文档性质**：实现方案文档（非设计文档）。本方案在 [20-modules/06-cloudnative.md](../20-modules/06-cloudnative.md) §3.8/§4.8 超节点 OS 设计与 [40-dataflows/02-memory-flow.md](../40-dataflows/02-memory-flow.md) 记忆卷载数据流的基础上，补充完整的超节点拓扑、调度、迁移、分层与预算实现\
 > **设计参考**：Linux 6.6 `kernel/sched/topology.c:2068`（`sched_init_numa`）+ `kernel/sched/fair.c:3496`（`task_numa_fault`）+ `kernel/sched/fair.c:2958`（`numa_migrate_preferred`）+ `mm/memory-tiers.c:13`（`struct memory_tier`）+ `mm/memory-tiers.c:321`（`next_demotion_node`）+ `mm/migrate.c:2025`（`migrate_pages`）+ `drivers/cxl/`（CXL 驱动）+ seL4 `src/kernel/smp/`（多核同步）\
-> **IRON-9 v3 层次**：[IND] 完全独立层（超节点 OS 为 agentrt-linux 云原生专属，MemoryRovol L1-L4 数据结构 [SC] 共享）
+> **IRON-9 v3 层次**：[IND] 完全独立层（超节点 OS 为 agent-linux 云原生专属，MemoryRovol L1-L4 数据结构 [SC] 共享）
 
 ---
 
@@ -18,7 +18,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 超节点（Supernode）是 2026 年高端服务器的主流形态——单台服务器集成多 die（chiplet）CPU + CXL 内存池 + 多 GPU/NPU，形成"超节点"计算单元。传统操作系统将多 die 视为独立 NUMA 节点，缺乏超节点级的统一调度、迁移与预算管理能力。
 
-agentrt-linux（AirymaxOS）的超节点 OS 能力解决以下核心问题：
+agent-linux（AirymaxOS）的超节点 OS 能力解决以下核心问题：
 
 | 问题 | 传统 Linux 局限 | 超节点 OS 解决方式 |
 |------|----------------|-------------------|
@@ -710,7 +710,7 @@ if (ret == -AIRY_EBUSY) {
 | **[SC] 共享契约层** | MemoryRovol L1-L4 数据结构（`include/uapi/linux/airymax/memory_types.h`） | 跨 die 迁移使用 [SC] 数据结构 |
 | **[SC] 共享契约层** | IPC 消息头（`include/uapi/linux/airymax/ipc.h`） | macro_d 与 Agent 通信 |
 | **[SS] 语义同源层** | gateway 多节点协调语义 | agentrt gateway → macro_d |
-| **[IND] 完全独立层** | 超节点拓扑/调度/迁移/CXL 池化 | agentrt-linux 专属 |
+| **[IND] 完全独立层** | 超节点拓扑/调度/迁移/CXL 池化 | agent-linux 专属 |
 
 ---
 

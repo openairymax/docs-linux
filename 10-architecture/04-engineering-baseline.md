@@ -1,11 +1,11 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 工程基线
+# agent-linux 工程基线
 
-> **文档定位**：agentrt-linux（AirymaxOS）工程基线（Engineering Baseline）的完整定义与落地规范\
+> **文档定位**：agent-linux（AirymaxOS）工程基线（Engineering Baseline）的完整定义与落地规范\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ***
 
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 什么是工程基线
 
-**工程基线**（Engineering Baseline）是 agentrt-linux 在工程实践层面统一遵循的最小完备规范集合。它锁定内核版本、架构支持、包管理、安全模型、系统服务、AI 原生能力、治理模式与版本节奏等关键工程维度，为 8 子仓的协同开发、跨团队协作与跨版本演进提供不可动摇的参考基准。
+**工程基线**（Engineering Baseline）是 agent-linux 在工程实践层面统一遵循的最小完备规范集合。它锁定内核版本、架构支持、包管理、安全模型、系统服务、AI 原生能力、治理模式与版本节奏等关键工程维度，为 8 子仓的协同开发、跨团队协作与跨版本演进提供不可动摇的参考基准。
 
 工程基线存在的核心价值：
 
@@ -29,29 +29,29 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 铁律       | 内容                                                                            | 关联工程纪律                      |
 | -------- | ----------------------------------------------------------------------------- | --------------------------- |
 | **基线锁定** | 1.x.x 长期锁定 Linux 6.6 LTS，2.x.x 长期锁定 Linux 7.1（ADR-016）。禁止引用未来内核专属特性作为当前基线原生能力 | IRON-10 / BAN-361 / ADR-016 |
-| **表述纯净** | 所有文档使用 agentrt-linux 自身工程语言表述，不引入任何外部措辞                                   | ACC-OS04                    |
+| **表述纯净** | 所有文档使用 agent-linux 自身工程语言表述，不引入任何外部措辞                                   | ACC-OS04                    |
 | **同源约束** | 与 agentrt 同源且部分代码共享（IRON-9 v3），基线落地遵循 IRON-9 v3                               | IRON-9 v3                   |
 | **演进可控** | 基线演进必须通过 ADR 评审，禁止未经评审的基线漂移                                                   | ADR 流程                      |
 
 ### 1.3 工程基线与三大支柱的关系
 
-agentrt-linux 架构设计建立在三大支柱之上：微内核设计思想、agentrt-linux 工程基线、Airymax 同源性。工程基线作为其中之一，提供"如何对接生态与工程实践"的标准：
+agent-linux 架构设计建立在三大支柱之上：微内核设计思想、agent-linux 工程基线、Airymax 同源性。工程基线作为其中之一，提供"如何对接生态与工程实践"的标准：
 
 - **微内核设计思想** 提供"如何设计内核"的方法论
-- **agentrt-linux 工程基线** 提供"如何对接生态、如何表述工程"的基线（本文档）
+- **agent-linux 工程基线** 提供"如何对接生态、如何表述工程"的基线（本文档）
 - **Airymax 同源性** 提供"如何与 agentrt 协同"的语义约束
 
 ***
 
 ## 2. 内核基线
 
-> **基线声明（C-08 修正，对齐 sched_tac）**：agentrt-linux 1.x.x 采用**标准 Linux 6.6 LTS 主线**作为内核基线，**不含 sched_ext**（sched_ext 于主线 6.12 才合入，6.6 原生不具备）。AI 原生调度能力由 **sched_tac**（SCHED_DEADLINE + SCHED_FIFO + EEVDF + seL4 MCS 语义映射）提供，该方案为纯用户态调度策略，零内核调度器修改，性能优于 sched_ext（调度延迟 ~60-150ns vs sched_ext ~200-400ns）。禁止 backport sched_ext，禁止升级到 6.12+ 以获取 sched_ext。
+> **基线声明（C-08 修正，对齐 sched_tac）**：agent-linux 1.x.x 采用**标准 Linux 6.6 LTS 主线**作为内核基线，**不含 sched_ext**（sched_ext 于主线 6.12 才合入，6.6 原生不具备）。AI 原生调度能力由 **sched_tac**（SCHED_DEADLINE + SCHED_FIFO + EEVDF + seL4 MCS 语义映射）提供，该方案为纯用户态调度策略，零内核调度器修改，性能优于 sched_ext（调度延迟 ~60-150ns vs sched_ext ~200-400ns）。禁止 backport sched_ext，禁止升级到 6.12+ 以获取 sched_ext。
 
 ### 2.1 内核版本锁定
 
-agentrt-linux 采用**双基线锁定策略**（ADR-016）：1.x.x 全系列长期锁定 Linux 6.6 LTS，2.x.x 全系列升级至 Linux 7.1。内核版本选择直接影响硬件兼容性、生态兼容性、新特性支持与长期支持周期。
+agent-linux 采用**双基线锁定策略**（ADR-016）：1.x.x 全系列长期锁定 Linux 6.6 LTS，2.x.x 全系列升级至 Linux 7.1。内核版本选择直接影响硬件兼容性、生态兼容性、新特性支持与长期支持周期。
 
-| 基线版本         | Linux 内核                                          | agentrt-linux 定位                                              |
+| 基线版本         | Linux 内核                                          | agent-linux 定位                                              |
 | ------------ | ------------------------------------------------- | ------------------------------------------------------------- |
 | 当前基线（1.x.x）  | **Linux 6.6 LTS**（维护至 2027-12）                    | 1.x.x 全系列长期锁定，基础内核 + 微内核化改造                                   |
 | 增强基线（1.x.x）  | Linux 6.6 LTS + sched_tac（SCHED\_DEADLINE/SCHED\_FIFO/EEVDF + seL4 MCS 映射） | AI 原生能力增强（用户态调度策略，零内核调度器修改，不含 sched\_ext） |
@@ -59,9 +59,9 @@ agentrt-linux 采用**双基线锁定策略**（ADR-016）：1.x.x 全系列长�
 
 ### 2.2 基线内核特性映射
 
-Linux 6.6 内核基线提供以下原生特性，全部纳入 agentrt-linux 工程基线：
+Linux 6.6 内核基线提供以下原生特性，全部纳入 agent-linux 工程基线：
 
-| 特性                           | 内核版本               | 来源       | agentrt-linux 落地      |
+| 特性                           | 内核版本               | 来源       | agent-linux 落地      |
 | ---------------------------- | ------------------ | -------- | --------------------- |
 | EEVDF 调度器                    | Linux 6.6 原生       | 主线       | kernel 调度核心           |
 | Rust 实验性支持                   | Linux 6.6          | 主线       | kernel 安全驱动           |
@@ -74,14 +74,14 @@ Linux 6.6 内核基线提供以下原生特性，全部纳入 agentrt-linux 工�
 
 ### 2.3 调度策略增强（sched_tac，不含 sched\_ext）
 
-agentrt-linux 1.0.1 的 AI 原生调度能力通过 **sched_tac**（三层调度 + seL4 MCS 语义映射）实现，基于 Linux 6.6 原生调度器（SCHED_DEADLINE / SCHED_FIFO / EEVDF），**不 backport sched\_ext，不升级到 6.12+**：
+agent-linux 1.0.1 的 AI 原生调度能力通过 **sched_tac**（三层调度 + seL4 MCS 语义映射）实现，基于 Linux 6.6 原生调度器（SCHED_DEADLINE / SCHED_FIFO / EEVDF），**不 backport sched\_ext，不升级到 6.12+**：
 
 ```
 Linux 6.6 原生特性（EEVDF / Rust / MGLRU / XFS fsck / eBPF kfunc / io_uring）
     +
 sched_tac（SCHED_DEADLINE + SCHED_FIFO + EEVDF + seL4 MCS 映射，纯用户态调度策略）
     =
-agentrt-linux 1.0.1 完整内核基线（标准 Linux 6.6 主线，不含 sched_ext）
+agent-linux 1.0.1 完整内核基线（标准 Linux 6.6 主线，不含 sched_ext）
 ```
 
 **增强边界**：调度策略增强仅通过用户态 Macro-Supervisor + sched_setattr() 实现，零内核调度器修改；微内核化改造特性不引入与基线目标无关的主线特性。
@@ -92,7 +92,7 @@ agentrt-linux 1.0.1 完整内核基线（标准 Linux 6.6 主线，不含 sched_
 | ---- | ------------------------------------------------------- |
 | 禁止误引 | 禁止引用 6.7+ 主线特性作为 6.6 原生能力（IRON-10 / BAN-361 / ACC-OS04） |
 | 统一表述 | 所有文档统一使用"Linux 6.6 内核基线"表述                              |
-| 增强透明 | 所有 agentrt-linux 内核增强必须标注"主线 X.Y+ 特性增强"，禁止伪称为原生         |
+| 增强透明 | 所有 agent-linux 内核增强必须标注"主线 X.Y+ 特性增强"，禁止伪称为原生         |
 | 演进评审 | 基线升级（如 6.6 → 6.15+）必须通过 ADR 评审                          |
 
 ***
@@ -101,7 +101,7 @@ agentrt-linux 1.0.1 完整内核基线（标准 Linux 6.6 主线，不含 sched_
 
 ### 3.1 多架构支持
 
-agentrt-linux 工程基线支持以下 CPU 架构：
+agent-linux 工程基线支持以下 CPU 架构：
 
 | 架构        | 厂商 / 实现          | 优先级        |
 | --------- | ---------------- | ---------- |
@@ -113,7 +113,7 @@ agentrt-linux 工程基线支持以下 CPU 架构：
 
 ### 3.2 异构内存支持
 
-| 内存类型         | 内核特性             | agentrt-linux 落地 |
+| 内存类型         | 内核特性             | agent-linux 落地 |
 | ------------ | ---------------- | ---------------- |
 | CXL 内存池化     | Linux 6.6 CXL 支持 | memory L1 跨节点池化  |
 | PMEM 持久化内存   | Linux PMEM 支持    | memory 持久化层      |
@@ -125,9 +125,9 @@ agentrt-linux 工程基线支持以下 CPU 架构：
 
 ### 4.1 治理组对应表
 
-agentrt-linux 采用 **子仓治理组**（Sub-repository Governance Group）模式组织工程协作。每个子仓对应一个治理组，负责技术决策与代码审查：
+agent-linux 采用 **子仓治理组**（Sub-repository Governance Group）模式组织工程协作。每个子仓对应一个治理组，负责技术决策与代码审查：
 
-| agentrt-linux 治理组 | 对应子仓              | 核心职责                      |
+| agent-linux 治理组 | 对应子仓              | 核心职责                      |
 | ----------------- | ----------------- | ------------------------- |
 | Kernel 治理组        | kernel            | 内核 + 微内核化改造               |
 | Base Systems 治理组  | services + system | 用户态服务 + 系统工具              |
@@ -140,7 +140,7 @@ agentrt-linux 采用 **子仓治理组**（Sub-repository Governance Group）模
 
 ### 4.2 治理模式
 
-agentrt-linux 子仓治理模式遵循以下原则：
+agent-linux 子仓治理模式遵循以下原则：
 
 1. **每个子仓对应一个治理组**：治理组负责技术决策和代码审查
 2. **社区开放**：欢迎外部贡献，治理组负责审查与合入
@@ -152,11 +152,11 @@ agentrt-linux 子仓治理模式遵循以下原则：
 
 ## 5. AI 原生能力基线
 
-agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成。以下能力构成 agentrt-linux 1.0.1 \~ 2.0+ 的 AI 原生演进路线。
+agent-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成。以下能力构成 agent-linux 1.0.1 \~ 2.0+ 的 AI 原生演进路线。
 
 ### 5.1 认知循环系统
 
-**agentrt-linux 认知循环**（CoreLoopThree）是 cognition 子仓的核心能力，与 agentrt 同源：
+**agent-linux 认知循环**（CoreLoopThree）是 cognition 子仓的核心能力，与 agentrt 同源：
 
 | 维度         | 规格                          |
 | ---------- | --------------------------- |
@@ -167,11 +167,11 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 | 回滚能力       | 支持毫秒级回滚                     |
 | 内核集成       | CoreLoopThree kthread（内核线程） |
 
-**agentrt-linux 落地**：cognition 实现 agentrt-linux 认知循环，与 agentrt 的 CoreLoopThree 同源，作为内核态认知运行时。
+**agent-linux 落地**：cognition 实现 agent-linux 认知循环，与 agentrt 的 CoreLoopThree 同源，作为内核态认知运行时。
 
 ### 5.2 超节点 OS
 
-**agentrt-linux 超节点 OS** 是 cloudnative 子仓的核心能力，支持大规模 Agent 容器化部署：
+**agent-linux 超节点 OS** 是 cloudnative 子仓的核心能力，支持大规模 Agent 容器化部署：
 
 | 维度      | 规格                 |
 | ------- | ------------------ |
@@ -180,11 +180,11 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 | 异构互联    | 通过超节点异构统一互联底座 UMDK |
 | 容器通信    | 实现大规模容器低时延通信       |
 
-**agentrt-linux 落地**：cloudnative 实现超节点 OS，支持大规模 Agent 容器化部署与跨节点低时延协同。
+**agent-linux 落地**：cloudnative 实现超节点 OS，支持大规模 Agent 容器化部署与跨节点低时延协同。
 
 ### 5.3 超节点沙箱
 
-**agentrt-linux 超节点沙箱** 是 cognition 子仓的 Agent 快速冷启动能力：
+**agent-linux 超节点沙箱** 是 cognition 子仓的 Agent 快速冷启动能力：
 
 | 维度   | 规格                          |
 | ---- | --------------------------- |
@@ -193,11 +193,11 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 | 冷启动  | 大幅缩短冷启动耗时                   |
 | 基线版本 | Linux 7.1（2.x.x 基线，ADR-016） |
 
-**agentrt-linux 落地**：cognition 实现超节点沙箱，支持 Agent 快速冷启动，与 Wasm 3.0 沙箱运行时集成（ADR-008）。
+**agent-linux 落地**：cognition 实现超节点沙箱，支持 Agent 快速冷启动，与 Wasm 3.0 沙箱运行时集成（ADR-008）。
 
 ### 5.4 Token 能效框架
 
-**agentrt-linux Token 能效框架**（Token Energy Efficiency Framework）实现 Token 消耗的边际递减：
+**agent-linux Token 能效框架**（Token Energy Efficiency Framework）实现 Token 消耗的边际递减：
 
 | 层级  | 组件          | 职责            |
 | --- | ----------- | ------------- |
@@ -205,11 +205,11 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 | 缓存层 | LMCache     | 多级内存池化复用      |
 | 响应层 | Bifrost     | 弹性响应与负载自适应    |
 
-**agentrt-linux 落地**：cognition 实现 Token 能效优化，让 Token 消耗走向边际递减，支撑 Agentic OS 的成本可控性。
+**agent-linux 落地**：cognition 实现 Token 能效优化，让 Token 消耗走向边际递减，支撑 Agentic OS 的成本可控性。
 
 ### 5.5 具身智能 Claw
 
-**agentrt-linux 具身智能** 支持 Agent 与物理世界的交互：
+**agent-linux 具身智能** 支持 Agent 与物理世界的交互：
 
 | 维度   | 规格                          |
 | ---- | --------------------------- |
@@ -218,19 +218,19 @@ agentrt-linux 作为 Agentic OS，AI 原生能力是工程基线的核心组成�
 | 场景切换 | 支持真实/仿真场景无缝切换               |
 | 基线版本 | Linux 7.1（2.x.x 基线，ADR-016） |
 
-**agentrt-linux 落地**：cognition 实现具身智能支持，由 Embedded 治理组协同推进。
+**agent-linux 落地**：cognition 实现具身智能支持，由 Embedded 治理组协同推进。
 
 ### 5.6 Agentic AI 架构演进
 
-agentrt-linux 参照 Agentic OS 三阶段演进路线：
+agent-linux 参照 Agentic OS 三阶段演进路线：
 
-| 阶段   | 名称   | 特征         | agentrt-linux 定位      |
+| 阶段   | 名称   | 特征         | agent-linux 定位      |
 | ---- | ---- | ---------- | --------------------- |
 | 阶段 1 | 资源抽象 | 传统 OS      | 不在此阶段                 |
 | 阶段 2 | 异构融合 | AI 原生 OS   | 1.0.1 部分覆盖            |
-| 阶段 3 | 意图协同 | Agentic OS | agentrt-linux 直接对应此阶段 |
+| 阶段 3 | 意图协同 | Agentic OS | agent-linux 直接对应此阶段 |
 
-**agentrt-linux 落地**：agentrt-linux 直接对应第三阶段"意图协同"，作为 Agentic OS，认知循环 + 超节点 OS + Token 能效框架共同构成意图协同的工程基座。
+**agent-linux 落地**：agent-linux 直接对应第三阶段"意图协同"，作为 Agentic OS，认知循环 + 超节点 OS + Token 能效框架共同构成意图协同的工程基座。
 
 ***
 
@@ -238,20 +238,20 @@ agentrt-linux 参照 Agentic OS 三阶段演进路线：
 
 ### 6.1 包管理基线
 
-| 维度   | agentrt-linux 基线    |
+| 维度   | agent-linux 基线    |
 | ---- | ------------------- |
 | 包格式  | RPM                 |
 | 包管理器 | dnf                 |
 | 软件源  | repo.airymaxos.org  |
-| 构建工具 | agentrt-linux 构建工具链 |
+| 构建工具 | agent-linux 构建工具链 |
 
 ### 6.2 安全基线
 
-| 维度     | agentrt-linux 基线              |
+| 维度     | agent-linux 基线              |
 | ------ | ----------------------------- |
 | 强制访问控制 | SELinux + capability（seL4 风格） |
 | 国密算法   | SM2 / SM3 / SM4               |
-| 漏洞响应   | agentrt-linux-SA              |
+| 漏洞响应   | agent-linux-SA              |
 | 审计     | auditd + eBPF 可观测性            |
 | 机密计算   | TEE / SGX                     |
 | 审计哈希链  | SHA-256 哈希链不可篡改日志             |
@@ -259,7 +259,7 @@ agentrt-linux 参照 Agentic OS 三阶段演进路线：
 
 ### 6.3 系统服务基线
 
-| 维度    | agentrt-linux 基线                         |
+| 维度    | agent-linux 基线                         |
 | ----- | ---------------------------------------- |
 | 初始化系统 | systemd                                  |
 | 服务管理  | agentctl（兼容 systemctl）                   |
@@ -273,7 +273,7 @@ agentrt-linux 参照 Agentic OS 三阶段演进路线：
 
 ### 7.1 编码规范
 
-agentrt-linux 工程基线要求所有代码遵循 `50-engineering-standards/10-coding-style/` 中的编码规范文件，覆盖 C / Rust / Python / Go / TypeScript 等语言。
+agent-linux 工程基线要求所有代码遵循 `50-engineering-standards/10-coding-style/` 中的编码规范文件，覆盖 C / Rust / Python / Go / TypeScript 等语言。
 
 ### 7.2 接口契约规范
 
@@ -288,11 +288,11 @@ agentrt-linux 工程基线要求所有代码遵循 `50-engineering-standards/10-
 
 ### 7.3 工程铁律
 
-agentrt-linux 工程基线受以下工程铁律约束：
+agent-linux 工程基线受以下工程铁律约束：
 
 | 铁律       | 内容                                                                                                   |
 | -------- | ---------------------------------------------------------------------------------------------------- |
-| IRON-9   | agentrt 和 agentrt-linux 同源且部分代码共享（IRON-9 v3：共享契约层代码完全共享 + 语义同源层高层 API 语义同源（签名因抽象层级独立演进） + 完全独立层各自独立 + 降级生存层 [SC] 损坏时自包含降级） |
+| IRON-9   | agentrt 和 agent-linux 同源且部分代码共享（IRON-9 v3：共享契约层代码完全共享 + 语义同源层高层 API 语义同源（签名因抽象层级独立演进） + 完全独立层各自独立 + 降级生存层 [SC] 损坏时自包含降级） |
 | IRON-10  | 内核基线锁定，禁止引用未来内核专属特性作为 6.6 原生能力                                                                       |
 | BAN-361  | 禁止未来内核特性误引                                                                                           |
 | ACC-OS04 | Grep 扫描未来内核误引残留（每次发布执行）                                                                              |
@@ -303,7 +303,7 @@ agentrt-linux 工程基线受以下工程铁律约束：
 
 ### 8.1 版本节奏
 
-agentrt-linux 采用两类版本节奏：
+agent-linux 采用两类版本节奏：
 
 | 版本类型      | 发布周期     | 支持周期  |
 | --------- | -------- | ----- |
@@ -311,7 +311,7 @@ agentrt-linux 采用两类版本节奏：
 | 创新版本      | 6 个月发布周期 | 滚动更新  |
 | Update 版本 | 每周发布     | 持续    |
 
-### 8.2 agentrt-linux 版本规划
+### 8.2 agent-linux 版本规划
 
 | 版本    | 日期    | 内核基线                                   | 定位                                                                                                                              |
 | ----- | ----- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -321,7 +321,7 @@ agentrt-linux 采用两类版本节奏：
 
 ### 8.3 内核基线演进
 
-| agentrt-linux 版本 | 内核基线                                   | 关键能力                                                                                                    |
+| agent-linux 版本 | 内核基线                                   | 关键能力                                                                                                    |
 | ---------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | 1.x.x            | **Linux 6.6 LTS 长期锁定**                 | sched_tac（SCHED\_DEADLINE/SCHED\_FIFO/EEVDF）+ io\_uring + 微内核化改造阶段 1-2（VFS / 网络栈 / 驱动用户态化）                                  |
 | 2.x.x            | **Linux 7.x 系列（从 7.1 起步，跟踪至 7.x LTS）** | 完整微内核化 + 超节点沙箱 + 具身智能 + sched\_ext cgroup 子调度器 + BPF-powered io\_uring + ublk zero-copy + clone3 新 flag |
@@ -345,9 +345,9 @@ agentrt-linux 采用两类版本节奏：
 | 当前 6.6 LTS EOL | 2027-12（剩余约 17 个月）            |
 | 下一个 7.x LTS 推测 | 7.4 或 7.5（2026 末确认，非官方）       |
 
-#### 8.4.2 对 agentrt-linux 2.x.x 最有价值的 Linux 7.1 能力
+#### 8.4.2 对 agent-linux 2.x.x 最有价值的 Linux 7.1 能力
 
-| 优先级 | 7.1 能力                                                          | 对应 agentrt-linux 模块        | 简化点                               |
+| 优先级 | 7.1 能力                                                          | 对应 agent-linux 模块        | 简化点                               |
 | --- | --------------------------------------------------------------- | -------------------------- | --------------------------------- |
 | 1   | sched\_ext cgroup 子调度器                                          | kernel（调度）+ security（安全分级） | per-cgroup 调度策略无需自定义 SCHED\_AGENT |
 | 2   | BPF-powered io\_uring + ublk zero-copy                          | kernel（I/O 路径）             | 用户态块设备性能追平内核驱动                    |
@@ -360,7 +360,7 @@ agentrt-linux 采用两类版本节奏：
 | 9   | fserror API + XFS 自愈                                            | services（FS）               | 标准化 I/O 错误上报，XFS 挂载态自愈            |
 | 10  | KHO（kexec handover）+ liveupdate                                 | services（无停机升级）            | kexec 保留状态，契合无停机升级诉求              |
 
-#### 8.4.3 可能与 agentrt-linux 设计冲突的 Linux 7.1 变化
+#### 8.4.3 可能与 agent-linux 设计冲突的 Linux 7.1 变化
 
 | 冲突点                                        | 风险                               | 缓解策略                                 |
 | ------------------------------------------ | -------------------------------- | ------------------------------------ |
@@ -407,7 +407,7 @@ Kconfig 默认 `CONFIG_PREEMPT_LAZY=y`（对齐 7.0 默认），同时保留 `CO
 
 **建议 8：NPU/GPU 调度基于 accel 子系统，不期待内核 AI 调度类**
 
-agentrt-linux 的 NPU 调度能力应通过 `drivers/accel/` + DRM-RAS（7.1）构建用户态策略层，内核仅暴露 accel 设备的 sysfs/debugfs 接口。明确文档化「主线无 AI 调度类」，避免社区误导。
+agent-linux 的 NPU 调度能力应通过 `drivers/accel/` + DRM-RAS（7.1）构建用户态策略层，内核仅暴露 accel 设备的 sysfs/debugfs 接口。明确文档化「主线无 AI 调度类」，避免社区误导。
 
 **建议 9：构建工具链基线锁定与渐进升级**
 
@@ -472,7 +472,7 @@ agentrt-linux 的 NPU 调度能力应通过 `drivers/accel/` + DRM-RAS（7.1）�
 | 系统启动时间         | 基线值          | ≤ 120%       | systemd-analyze |
 | 实时响应           | < 10ms       | ≤ 10ms       | cyclictest      |
 
-> **重要澄清**：主线 Linux 7.0/7.1 **没有**「AI Subsystem Framework」「内核级 AI 预测引擎」「NPU 调度类」等（CSDN 不实信息已排除）。AI 在 7.0/7.1 中的体现是**间接**的：accel 子系统（drivers/accel/）+ AMD NPU 驱动（amdxdna）+ DRM-RAS（7.1）。agentrt-linux 若需 NPU/GPU 调度能力，应基于 accel 子系统构建用户态策略层。
+> **重要澄清**：主线 Linux 7.0/7.1 **没有**「AI Subsystem Framework」「内核级 AI 预测引擎」「NPU 调度类」等（CSDN 不实信息已排除）。AI 在 7.0/7.1 中的体现是**间接**的：accel 子系统（drivers/accel/）+ AMD NPU 驱动（amdxdna）+ DRM-RAS（7.1）。agent-linux 若需 NPU/GPU 调度能力，应基于 accel 子系统构建用户态策略层。
 
 ***
 
@@ -480,18 +480,18 @@ agentrt-linux 的 NPU 调度能力应通过 `drivers/accel/` + DRM-RAS（7.1）�
 
 ### 9.1 文档类型
 
-| 文档类型   | agentrt-linux 基线    |
+| 文档类型   | agent-linux 基线    |
 | ------ | ------------------- |
-| 技术白皮书  | agentrt-linux 技术白皮书 |
-| 安装指南   | agentrt-linux 安装指南  |
-| 管理员指南  | agentrt-linux 管理员指南 |
-| 开发者指南  | agentrt-linux 开发者指南 |
+| 技术白皮书  | agent-linux 技术白皮书 |
+| 安装指南   | agent-linux 安装指南  |
+| 管理员指南  | agent-linux 管理员指南 |
+| 开发者指南  | agent-linux 开发者指南 |
 | API 参考 | docs.airymaxos.org  |
-| 安全公告   | agentrt-linux SA    |
+| 安全公告   | agent-linux SA    |
 
 ### 9.2 文档层级
 
-agentrt-linux 设计文档采用 19 模块三层体系，与根 [README.md](../README.md) 导航保持一致：
+agent-linux 设计文档采用 19 模块三层体系，与根 [README.md](../README.md) 导航保持一致：
 
 | 层级           | 目录范围                                                  | 模块数  | 0.1.1 状态    | 内容                                             |
 | ------------ | ----------------------------------------------------- | ---- | ----------- | ---------------------------------------------- |
@@ -516,7 +516,7 @@ agentrt-linux 设计文档采用 19 模块三层体系，与根 [README.md](../R
 
 ## 10. 兼容性声明
 
-agentrt-linux 工程基线声明以下兼容性：
+agent-linux 工程基线声明以下兼容性：
 
 - 兼容企业级 Linux 生态的 RPM 包格式
 - 兼容企业级 Linux 生态的 dnf 包管理器
@@ -525,25 +525,25 @@ agentrt-linux 工程基线声明以下兼容性：
 - 兼容企业级 Linux 生态的国密算法（SM2/SM3/SM4）
 - 兼容企业级 Linux 生态的架构支持（x86 / ARM / RISC-V / LoongArch）
 - 基于 Linux 6.6 内核基线，与企业级 Linux 内核同源
-- 兼容 agentrt-linux 超节点 OS 设计（大规模容器低时延通信）
+- 兼容 agent-linux 超节点 OS 设计（大规模容器低时延通信）
 
 ### 10.1 openEuler Euler API 兼容性策略
 
-agentrt-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态接口规范，在工程实践层面保持与 Euler 标准的强对齐。兼容性策略遵循 IRON-9 v3 四层共享模型：
+agent-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态接口规范，在工程实践层面保持与 Euler 标准的强对齐。兼容性策略遵循 IRON-9 v3 四层共享模型：
 
 | 层次              | Euler API 兼容策略                                                                         | 落地方式                                                                                                                                                 |
 | --------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **\[SC] 共享契约层** | 共享类型定义与 IPC 契约与 Euler API 语义对齐（如 capability 模型、IPC 消息头布局参考 Euler IPC 规范演进）             | 12 个 \[SC] 头文件（error.h / log_types.h / ipc.h / sched.h / memory_types.h / security_types.h / cognition_types.h / syscalls.h / syscall.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h）在 agentrt 与 agentrt-linux 间共享，语义与 Euler API 对齐 |
+| **\[SC] 共享契约层** | 共享类型定义与 IPC 契约与 Euler API 语义对齐（如 capability 模型、IPC 消息头布局参考 Euler IPC 规范演进）             | 12 个 \[SC] 头文件（error.h / log_types.h / ipc.h / sched.h / memory_types.h / security_types.h / cognition_types.h / syscalls.h / syscall.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h）在 agentrt 与 agent-linux 间共享，语义与 Euler API 对齐 |
 | **\[SS] 语义同源层** | 高层 API 语义与 Euler API 保持同源（如 12 daemons 语义对应 Euler 系统服务、io\_uring IPC 原语对应 Euler IO 接口） | API 签名独立演进，语义操作一致，详见 `20-modules/02-services.md` §6.2 \[SS] 语义同源层 20 项 API 映射                                                                        |
-| **\[IND] 独立层**  | agentrt-linux syscall 编号体系独立（AIRY\_SYS\_ 前缀，v1.0.1: 4 核心（548-551）+ 20 预留（552-571）= 24 槽位），不复用 Euler API 编号    | capability invocation 统一入口 `airy_sys_call` 消除独立 syscall 需求，编号体系详见 `30-interfaces/01-syscalls.md`                                                     |
+| **\[IND] 独立层**  | agent-linux syscall 编号体系独立（AIRY\_SYS\_ 前缀，v1.0.1: 4 核心（548-551）+ 20 预留（552-571）= 24 槽位），不复用 Euler API 编号    | capability invocation 统一入口 `airy_sys_call` 消除独立 syscall 需求，编号体系详见 `30-interfaces/01-syscalls.md`                                                     |
 
 **关键声明**：
 
-1. **Euler API 语义对齐**——agentrt-linux 在 \[SC] 和 \[SS] 层面与 Euler API 保持语义同源，确保应用层在 agentrt-linux 与 openEuler 之间的可移植性。
-2. **syscall 编号独立**——agentrt-linux 拥有独立的 syscall 编号体系（4 核心 548-551 + 20 预留 552-571，v1.0.1），不直接复用 Euler API 的 syscall 编号。这是 IRON-9 v3 "同源且独立"原则的体现：语义同源，编号独立。
-3. **包格式兼容**——agentrt-linux 兼容 Euler API 的 RPM 包格式和 dnf 包管理器，支持直接安装 openEuler 生态的 RPM 包。
-4. **安全模型对齐**——agentrt-linux 的 capability 安全模型与 Euler API 的安全模块（SELinux）在语义层对齐，但实现路径独立（agentrt-linux 用 Cupolas capability 模型 + LSM 钩子）。
-5. **演进策略**——agentrt-linux 跟踪 openEuler 24.03 LTS / 26.03 的 Euler API 演进，通过 ADR 评审决定是否同步新特性，禁止未经评审的基线漂移（IRON-10 / BAN-361）。
+1. **Euler API 语义对齐**——agent-linux 在 \[SC] 和 \[SS] 层面与 Euler API 保持语义同源，确保应用层在 agent-linux 与 openEuler 之间的可移植性。
+2. **syscall 编号独立**——agent-linux 拥有独立的 syscall 编号体系（4 核心 548-551 + 20 预留 552-571，v1.0.1），不直接复用 Euler API 的 syscall 编号。这是 IRON-9 v3 "同源且独立"原则的体现：语义同源，编号独立。
+3. **包格式兼容**——agent-linux 兼容 Euler API 的 RPM 包格式和 dnf 包管理器，支持直接安装 openEuler 生态的 RPM 包。
+4. **安全模型对齐**——agent-linux 的 capability 安全模型与 Euler API 的安全模块（SELinux）在语义层对齐，但实现路径独立（agent-linux 用 Cupolas capability 模型 + LSM 钩子）。
+5. **演进策略**——agent-linux 跟踪 openEuler 24.03 LTS / 26.03 的 Euler API 演进，通过 ADR 评审决定是否同步新特性，禁止未经评审的基线漂移（IRON-10 / BAN-361）。
 
 ***
 
@@ -575,7 +575,7 @@ agentrt-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态�
 ## 12. 相关文档
 
 - [架构设计 README](README.md)：架构设计层总览
-- [系统架构](01-system-architecture.md)：agentrt-linux 系统架构总览
+- [系统架构](01-system-architecture.md)：agent-linux 系统架构总览
 - [五维正交原则](02-five-dimensional-principles.md)：五维正交 24 原则落地映射
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
 - [架构决策记录](05-adrs.md)：18 个核心 ADR（含 ADR-011\~018：架构模型论证 / 微内核路线 / 调度框架 / 微内核来源单一化 / 版本基线锁定 / Capability 派生修复 / openEuler 硬件复用）
@@ -585,14 +585,14 @@ agentrt-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态�
 
 ## 12.1 IRON-9 v3 四层共享模型
 
-> **OS-ARCH-007**： 工程基线在 agentrt（CMake / libc / POSIX）与 agentrt-linux（Kbuild / Kconfig / Linux 6.6）间遵循 IRON-9 v3 四层共享模型——编码契约经 \[SC] 共享，构建系统与平台适配落入 \[IND] 各自独立，禁止在双端工程基线间引入构建兼容垫片。
+> **OS-ARCH-007**： 工程基线在 agentrt（CMake / libc / POSIX）与 agent-linux（Kbuild / Kconfig / Linux 6.6）间遵循 IRON-9 v3 四层共享模型——编码契约经 \[SC] 共享，构建系统与平台适配落入 \[IND] 各自独立，禁止在双端工程基线间引入构建兼容垫片。
 
 ### 四层模型概览
 
 | 层次               | 共享程度                               | 工程基线映射                                                                                                                                    |
 | ---------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | **\[SC] 共享契约层**  | 完全共享代码                             | 12 头文件编码契约（Linux 6.6 内核基线：Tab 8 / snake\_case / 最小 typedef / K\&R / 80 列 / errno+goto / kernel-doc），物理宿主 `kernel/include/uapi/linux/airymax/`，`-I` 引用 |
-| **\[SS] 语义同源层**  | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | agentrt CMake 模块 ↔ agentrt-linux 8 子仓 Kbuild 的工程规范同源                                                                                      |
+| **\[SS] 语义同源层**  | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | agentrt CMake 模块 ↔ agent-linux 8 子仓 Kbuild 的工程规范同源                                                                                      |
 | **\[IND] 完全独立层** | 完全独立                               | 构建系统（CMake vs Kbuild + Kconfig）+ 平台适配（libc / POSIX vs Linux 6.6 内核 API）                                                                   |
 | **\[DSL] 降级生存层** | [SC] 损坏时最小可运行子集                          | 每个 [SC] 头文件底部 `#ifdef AIRY_SC_FALLBACK` 降级块（38 POSIX 错误码 + printk + 最小 128B IPC + EEVDF 默认 + POSIX capability + 统一 Panic），详见 [11-degraded-survival-layer.md](11-degraded-survival-layer.md) |
 
@@ -613,9 +613,9 @@ agentrt-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态�
 | `lsm_types.h`       | 纯 C LSM 类型定义 + `DEFINE_LSM(airy)` 骨架 + Capability 缓存结构        | kernel-doc + minimal typedef | kernel / security  |
 | `bpf_struct_ops.h`  | eBPF struct\_ops 状态机（INIT/REGISTERED/ACTIVE/DRAINING，可观测性用，非核心架构，H5 约束） | kernel-doc + minimal typedef | kernel / services  |
 
-### \[SS] 语义同源层——工程基线 agentrt ↔ agentrt-linux 映射
+### \[SS] 语义同源层——工程基线 agentrt ↔ agent-linux 映射
 
-| 工程维度  | agentrt 实现（用户态）       | agentrt-linux 实现（内核态）             | 同源点                 |
+| 工程维度  | agentrt 实现（用户态）       | agent-linux 实现（内核态）             | 同源点                 |
 | ----- | --------------------- | --------------------------------- | ------------------- |
 | 构建规范  | CMake + libc / POSIX  | Kbuild + Kconfig + Linux 6.6      | Linux 6.6 内核基线 编码风格 |
 | 子仓治理  | 7 大模块（CMake target）   | 8 子仓（Kconfig menu）                | 模块边界同源              |
@@ -625,7 +625,7 @@ agentrt-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态�
 
 ### \[IND] 完全独立层
 
-| 独立项  | agentrt 实现        | agentrt-linux 实现  | 独立原因           |
+| 独立项  | agentrt 实现        | agent-linux 实现  | 独立原因           |
 | ---- | ----------------- | ----------------- | -------------- |
 | 构建系统 | CMake             | Kbuild + Kconfig  | 工具链差异          |
 | 平台适配 | libc / POSIX 跨三平台 | Linux 6.6 内核 API  | IRON-1 二进制兼容约束 |
@@ -642,7 +642,7 @@ graph TB
         RT_DOC[Markdown + kernel-doc]
     end
 
-    subgraph "agentrt-linux 内核态（工程基线）"
+    subgraph "agent-linux 内核态（工程基线）"
         OS_KBUILD[Kbuild + Kconfig]
         OS_LINUX[Linux 6.6 内核 API]
         OS_DOC[Markdown + kernel-doc]

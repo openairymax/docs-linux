@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）测试体系设计
-> **文档定位**：agentrt-linux（AirymaxOS）测试工程体系主索引（KUnit + kselftest + 集成测试 + CI 流水线）\
+# agent-linux（AirymaxOS）测试体系设计
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系主索引（KUnit + kselftest + 集成测试 + CI 流水线）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,11 +12,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 测试体系是工程标准可执行性的核心保障。它继承 Linux 内核 30+ 年沉淀的多层测试哲学（KUnit 白盒 + kselftest 系统级 + 动态分析 + 静态分析 + 覆盖度量），并在其上扩展智能体操作系统专属的sched_tac 调度测试、IPC 零拷贝测试、[SC] 头文件逐字节校验、Agent 行为契约测试、模糊测试、形式化验证等。本目录覆盖四方面职责：
+agent-linux 测试体系是工程标准可执行性的核心保障。它继承 Linux 内核 30+ 年沉淀的多层测试哲学（KUnit 白盒 + kselftest 系统级 + 动态分析 + 静态分析 + 覆盖度量），并在其上扩展智能体操作系统专属的sched_tac 调度测试、IPC 零拷贝测试、[SC] 头文件逐字节校验、Agent 行为契约测试、模糊测试、形式化验证等。本目录覆盖四方面职责：
 
 1. **KUnit 单元测试**：白盒单元测试，毫秒级执行，验证单函数行为契约（含 A-UEF 错误码、A-ULP 128B 记录格式、A-UCS 配置加载）。
 2. **kselftest 系统级测试**：从用户态测试内核特性，重点覆盖sched_tac 调度类（`SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF`）、io_uring IORING_OP_URING_CMD 零拷贝、纯 C LSM 钩子。
-3. **集成测试**：跨子仓跨模块的端到端测试，验证 IRON-9 v3 四层模型的 [SC] 头文件逐字节一致、agentrt ↔ agentrt-linux 同源 API 互操作。
+3. **集成测试**：跨子仓跨模块的端到端测试，验证 IRON-9 v3 四层模型的 [SC] 头文件逐字节一致、agentrt ↔ agent-linux 同源 API 互操作。
 4. **CI 流水线**：`sc-dual-ci.yml`（[SC] 逐字节校验）+ `ssot-validate.yml`（四层模型归属校验）+ 覆盖率门槛（kernel 90% / security 95%，关键路径 100%——数值以 [06-coverage-metrics.md](06-coverage-metrics.md) 4 级门槛为唯一权威，与 [70-build-system/03-ci-cd-pipeline.md §5.6](../70-build-system/03-ci-cd-pipeline.md) 互引统一）。
 
 ### 1.1 测试体系分层
@@ -30,11 +30,11 @@ agentrt-linux 测试体系是工程标准可执行性的核心保障。它继承
 | L5 | 静态分析 | Sparse/Smatch/Coccinelle/clang-analyzer | 编译时 | 代码模式 |
 | L6 | 覆盖度量 | KCOV/gcov | 运行时 | 代码覆盖 |
 | L7 | ftrace 启动自检 | ftrace + ring buffer | 启动时 | 跟踪 |
-| **L8** | **Agent 契约测试** | **agentrt-linux 专属** | **秒级** | **Agent 行为** |
-| **L9** | **模糊测试** | **syzkaller + agentrt-linux 扩展** | **小时级** | **输入边界** |
+| **L8** | **Agent 契约测试** | **agent-linux 专属** | **秒级** | **Agent 行为** |
+| **L9** | **模糊测试** | **syzkaller + agent-linux 扩展** | **小时级** | **输入边界** |
 | **L10** | **形式化验证** | **seL4 风格 + TLA+** | **天级** | **关键路径** |
 
-### 1.2 agentrt-linux 专属测试
+### 1.2 agent-linux 专属测试
 
 - **sched_tac 调度测试**：验证 `SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF` 三层调度类组合的 Agent 8 态生命周期映射（INACTIVE→SPAWNING→READY→RUNNING→BLOCKED→STOPPING→STOPPED→DEAD）
 - **IPC 零拷贝测试**：验证 `IORING_OP_URING_CMD` 的 fastpath 性能（~160ns 为端到端口径 SLA；内核派发口径实测 ~46ns，UML x86_64）与 page flipping 路径未启用
@@ -46,7 +46,7 @@ agentrt-linux 测试体系是工程标准可执行性的核心保障。它继承
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 测试体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。测试体系是五大选型的**验证守护者**——CI 流水线在每次提交时强制校验五大选型未被偏离，任何回归均阻塞合并。五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 测试体系在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。测试体系是五大选型的**验证守护者**——CI 流水线在每次提交时强制校验五大选型未被偏离，任何回归均阻塞合并。五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -94,7 +94,7 @@ agentrt-linux v1.0 测试体系在内核调度、IPC 传输、安全钩子、内
 - `05-static-analysis.md`：静态分析（Sparse/Smatch/Coccinelle）
 - `06-coverage-metrics.md`：覆盖度量（KCOV/gcov）+ 覆盖率门槛
 - `07-ftrace-selftest.md`：ftrace 启动自检
-- `08-agent-contract-testing.md`：agentrt-linux 专属 Agent 行为契约测试
+- `08-agent-contract-testing.md`：agent-linux 专属 Agent 行为契约测试
 - `09-fuzz-testing.md`：模糊测试（syzkaller + 扩展）
 - `10-formal-verification.md`：形式化验证（seL4 风格 + TLA+）
 
@@ -695,7 +695,7 @@ TEST(airy_upgrade, zero_data_loss) {
 
 - **systemd-cgred**：通过 cgroup 限制 daemon 资源
 - **stress-ng**：提供 CPU/内存/IO 压力负载
-- **airy-chaos**：agentrt-linux 专属混沌引擎，随机选择故障组合并注入
+- **airy-chaos**：agent-linux 专属混沌引擎，随机选择故障组合并注入
 
 ```bash
 # airy-chaos 工具用法
@@ -779,4 +779,4 @@ airy-chaos-report --input /var/log/airy/chaos/airy_chaos_20260718.json
 
 ---
 
-> **文档结束** | agentrt-linux 测试体系设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 测试体系设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

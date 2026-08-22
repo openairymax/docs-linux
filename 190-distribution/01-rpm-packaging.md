@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）RPM 打包设计详细规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）发行版 RPM 包结构与打包规范详细设计\
+# agent-linux（AirymaxOS）RPM 打包设计详细规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）发行版 RPM 包结构与打包规范详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重现、可追溯、可验证的包管理标准。本设计聚焦三大目标：
+agent-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重现、可追溯、可验证的包管理标准。本设计聚焦三大目标：
 
 1. **完整覆盖 8 子仓与 12 daemon**：将 kernel、services 等 8 子仓及其衍生的 12 个 daemon 完整打包为 RPM 包
 2. **spec 文件规范统一**：所有 spec 文件遵循 K&R 风格 + Tab=8 缩进 + strscpy + goto out_free_xxx 的内核编码规范
@@ -30,7 +30,7 @@ agentrt-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。RPM 包与 agentrt 之间属于 IRON-9 v3 [IND] 完全独立层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。RPM 包与 agentrt 之间属于 IRON-9 v3 [IND] 完全独立层。
 
 ### 1.4 RPM 包分类矩阵
 
@@ -54,7 +54,7 @@ agentrt-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重
 
 ### 2.1 顶层包结构
 
-agentrt-linux 发行版顶层分为"内核"、"用户态"、"开发"三大组：
+agent-linux 发行版顶层分为"内核"、"用户态"、"开发"三大组：
 
 ```bash
 # 顶层组与依赖关系
@@ -135,7 +135,7 @@ airymaxos-base (虚拟组)
 所有 spec 文件必须包含以下头部信息：
 
 ```spec
-# airymaxos-kernel.spec —— agentrt-linux 内核包 spec 文件
+# airymaxos-kernel.spec —— agent-linux 内核包 spec 文件
 # SPDX-License-Identifier: AGPL-3.0-or-later OR Apache-2.0
 # Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
@@ -148,9 +148,9 @@ airymaxos-base (虚拟组)
 Name:           airymaxos-kernel
 Version:        %{airy_version}
 Release:        %{airy_release}%{?dist}
-Summary:        agentrt-linux (AirymaxOS) Linux 6.6 kernel with sched_tac
+Summary:        agent-linux (AirymaxOS) Linux 6.6 kernel with sched_tac
 License:        GPL-2.0-only OR AGPL-3.0-or-later
-URL:            https://atomgit.com/openairymax/agentrt-linux
+URL:            https://atomgit.com/openairymax/agent-linux
 Source0:        airymaxos-kernel-%{version}.tar.gz
 Source1:        airymaxos-kernel.config
 Source2:        sched_agent_cprime.c
@@ -163,27 +163,27 @@ Requires:       airymaxos-system >= %{version}
 ExclusiveArch:  x86_64 aarch64 riscv64
 
 %description
-The agentrt-linux (AirymaxOS) kernel package contains the Linux 6.6 kernel
+The agent-linux (AirymaxOS) kernel package contains the Linux 6.6 kernel
 with sched_tac (SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS mapping) user-space
 scheduler. This enables the stc_agent scheduling strategy for Agent workloads.
 
 %package core
-Summary:        agentrt-linux kernel core (vmlinuz + initramfs)
+Summary:        agent-linux kernel core (vmlinuz + initramfs)
 Requires:       airymaxos-kernel-modules = %{version}-%{release}
 
 %package modules
-Summary:        agentrt-linux kernel modules
+Summary:        agent-linux kernel modules
 
 %package headers
-Summary:        agentrt-linux kernel headers for development
+Summary:        agent-linux kernel headers for development
 BuildArch:      noarch
 
 %package devel
-Summary:        agentrt-linux kernel development package
+Summary:        agent-linux kernel development package
 Requires:       airymaxos-kernel-headers = %{version}-%{release}
 
 %package tools
-Summary:        agentrt-linux kernel tools (perf, bpftool, etc.)
+Summary:        agent-linux kernel tools (perf, bpftool, etc.)
 Requires:       airymaxos-kernel-core = %{version}-%{release}
 ```
 
@@ -288,7 +288,7 @@ install -m 644 agentrt-kernel-load-bpf.service \
 
 %changelog
 * Wed Jul 09 2026 SPHARX <dev@spharx.com> - 1.0.1-1
-- Initial agentrt-linux (AirymaxOS) 1.0.1 release
+- Initial agent-linux (AirymaxOS) 1.0.1 release
 - 应用sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）
 - Add stc_agent user-space scheduler with Q16.16 vtime
 - Add MemoryRovol L1-L4 tiered memory with CXL/PMEM support
@@ -308,9 +308,9 @@ install -m 644 agentrt-kernel-load-bpf.service \
 Name:           airymaxos-services-cogn
 Version:        %{airy_version}
 Release:        %{airy_release}%{?dist}
-Summary:        agentrt-linux LLM Inference Daemon (cogn_d)
+Summary:        agent-linux LLM Inference Daemon (cogn_d)
 License:        AGPL-3.0-or-later
-URL:            https://atomgit.com/openairymax/agentrt-linux
+URL:            https://atomgit.com/openairymax/agent-linux
 Source0:        airymaxos-services-%{version}.tar.gz
 
 BuildRequires:  gcc, make, cmake
@@ -326,7 +326,7 @@ Requires(preun): systemd
 ExclusiveArch:  x86_64 aarch64
 
 %description
-The cogn_d daemon provides LLM inference proxy for agentrt-linux (AirymaxOS).
+The cogn_d daemon provides LLM inference proxy for agent-linux (AirymaxOS).
 Features include multi-provider routing, token caching, billing, and
 stc_agent-aware task scheduling.
 
@@ -387,7 +387,7 @@ msgfmt ../po/zh_CN.po -o \
 ### 5.1 仓库结构
 
 ```bash
-# agentrt-linux 官方仓库结构
+# agent-linux 官方仓库结构
 /var/www/airymaxos-repo/
 ├── 1.0/                          # 1.0 系列
 │   ├── 1.0.1/                    # 1.0.1 版本（首个开发版本）
@@ -414,10 +414,10 @@ msgfmt ../po/zh_CN.po -o \
 ### 5.2 客户端 dnf 仓库配置
 
 ```ini
-# /etc/yum.repos.d/airymaxos.repo —— agentrt-linux dnf 仓库配置
+# /etc/yum.repos.d/airymaxos.repo —— agent-linux dnf 仓库配置
 
 [airymaxos-base]
-name=agentrt-linux (AirymaxOS) BaseOS $releasever - $basearch
+name=agent-linux (AirymaxOS) BaseOS $releasever - $basearch
 baseurl=https://repo.airymaxos.org/$releasever/BaseOS/$basearch/
 enabled=1
 gpgcheck=1
@@ -427,7 +427,7 @@ metadata_expire=6h
 skip_if_unavailable=True
 
 [airymaxos-appstream]
-name=agentrt-linux (AirymaxOS) AppStream $releasever - $basearch
+name=agent-linux (AirymaxOS) AppStream $releasever - $basearch
 baseurl=https://repo.airymaxos.org/$releasever/AppStream/$basearch/
 enabled=1
 gpgcheck=1
@@ -435,7 +435,7 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
 metadata_expire=6h
 
 [airymaxos-updates]
-name=agentrt-linux (AirymaxOS) Updates $releasever - $basearch
+name=agent-linux (AirymaxOS) Updates $releasever - $basearch
 baseurl=https://repo.airymaxos.org/$releasever/updates/$basearch/
 enabled=1
 gpgcheck=1
@@ -443,7 +443,7 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
 metadata_expire=1h
 
 [airymaxos-testing]
-name=agentrt-linux (AirymaxOS) Testing $releasever - $basearch
+name=agent-linux (AirymaxOS) Testing $releasever - $basearch
 baseurl=https://repo.airymaxos.org/testing/$basearch/
 enabled=0
 gpgcheck=1
@@ -615,7 +615,7 @@ done
 
 ## 8. 错误码体系对接
 
-发行版管理错误码纳入 agentrt-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃，见 [160-compatibility/05-cross-distro.md §15.1](../160-compatibility/05-cross-distro.md)），打包管理场景复用既有段码，未来发行版专属错误码向 error.h 保留段 241-300 申请：
+发行版管理错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃，见 [160-compatibility/05-cross-distro.md §15.1](../160-compatibility/05-cross-distro.md)），打包管理场景复用既有段码，未来发行版专属错误码向 error.h 保留段 241-300 申请：
 
 | 错误码 | 数值 | 含义 |
 |--------|------|------|
@@ -678,14 +678,14 @@ out_err:
 
 ## 10. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[IND]） | agentrt（[IND]） |
+| 组件 | agent-linux（[IND]） | agentrt（[IND]） |
 |------|--------------------------|------------------|
 | RPM 包 | spec 文件、二进制 | 无（用户态运行时） |
 | 字体包 | RPM 打包 | 无 |
 | locale 数据 | RPM 打包 | 用户态 .mo 文件 |
 | 可重现构建 | mock + createrepo_c | 无 |
 
-agentrt-linux 的 RPM 包与 agentrt 完全独立（[IND] 完全独立层），各自演进。
+agent-linux 的 RPM 包与 agentrt 完全独立（[IND] 完全独立层），各自演进。
 
 ---
 
@@ -710,4 +710,4 @@ agentrt-linux 的 RPM 包与 agentrt 完全独立（[IND] 完全独立层），�
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）RPM 打包设计详细规范 
+> **文档结束** | agent-linux（AirymaxOS）RPM 打包设计详细规范 

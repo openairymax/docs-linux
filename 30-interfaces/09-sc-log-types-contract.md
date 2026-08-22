@@ -11,7 +11,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## SSoT 声明
 
-> **单一权威源声明**：本文件是 **Airymax 日志类型与 128B 记录格式** 的唯一权威源。`AIRY_LOG_*` 日志级别枚举、128B 固定记录格式、`AIRY_LOG_MAGIC` 魔数、`AIRY_LOG_FAC_*` 设施编号、printk 8 级映射均以本文件为唯一权威定义。物理宿主为 `kernel/include/uapi/linux/airymax/log_types.h`，agentrt 与 agentrt-linux 物理共享同一份头文件，逐字节相同。
+> **单一权威源声明**：本文件是 **Airymax 日志类型与 128B 记录格式** 的唯一权威源。`AIRY_LOG_*` 日志级别枚举、128B 固定记录格式、`AIRY_LOG_MAGIC` 魔数、`AIRY_LOG_FAC_*` 设施编号、printk 8 级映射均以本文件为唯一权威定义。物理宿主为 `kernel/include/uapi/linux/airymax/log_types.h`，agentrt 与 agent-linux 物理共享同一份头文件，逐字节相同。
 >
 > 命名规范声明：日志级别统一使用 `AIRY_LOG_*` 前缀（对齐 SSoT `log_types.h` L37-44），设施编号统一使用 `AIRY_LOG_FAC_*` 前缀（对齐 SSoT `log_types.h` L53-59）。本契约遵循 [10-unify-design.md](../10-architecture/10-unify-design.md) 的技术选型（sched_tac + 纯 C LSM 不使用 BPF LSM + IORING_OP_URING_CMD + registered buffer + mmap 不使用 page flipping + alloc_pages + mmap 不使用 DMA 一致性内存）。
 
@@ -19,7 +19,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 内核开发者、Logger Daemon 开发者、agentrt 用户态开发者
+- **目标读者**：agent-linux 内核开发者、Logger Daemon 开发者、agentrt 用户态开发者
 - **前置知识**：理解 [10-unify-design.md](../10-architecture/10-unify-design.md) A-ULP 模块定位、[06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md) [SC] 层概念
 - **预计阅读时间**：20 分钟
 - **核心概念**：128B 固定记录、`AIRY_LOG_*` 5 级枚举、printk 8 级映射、Fastpath 禁止格式化
@@ -33,7 +33,7 @@ A-ULP（Unified Logging and Printk Subsystem，统一日志与打印系统）是
 
 ### 1.1 契约范围
 
-本契约定义以下内容，agentrt 与 agentrt-linux 双端必须逐字节一致：
+本契约定义以下内容，agentrt 与 agent-linux 双端必须逐字节一致：
 
 1. `AIRY_LOG_MAGIC` 魔数
 2. `enum airy_log_level` 枚举（5 级日志级别，前缀 `AIRY_LOG_*`）
@@ -214,9 +214,9 @@ Linux 6.6 的 `printk` 定义 8 级日志级别（`KERN_EMERG` ~ `KERN_DEBUG`）
 
 | 属性 | 值 |
 |------|-----|
-| 内核侧路径 | `agentrt-linux/kernel/include/uapi/linux/airymax/log_types.h` |
+| 内核侧路径 | `agent-linux/kernel/include/uapi/linux/airymax/log_types.h` |
 | agentrt 侧路径 | `agentrt/commons/include/uapi/linux/airymax/log_types.h`（引用同一物理文件） |
-| 实际物理文件 | 仅一份，位于 `agentrt-linux/kernel/include/uapi/linux/airymax/log_types.h` |
+| 实际物理文件 | 仅一份，位于 `agent-linux/kernel/include/uapi/linux/airymax/log_types.h` |
 | 文件编码 | UTF-8 without BOM |
 | 换行符 | LF（Unix） |
 
@@ -243,7 +243,7 @@ Linux 6.6 的 `printk` 定义 8 级日志级别（`KERN_EMERG` ~ `KERN_DEBUG`）
 `log_types.h` 的任何变更必须遵循 [SC] 共享契约变更流程：
 
 1. 在本文件（`09-sc-log-types-contract.md`）提出变更提案
-2. agentrt 与 agentrt-linux 双方维护者评审
+2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/log_types.h` 物理头文件
 4. `sc-dual-ci.yml` 双端校验通过
 5. 更新本契约文档版本号

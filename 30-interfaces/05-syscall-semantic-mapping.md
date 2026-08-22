@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt ↔ agentrt-linux 系统调用语义映射
-> **文档定位**：基于 P0-03 决策（方案 D：分层 API 设计），建立 agentrt（用户态运行时）与 agentrt-linux（AirymaxOS 内核态）之间的系统调用语义映射关系，落地 IRON-9 v3 [SS] 语义同源层\
+# agentrt ↔ agent-linux 系统调用语义映射
+> **文档定位**：基于 P0-03 决策（方案 D：分层 API 设计），建立 agentrt（用户态运行时）与 agent-linux（AirymaxOS 内核态）之间的系统调用语义映射关系，落地 IRON-9 v3 [SS] 语义同源层\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
@@ -12,9 +12,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 P0-03 问题回顾
 
-IRON-9 v3 [SS] 语义同源层声明"API 签名同源、实现独立"，但深度审查发现 agentrt（用户态）与 agentrt-linux（内核态）的系统调用 API 签名**根本不同**：
+IRON-9 v3 [SS] 语义同源层声明"API 签名同源、实现独立"，但深度审查发现 agentrt（用户态）与 agent-linux（内核态）的系统调用 API 签名**根本不同**：
 
-| 对比项 | AirymaxRT（agentrt 用户态） | AirymaxOS（agentrt-linux 内核态） | 差异性质 |
+| 对比项 | AirymaxRT（agentrt 用户态） | AirymaxOS（agent-linux 内核态） | 差异性质 |
 |--------|---------------------------|--------------------------------|---------|
 | 参数类型 | JSON 字符串（`const char *input, size_t input_len`） | 类型化结构体（`const struct airy_task_desc *task_desc`） | 抽象层级不同 |
 | 返回类型 | `airy_err_t` + JSON 输出（`char **out_output`） | `int`（`AIRY_E*` 负值） | 接口范式不同 |
@@ -27,7 +27,7 @@ IRON-9 v3 [SS] 语义同源层声明"API 签名同源、实现独立"，但深�
 
 用户经 8 维度量化分析后选择**方案 D（分层 API 设计）**：
 
-| 层级 | agentrt（用户态运行时） | agentrt-linux（AirymaxOS 内核态） |
+| 层级 | agentrt（用户态运行时） | agent-linux（AirymaxOS 内核态） |
 |------|----------------------|--------------------------------|
 | **API 范式** | JSON-RPC 高层 API | 编号 syscall（548-571） |
 | **调用入口** | `airy_syscall_invoke()` 统一入口 | `SYSCALL_DEFINE*` 宏 + `syscall_64.tbl` |
@@ -38,7 +38,7 @@ IRON-9 v3 [SS] 语义同源层声明"API 签名同源、实现独立"，但深�
 
 **决策要点**：
 - agentrt 保持 JSON-RPC 高层 API，作为跨平台行业底座（不绑定 Linux syscall 号）
-- agentrt-linux 保持编号 syscall 548-571，遵循 Linux 传统 + seL4 借鉴
+- agent-linux 保持编号 syscall 548-571，遵循 Linux 传统 + seL4 借鉴
 - [SS] 修正为"高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进"
 - SDK 层（AirymaxClient 4 语言）签名确实同源，保留"签名同源"但限定为"SDK 层"
 
@@ -63,7 +63,7 @@ graph TB
         RT[airy_syscall_invoke<br/>JSON-RPC 统一入口<br/>跨平台 Linux/macOS/Windows]
     end
 
-    subgraph "agentrt-linux 内核态 [IND] 编号 syscall"
+    subgraph "agent-linux 内核态 [IND] 编号 syscall"
         OS[SYSCALL_DEFINE*<br/>编号 548-571<br/>Linux 6.6 内核]
     end
 
@@ -101,7 +101,7 @@ graph TB
 
 ### 2.1 三层调用模型
 
-| 层次 | agentrt 侧 | agentrt-linux 侧 | 共享程度 |
+| 层次 | agentrt 侧 | agent-linux 侧 | 共享程度 |
 |------|-----------|-----------------|---------|
 | **[SC] 共享契约层** | 12 个头文件（`include/uapi/linux/airymax/`） | 同一 12 个头文件（`kernel/include/uapi/linux/airymax/`） | 完全共享代码 |
 | **[SS] 语义同源层** | JSON-RPC 高层 API（27 函数，8 域） | 编号 syscall（548-551 共 4 核心 + 552-571 预留 = 24 槽位） | 概念操作一致，签名独立演进 |
@@ -109,7 +109,7 @@ graph TB
 
 ### 2.2 调用路径
 
-agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
+agentrt 在 agent-linux 上运行时，系统调用经过两条路径：
 
 | 路径类型 | 路径 | 延迟量级 | 用途 |
 |---------|------|---------|------|
@@ -124,9 +124,9 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 
 ### 3.1 直接语义映射（概念操作一一对应）
 
-以下 6 组系统调用在 agentrt 与 agentrt-linux 之间存在**直接语义映射**——概念操作一致，但因抽象层级不同，函数签名独立演进：
+以下 6 组系统调用在 agentrt 与 agent-linux 之间存在**直接语义映射**——概念操作一致，但因抽象层级不同，函数签名独立演进：
 
-| # | agentrt 用户态 API | agentrt-linux 内核 syscall | 语义概念 | [SC] 共享契约 | 签名差异 |
+| # | agentrt 用户态 API | agent-linux 内核 syscall | 语义概念 | [SC] 共享契约 | 签名差异 |
 |---|-------------------|-------------------------|---------|--------------|---------|
 | 1 | `airy_sys_task_submit(input, input_len, timeout_ms, out_output)` | #548 `airy_sys_call(COMPILE_BADGE, task_desc, priority)` | 提交 Agent 任务到调度器 | `sched.h`（`struct airy_task_desc` magic 0x41475453） | JSON 字符串 vs 类型化结构体 |
 | 2 | `airy_sys_task_cancel(task_id)` | #550 `airy_sys_sched_ctl(AIRY_SCHED_YIELD, task_id)` | 取消 Agent 任务 | `sched.h`（任务描述符） | 字符串 ID vs 整数 ID |
@@ -137,29 +137,29 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 
 ### 3.2 条件语义映射（概念相关但非一一对应）
 
-以下映射组在概念上相关，但因抽象层级不同，agentrt 的一个高层 API 可能映射到 agentrt-linux 的多个低层 syscall，或反之：
+以下映射组在概念上相关，但因抽象层级不同，agentrt 的一个高层 API 可能映射到 agent-linux 的多个低层 syscall，或反之：
 
-| # | agentrt 用户态 API | agentrt-linux 内核 syscall 组 | 映射关系 | 说明 |
+| # | agentrt 用户态 API | agent-linux 内核 syscall 组 | 映射关系 | 说明 |
 |---|-------------------|----------------------------|---------|------|
 | 1 | `airy_sys_agent_spawn(agent_spec, out_agent_id)` | #548 `airy_sys_call(COMPILE_BADGE)` | 1 → 1 | agentrt 高层 spawn 语义在内核态通过 COMPILE_BADGE 一次调用完成（提交任务 + 编译 capability） |
 | 2 | `airy_sys_agent_terminate(agent_id)` | #550 `airy_sys_sched_ctl(AIRY_SCHED_YIELD)` + #548 `airy_sys_call(REVOKE_BADGE)` | 1 → 2 | 终止 Agent 在内核态分解为"取消任务 + 撤销 capability" |
 | 3 | `airy_sys_memory_delete` | #549 `airy_sys_rovol_ctl(AIRY_ROVOL_RESTORE, snapshot_id, pid)` | 1 → 1 | 应用层删除记忆 ↔ 内核态从快照恢复（语义逆向） |
 | 4 | `airy_sys_skill_execute` | #551 `airy_sys_clt_notify(AIRY_CLT_WASM_LOAD_MODULE)` + #551 `airy_sys_clt_notify(AIRY_CLT_PHASE_NOTIFY)` | 1 → 2 | Skill 执行在内核态分解为"Wasm 模块加载 + CLT 阶段通知" |
-| 5 | `airy_sys_telemetry_metrics` | 内核 `perf trace` + `bpftrace`（非 syscall） | 1 → 0 | agentrt 应用层 metrics 在 agentrt-linux 上通过内核原生可观测性工具获取，无专用 syscall |
+| 5 | `airy_sys_telemetry_metrics` | 内核 `perf trace` + `bpftrace`（非 syscall） | 1 → 0 | agentrt 应用层 metrics 在 agent-linux 上通过内核原生可观测性工具获取，无专用 syscall |
 
 ### 3.3 语义映射规则
 
-**规则 SM-1**：agentrt 高层 API 的一个概念操作，在 agentrt-linux 内核态可能分解为 1~N 个低层 syscall。分解规则由 [SC] 共享契约层的类型定义约束。
+**规则 SM-1**：agentrt 高层 API 的一个概念操作，在 agent-linux 内核态可能分解为 1~N 个低层 syscall。分解规则由 [SC] 共享契约层的类型定义约束。
 
-**规则 SM-2**：agentrt-linux 的 syscall 在内核态提供"机制"（提交、发送、快照、授权），agentrt 高层 API 在用户态组合"策略"（Agent 生命周期、Skill 编排、Session 管理）。
+**规则 SM-2**：agent-linux 的 syscall 在内核态提供"机制"（提交、发送、快照、授权），agentrt 高层 API 在用户态组合"策略"（Agent 生命周期、Skill 编排、Session 管理）。
 
-**规则 SM-3**：当 agentrt 运行在 agentrt-linux 上时，`airy_syscall_invoke()` 内部可选地走内核加速路径（直接调用编号 syscall 548-571），而非 Linux 平台则走用户态纯软件实现。这一选择对应用层透明。
+**规则 SM-3**：当 agentrt 运行在 agent-linux 上时，`airy_syscall_invoke()` 内部可选地走内核加速路径（直接调用编号 syscall 548-571），而非 Linux 平台则走用户态纯软件实现。这一选择对应用层透明。
 
 ---
 
 ## 4. [IND] agentrt 独有系统调用（用户态高层 API）
 
-以下 agentrt 系统调用在 agentrt-linux 内核态**无直接对应**，属于 agentrt 用户态运行时独有，因抽象层级差异或跨平台约束而不下沉到内核：
+以下 agentrt 系统调用在 agent-linux 内核态**无直接对应**，属于 agentrt 用户态运行时独有，因抽象层级差异或跨平台约束而不下沉到内核：
 
 ### 4.1 初始化与生命周期
 
@@ -210,8 +210,8 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 
 | agentrt API | 独有原因 |
 |-------------|---------|
-| `airy_sys_telemetry_metrics()` | 应用层 metrics，agentrt-linux 通过内核 perf/bpftrace 获取 |
-| `airy_sys_telemetry_traces()` | 应用层 traces，agentrt-linux 通过 OpenTelemetry 导出 |
+| `airy_sys_telemetry_metrics()` | 应用层 metrics，agent-linux 通过内核 perf/bpftrace 获取 |
+| `airy_sys_telemetry_traces()` | 应用层 traces，agent-linux 通过 OpenTelemetry 导出 |
 
 ### 4.7 任务管理（部分独有）
 
@@ -221,9 +221,9 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 
 ---
 
-## 5. [IND] agentrt-linux 独有系统调用（内核态机制）
+## 5. [IND] agent-linux 独有系统调用（内核态机制）
 
-以下 agentrt-linux 系统调用在 agentrt 用户态运行时**无直接对应**，属于内核态独有机制，因 Linux 内核能力或 seL4 借鉴而不上提到应用层：
+以下 agent-linux 系统调用在 agentrt 用户态运行时**无直接对应**，属于内核态独有机制，因 Linux 内核能力或 seL4 借鉴而不上提到应用层：
 
 ### 5.1 IPC 内核机制（io_uring 零拷贝）
 
@@ -266,9 +266,9 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 
 ## 6. SDK 层签名同源
 
-虽然 agentrt 与 agentrt-linux 的系统调用签名因抽象层级不同而独立演进，但 **SDK 层**（AirymaxClient 4 语言）保持签名同源——同一份源码在两端编译：
+虽然 agentrt 与 agent-linux 的系统调用签名因抽象层级不同而独立演进，但 **SDK 层**（AirymaxClient 4 语言）保持签名同源——同一份源码在两端编译：
 
-| 语言 | agentrt SDK 包 | agentrt-linux SDK 包 | 签名同源机制 |
+| 语言 | agentrt SDK 包 | agent-linux SDK 包 | 签名同源机制 |
 |------|---------------|---------------------|-------------|
 | Python | `agentrt.AirymaxClient` | 同一包（`pip install agentrt`） | 同一份源码，运行时自动检测平台 |
 | Rust | `agentrt::AirymaxClient` | 同一 crate（`cargo add agentrt`） | 同一份源码，feature flag 区分 |
@@ -278,18 +278,18 @@ agentrt 在 agentrt-linux 上运行时，系统调用经过两条路径：
 **SDK 层签名同源示例（Python）**：
 
 ```python
-# 同一份源码，在 agentrt 用户态和 agentrt-linux 内核态上均可运行
+# 同一份源码，在 agentrt 用户态和 agent-linux 内核态上均可运行
 from agentrt import AirymaxClient
 
 client = AirymaxClient()
 
 # 任务提交——SDK 层签名同源
 # 在 agentrt 用户态：内部走 airy_syscall_invoke() JSON-RPC
-# 在 agentrt-linux：内部可选走编号 syscall #548-551 内核加速
+# 在 agent-linux：内部可选走编号 syscall #548-551 内核加速
 result = client.task_submit(task_desc, priority=100)
 ```
 
-**SDK 层同源规则 SR-1**：SDK 层签名同源不意味着底层调用路径相同。SDK 内部根据运行平台（Linux/macOS/Windows）和是否检测到 agentrt-linux 内核，自动选择最优调用路径（JSON-RPC 或编号 syscall），对应用层透明。
+**SDK 层同源规则 SR-1**：SDK 层签名同源不意味着底层调用路径相同。SDK 内部根据运行平台（Linux/macOS/Windows）和是否检测到 agent-linux 内核，自动选择最优调用路径（JSON-RPC 或编号 syscall），对应用层透明。
 
 ---
 
@@ -299,14 +299,14 @@ result = client.task_submit(task_desc, priority=100)
 
 | 平台 | 控制面路径 | 数据面路径 | 说明 |
 |------|-----------|-----------|------|
-| **agentrt-linux** | `airy_syscall_invoke()` → libc syscall() → #548-571 | `airy_ipc_ring_enter()` → io_uring SQE/CQE | 内核加速路径，最优性能 |
-| **Linux（非 agentrt-linux）** | `airy_syscall_invoke()` → 用户态纯软件实现 | POSIX MQ / Unix Domain Socket | 用户态路径，跨发行版兼容 |
+| **agent-linux** | `airy_syscall_invoke()` → libc syscall() → #548-571 | `airy_ipc_ring_enter()` → io_uring SQE/CQE | 内核加速路径，最优性能 |
+| **Linux（非 agent-linux）** | `airy_syscall_invoke()` → 用户态纯软件实现 | POSIX MQ / Unix Domain Socket | 用户态路径，跨发行版兼容 |
 | **macOS** | `airy_syscall_invoke()` → 用户态纯软件实现 | Mach ports / Unix Domain Socket | 用户态路径，跨平台 |
 | **Windows** | `airy_syscall_invoke()` → 用户态纯软件实现 | Named Pipes / ALPC | 用户态路径，跨平台 |
 
 ### 7.2 内核加速路径检测
 
-agentrt 运行时在启动时检测是否运行在 agentrt-linux 上：
+agentrt 运行时在启动时检测是否运行在 agent-linux 上：
 
 ```c
 /* agentrt 运行时启动时检测平台 */
@@ -315,20 +315,20 @@ static int detect_kernel_accel(void)
     /* 检查 /proc/sys/agentrt/present 标记 */
     int fd = open("/proc/sys/agentrt/present", O_RDONLY);
     if (fd < 0) {
-        return 0;  /* 非 agentrt-linux，走用户态路径 */
+        return 0;  /* 非 agent-linux，走用户态路径 */
     }
     close(fd);
-    return 1;  /* agentrt-linux 检测到，启用内核加速 */
+    return 1;  /* agent-linux 检测到，启用内核加速 */
 }
 ```
 
-当检测到 agentrt-linux 时，`airy_syscall_invoke()` 内部可选地将 JSON-RPC 请求解码后，直接调用编号 syscall 548-571，绕过用户态纯软件实现，获得内核加速。这一选择对应用层完全透明。
+当检测到 agent-linux 时，`airy_syscall_invoke()` 内部可选地将 JSON-RPC 请求解码后，直接调用编号 syscall 548-571，绕过用户态纯软件实现，获得内核加速。这一选择对应用层完全透明。
 
 ---
 
 ## 8. IRON-9 v3 四层共享模型
 
-> **OS-IFACE-009**： 系统调用语义映射遵循 IRON-9 v3 四层共享模型——agentrt 高层 API（JSON-RPC 统一入口）与 agentrt-linux 编号 syscall（548-571）在 [SS] 语义同源层保持概念操作一致，签名因抽象层级不同而独立演进；SDK 层（AirymaxClient 4 语言）签名确实同源（同一份源码两端编译）。禁止在系统调用层引入签名转换层或 JSON-to-struct 适配层，签名同源仅限于 SDK 层。
+> **OS-IFACE-009**： 系统调用语义映射遵循 IRON-9 v3 四层共享模型——agentrt 高层 API（JSON-RPC 统一入口）与 agent-linux 编号 syscall（548-571）在 [SS] 语义同源层保持概念操作一致，签名因抽象层级不同而独立演进；SDK 层（AirymaxClient 4 语言）签名确实同源（同一份源码两端编译）。禁止在系统调用层引入签名转换层或 JSON-to-struct 适配层，签名同源仅限于 SDK 层。
 
 ### 8.1 三层映射概览
 
@@ -336,13 +336,13 @@ static int detect_kernel_accel(void)
 |------|---------|------------------|
 | **[SC] 共享契约层** | 完全共享代码 | `sched.h`（任务描述符）+ `ipc.h`（128B 消息头）+ `security_types.h`（capability）+ `memory_types.h`（MemoryRovol）+ `cognition_types.h`（CLT 三阶段）+ `syscalls.h`（24 槽位 syscall 编号） |
 | **[SS] 语义同源层** | 概念操作一致，签名独立演进 | 6 组直接语义映射 + 5 组条件语义映射（见 §3） |
-| **[IND] 完全独立层** | 完全独立 | agentrt 独有 16 个高层 API（见 §4）+ agentrt-linux 独有 11 个内核 syscall（见 §5） |
+| **[IND] 完全独立层** | 完全独立 | agentrt 独有 16 个高层 API（见 §4）+ agent-linux 独有 11 个内核 syscall（见 §5） |
 
 ### 8.2 [SC] 共享契约层——在语义映射中的角色
 
 | 头文件 | 在语义映射中的角色 | 消费方 |
 |--------|------------------|--------|
-| `sched.h` | `struct airy_task_desc` 任务描述符（magic 0x41475453 'AGTS'）约束 task_submit/task_cancel/task_query 的语义同源 | agentrt `syscalls.h` + agentrt-linux `airy_syscalls.h` |
+| `sched.h` | `struct airy_task_desc` 任务描述符（magic 0x41475453 'AGTS'）约束 task_submit/task_cancel/task_query 的语义同源 | agentrt `syscalls.h` + agent-linux `airy_syscalls.h` |
 | `ipc.h` | `struct airy_ipc_msg_hdr` 128B 消息头（magic 0x41524531 'ARE1'）约束 ipc_send/ipc_recv 的语义同源 | 同上 |
 | `security_types.h` | capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举约束 capability_request 的语义同源 | 同上 |
 | `memory_types.h` | MemoryRovol L1-L4 快照结构约束 memory_write/rovol_snapshot 的语义同源 | 同上 |
@@ -356,11 +356,11 @@ static int detect_kernel_accel(void)
 | 直接语义映射 | 6 组 | 22%（6/27 RT 函数） | 概念操作一一对应，签名独立演进 |
 | 条件语义映射 | 5 组 | 19%（5/27 RT 函数） | 概念相关，1→N 或 N→1 分解 |
 | agentrt 独有 | 16 个 | 59%（16/27 RT 函数） | 用户态高层 API，无内核对应 |
-| agentrt-linux 独有 | 11 个 | —（11/20 OS syscall） | 内核态机制，无应用层对应 |
+| agent-linux 独有 | 11 个 | —（11/20 OS syscall） | 内核态机制，无应用层对应 |
 
 ### 8.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | 调用入口 | `airy_syscall_invoke()` JSON-RPC 统一入口 | `SYSCALL_DEFINE*` 编号 syscall 548-571 | 抽象层级 + 跨平台约束 |
 | 参数序列化 | JSON 字符串（跨语言） | 类型化结构体（Linux ABI） | 设计哲学差异 |
@@ -385,7 +385,7 @@ graph TB
         RT_USR[27 个高层 API 函数<br/>8 域]
     end
 
-    subgraph "agentrt-linux 内核态 [IND] 编号 syscall"
+    subgraph "agent-linux 内核态 [IND] 编号 syscall"
         OS_TBL[syscall_64.tbl<br/>548-571 段]
         OS_DEF[SYSCALL_DEFINE*<br/>4 核心 + 24 槽位]
     end
@@ -421,7 +421,7 @@ graph TB
     style OS_DEF fill:#fff3e0,stroke:#e65100
 ```
 
-> **OS-IFACE-010**： SDK 层签名同源是 IRON-9 v3 在系统调用领域的唯一签名同源点——agentrt 与 agentrt-linux 的系统调用层签名因抽象层级不同而独立演进，仅 SDK 层（AirymaxClient 4 语言）通过同一份源码两端编译实现签名同源。禁止在系统调用层引入签名转换层、JSON-to-struct 适配层或编号映射表来强制签名同源。
+> **OS-IFACE-010**： SDK 层签名同源是 IRON-9 v3 在系统调用领域的唯一签名同源点——agentrt 与 agent-linux 的系统调用层签名因抽象层级不同而独立演进，仅 SDK 层（AirymaxClient 4 语言）通过同一份源码两端编译实现签名同源。禁止在系统调用层引入签名转换层、JSON-to-struct 适配层或编号映射表来强制签名同源。
 
 ---
 
@@ -439,21 +439,21 @@ graph TB
 
 ### 9.2 编号稳定性
 
-- agentrt-linux syscall 编号 548-571 在 MAJOR 版本内不可变更（见 [01-syscalls.md](01-syscalls.md) §2.3 ABI 稳定性）。
+- agent-linux syscall 编号 548-571 在 MAJOR 版本内不可变更（见 [01-syscalls.md](01-syscalls.md) §2.3 ABI 稳定性）。
 - agentrt 高层 API 函数名在 MAJOR 版本内不可变更，新增调用只能追加。
 - 本映射表的映射关系在 MAJOR 版本内保持稳定，新增映射只能追加，不可复用已废弃映射。
 
 ### 9.3 废弃流程
 
 - 废弃映射关系保留 2 个 MAJOR 版本，标注 `@deprecated` 并提供迁移指引。
-- agentrt 废弃高层 API 时，对应 agentrt-linux syscall 编号保留但返回 `-ENOSYS`。
-- agentrt-linux 废弃 syscall 时，对应 agentrt 高层 API 降级为用户态纯软件实现。
+- agentrt 废弃高层 API 时，对应 agent-linux syscall 编号保留但返回 `-ENOSYS`。
+- agent-linux 废弃 syscall 时，对应 agentrt 高层 API 降级为用户态纯软件实现。
 
 ---
 
 ## 10. 相关文档
 
-- [系统调用接口](01-syscalls.md) — agentrt-linux 内核系统调用编号与 C 接口
+- [系统调用接口](01-syscalls.md) — agent-linux 内核系统调用编号与 C 接口
 - [IPC 协议](02-ipc-protocol.md) — 128B 消息头 + io_uring 零拷贝
 - [SDK API](03-sdk-api.md) — 4 语言 AirymaxClient 客户端
 - [编码规范](04-coding-standard.md) — C/Rust 风格 + 日志 + Doxygen

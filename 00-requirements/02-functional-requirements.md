@@ -1,16 +1,16 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 功能需求分析
-> **文档定位**：agentrt-linux（AirymaxOS） 功能需求（Functional Requirements）的详细分析，回答"agentrt-linux 提供哪些具体能力（输入 → 处理 → 输出）"。\
+> **文档定位**：agent-linux（AirymaxOS） 功能需求（Functional Requirements）的详细分析，回答"agent-linux 提供哪些具体能力（输入 → 处理 → 输出）"。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. 概述
 
-本文档定义 agentrt-linux 的功能需求（FR，Functional Requirements），覆盖 8 个子仓的全部功能能力。每条功能需求满足以下要求：
+本文档定义 agent-linux 的功能需求（FR，Functional Requirements），覆盖 8 个子仓的全部功能能力。每条功能需求满足以下要求：
 
 1. **可追溯到业务需求**：每条 FR 至少对应一条 BR
 2. **有明确的输入输出**：定义清晰的输入、处理逻辑与输出
@@ -23,7 +23,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 8 子仓功能矩阵
 
-下表展示 agentrt-linux 8 个子仓的核心功能、同源 agentrt 模块与关键能力：
+下表展示 agent-linux 8 个子仓的核心功能、同源 agentrt 模块与关键能力：
 
 | 子仓 | 核心功能 | 同源 agentrt 模块 | 关键能力 |
 |---|---|---|---|
@@ -34,15 +34,15 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | cognition | 认知循环、Wasm、LLM 调度 | coreloopthree + frameworks | CoreLoopThree kthread + Wasm 3.0 |
 | cloudnative | K8s、containerd、OCI | gateway + sdk | K8s CRD + containerd shim |
 | system | 包管理、配置、shell | commons | RPM + dnf + DevStation |
-| tests-linux | 单元、集成、形式化 | 全模块测试 | agentrt-linux 集成测试框架 + seL4 风格验证 |
+| tests-linux | 单元、集成、形式化 | 全模块测试 | agent-linux 集成测试框架 + seL4 风格验证 |
 
 ---
 
 ## 3. 同源 agentrt 功能映射
 
-下表详细展示 agentrt 模块与 agentrt-linux 子仓的同源语义映射关系：
+下表详细展示 agentrt 模块与 agent-linux 子仓的同源语义映射关系：
 
-| agentrt 模块 | agentrt-linux 子仓 | 同源语义 | 同源红利 |
+| agentrt 模块 | agent-linux 子仓 | 同源语义 | 同源红利 |
 |---|---|---|---|
 | atoms/corekern (MicroCoreRT) | kernel | 微核心基础：IPC/Mem/Task/Time | 调度语义同源，无适配层 |
 | atoms/corekern IPC | kernel | IPC 子系统：128B 消息头同源 | 协议同源，低延迟 |
@@ -342,7 +342,7 @@ flowchart TD
 | 契约测试 | 契约测试框架 | 契约 100% 强制 | tests-linux |
 | 性能基准 | Locust + k6 + perf | SLA 达标率 > 99% | tests-linux |
 | 形式化验证 | seL4 风格验证 | 关键路径 100% | tests-linux |
-| 兼容性测试 | agentrt-linux 集成测试框架 | 兼容性矩阵 100% | tests-linux + system |
+| 兼容性测试 | agent-linux 集成测试框架 | 兼容性矩阵 100% | tests-linux + system |
 
 ---
 
@@ -370,7 +370,7 @@ flowchart TD
 - [需求分析概览](README.md)：需求分层模型与追溯框架
 - [业务需求分析](01-business-requirements.md)：Agent 工作负载与生态对齐
 - [非功能需求分析](03-non-functional-requirements.md)：性能、安全、可靠性需求
-- [agentrt-linux 总览](../README.md)：agentrt-linux 整体设计与子仓清单
+- [agent-linux 总览](../README.md)：agent-linux 整体设计与子仓清单
 - [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---

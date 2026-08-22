@@ -19,7 +19,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 文档信息卡
 
-- **目标读者**：agentrt-linux 内核调度开发者、A-ULS 模块开发者、Macro-Supervisor 开发者
+- **目标读者**：agent-linux 内核调度开发者、A-ULS 模块开发者、Macro-Supervisor 开发者
 - **前置知识**：理解 [10-unify-design.md](../10-architecture/10-unify-design.md) §7 A-ULS 模块、[04-scheduling-flow.md](../40-dataflows/04-scheduling-flow.md) 调度数据流、Linux 6.6 `sched_setattr(2)` 与 seL4 MCS（Mixed-Criticality Scheduling）
 - **预计阅读时间**：25 分钟
 - **核心概念**：sched_tac、Agent 8 态、3 态降级、SCHED_DEADLINE、SCHED_FIFO、EEVDF、seL4 MCS、sched_context_t
@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 契约定位
 
-`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agentrt-linux（内核态实现）双端逐字节共享，CI 通过 `sc-dual-ci.yml` 验证两端一致性。
+`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享，CI 通过 `sc-dual-ci.yml` 验证两端一致性。
 
 ### 1.2 契约边界
 
@@ -47,7 +47,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 sched_tac 是本 [SC] 契约的调度机制选型依据（详见 综合修正方案 §1）。sched_tac 的核心决策为：
 
-1. **不使用 sched_ext**：OLK 6.6 虽 backport 了 sched_ext（`kernel/sched/ext.c` 215KB，`SCHED_EXT = 7`，`CONFIG_SCHED_CLASS_EXT`），但 sched_ext 依赖 `BPF_SYSCALL && BPF_JIT && DEBUG_INFO_BTF`（`kernel/Kconfig.preempt:138`），与 H5 纯 C LSM 原则冲突；x86 默认禁用 sched_ext（`include/linux/sched.h:1663-1667` 注释明确"x86 disables SCX by default to avoid KABI changes"）；BPF verifier 在调度路径的语义不确定性影响形式化验证可行性；sched_ext 的 BPF struct_ops 模型与 agentrt-linux 纯 C 体系不一致。注：vanilla Linux 6.6 主线不含 sched_ext（6.12 才合入），但 OLK 6.6 已 backport 此特性。
+1. **不使用 sched_ext**：OLK 6.6 虽 backport 了 sched_ext（`kernel/sched/ext.c` 215KB，`SCHED_EXT = 7`，`CONFIG_SCHED_CLASS_EXT`），但 sched_ext 依赖 `BPF_SYSCALL && BPF_JIT && DEBUG_INFO_BTF`（`kernel/Kconfig.preempt:138`），与 H5 纯 C LSM 原则冲突；x86 默认禁用 sched_ext（`include/linux/sched.h:1663-1667` 注释明确"x86 disables SCX by default to avoid KABI changes"）；BPF verifier 在调度路径的语义不确定性影响形式化验证可行性；sched_ext 的 BPF struct_ops 模型与 agent-linux 纯 C 体系不一致。注：vanilla Linux 6.6 主线不含 sched_ext（6.12 才合入），但 OLK 6.6 已 backport 此特性。
 2. **复用主线调度器**：直接使用 `SCHED_DEADLINE` / `SCHED_FIFO` / `SCHED_NORMAL`(EEVDF) 三类已有调度策略
 3. **借鉴 seL4 MCS 语义**：将 seL4 的 `sched_context_t` 预算/周期模型映射到 Linux `sched_attr` 字段，获得 MCS 语义但不修改内核调度器
 
@@ -324,7 +324,7 @@ sched_tac 借鉴 seL4 MCS（Mixed-Criticality Scheduling）模型，将 seL4 的
 ```
 
 **seL4 MCS Refill 循环缓冲**（`src/object/schedcontext.c`）：
-seL4 MCS 使用 sporadic server + refill 循环缓冲（`refill_t` 结构 + `refillNew()`/`refillUpdate()`），比 Linux SCHED_DEADLINE 的 CBS（Constant Bandwidth Server）算法更精确。agentrt-linux 在 Linux CBS 之上模拟 MCS 语义：
+seL4 MCS 使用 sporadic server + refill 循环缓冲（`refill_t` 结构 + `refillNew()`/`refillUpdate()`），比 Linux SCHED_DEADLINE 的 CBS（Constant Bandwidth Server）算法更精确。agent-linux 在 Linux CBS 之上模拟 MCS 语义：
 - `sched_attr.sched_runtime` → `scBudget`（CPU 预算）
 - `sched_attr.sched_period` → `scPeriod`（调度周期）
 - `sched_attr.sched_deadline` → `scRefill`（截止时间）
@@ -345,9 +345,9 @@ seL4 MCS 使用 sporadic server + refill 循环缓冲（`refill_t` 结构 + `ref
 
 ### OLK QoS 调度借鉴
 
-OLK 6.6 提供了一系列 QoS 调度增强（`kernel/sched/grid/`），agentrt-linux 的 sched_tac 可借鉴：
+OLK 6.6 提供了一系列 QoS 调度增强（`kernel/sched/grid/`），agent-linux 的 sched_tac 可借鉴：
 
-| OLK QoS 特性 | 借鉴点 | agentrt-linux 应用 |
+| OLK QoS 特性 | 借鉴点 | agent-linux 应用 |
 |-------------|--------|-------------------|
 | `QOS_SCHED_SMART_GRID` | 8 级 affinity domain（`AD_LEVEL_MAX=8`），自动 cpumask 优化 | Agent NUMA 感知调度 |
 | `QOS_SCHED_SMT_EXPELLER` | SMT 兄弟核在线任务驱逐离线任务 | Agent 优先级抢占 |
@@ -380,7 +380,7 @@ OLK 6.6 提供了一系列 QoS 调度增强（`kernel/sched/grid/`），agentrt-
 
 `sc-dual-ci.yml` 对 `sched.h` 执行以下校验：
 
-1. **逐字节对比**：agentrt 与 agentrt-linux 的 `sched.h` 必须逐字节相同
+1. **逐字节对比**：agentrt 与 agent-linux 的 `sched.h` 必须逐字节相同
 2. **枚举值校验**：8 态枚举值必须在 `[0, 7]` 范围内且不重复（含 `AIRY_AGENT_STATE_MAX` 上界哨兵）
 3. **结构体偏移校验**：`struct airy_task_desc`（64 字节）字段偏移在两端一致，`_Static_assert` 保证 `sizeof == 64`
 4. **策略标识符校验**：`AIRY_SCHED_POLICY_DEADLINE=1` / `_FIFO=2` / `_EEVDF=3` / `_BESTEFFORT=4` 双端一致

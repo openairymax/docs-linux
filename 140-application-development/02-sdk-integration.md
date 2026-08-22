@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # SDK 集成设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）Agent 应用开发体系核心子文档，定义 Python/Rust/Go/TypeScript 四语言 SDK 与 agentrt-linux 内核通信的集成设计\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）Agent 应用开发体系核心子文档，定义 Python/Rust/Go/TypeScript 四语言 SDK 与 agent-linux 内核通信的集成设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 四语言 SDK（IRON-9 v3 [SC] 共享契约层共享头文件 + [SS] 语义同源层 SDK 层签名同源）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
@@ -16,12 +16,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）提供四语言 SDK（Python / Rust / Go / TypeScript），统一封装与内核的通信细节，使上层 Agent 应用无需关心底层 syscall 或 AgentsIPC 协议。SDK 集成设计达成以下工程目标：
+agent-linux（AirymaxOS）提供四语言 SDK（Python / Rust / Go / TypeScript），统一封装与内核的通信细节，使上层 Agent 应用无需关心底层 syscall 或 AgentsIPC 协议。SDK 集成设计达成以下工程目标：
 
 1. **零拷贝高性能**：通过 io_uring 提交队列与内核共享内存，避免数据拷贝
 2. **FFI 边界安全**：四语言与 C ABI 边界严格类型检查，杜绝内存安全漏洞
 3. **同源 API 一致性**：四语言 SDK（SDK 层）API 签名完全一致，遵循 IRON-9 v3 [SS] 层
-4. **运行时环境感知**：SDK 自动检测宿主为 agentrt-linux 或 agentrt，切换通信路径
+4. **运行时环境感知**：SDK 自动检测宿主为 agent-linux 或 agentrt，切换通信路径
 5. **统一错误码**：四语言共享 `include/uapi/linux/airymax/error.h` 错误码（[SC] 层）
 
 ### 1.2 SDK 分层架构
@@ -41,13 +41,13 @@ agentrt-linux（AirymaxOS）提供四语言 SDK（Python / Rust / Go / TypeScrip
 ├─────────────────────────────────────────────────────────┤
 │ L1: syscall / AgentsIPC（io_uring）                      │
 ├─────────────────────────────────────────────────────────┤
-│ L0: agentrt-linux 内核                                   │
+│ L0: agent-linux 内核                                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### 1.3 IRON-9 v3 共享层次
 
-| 层次 | 共享内容 | agentrt-linux SDK | agentrt SDK |
+| 层次 | 共享内容 | agent-linux SDK | agentrt SDK |
 |------|----------|-------------------|-------------|
 | [SC] | IPC 消息头结构、syscall 编号、错误码、规则编号体系 | 完全共享 | 完全共享 |
 | [SS] | CognitionClient/SafetyClient 等 16 客户端 API 签名 | SDK 层签名同源，实现独立 | SDK 层签名同源，实现独立 |
@@ -411,7 +411,7 @@ export class Client {
 
 ### 5.1 SDK 内部 syscall 路径
 
-当 SDK 检测到宿主为 agentrt-linux 时，自动切换至 syscall 路径：
+当 SDK 检测到宿主为 agent-linux 时，自动切换至 syscall 路径：
 
 ```c
 /* libagentrt/sdk.c 内部实现 */
@@ -438,7 +438,7 @@ int airy_client_call(airy_client_t *client,
 	hdr.payload_len  = payload_len;
 	/* payload_type（REQUEST）由 payload 首字段携带，不在消息头中 */
 
-	/* agentrt-linux 路径：IPC 数据面走 io_uring（IORING_OP_URING_CMD，零 syscall），
+	/* agent-linux 路径：IPC 数据面走 io_uring（IORING_OP_URING_CMD，零 syscall），
 	 * 控制面（cap 校验/管理）走 548 airy_sys_call（经 msg->opcode 分派，
 	 * 见 07-syscall-registry.md §3.3 / §4.2） */
 	if (client->use_syscall) {
@@ -476,7 +476,7 @@ class CognitionClient:
         """
         执行认知处理（封装 airy_sys_call(548) 控制面 + io_uring 数据面，
         经 msg->opcode 分派，详见 07-syscall-registry.md §4.2/§3.3）
-        当宿主为 agentrt-linux 时，SDK 内部走 syscall/io_uring 路径
+        当宿主为 agent-linux 时，SDK 内部走 syscall/io_uring 路径
         """
         if self._tokens_used >= self._token_budget:
             raise AgentrtError(-122)  # -AIRY_ESCHED_BUDGET（预算耗尽）
@@ -488,7 +488,7 @@ class CognitionClient:
         }).encode()
 
         # SDK 内部检测宿主：
-        #   - agentrt-linux -> airy_sys_call(548)（opcode 分派）+ io_uring 数据面
+        #   - agent-linux -> airy_sys_call(548)（opcode 分派）+ io_uring 数据面
         #   - agentrt 用户态 -> AgentsIPC 调用 cogn_d
         resp = self._client.call(self.LLM_DAEMON_ID,
                                   "cognition.process", payload)
@@ -515,7 +515,7 @@ class CognitionClient:
 [libagentrt.so]
    airy_client_call()
        |
-       v (检测宿主为 agentrt-linux)
+       v (检测宿主为 agent-linux)
    io_uring 提交 SQE（IORING_OP_URING_CMD，AIRY_IPC_OP_SEND）
        |
        v
@@ -594,7 +594,7 @@ bool airy_host_is_airymaxos(void)
 
 | 宿主 | 通信路径 | 传输机制 | 性能 |
 |------|----------|----------|------|
-| agentrt-linux | syscall | io_uring 零拷贝 | 最高 |
+| agent-linux | syscall | io_uring 零拷贝 | 最高 |
 | agentrt 用户态 | AgentsIPC | 用户态消息队列 | 高 |
 | 主流 Linux 发行版 | Unix socket | 回环 socket | 中 |
 
@@ -681,5 +681,5 @@ go test -race ./...
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）SDK 集成设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）SDK 集成设计 v1.0.1
 > 遵循 IRON-9 v3 [SC] 共享契约层 + [SS] 语义同源层与 agentrt SDK 同源

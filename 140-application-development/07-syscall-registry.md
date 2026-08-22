@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Agent 系统调用编号注册表（SSoT）
-> **文档定位**：agentrt-linux（AirymaxOS）专用系统调用编号的唯一权威注册表（Single Source of Truth），统一编号分配、命名前缀、ABI 稳定性约束、UAPI 头文件模板与注册审批流程\
+> **文档定位**：agent-linux（AirymaxOS）专用系统调用编号的唯一权威注册表（Single Source of Truth），统一编号分配、命名前缀、ABI 稳定性约束、UAPI 头文件模板与注册审批流程\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-22\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：Linux 6.6 `include/uapi/asm-generic/unistd.h`（编号注册表）+ seL4 `libsel4/include/api/syscall.xml`（接口契约代码生成）\
 > **文档性质**：实现方案文档（非设计文档）。本注册表不替代 [30-interfaces/01-syscalls.md](../30-interfaces/01-syscalls.md) 的接口设计与 [50-engineering-standards/20-contracts/contracts.md](../50-engineering-standards/20-contracts/contracts.md) 的契约定义，仅作为编号分配的唯一权威来源（SSoT）对所有设计文档与契约文档的编号进行统一收口\
 > **设计参考**：主流 Linux 发行版 Linux 6.6 内核基线 `arch/x86/entry/syscalls/syscall_64.tbl`（编号表格式）+ seL4 `syscall.xml` + `syscall_generator.py`（声明式接口定义）
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 唯一权威来源
 
-本注册表是 agentrt-linux 专用系统调用编号的**唯一权威来源**（Single Source of Truth）。所有涉及系统调用编号的文档、头文件、实现代码、测试用例必须以本注册表为准。
+本注册表是 agent-linux 专用系统调用编号的**唯一权威来源**（Single Source of Truth）。所有涉及系统调用编号的文档、头文件、实现代码、测试用例必须以本注册表为准。
 
 | 文档类型 | 文档路径 | 与本注册表的关系 |
 |---------|---------|----------------|
@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.3 SSoT 演进原则
 
-本注册表遵循 IRON-9 v3 同源且部分代码共享原则的 [SC] 层要求：编号定义在 agentrt（用户态）与 agentrt-linux（OS 层）之间共享，两端必须引用同一编号注册表，禁止任何一端独立修改编号。
+本注册表遵循 IRON-9 v3 同源且部分代码共享原则的 [SC] 层要求：编号定义在 agentrt（用户态）与 agent-linux（OS 层）之间共享，两端必须引用同一编号注册表，禁止任何一端独立修改编号。
 
 ### 1.4 v1.0.1 Capability Folding 架构约束
 
@@ -43,7 +43,7 @@ v1.0.1 采用 **Capability Folding 单平面架构**（详见 [01-syscalls.md](.
 
 ### 2.1 编号空间划分
 
-agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 标准 0-511 编号空间与 x86_64 x32 历史遗留区域（512-547）。
+agent-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 标准 0-511 编号空间与 x86_64 x32 历史遗留区域（512-547）。
 
 > **v1.0.1 编号起点修正**：0.1.1 阶段原设计使用 512 起始，但 x86_64 架构的 512-547 是 x32 历史遗留区域（`syscall_64.tbl` L384-388 明确标注 "Do not add new syscalls to this range. Numbers 548 and above are available for non-x32 use"）。v1.0.1 修正为 548 起始，确保在 x86_64/arm64/riscv 所有架构上编号一致，实现跨架构二进制兼容。
 
@@ -51,7 +51,7 @@ agentrt-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 
 |---------|------|--------|
 | 0-511 | Linux 6.6 标准系统调用 | Linux 上游（不可修改） |
 | 512-547 | x86_64 x32 历史遗留区域（禁止使用） | Linux 上游（不可修改） |
-| 548-571 | agentrt-linux 专用系统调用（4 核心 + 20 预留 = 24 槽位） | 本注册表 |
+| 548-571 | agent-linux 专用系统调用（4 核心 + 20 预留 = 24 槽位） | 本注册表 |
 | 572-1023 | 预留扩展空间 | 本注册表（需 ADR 审批） |
 | 1024+ | 未来 MAJOR 版本扩展 | 需新 ADR + ABI 审查 |
 
@@ -80,7 +80,7 @@ v1.0.1 Capability Folding 架构下，控制面精简为 4 核心 syscall，其�
 
 ### 2.4 命名前缀规范
 
-所有 agentrt-linux 专用系统调用统一使用以下命名前缀，遵循五维正交 24 原则中的 E-5（命名语义化）：
+所有 agent-linux 专用系统调用统一使用以下命名前缀，遵循五维正交 24 原则中的 E-5（命名语义化）：
 
 | 前缀（宏形式） | C 符号形式 | 编号 | 分类 | 说明 |
 |---------------|-----------|------|------|------|
@@ -91,7 +91,7 @@ v1.0.1 Capability Folding 架构下，控制面精简为 4 核心 syscall，其�
 
 **命名结构**：`airy_sys_<category>_<action>`
 
-- `airy_sys_` = agentrt-linux 系统调用前缀
+- `airy_sys_` = agent-linux 系统调用前缀
 - `<category>` = `call` / `rovol_ctl` / `sched_ctl` / `clt_notify`
 - `<action>` = 由 op 参数分派（op-dispatch），不再编入 syscall 名称
 
@@ -298,7 +298,7 @@ int airy_agent_register(const struct airy_agent_config *config,
 /*
  * Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
  *
- * agentrt-linux (AirymaxOS) Agent 专用系统调用编号定义
+ * agent-linux (AirymaxOS) Agent 专用系统调用编号定义
  *
  * 本文件由 140-application-development/07-syscall-registry.md 派生。
  * 编号注册表 SSoT: docs/AirymaxOS/140-application-development/07-syscall-registry.md
@@ -405,7 +405,7 @@ extern "C" {
 
 ```
 # <number> <abi> <name>                  <entry point>
-# agentrt-linux 专用系统调用（548-571，v1.0.1 Capability Folding）
+# agent-linux 专用系统调用（548-571，v1.0.1 Capability Folding）
 548     common  airy_sys_call            sys_airy_sys_call
 549     common  airy_sys_rovol_ctl       sys_airy_sys_rovol_ctl
 550     common  airy_sys_sched_ctl       sys_airy_sys_sched_ctl
@@ -473,7 +473,7 @@ graph TD
 
 ### 8.1 四层稳定性分级
 
-agentrt-linux 系统调用遵循四层稳定性分级，对齐 [160-compatibility/01-abi-stability.md](../160-compatibility/01-abi-stability.md)：
+agent-linux 系统调用遵循四层稳定性分级，对齐 [160-compatibility/01-abi-stability.md](../160-compatibility/01-abi-stability.md)：
 
 | 层级 | 接口类型 | 稳定性 | 变更流程 |
 |------|---------|--------|---------|
@@ -551,7 +551,7 @@ struct airy_task_config {
 
 ### 10.1 [SC] 层共享（12 个头文件）
 
-agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享，影响系统调用语义：
+agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享，影响系统调用语义：
 
 | 头文件 | 共享内容 | 影响的核心 syscall |
 |--------|---------|------------------|
@@ -564,7 +564,7 @@ agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享�
 
 ### 10.2 [SS] 层语义同源
 
-| 核心 syscall | agentrt 用户态 | agentrt-linux OS 层 | 同源语义 |
+| 核心 syscall | agentrt 用户态 | agent-linux OS 层 | 同源语义 |
 |-------------|---------------|-------------------|---------|
 | `airy_sys_call` | Cupolas 应用权限模型（用户态 Badge=0，H3） | sec_d 编译/撤销 Badge（H4） | Capability Invocation 语义一致 |
 | `airy_sys_rovol_ctl` | MemoryRovol 用户态 API | `AIRY_ROVOL_*` op-dispatch | 四层卷载、存用分离语义一致 |
@@ -573,7 +573,7 @@ agentrt-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享�
 
 ### 10.3 [IND] 层完全独立
 
-agentrt-linux 独有的系统调用维度（io_uring 固定 OP 扩展 `IORING_OP_URING_CMD` + `cmd_op`、CXL 内存分层、MGLRU 配置、内核态纯 C LSM + agent_caps[1024] 静态数组（H5））属于 [IND] 层，agentrt 不涉及。
+agent-linux 独有的系统调用维度（io_uring 固定 OP 扩展 `IORING_OP_URING_CMD` + `cmd_op`、CXL 内存分层、MGLRU 配置、内核态纯 C LSM + agent_caps[1024] 静态数组（H5））属于 [IND] 层，agentrt 不涉及。
 
 ---
 

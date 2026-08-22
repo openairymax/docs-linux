@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）dnf 仓库设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）dnf 软件仓库工程设计文档，覆盖仓库分层（stable/testing/nightly）、GPG 签名、metadata 生成、仓库目录结构\
+# agent-linux（AirymaxOS）dnf 仓库设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）dnf 软件仓库工程设计文档，覆盖仓库分层（stable/testing/nightly）、GPG 签名、metadata 生成、仓库目录结构\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其 dnf 软件仓库是包分发的核心基础设施。本文档定义 dnf 仓库工程设计，目标是：
+agent-linux（AirymaxOS）作为智能体操作系统发行版，其 dnf 软件仓库是包分发的核心基础设施。本文档定义 dnf 仓库工程设计，目标是：
 
 1. **仓库分层清晰**：stable（稳定）/testing（测试）/nightly（每日构建）三层仓库，每层用途明确
 2. **GPG 签名强制**：所有仓库的 metadata 与 RPM 包必须 GPG 签名，dnf 安装时强制校验
@@ -35,7 +35,7 @@ agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其 dnf 软�
 
 ### 1.3 术语规范
 
-本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）。仓库设计独立于 agentrt（[IND] 完全独立层），不与 agentrt 共享仓库基础设施。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，仓库实践对照一律表述为"主流 Linux 发行版"。
+本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）。仓库设计独立于 agentrt（[IND] 完全独立层），不与 agentrt 共享仓库基础设施。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，仓库实践对照一律表述为"主流 Linux 发行版"。
 
 ---
 
@@ -43,7 +43,7 @@ agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其 dnf 软�
 
 ### 2.1 三层仓库模型
 
-agentrt-linux 采用三层仓库模型，每层用途明确：
+agent-linux 采用三层仓库模型，每层用途明确：
 
 | 仓库层 | 用途 | 更新频率 | 保留策略 | 默认启用 |
 |--------|------|----------|----------|----------|
@@ -164,7 +164,7 @@ https://repo.airymaxos.dev/
 
 ### 4.1 双重签名策略
 
-agentrt-linux 对仓库采用双重签名策略：
+agent-linux 对仓库采用双重签名策略：
 
 1. **RPM 包签名**：每个 RPM 包单独 GPG 签名（详见 `01-rpm-packaging.md`）
 2. **metadata 签名**：repodata 中的每个 metadata 文件（repomd.xml、primary.xml.gz 等）单独 GPG 签名
@@ -241,7 +241,7 @@ echo "OK: $REPO_DIR metadata 签名完成"
 ```ini
 # /etc/yum.repos.d/airymaxos.repo
 [airymaxos-stable]
-name=agentrt-linux (AirymaxOS) Stable Repository
+name=agent-linux (AirymaxOS) Stable Repository
 baseurl=https://repo.airymaxos.dev/1.0/stable/$basearch/
 enabled=1
 gpgcheck=1                              # 校验 RPM 包签名
@@ -252,7 +252,7 @@ priority=10
 metadata_expire=24h                     # metadata 24 小时过期
 
 [airymaxos-testing]
-name=agentrt-linux (AirymaxOS) Testing Repository
+name=agent-linux (AirymaxOS) Testing Repository
 baseurl=https://repo.airymaxos.dev/1.0/testing/$basearch/
 enabled=0
 gpgcheck=1
@@ -262,7 +262,7 @@ priority=20
 metadata_expire=12h
 
 [airymaxos-nightly]
-name=agentrt-linux (AirymaxOS) Nightly Repository
+name=agent-linux (AirymaxOS) Nightly Repository
 baseurl=https://repo.airymaxos.dev/1.0/nightly/$basearch/
 enabled=0
 gpgcheck=1
@@ -403,7 +403,7 @@ echo "OK: 所有仓库 metadata 生成完成"
 
 ### 6.1 镜像策略
 
-agentrt-linux 主仓库位于 `repo.airymaxos.dev`，全球设镜像节点：
+agent-linux 主仓库位于 `repo.airymaxos.dev`，全球设镜像节点：
 
 | 镜像节点 | 区域 | 同步频率 | 延迟 |
 |---------|------|----------|------|
@@ -433,7 +433,7 @@ rsync -avz --dry-run --delete \
 # /etc/yum.repos.d/airymaxos-mirrors.repo
 # 主仓库
 [airymaxos-stable]
-name=agentrt-linux (AirymaxOS) Stable
+name=agent-linux (AirymaxOS) Stable
 mirrorlist=https://mirrors.airymaxos.dev/metalink?repo=airymaxos-stable&arch=$basearch
 enabled=1
 gpgcheck=1
@@ -489,7 +489,7 @@ done
 ```ini
 # dnf 自动 failover 配置
 [airymaxos-stable]
-name=agentrt-linux (AirymaxOS) Stable
+name=agent-linux (AirymaxOS) Stable
 baseurl=https://repo.airymaxos.dev/1.0/stable/$basearch/
         https://mirror.cn.airymaxos.dev/1.0/stable/$basearch/
         https://mirror.eu.airymaxos.dev/1.0/stable/$basearch/
@@ -547,7 +547,7 @@ int airy_repo_publish(const char *repo_dir, const char *rpm_dir)
     if (err)
         goto out_free_metadata;
 
-    pr_info("agentrt-linux: 仓库 %s 发布完成\n", repo_dir);
+    pr_info("agent-linux: 仓库 %s 发布完成\n", repo_dir);
     return 0;
 
 out_free_metadata:
@@ -607,4 +607,4 @@ out_free_ctx:
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）dnf 仓库设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）dnf 仓库设计 v1.0.1

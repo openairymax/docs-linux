@@ -355,7 +355,7 @@ struct airy_ring_state {
  *   - fastpath 内联 C-S9 在 airy_uring_cmd() 中完成（~10ns）
  *   - 本钩子做"二次 C-S9"（缓存命中 ~5ns），确保 LSM 链中 capability 优先
  *   - 若二次校验与 fastpath 结果不一致（极小概率竞态），以本钩子结果为准
- *     —— 这是 H4（agentrt-linux 内核 Badge 由 sec_d 编译）的最终裁决点
+ *     —— 这是 H4（agent-linux 内核 Badge 由 sec_d 编译）的最终裁决点
  *
  * OLK 6.6 对齐:
  *   - security_uring_cmd 钩子签名为单参数（include/linux/lsm_hook_defs.h:422）

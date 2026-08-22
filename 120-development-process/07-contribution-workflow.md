@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）贡献者工作流
-> **文档定位**：agentrt-linux（AirymaxOS）120-development-process 模块第 7 卷——贡献者工作流。本文档详述贡献者等级体系、DCO 协议、贡献流程、新贡献者引导、认领机制、贡献统计与认可以及与 agentrt 社区的跨项目协调，是维护者层级制度（02 卷）在贡献者维度的展开。\
+# agent-linux（AirymaxOS）贡献者工作流
+> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 7 卷——贡献者工作流。本文档详述贡献者等级体系、DCO 协议、贡献流程、新贡献者引导、认领机制、贡献统计与认可以及与 agentrt 社区的跨项目协调，是维护者层级制度（02 卷）在贡献者维度的展开。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[120-development-process README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块定位与范围
 
-本文档是 120-development-process 模块的第 7 卷，回答"如何成为一名贡献者、如何晋升、如何认领任务、如何被认可"。它继承 Linux 6.6 内核 `submitting-patches.rst` 第 1-3 节的贡献者协议，并将其适配到 agentrt-linux 的 4 级贡献者等级体系。
+本文档是 120-development-process 模块的第 7 卷，回答"如何成为一名贡献者、如何晋升、如何认领任务、如何被认可"。它继承 Linux 6.6 内核 `submitting-patches.rst` 第 1-3 节的贡献者协议，并将其适配到 agent-linux 的 4 级贡献者等级体系。
 
 ### 1.1 与维护者层级制度的关系
 
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 适用范围
 
-本文档适用于所有向 agentrt-linux 8 子仓贡献代码、文档、测试、Issue 的个人与组织。涉及 agentrt（用户态）跨项目贡献的协调见第 8 节。
+本文档适用于所有向 agent-linux 8 子仓贡献代码、文档、测试、Issue 的个人与组织。涉及 agentrt（用户态）跨项目贡献的协调见第 8 节。
 
 ### 1.3 关键术语
 
@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 4 级等级体系
 
-agentrt-linux 采用 4 级贡献者等级体系，对应 Linux 内核的 Contributor → Reviewer → Maintainer → Subsystem Maintainer 模型。
+agent-linux 采用 4 级贡献者等级体系，对应 Linux 内核的 Contributor → Reviewer → Maintainer → Subsystem Maintainer 模型。
 
 ```mermaid
 flowchart TD
@@ -132,7 +132,7 @@ flowchart TD
 
 ### 3.1 DCO 简介
 
-agentrt-linux 采用 DCO（Developer Certificate of Origin）v1.1 作为贡献者协议，而非 CLA。DCO 是 Linux 内核社区的标准做法，贡献者通过在 commit 添加 `Signed-off-by` 行声明：
+agent-linux 采用 DCO（Developer Certificate of Origin）v1.1 作为贡献者协议，而非 CLA。DCO 是 Linux 内核社区的标准做法，贡献者通过在 commit 添加 `Signed-off-by` 行声明：
 
 - 该贡献是我自己创作或有权提交的。
 - 该贡献基于开源许可证提交。
@@ -338,16 +338,16 @@ flowchart LR
 
 ### 8.1 跨项目贡献者协调
 
-agentrt（用户态运行时）与 agentrt-linux（内核发行版）是同源项目，共享 12 个 [SC] 头文件。涉及 [SC] 变更的贡献需在两个项目同时进行。
+agentrt（用户态运行时）与 agent-linux（内核发行版）是同源项目，共享 12 个 [SC] 头文件。涉及 [SC] 变更的贡献需在两个项目同时进行。
 
-- **跨项目贡献者**：贡献者可同时向 agentrt 与 agentrt-linux 贡献。
-- **跨项目 PR**：[SC] 变更必须在 agentrt 与 agentrt-linux 同时发起 PR，PR 描述中互相引用。
+- **跨项目贡献者**：贡献者可同时向 agentrt 与 agent-linux 贡献。
+- **跨项目 PR**：[SC] 变更必须在 agentrt 与 agent-linux 同时发起 PR，PR 描述中互相引用。
 - **跨项目审查**：[SC] PR 必须由双端审查者审查签字。
-- **跨项目等级**：在 agentrt 的贡献者等级与在 agentrt-linux 的贡献者等级独立计算，不自动互通。
+- **跨项目等级**：在 agentrt 的贡献者等级与在 agent-linux 的贡献者等级独立计算，不自动互通。
 
 ### 8.2 同源 API 季度评审
 
-- **评审频率**：每季度由 SSoT 委员会组织 agentrt ↔ agentrt-linux 同源 API 评审。
+- **评审频率**：每季度由 SSoT 委员会组织 agentrt ↔ agent-linux 同源 API 评审。
 - **评审内容**：
   - 12 个 [SC] 头文件的双端一致性（逐字节校验）。
   - 同源 API 的语义一致性（[SS] 语义同源层）。
@@ -357,14 +357,14 @@ agentrt（用户态运行时）与 agentrt-linux（内核发行版）是同源�
 
 ### 8.3 跨项目Issue 互通
 
-- agentrt 与 agentrt-linux 的 issue tracker 互通：
-  - agentrt 发现的内核相关 issue 转移到 agentrt-linux。
-  - agentrt-linux 发现的用户态相关 issue 转移到 agentrt。
-- **转移流程**：在原 issue 评论 `@transfer-to-agentrt` 或 `@transfer-to-agentrt-linux`，bot 自动转移并保留引用。
+- agentrt 与 agent-linux 的 issue tracker 互通：
+  - agentrt 发现的内核相关 issue 转移到 agent-linux。
+  - agent-linux 发现的用户态相关 issue 转移到 agentrt。
+- **转移流程**：在原 issue 评论 `@transfer-to-agentrt` 或 `@transfer-to-agent-linux`，bot 自动转移并保留引用。
 
 ### 8.4 跨项目行为准则
 
-- agentrt 与 agentrt-linux 共享统一的行为准则（CoC）。
+- agentrt 与 agent-linux 共享统一的行为准则（CoC）。
 - 跨项目违规由统一 CoC 委员会处理。
 - OS-DEV-709：在一个项目违规的处罚适用于另一个项目。
 
@@ -374,7 +374,7 @@ agentrt（用户态运行时）与 agentrt-linux（内核发行版）是同源�
 
 ### 9.1 CoC 核心原则
 
-agentrt-linux 遵循 Contributor Covenant 2.1 行为准则，核心原则：
+agent-linux 遵循 Contributor Covenant 2.1 行为准则，核心原则：
 
 - 友善与包容。
 - 尊重不同观点与经验。
@@ -447,4 +447,4 @@ agentrt-linux 遵循 Contributor Covenant 2.1 行为准则，核心原则：
 
 ---
 
-> **文档结束** | agentrt-linux 贡献者工作流 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 贡献者工作流 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

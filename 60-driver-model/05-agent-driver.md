@@ -1,19 +1,19 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — Agent 虚拟设备驱动
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第五篇——agentrt-linux 专属 Agent 虚拟设备驱动模型（核心抽象）\
+# agent-linux（AirymaxOS）驱动模型 — Agent 虚拟设备驱动
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第五篇——agent-linux 专属 Agent 虚拟设备驱动模型（核心抽象）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[60-driver-model README](README.md)\
 > **同源映射**：agentrt `daemons`（cogn_d/mem_d/dev_d 守护进程）+ Linux 6.6 `drivers/base/`（driver 框架扩展）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + Airymax Unify Design（A-ULS 设备生命周期 + A-IPC fastpath）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——Agent 虚拟设备驱动是 agentrt-linux 专属，不回传上游内核；[DSL] 降级生存层保证驱动不可用时回退到系统调用
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——Agent 虚拟设备驱动是 agent-linux 专属，不回传上游内核；[DSL] 降级生存层保证驱动不可用时回退到系统调用
 
 ---
 
 ## 1. 概述
 
-Agent 虚拟设备驱动是 agentrt-linux 区别于通用 Linux 发行版的核心抽象。它将"Agent 行为契约"作为一类虚拟设备纳入 Linux device/driver/bus 三元组——Agent 实现模块作为 driver，Agent 实例作为 device，匹配两者的是 agentrt-linux 自研的 `agent_bus_type`（用户态）+ `agent_driver` 内核封装（内核态薄层）。
+Agent 虚拟设备驱动是 agent-linux 区别于通用 Linux 发行版的核心抽象。它将"Agent 行为契约"作为一类虚拟设备纳入 Linux device/driver/bus 三元组——Agent 实现模块作为 driver，Agent 实例作为 device，匹配两者的是 agent-linux 自研的 `agent_bus_type`（用户态）+ `agent_driver` 内核封装（内核态薄层）。
 
 这一抽象的设计动机有三：
 
@@ -29,7 +29,7 @@ Agent 虚拟设备驱动是 agentrt-linux 区别于通用 Linux 发行版的核�
 | 记忆存储器 | mem_d | `AIRY_DEV_MEM` | 长期/工作记忆读写 | 记忆向量批量检索 |
 | 工具执行器 | dev_d | `AIRY_DEV_TOOL` | 外部工具调用 | 异步工具结果回传 |
 
-> **OS-DRV-080**： Agent 虚拟设备驱动**必须**通过 `airy_agent_driver_register` 注册到 agentrt-linux 自研的 agent driver 框架，禁止直接使用 `driver_register`。这是 A-ULS 监管强制约束——绕过注册的 Agent 驱动无法获得 Capability、配额、审计等监管能力。
+> **OS-DRV-080**： Agent 虚拟设备驱动**必须**通过 `airy_agent_driver_register` 注册到 agent-linux 自研的 agent driver 框架，禁止直接使用 `driver_register`。这是 A-ULS 监管强制约束——绕过注册的 Agent 驱动无法获得 Capability、配额、审计等监管能力。
 
 > **OS-DRV-081**： Agent 虚拟设备驱动的 `probe` / `remove` 回调必须通过 devm 资源托管（参见 [03-devm-resource.md](03-devm-resource.md)）申请所有资源——禁止裸调用 `kmalloc` / `ioremap` 等。airy_lsm 钩子会拒绝未通过 devm 托管的资源申请。
 
@@ -69,7 +69,7 @@ graph TB
 
 ### 2.2 内核薄层设计原则
 
-agentrt-linux 遵循 K-1 内核极简原则——Agent 设备模型的"业务逻辑"（认知推理、记忆检索、工具调用）全部在用户态 daemon 实现，内核态仅保留"薄层"：
+agent-linux 遵循 K-1 内核极简原则——Agent 设备模型的"业务逻辑"（认知推理、记忆检索、工具调用）全部在用户态 daemon 实现，内核态仅保留"薄层"：
 
 | 内核态职责 | 用户态职责 |
 |-----------|-----------|
@@ -221,7 +221,7 @@ int airy_agent_driver_register(struct airy_agent_driver *drv, u32 cap_mask)
 
 ### 4.1 三种设备类型
 
-agentrt-linux v1.0.1 定义三种 Agent 设备类型：
+agent-linux v1.0.1 定义三种 Agent 设备类型：
 
 ```c
 /* include/uapi/linux/airymax/agent_dev.h */
@@ -300,7 +300,7 @@ static inline const char *airy_dev_type_str(u32 type)
  * @daemon_id:     对应的用户态 daemon ID（cogn_d/mem_d/dev_d）
  * @priv:          驱动私有数据
  *
- * agentrt-linux v1.0.1 专属扩展，不回传上游内核（[IND] 独立实现层）。
+ * agent-linux v1.0.1 专属扩展，不回传上游内核（[IND] 独立实现层）。
  */
 struct airy_agent_driver {
     struct device_driver          driver;
@@ -322,7 +322,7 @@ struct airy_agent_driver {
 /**
  * struct airy_agent_driver_ops - Agent 驱动操作表
  *
- * probe/remove 与 Linux 标准 driver 一致，其余为 agentrt-linux 扩展。
+ * probe/remove 与 Linux 标准 driver 一致，其余为 agent-linux 扩展。
  */
 struct airy_agent_driver_ops {
     /**
@@ -887,4 +887,4 @@ v1.0 文档（`02-platform-driver.md` §5）简要提及"Agent 虚拟设备驱�
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 — Agent 虚拟设备驱动 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型 — Agent 虚拟设备驱动 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

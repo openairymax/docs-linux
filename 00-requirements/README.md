@@ -1,21 +1,21 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 需求分析
-> **文档定位**：agentrt-linux（AirymaxOS）需求分析体系的总入口与纲领性文档，定义需求分层模型、需求来源、需求追溯关系，并向下展开为业务需求、功能需求、非功能需求三个子文档。\
+# agent-linux 需求分析
+> **文档定位**：agent-linux（AirymaxOS）需求分析体系的总入口与纲领性文档，定义需求分层模型、需求来源、需求追溯关系，并向下展开为业务需求、功能需求、非功能需求三个子文档。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **正式全称**：agentrt-linux（AirymaxOS，极境智能体操作系统，简称 AirymaxOS）\
-> **仓库别名**：agentrt-linux（仓库名）\
-> **上级文档**：[agentrt-linux 总览](../README.md)
+> **正式全称**：agent-linux（AirymaxOS，极境智能体操作系统，简称 AirymaxOS）\
+> **仓库别名**：agent-linux（仓库名）\
+> **上级文档**：[agent-linux 总览](../README.md)
 
 ---
 
 ## 1. 模块概述
 
-本文档（`00-requirements/README.md`）是 agentrt-linux 需求分析体系的**顶层纲领**，承担三项核心职责：
+本文档（`00-requirements/README.md`）是 agent-linux 需求分析体系的**顶层纲领**，承担三项核心职责：
 
-1. **统一需求语言**：为 agentrt-linux 8 个子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux）提供一致的需求分类、编号与追溯框架。
-2. **定义需求分层**：将 agentrt-linux 的全部需求自顶向下分解为「业务需求 → 功能需求 → 非功能需求」三层，确保从用户场景到工程指标的可追溯性。
+1. **统一需求语言**：为 agent-linux 8 个子仓（kernel / services / security / memory / cognition / cloudnative / system / tests-linux）提供一致的需求分类、编号与追溯框架。
+2. **定义需求分层**：将 agent-linux 的全部需求自顶向下分解为「业务需求 → 功能需求 → 非功能需求」三层，确保从用户场景到工程指标的可追溯性。
 3. **链接下游设计**：作为需求层与架构设计层、模块设计层、接口设计层、数据流程设计层之间的桥梁，建立"需求 → 设计 → 实现 → 验证"的完整闭环。
 
 需求层覆盖 Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）的需求维度：业务需求刻画五模块面向的用户场景，功能需求定义五模块的具体能力，非功能需求约束五模块的质量属性。
@@ -24,7 +24,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 技术选型声明
 
-本目录的需求条目以 agentrt-linux v1.0 五大技术选型为基线，所有需求均不得偏离以下选型：
+本目录的需求条目以 agent-linux v1.0 五大技术选型为基线，所有需求均不得偏离以下选型：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 对需求的影响 |
 |---|---------|---------|----------------|---------|
@@ -42,15 +42,15 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | # | 文档 | 关注维度 | 编号前缀 | 核心问题 | 版本 | 状态 |
 |---|------|---------|---------|---------|------|------|
-| 1 | [01-business-requirements.md](01-business-requirements.md) | 用户与生态维度 | BR- | agentrt-linux 为谁解决什么问题？ | v1.0 | 维护中 |
-| 2 | [02-functional-requirements.md](02-functional-requirements.md) | 能力与行为维度 | FR- | agentrt-linux 提供哪些具体能力？ | v1.0 | 维护中 |
-| 3 | [03-non-functional-requirements.md](03-non-functional-requirements.md) | 质量属性维度 | NFR- | agentrt-linux 的能力要做到多好？ | v1.0 | 维护中 |
+| 1 | [01-business-requirements.md](01-business-requirements.md) | 用户与生态维度 | BR- | agent-linux 为谁解决什么问题？ | v1.0 | 维护中 |
+| 2 | [02-functional-requirements.md](02-functional-requirements.md) | 能力与行为维度 | FR- | agent-linux 提供哪些具体能力？ | v1.0 | 维护中 |
+| 3 | [03-non-functional-requirements.md](03-non-functional-requirements.md) | 质量属性维度 | NFR- | agent-linux 的能力要做到多好？ | v1.0 | 维护中 |
 
 ---
 
 ## 4. 需求分层模型
 
-agentrt-linux 采用经典的**三层需求分层模型**，借鉴 IEEE 830 与 ISO/IEC 25010 的需求工程思想，并结合 Airymax 的「五维正交 24 原则」中的「S-2 层次分解原则」与「E-8 可测试性原则」进行适配。
+agent-linux 采用经典的**三层需求分层模型**，借鉴 IEEE 830 与 ISO/IEC 25010 的需求工程思想，并结合 Airymax 的「五维正交 24 原则」中的「S-2 层次分解原则」与「E-8 可测试性原则」进行适配。
 
 ### 4.1 三层需求定义
 
@@ -58,7 +58,7 @@ agentrt-linux 采用经典的**三层需求分层模型**，借鉴 IEEE 830 与 
 +=====================================================================+
 |                  第一层：业务需求（Business Requirements）            |
 |   来源：Agent 工作负载 / AI 原生 / 云原生 / Linux 企业级生态           |
-|   关注：agentrt-linux 为谁解决什么问题，带来什么价值                       |
+|   关注：agent-linux 为谁解决什么问题，带来什么价值                       |
 |   编号：BR-001 ~ BR-0XX                                              |
 |   验证：用户场景验收测试（UAT）                                       |
 +=====================================================================+
@@ -67,7 +67,7 @@ agentrt-linux 采用经典的**三层需求分层模型**，借鉴 IEEE 830 与 
 +=====================================================================+
 |                  第二层：功能需求（Functional Requirements）           |
 |   来源：8 子仓职责 / agentrt 同源模块 / Unify Design 五模块              |
-|   关注：agentrt-linux 提供哪些具体功能能力（输入 → 处理 → 输出）          |
+|   关注：agent-linux 提供哪些具体功能能力（输入 → 处理 → 输出）          |
 |   编号：FR-001 ~ FR-0XX                                              |
 |   验证：单元测试 + 集成测试 + 契约测试                                |
 +=====================================================================+
@@ -96,11 +96,11 @@ agentrt-linux 采用经典的**三层需求分层模型**，借鉴 IEEE 830 与 
 
 ## 5. 需求来源
 
-agentrt-linux 的需求来源遵循**四源汇聚**原则：
+agent-linux 的需求来源遵循**四源汇聚**原则：
 
 ### 5.1 来源一：agentrt 同源（设计同源性）
 
-| 同源维度 | agentrt 侧 | agentrt-linux 侧 | 同源红利 |
+| 同源维度 | agentrt 侧 | agent-linux 侧 | 同源红利 |
 | ------ | --------- | --------------- | --------- |
 | 调度语义 | MicroCoreRT 调度器 | sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF） | 架构同源，无适配层 |
 | IPC 协议 | AgentsIPC（128B 消息头） | A-IPC（io_uring IORING_OP_URING_CMD 零拷贝） | 协议同源，低延迟 |
@@ -110,15 +110,15 @@ agentrt-linux 的需求来源遵循**四源汇聚**原则：
 
 ### 5.2 来源二：Linux 企业级生态标准规范
 
-agentrt-linux 全面参考 Linux 企业级生态标准，对齐其模块设计与技术规格。内核基线锁定 Linux 6.6（1.0.1 系列），后续 2.0.0 升级至 Linux 7.1（ADR-013）。
+agent-linux 全面参考 Linux 企业级生态标准，对齐其模块设计与技术规格。内核基线锁定 Linux 6.6（1.0.1 系列），后续 2.0.0 升级至 Linux 7.1（ADR-013）。
 
 ### 5.3 来源三：微内核设计思想
 
-**微内核设计思想唯一来源：seL4**（ADR-014，2026-07-09 确立）。agentrt-linux 的微内核核心思想仅来源于 seL4，不引入 Zircon / Minix3 / 其他微内核架构。
+**微内核设计思想唯一来源：seL4**（ADR-014，2026-07-09 确立）。agent-linux 的微内核核心思想仅来源于 seL4，不引入 Zircon / Minix3 / 其他微内核架构。
 
 ### 5.4 来源四：Agent 工作负载
 
-agentrt-linux 作为通用 AI Agent 运行底座，面向四类核心工作负载模式：长序列知识密集型、高并发交互型、实时控制型、多模态感知型。
+agent-linux 作为通用 AI Agent 运行底座，面向四类核心工作负载模式：长序列知识密集型、高并发交互型、实时控制型、多模态感知型。
 
 ---
 
@@ -138,7 +138,7 @@ agentrt-linux 作为通用 AI Agent 运行底座，面向四类核心工作负�
 
 ## 7. 需求编号规则
 
-agentrt-linux 需求采用统一的「前缀-序号」编号规则：
+agent-linux 需求采用统一的「前缀-序号」编号规则：
 
 | 需求层次 | 编号前缀 | 编号示例 | 数量预估 |
 | -------- | ------ | ------------------- | ------ |
@@ -178,7 +178,7 @@ agentrt-linux 需求采用统一的「前缀-序号」编号规则：
 
 ### 9.2 上游参考文档
 
-- [agentrt-linux 总览](../README.md)：agentrt-linux v1.0 整体设计与技术选型声明
+- [agent-linux 总览](../README.md)：agent-linux v1.0 整体设计与技术选型声明
 - [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ### 9.3 下游设计文档
@@ -201,4 +201,4 @@ agentrt-linux 需求采用统一的「前缀-序号」编号规则：
 
 ---
 
-> **文档结束** | agentrt-linux v1.0.1 需求分析 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux v1.0.1 需求分析 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

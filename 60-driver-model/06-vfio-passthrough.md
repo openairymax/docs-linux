@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型 — VFIO 直通与 IOMMU 隔离
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统 60 模块第六篇——VFIO 直通设计与 IOMMU 安全隔离\
+# agent-linux（AirymaxOS）驱动模型 — VFIO 直通与 IOMMU 隔离
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统 60 模块第六篇——VFIO 直通设计与 IOMMU 安全隔离\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[60-driver-model README](README.md)\
@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 概述
 
-VFIO（Virtual Function I/O）是 Linux 内核提供的"设备直通"框架——它将物理设备（GPU、NIC、NPU）安全地分配给用户态进程，绕过内核驱动栈，实现近乎裸金的性能。agentrt-linux v1.0.1 选择 VFIO 作为 Agent 访问重型硬件（GPU 推理、NIC 高速网络、NPU 加速）的标准接口。
+VFIO（Virtual Function I/O）是 Linux 内核提供的"设备直通"框架——它将物理设备（GPU、NIC、NPU）安全地分配给用户态进程，绕过内核驱动栈，实现近乎裸金的性能。agent-linux v1.0.1 选择 VFIO 作为 Agent 访问重型硬件（GPU 推理、NIC 高速网络、NPU 加速）的标准接口。
 
 VFIO 直通的核心安全机制是 **IOMMU（Input/Output Memory Management Unit）**——硬件级 DMA 地址空间隔离。每个 VFIO 设备归属一个 IOMMU 组，组内设备的 DMA 访问被限制在显式映射的物理页范围内，无法越界访问其他 Agent 或内核内存。
 
@@ -74,7 +74,7 @@ IOMMU 组是"DMA 隔离的最小单元"——同组设备共享同一 IOMMU 隔�
 - 多功能 PCI 设备（如 GPU + Audio）：同组（共享 IOMMU 隔离域）
 - PCIe-to-PCI 桥：桥后所有设备同组（PCI 总线无 ACS 隔离）
 
-agentrt-linux 要求：**直通给 Agent 的设备必须是独立 IOMMU 组**——同组有其他设备时，整组设备必须直通给同一 Agent 或不直通。
+agent-linux 要求：**直通给 Agent 的设备必须是独立 IOMMU 组**——同组有其他设备时，整组设备必须直通给同一 Agent 或不直通。
 
 > **OS-DRV-102**： Agent VFIO 直通的设备所属 IOMMU 组**不得**包含其他 Agent 或内核关键设备。这是 A-ULS 隔离原则的硬性约束，违反将导致 DMA 跨 Agent 越界。
 
@@ -307,7 +307,7 @@ stateDiagram-v2
 
 ### 5.1 IOMMU 分组
 
-IOMMU 分组是 VFIO 安全的基石。agentrt-linux v1.0.1 的 IOMMU 分组校验流程：
+IOMMU 分组是 VFIO 安全的基石。agent-linux v1.0.1 的 IOMMU 分组校验流程：
 
 ```c
 /* daemons/dev_d/iommu_group.c — IOMMU 组校验 */
@@ -407,7 +407,7 @@ IOMMU fault 发生时（设备尝试访问未映射 IOVA），内核 VFIO fault 
 
 [AirymaxOS 总览](../README.md) §2 技术选型声明第 4 条规定：所有 DMA 共享内存严格采用 `alloc_pages + mmap` 方案，**不使用 DMA 一致性内存**（`dma_alloc_coherent`）。VFIO DMA 映射必须遵循此约束。
 
-| 方案 | agentrt-linux 选择 | 原因 |
+| 方案 | agent-linux 选择 | 原因 |
 |------|-------------------|------|
 | `alloc_pages + vm_map_pages` | **采用** | 跨架构一致（x86/ARM/RISC-V），不依赖硬件一致性缓存 |
 | `dma_alloc_coherent` | **不采用** | 依赖硬件一致性缓存，ARM/RISC-V 上行为不一致 |
@@ -502,11 +502,11 @@ out_free_region:
 | **缓存属性** | 显式 `pgprot_noncached` / `pgprot_writecombine` | 由 `dma_coherent_mask` 决定 |
 | **物理页连续性** | 由 `alloc_pages(gfp_mask, order)` 决定 | 由 `dma_alloc_coherent` 实现 |
 | **可移植性** | 高 | 低（ARM/RISC-V 上行为不一致） |
-| **agentrt-linux 选择** | **采用** | 不采用 |
+| **agent-linux 选择** | **采用** | 不采用 |
 
 ### 6.4 内核态 airymax_dma 驱动
 
-`/dev/airymax_dma` 设备由 agentrt-linux 自研的内核驱动提供，封装 `alloc_pages + vm_map_pages`：
+`/dev/airymax_dma` 设备由 agent-linux 自研的内核驱动提供，封装 `alloc_pages + vm_map_pages`：
 
 ```c
 /* drivers/airymax/dma/airymax_dma.c — alloc_pages + mmap 封装 */
@@ -636,7 +636,7 @@ static struct security_hook_list airy_vfio_hooks[] __lsm_ro_after_init = {
 
 ### 8.1 降级触发条件
 
-VFIO 不可用时，agentrt-linux 提供降级路径：
+VFIO 不可用时，agent-linux 提供降级路径：
 
 | 触发条件 | 降级方式 | 性能影响 |
 |---------|---------|---------|
@@ -750,7 +750,7 @@ VFIO 直通的测试覆盖在 [07-driver-testing.md](07-driver-testing.md) 详�
 
 v1.0 文档（`01-device-model.md` §1）简要提及 VFIO 直通概念，但未系统化定义。v1.0.1 系统化定义：
 
-1. **VFIO 三层模型**（group/container/device）在 agentrt-linux 的应用
+1. **VFIO 三层模型**（group/container/device）在 agent-linux 的应用
 2. **Agent 设备直通完整流程**（七步法）
 3. **IOMMU 安全隔离机制**（分组、DMA 隔离、fault 处理）
 4. **`alloc_pages + mmap` 替代 `dma_alloc_coherent`** 的具体实现
@@ -783,4 +783,4 @@ v1.0 文档（`01-device-model.md` §1）简要提及 VFIO 直通概念，但未
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型 — VFIO 直通与 IOMMU 隔离 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型 — VFIO 直通与 IOMMU 隔离 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

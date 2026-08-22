@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux 记忆设计文档
+# agent-linux 记忆设计文档
 
-> **文档定位**：agentrt-linux（AirymaxOS）记忆设计文档（memory，极境记忆&存储）\
+> **文档定位**：agent-linux（AirymaxOS）记忆设计文档（memory，极境记忆&存储）\
 > **文档版本**：v1.0.1\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 memoryrovol 通过 \[SC] 共享契约层 + \[SS] 语义同源层协作，\[IND] 内核态 CXL/PMEM/VFS 持久化实现独立\
 > **子仓编号**：04\
 > **子仓代号**：极境记忆（Airymax Memory）\
@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
   - [4.11 ADR 引用](#411-adr-引用)
 - [5. 微内核思想体现](#5-微内核思想体现)
 - [6. IRON-9 v3 四层共享模型落地](#6-iron-9-v3-四层共享模型落地)
-- [7. agentrt-linux 工程基线](#7-agentrt-linux-工程基线)
+- [7. agent-linux 工程基线](#7-agent-linux-工程基线)
 - [8. 前沿理论参考](#8-前沿理论参考)
 - [9. 与其他子仓的协作](#9-与其他子仓的协作)
 - [10. 里程碑（M0-M8）](#10-里程碑m0-m8)
@@ -39,7 +39,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 子仓职责
 
-`memory` 是 agentrt-linux（AirymaxOS）的记忆与存储子仓，承担以下核心职责：
+`memory` 是 agent-linux（AirymaxOS）的记忆与存储子仓，承担以下核心职责：
 
 1. **MemoryRovol 内核态实现 \[SS]**：将 agentrt 的 MemoryRovol（记忆卷载）升级为内核态实现，提供 Agent 记忆的持久化与卷载能力。L1-L4 层级枚举 `airy_mem_level` \[SC] 与 agentrt 共享。
 2. **CXL 内存分层与池化 \[IND]**：利用 2026 年 CXL 3.0 硬件普及，实现内存分层与池化。
@@ -51,7 +51,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 横切关注点声明
 
-记忆卷载贯穿 agentrt-linux 全部 4 大数据流：
+记忆卷载贯穿 agent-linux 全部 4 大数据流：
 
 | 数据流      | 记忆切入点                               | 同源标注   |
 | -------- | ----------------------------------- | ------ |
@@ -64,7 +64,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 同源关系（IRON-9 v3 四层共享模型）
 
-依据 IRON-9 v3 决策，agentrt（用户态 memoryrovol）与 agentrt-linux（内核态 memory）通过 v3 四层共享模型（[SC] 共享契约 + [SS] 同源签名 + [IND] 独立 + [DSL] 降级生存）协作：
+依据 IRON-9 v3 决策，agentrt（用户态 memoryrovol）与 agent-linux（内核态 memory）通过 v3 四层共享模型（[SC] 共享契约 + [SS] 同源签名 + [IND] 独立 + [DSL] 降级生存）协作：
 
 | 层次               | 共享程度          | 记忆子系统内容                                                                                                                  | 组织方式                             |
 | ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
@@ -75,7 +75,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 维度对比
 
-| 维度       | agentrt（heapstore + memoryrovol） | agentrt-linux（memory）           | 同源标注   |
+| 维度       | agentrt（heapstore + memoryrovol） | agent-linux（memory）           | 同源标注   |
 | -------- | -------------------------------- | ------------------------------- | ------ |
 | 记忆存储     | heapstore（用户态）                   | MemoryRovol 内核态 + heapstore 用户态 | \[SS]  |
 | 记忆卷载     | MemoryRovol（用户态）                 | MemoryRovol 内核态实现               | \[SS]  |
@@ -224,7 +224,7 @@ graph TD
 
 **MemoryRovol L1-L4 层级定义** \[SC]（`include/uapi/linux/airymax/memory_types.h`）：
 
-> **SSoT 声明**：以下为 `include/uapi/linux/airymax/memory_types.h` 中实际定义的内容，agentrt 用户态与 agentrt-linux 内核态两端直接 include 共享。SSoT 头文件**仅定义 L1-L4 层级枚举 `airy_mem_level`，不定义任何 L1-L4 Record/Block/Entry/Persistent 结构体**——具体记忆记录的数据结构由各端在 \[SS]/\[IND] 层独立定义。
+> **SSoT 声明**：以下为 `include/uapi/linux/airymax/memory_types.h` 中实际定义的内容，agentrt 用户态与 agent-linux 内核态两端直接 include 共享。SSoT 头文件**仅定义 L1-L4 层级枚举 `airy_mem_level`，不定义任何 L1-L4 Record/Block/Entry/Persistent 结构体**——具体记忆记录的数据结构由各端在 \[SS]/\[IND] 层独立定义。
 
 ```c
 /* 来源：include/uapi/linux/airymax/memory_types.h */
@@ -251,7 +251,7 @@ enum airy_mem_level {
 > | `AIRY_MEM_COLD` | L3 | 长期记忆层（低频读写） | CXL / NVMe |
 > | `AIRY_MEM_PMEM` | L4 | 持久记忆层（持久化） | PMEM |
 >
-> **说明性示例，非 SSoT 定义**：L1-L4 各层级具体记忆记录的数据结构（含 trace_id / generation / access_count / checksum 等字段）由 agentrt 与 agentrt-linux 在 \[SS]/\[IND] 层各自独立定义，**不在 `memory_types.h` 中共享**。本节早期版本曾虚构 `airy_mr_l1_record_t` / `airy_mr_l2_block_t` / `airy_mr_l3_entry_t` / `airy_mr_l4_persistent_t` 四个结构体并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——SSoT 头文件中并不存在这些类型。
+> **说明性示例，非 SSoT 定义**：L1-L4 各层级具体记忆记录的数据结构（含 trace_id / generation / access_count / checksum 等字段）由 agentrt 与 agent-linux 在 \[SS]/\[IND] 层各自独立定义，**不在 `memory_types.h` 中共享**。本节早期版本曾虚构 `airy_mr_l1_record_t` / `airy_mr_l2_block_t` / `airy_mr_l3_entry_t` / `airy_mr_l4_persistent_t` 四个结构体并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——SSoT 头文件中并不存在这些类型。
 
 **实现机制** \[IND]：
 
@@ -284,7 +284,7 @@ enum airy_mem_level {
 
 ### 4.3 PMEM 持久化内存 \[IND]
 
-> **SSoT 声明**：`include/uapi/linux/airymax/memory_types.h` 中**并未定义** `airy_pmem_ops_t` 结构体或任何 PMEM 操作回调接口。本节早期版本曾虚构 `airy_pmem_ops_t`（含 persist/flush/map/unmap 四函数指针）并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——SSoT 中 PMEM 仅以 `AIRY_MEM_PMEM` 枚举值（L4 持久层级）与 `AIRY_GFP_PMEM` 分配标志（0x08）形式出现。PMEM 设备驱动与持久化接口实现属 \[IND] 独立层，由 agentrt-linux 内核态 `pmem/` 目录独立实现（详见 §3.3）。
+> **SSoT 声明**：`include/uapi/linux/airymax/memory_types.h` 中**并未定义** `airy_pmem_ops_t` 结构体或任何 PMEM 操作回调接口。本节早期版本曾虚构 `airy_pmem_ops_t`（含 persist/flush/map/unmap 四函数指针）并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——SSoT 中 PMEM 仅以 `AIRY_MEM_PMEM` 枚举值（L4 持久层级）与 `AIRY_GFP_PMEM` 分配标志（0x08）形式出现。PMEM 设备驱动与持久化接口实现属 \[IND] 独立层，由 agent-linux 内核态 `pmem/` 目录独立实现（详见 §3.3）。
 
 **SSoT 中与 PMEM 相关的实际定义** \[SC]（`include/uapi/linux/airymax/memory_types.h`）：
 
@@ -317,7 +317,7 @@ enum airy_mem_level {
 
 **GFP 掩码语义** \[SC]（`include/uapi/linux/airymax/memory_types.h`）：
 
-> **SSoT 声明**：以下为 `include/uapi/linux/airymax/memory_types.h` 中实际定义的 GFP 掩码宏，agentrt 用户态与 agentrt-linux 内核态两端直接 include 共享。SSoT 中**仅定义 4 个 tier 选择标志**（HOT/WARM/COLD/PMEM），用于在 MemoryRovol L1-L4 层级间选择分配目标。本节早期版本曾虚构 `AIRY_GFP_IO` / `AIRY_GFP_FS` / `AIRY_GFP_RECLAIM` / `AIRY_GFP_KSWAPD` / `AIRY_GFP_HIGH` / `AIRY_GFP_NOWARN` / `AIRY_GFP_ZERO` 等 7 个仿 Linux 内核 GFP 标志并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——这些标志属 Linux 内核原生 GFP 体系，不在 `memory_types.h` 共享契约层中重复定义。
+> **SSoT 声明**：以下为 `include/uapi/linux/airymax/memory_types.h` 中实际定义的 GFP 掩码宏，agentrt 用户态与 agent-linux 内核态两端直接 include 共享。SSoT 中**仅定义 4 个 tier 选择标志**（HOT/WARM/COLD/PMEM），用于在 MemoryRovol L1-L4 层级间选择分配目标。本节早期版本曾虚构 `AIRY_GFP_IO` / `AIRY_GFP_FS` / `AIRY_GFP_RECLAIM` / `AIRY_GFP_KSWAPD` / `AIRY_GFP_HIGH` / `AIRY_GFP_NOWARN` / `AIRY_GFP_ZERO` 等 7 个仿 Linux 内核 GFP 标志并误标为 \[SC] 共享，已在 v1.0.1-fix 移除——这些标志属 Linux 内核原生 GFP 体系，不在 `memory_types.h` 共享契约层中重复定义。
 
 ```c
 /* 来源：include/uapi/linux/airymax/memory_types.h */
@@ -339,7 +339,7 @@ enum airy_mem_level {
 > #define AIRY_PAGE_CLASS_AGENT    0x08  /* Agent-private page */
 > ```
 >
-> **说明性示例，非 SSoT 定义**：Linux 原生 GFP 体系（`GFP_KERNEL` / `GFP_ATOMIC` / `__GFP_IO` / `__GFP_FS` / `__GFP_RECLAIM` / `__GFP_KSWAPD` 等）由 `include/linux/gfp.h` 提供，agentrt-linux 内核态实现直接复用，**不在 `memory_types.h` 中重复定义**。`AIRY_GFP_*` 仅作为 MemoryRovol 跨端共享的 tier 选择语义，与 Linux GFP 体系正交。
+> **说明性示例，非 SSoT 定义**：Linux 原生 GFP 体系（`GFP_KERNEL` / `GFP_ATOMIC` / `__GFP_IO` / `__GFP_FS` / `__GFP_RECLAIM` / `__GFP_KSWAPD` 等）由 `include/linux/gfp.h` 提供，agent-linux 内核态实现直接复用，**不在 `memory_types.h` 中重复定义**。`AIRY_GFP_*` 仅作为 MemoryRovol 跨端共享的 tier 选择语义，与 Linux GFP 体系正交。
 
 **改进** \[SS]：
 
@@ -549,7 +549,7 @@ out_free_pages:
 
 > **关键约束**：registered buffer 使用 `alloc_pages()` + `mmap()` 模式，**不使用 DMA 一致性内存**（`dma_alloc_coherent()`）。MemoryRovol L1 数据通过 userfaultfd 按需加载，无需设备 DMA 一致性保证。该约束源自 OLK 6.6 工程规范——DMA 一致性内存资源稀缺，仅在设备驱动场景使用。
 >
-> **OLK 6.6 smart grid 扩展说明**：OLK 6.6 的 `__alloc_pages_mpol(gfp, order, mpol, ilx, nid, use_smart_grid)` 相比 vanilla 主线多出第 6 个参数 `bool use_smart_grid`，这是 openEuler 特有扩展。agentrt-linux 不依赖此扩展，MemoryRovol 内核态使用标准 `alloc_pages()` / `alloc_pages_bulk_array()` 接口。
+> **OLK 6.6 smart grid 扩展说明**：OLK 6.6 的 `__alloc_pages_mpol(gfp, order, mpol, ilx, nid, use_smart_grid)` 相比 vanilla 主线多出第 6 个参数 `bool use_smart_grid`，这是 openEuler 特有扩展。agent-linux 不依赖此扩展，MemoryRovol 内核态使用标准 `alloc_pages()` / `alloc_pages_bulk_array()` 接口。
 
 ### 4.10 Badge 在 MemoryRovol 中的应用
 
@@ -611,7 +611,7 @@ MemoryRovol L1-L4 分层访问受 `sec_d` 颁发的 Badge 权限控制。`mem_d`
 
 ### 6.1 \[SC] 共享契约层——`include/uapi/linux/airymax/memory_types.h`
 
-本头文件完全共享代码，agentrt 用户态与 agentrt-linux 内核态两端直接 include。内容清单（**以 SSoT 头文件实际定义为唯一依据**）：
+本头文件完全共享代码，agentrt 用户态与 agent-linux 内核态两端直接 include。内容清单（**以 SSoT 头文件实际定义为唯一依据**）：
 
 | 内容 | 类别 | 说明 |
 | --- | --- | --- |
@@ -626,7 +626,7 @@ MemoryRovol L1-L4 分层访问受 `sec_d` 颁发的 Badge 权限控制。`mem_d`
 
 操作模式同源（概念操作一致），函数签名因抽象层级不同而独立：
 
-| 序号 | API                  | 语义     | agentrt 实现   | agentrt-linux 实现         |
+| 序号 | API                  | 语义     | agentrt 实现   | agent-linux 实现         |
 | -- | -------------------- | ------ | ------------ | ------------------------ |
 | 1  | `rovol_snapshot()`   | 创建记忆快照 | 用户态 fork+COW | 内核 fork+userfaultfd      |
 | 2  | `rovol_restore()`    | 恢复记忆   | 用户态 mmap     | 内核 mmap+userfaultfd      |
@@ -639,11 +639,11 @@ MemoryRovol L1-L4 分层访问受 `sec_d` 颁发的 Badge 权限控制。`mem_d`
 
 | 序号 | 内容            | 不共享原因                          |
 | -- | ------------- | ------------------------------ |
-| 1  | CXL 设备驱动      | 硬件驱动仅 agentrt-linux 内核态        |
-| 2  | PMEM 设备驱动     | nvdimm 驱动仅 agentrt-linux 内核态   |
-| 3  | VFS 持久化层实现    | 文件系统后端仅 agentrt-linux          |
-| 4  | THP 优化实现      | khugepaged 仅 agentrt-linux 内核态 |
-| 5  | zswap/zram 集成 | 内核压缩框架仅 agentrt-linux          |
+| 1  | CXL 设备驱动      | 硬件驱动仅 agent-linux 内核态        |
+| 2  | PMEM 设备驱动     | nvdimm 驱动仅 agent-linux 内核态   |
+| 3  | VFS 持久化层实现    | 文件系统后端仅 agent-linux          |
+| 4  | THP 优化实现      | khugepaged 仅 agent-linux 内核态 |
+| 5  | zswap/zram 集成 | 内核压缩框架仅 agent-linux          |
 
 ### 6.4 \[DSL] 降级生存层——`#ifdef AIRY_SC_FALLBACK` 降级块
 
@@ -683,7 +683,7 @@ MemoryRovol L1-L4 分层访问受 `sec_d` 颁发的 Badge 权限控制。`mem_d`
 | 5 | MemoryRovol 实现 | 内核态实现 + CXL/PMEM tier 分层 | 降级为 agentrt 用户态 heapstore 实现（仅 DRAM 单层）——属 \[IND] 层降级，不在 SSoT 中 |
 | 6 | `alloc_pages` + `mmap` | 内核 registered buffer + 零拷贝 | 仍可使用，仅 tier 标志退化为 HOT——属 \[IND] 层降级 |
 
-> **\[DSL] 设计原则**：降级生存不等于功能完整——SSoT DSL 块仅折叠 \[SC] 共享契约层的 tier/GFP/page class 标志至 L1 hot 单层；CXL/PMEM tier 退化、零拷贝退化为拷贝等 \[IND] 层降级由各端独立处理。降级模式下性能显著下降，但保证 agentrt 用户态代码可在不支持 agentrt-linux 内核的平台上运行（兼容性优先）。详见 [DSL] §2.2 和 §4.1（SSoT 头文件注释引用）。
+> **\[DSL] 设计原则**：降级生存不等于功能完整——SSoT DSL 块仅折叠 \[SC] 共享契约层的 tier/GFP/page class 标志至 L1 hot 单层；CXL/PMEM tier 退化、零拷贝退化为拷贝等 \[IND] 层降级由各端独立处理。降级模式下性能显著下降，但保证 agentrt 用户态代码可在不支持 agent-linux 内核的平台上运行（兼容性优先）。详见 [DSL] §2.2 和 §4.1（SSoT 头文件注释引用）。
 
 ### 6.5 跨态协作流
 
@@ -692,7 +692,7 @@ sequenceDiagram
     participant AGENT as Agent 进程
     participant ROV_U as agentrt MemoryRovol (用户态)
     participant IPC as io_uring / AgentsIPC
-    participant ROV_K as agentrt-linux MemoryRovol kthread (内核态)
+    participant ROV_K as agent-linux MemoryRovol kthread (内核态)
     participant MGLRU as MGLRU 回收
     participant PMEM as PMEM/CXL 设备
 
@@ -712,12 +712,12 @@ sequenceDiagram
 
 ***
 
-## 7. agentrt-linux 工程基线
+## 7. agent-linux 工程基线
 
-- **agentrt-linux 内存管理**：MGLRU、CXL、THP 等特性贡献。
-- **agentrt-linux 内存分层**：内存分层策略基线。
-- **agentrt-linux PMEM**：持久化内存支持。
-- **agentrt-linux CXL**：CXL 设备支持。
+- **agent-linux 内存管理**：MGLRU、CXL、THP 等特性贡献。
+- **agent-linux 内存分层**：内存分层策略基线。
+- **agent-linux PMEM**：持久化内存支持。
+- **agent-linux CXL**：CXL 设备支持。
 - **Linux 6.6 内核基线**：MGLRU + userfaultfd + THP + CXL bus + ZONE\_DEVICE + DAX。
 
 ### 7.1 五维正交 24 原则映射
@@ -813,7 +813,7 @@ AirymaxOS 用户态 **12 daemon**（daemon 命名后缀统一为 `_d`，**无例
 
 对 agentrt heapstore + memoryrovol 设计进行一致性检查，确认两端在 IRON-9 v3 四层共享模型下无冲突（**以 SSoT 头文件 `include/uapi/linux/airymax/memory_types.h` 实际定义为唯一依据**）：
 
-| 序号 | 检查项 | agentrt 状态 | agentrt-linux 状态 | 结论 |
+| 序号 | 检查项 | agentrt 状态 | agent-linux 状态 | 结论 |
 | -- | --- | --- | --- | --- |
 | 1  | `airy_mem_level` 枚举一致性 | `AIRY_MEM_HOT/WARM/COLD/PMEM/LEVEL_MAX` | 同（直接 include SSoT） | PASS \[SC] |
 | 2  | L1-L4 层级语义一致性 | HOT=L1 / WARM=L2 / COLD=L3 / PMEM=L4 | 同 | PASS \[SC] |
@@ -867,7 +867,7 @@ AirymaxOS 用户态 **12 daemon**（daemon 命名后缀统一为 `_d`，**无例
 - Linux 6.6 `include/uapi/linux/io_uring.h`（`io_uring_cmd_to_pdu()` 安全宏 + `io_uring_cmd_done()` 4 参数 + `IORING_SETUP_SQE128` + registered buffer 接口）
 - Linux 6.6 `mm/page_alloc.c`（`alloc_pages()` + `alloc_pages_bulk_array()` 接口）
 - PMEM 文档（Intel）
-- agentrt-linux 内存管理文档
+- agent-linux 内存管理文档
 - agentrt heapstore + memoryrovol 设计文档
 - Liedtke SOSP'95（微内核最小化原则，seL4 思想来源之一，ADR-014）
 

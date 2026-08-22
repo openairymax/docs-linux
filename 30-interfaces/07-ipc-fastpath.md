@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # IPC Fastpath 状态机设计
-> **文档定位**：agentrt-linux（AirymaxOS） IPC Fastpath 状态机设计——fastpath/slowpath 双路径状态机、Capability Folding C-S9 Badge 内联校验、io_uring `IORING_OP_URING_CMD` 复用与 kfifo kthread 集成、性能优化与形式化验证计划\
+> **文档定位**：agent-linux（AirymaxOS） IPC Fastpath 状态机设计——fastpath/slowpath 双路径状态机、Capability Folding C-S9 Badge 内联校验、io_uring `IORING_OP_URING_CMD` 复用与 kfifo kthread 集成、性能优化与形式化验证计划\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-28\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
@@ -12,13 +12,13 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 >
 > **Capability Folding 工程定义**（v1.0.1 新增）：A-IPC 采用 Capability Folding 设计模式——将 capability check 从独立控制面操作"折叠"到 IPC 数据面 fastpath 中。物理载体是 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段（64-bit Native Word：Epoch + Random Tag + Perms）；执行点是 fastpath C-S9 内联校验 `airy_cap_badge_ok()`（~10ns，3 个 `READ_ONCE` + 位运算 + 比较）。本文件 §3.1 / §5.2 是 fastpath 校验链与 C-S9 实现的 SSoT 权威源。
 >
-> **理论根基**： seL4 fastpath 设计思想（设计借鉴来源编号 ES-SEL4-4）——seL4 在 `decodeIPC`/`sendIPC` 路径中通过极简状态机实现最小延迟 IPC，本设计将其"无调度、无阻塞、内联检查"思想迁移至 agentrt-linux 的 io_uring + kfifo 双传输通道之上。Capability Folding 进一步将 seL4 的 capability 校验内联到 IPC fastpath，消除独立 capability syscall。
+> **理论根基**： seL4 fastpath 设计思想（设计借鉴来源编号 ES-SEL4-4）——seL4 在 `decodeIPC`/`sendIPC` 路径中通过极简状态机实现最小延迟 IPC，本设计将其"无调度、无阻塞、内联检查"思想迁移至 agent-linux 的 io_uring + kfifo 双传输通道之上。Capability Folding 进一步将 seL4 的 capability 校验内联到 IPC fastpath，消除独立 capability syscall。
 
 ---
 
 ## 1. 设计目标
 
-agentrt-linux IPC Fastpath 状态机是 Layout C v4 128B 消息头（见 [02-ipc-protocol.md](02-ipc-protocol.md) §2）传输路径的核心控制逻辑。状态机决定每条 IPC 请求走 fastpath（无阻塞直通）还是 slowpath（排队/阻塞回退），目标是在 seL4 fastpath 思想（ES-SEL4-4）与 Linux 6.6 io_uring/kfifo 基础设施之间取得最优平衡。v1.0.1 起，fastpath 内联 C-S9 Capability Folding Badge 校验，IPC 数据传递即能力校验。
+agent-linux IPC Fastpath 状态机是 Layout C v4 128B 消息头（见 [02-ipc-protocol.md](02-ipc-protocol.md) §2）传输路径的核心控制逻辑。状态机决定每条 IPC 请求走 fastpath（无阻塞直通）还是 slowpath（排队/阻塞回退），目标是在 seL4 fastpath 思想（ES-SEL4-4）与 Linux 6.6 io_uring/kfifo 基础设施之间取得最优平衡。v1.0.1 起，fastpath 内联 C-S9 Capability Folding Badge 校验，IPC 数据传递即能力校验。
 
 ### 1.1 目标量化
 
@@ -238,7 +238,7 @@ C-S9 是 Capability Folding 的核心执行点，内联在 fastpath 校验链中
 /* C-S9: Capability Folding Badge 校验（关键步骤，~10ns） */
 /* H2: 校验机制属于 [SS] 语义同源层 */
 /* H3: agentrt 用户态 capability_badge 始终为 0 */
-/* H4: agentrt-linux 内核 capability_badge 由 sec_d 编译 */
+/* H4: agent-linux 内核 capability_badge 由 sec_d 编译 */
 /* H6: [DSL] 降级模式 capability_badge=0，跳过校验 */
 
 /* (1) CAP_REQUEST 自举：无 Badge，内核路由到 sec_d */
@@ -254,7 +254,7 @@ badge = hdr->capability_badge;
 /* agentrt 用户态：badge == 0（H3） */
 if (badge == 0) {
     if (hdr->flags & AIRY_IPC_FLAG_CAP_CARRY) {
-        /* agentrt-linux 内核模式不应出现 badge=0 + CAP_CARRY */
+        /* agent-linux 内核模式不应出现 badge=0 + CAP_CARRY */
         return -AIRY_ECAP_BADGE;  /* -78 */
     }
     /* agentrt 用户态或 [DSL] 模式：badge=0，跳过 */
@@ -361,7 +361,7 @@ slowpath 在 §3 任一条件不满足时触发，具体降级路径如下：
 
 ## 5. io_uring 集成
 
-io_uring 承担用户态 ↔ 内核态的 IPC 数据面（OS-ARCH-006）。v1.0.1 起，agentrt-linux 不注册独立的 IPC 专用 io_uring OP，全部 IPC 数据传递通过 `IORING_OP_URING_CMD` 复用，由 `cmd_op` 字段区分操作类型（Capability Folding 单平面架构）。状态机在 `FAST_SEND` / `FAST_RECV` / `BATCH` 状态与 io_uring SQE/CQE 交互。
+io_uring 承担用户态 ↔ 内核态的 IPC 数据面（OS-ARCH-006）。v1.0.1 起，agent-linux 不注册独立的 IPC 专用 io_uring OP，全部 IPC 数据传递通过 `IORING_OP_URING_CMD` 复用，由 `cmd_op` 字段区分操作类型（Capability Folding 单平面架构）。状态机在 `FAST_SEND` / `FAST_RECV` / `BATCH` 状态与 io_uring SQE/CQE 交互。
 
 ### 5.1 SQE/CQE 格式适配 IPC Layout C v4 128B 消息头
 
@@ -369,7 +369,7 @@ io_uring 承担用户态 ↔ 内核态的 IPC 数据面（OS-ARCH-006）。v1.0.
 |--------------|---------|
 | `sqe.opcode` | `IORING_OP_URING_CMD`（统一复用） |
 | `sqe.cmd_op` | `AIRY_URING_CMD_IPC_SEND` / `IPC_SEND_BATCH` / `IPC_CANCEL` / `IPC_FREEZE` / `IPC_CAP_REQUEST` |
-| `sqe.cmd` | OLK 6.6 标准 SQE 的 `cmd` 字段为 16 字节（`__u8 cmd[16]`），不足以承载 `airy_ipc_cmd`；agentrt-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，详见 §5.7），`cmd` 字段扩展至 80 字节，承载 `airy_ipc_cmd`（≤ 80 字节，含消息头指针 + payload 指针 + 路由信息） |
+| `sqe.cmd` | OLK 6.6 标准 SQE 的 `cmd` 字段为 16 字节（`__u8 cmd[16]`），不足以承载 `airy_ipc_cmd`；agent-linux IPC 启用 **SQE128 模式**（`IORING_SETUP_SQE128`，详见 §5.7），`cmd` 字段扩展至 80 字节，承载 `airy_ipc_cmd`（≤ 80 字节，含消息头指针 + payload 指针 + 路由信息） |
 | `sqe.fd` | 目标 ring fd（`io_uring_setup()` 返回） |
 | `sqe.user_data` | 携带 `trace_id`，原样回填至 `cqe.user_data` |
 | `cqe.res` | 成功=0（fastpath），失败=`-AIRY_E*` |
@@ -500,7 +500,7 @@ static int airy_ipc_validate(struct airy_ipc_cmd *cmd)
 
     /* C-S9: Capability Folding Badge 校验（详见 §3.1.1） */
     /* H2: 校验机制属于 [SS] 语义同源层 */
-    /* H4: agentrt-linux 内核 capability_badge 由 sec_d 编译 */
+    /* H4: agent-linux 内核 capability_badge 由 sec_d 编译 */
     /* H6: [DSL] 降级模式 capability_badge=0，跳过校验 */
 
     if (unlikely(hdr->opcode == AIRY_IPC_OP_CAP_REQUEST)) {
@@ -516,7 +516,7 @@ static int airy_ipc_validate(struct airy_ipc_cmd *cmd)
     /* agentrt 用户态：badge == 0（H3） */
     if (badge == 0) {
         if (hdr->flags & AIRY_IPC_FLAG_CAP_CARRY) {
-            /* agentrt-linux 内核模式不应出现 badge=0 + CAP_CARRY */
+            /* agent-linux 内核模式不应出现 badge=0 + CAP_CARRY */
             return -AIRY_ECAP_BADGE;  /* -78 */
         }
         /* agentrt 用户态或 [DSL] 模式：badge=0，跳过 */
@@ -708,7 +708,7 @@ SLOW_SEND 路径（跨 CPU 或 kfifo 满或接收方阻塞）:
 
 ### 5.7 SQE128 模式（cmd 字段扩展，D-7 修复）
 
-**背景**：OLK 6.6 `include/uapi/linux/io_uring.h` 中 `struct io_uring_sqe` 的 `cmd` 字段标准大小为 16 字节（`__u8 cmd[16]`），不足以承载 agentrt-linux IPC 的 `airy_ipc_cmd` 结构体（含消息头指针 + payload 指针 + 路由信息）。v1.0.1 方案早期文档错误声称可直接传递 80 字节 `airy_ipc_cmd`，未说明需要启用 SQE128 模式。D-7 修复对此进行文档化。
+**背景**：OLK 6.6 `include/uapi/linux/io_uring.h` 中 `struct io_uring_sqe` 的 `cmd` 字段标准大小为 16 字节（`__u8 cmd[16]`），不足以承载 agent-linux IPC 的 `airy_ipc_cmd` 结构体（含消息头指针 + payload 指针 + 路由信息）。v1.0.1 方案早期文档错误声称可直接传递 80 字节 `airy_ipc_cmd`，未说明需要启用 SQE128 模式。D-7 修复对此进行文档化。
 
 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+，OLK 6.6 基线支持）：
 
@@ -847,7 +847,7 @@ memcpy(out, &ring->slots[ring->tail], sizeof(*out));
 
 **为什么选择 release/acquire 而非 wmb/rmb**：
 
-| 方案 | 来源 | ARM64 性能 | 语义清晰度 | agentrt-linux 选择 |
+| 方案 | 来源 | ARM64 性能 | 语义清晰度 | agent-linux 选择 |
 |------|------|-----------|----------|-------------------|
 | `smp_store_release` + `smp_load_acquire` | Linux 6.6 io_uring（现代模式） | 最优（仅单向屏障） | 高（配对语义明确） | ✅ v1.0.1 |
 | `smp_wmb()` + `smp_rmb()` | Linux 6.6 kfifo（旧模式） | 较差（全屏障开销） | 中（需手动配对） | ❌ 未采纳 |
@@ -908,7 +908,7 @@ if (likely(hdr.magic == AIRY_IPC_MAGIC) &&
 
 ### 8.1 故障注入框架
 
-启用 `CONFIG_AIRY_FAULT_INJECTION`（agentrt-linux 专属 Kconfig，基于 Linux `failslab`/`fail_function` 扩展），提供下列注入点：
+启用 `CONFIG_AIRY_FAULT_INJECTION`（agent-linux 专属 Kconfig，基于 Linux `failslab`/`fail_function` 扩展），提供下列注入点：
 
 ### 8.2 注入点
 

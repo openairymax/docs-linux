@@ -1,9 +1,9 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）系统设计文档（system，极境系统）
-> **文档定位**：agentrt-linux（AirymaxOS）系统设计文档（system，极境系统）\
+# agent-linux（AirymaxOS）系统设计文档（system，极境系统）
+> **文档定位**：agent-linux（AirymaxOS）系统设计文档（system，极境系统）\
 > **文档版本**：v1.0.1\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 用户态 commons 通过 [SC] 共享契约层 + [SS] 语义同源层协作，[IND] RPM/dnf/glibc/shell/监控工具/DevStation 实现独立\
 > **子仓编号**：07\
 > **子仓代号**：极境系统（Airymax System）\
@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - [4. 核心特性](#4-核心特性)
 - [5. 微内核思想体现](#5-微内核思想体现)
 - [6. IRON-9 v3 四层共享模型落地](#6-iron-9-v3-四层共享模型落地)
-- [7. agentrt-linux 工程基线](#7-agentrt-linux-工程基线)
+- [7. agent-linux 工程基线](#7-agent-linux-工程基线)
 - [8. 前沿理论参考](#8-前沿理论参考)
 - [9. 与其他子仓的协作](#9-与其他子仓的协作)
 - [10. 里程碑（M0-M8）](#10-里程碑m0-m8)
@@ -33,22 +33,22 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 子仓职责
 
-`system` 是 agentrt-linux（AirymaxOS）的系统管理工具子仓，承担以下核心职责：
+`system` 是 agent-linux（AirymaxOS）的系统管理工具子仓，承担以下核心职责：
 
-1. **包管理 [IND]**：基于 RPM + dnf 的包管理系统（agentrt-linux 标准），支持 GPG 签名验证与模块化。
+1. **包管理 [IND]**：基于 RPM + dnf 的包管理系统（agent-linux 标准），支持 GPG 签名验证与模块化。
 2. **配置工具 [IND]**：系统配置工具（sysctl、systemd-config、network-config、kernel-config）。
 3. **shell [IND]**：提供 bash + fish + zsh 等 shell 环境。
 4. **基础库 [IND]**：提供 glibc + musl 基础 C 库，glibc 为默认，musl 用于嵌入式场景。
 5. **系统监控 [IND]**：提供 top、htop、perf、bpftrace、sysstat 等监控工具，airymaxmon 监控引用 [SC] 共享类型。
-6. **DevStation [SS]**：基于 agentrt-linux DevStation，提供 AI 智能助手辅助开发运维，与 agentrt commons 助手语义同源，通过 io_uring IPC 通信 [SC]。
-7. **airymaxmon [SC]**：agentrt-linux 专属监控工具，读取 struct_ops 状态机 + sched_tac 统计 + MemoryRovol L1-L4 指标，引用 [SC] 共享契约层类型。
+6. **DevStation [SS]**：基于 agent-linux DevStation，提供 AI 智能助手辅助开发运维，与 agentrt commons 助手语义同源，通过 io_uring IPC 通信 [SC]。
+7. **airymaxmon [SC]**：agent-linux 专属监控工具，读取 struct_ops 状态机 + sched_tac 统计 + MemoryRovol L1-L4 指标，引用 [SC] 共享契约层类型。
 8. **config_d [IND/SS]**：12 daemon 之一的统一配置管理守护进程，与 sec_d 协作加载 v1.0.1 Capability Folding 配置参数（`agent_caps[1024]` 容量、Badge Epoch 步进），通过 sysfs/procfs 与内核交互，systemd 集成 + 热重载机制，SSoT 见 `11-unified-config.md`。
 
 作为发行版必需的工具集合，本子仓为其他子仓提供基础系统工具支持。
 
 ### 1.1 横切关注点声明
 
-系统是横切关注点（cross-cutting concern），贯穿 agentrt-linux 全部 4 大数据流：
+系统是横切关注点（cross-cutting concern），贯穿 agent-linux 全部 4 大数据流：
 
 | 数据流 | 系统切入点 | 同源标注 |
 |--------|-----------|----------|
@@ -61,7 +61,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. 同源关系（IRON-9 v3 四层共享模型）
 
-依据 IRON-9 v3 决策（ADR-014 确立 seL4 唯一来源，参见 `docs/architecture/adr/ADR-014.md`），agentrt（用户态 commons）与 agentrt-linux（system）通过四层共享模型协作：
+依据 IRON-9 v3 决策（ADR-014 确立 seL4 唯一来源，参见 `docs/architecture/adr/ADR-014.md`），agentrt（用户态 commons）与 agent-linux（system）通过四层共享模型协作：
 
 | 层次 | 共享程度 | 系统子系统内容 | 组织方式 |
 |------|---------|---------------|---------|
@@ -72,7 +72,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 维度对比
 
-| 维度 | agentrt（commons） | agentrt-linux（system） | 同源标注 |
+| 维度 | agentrt（commons） | agent-linux（system） | 同源标注 |
 |------|--------------------|-------------------------------|----------|
 | 公共工具 | commons（应用层） | 系统管理工具（OS 级） | [SS] |
 | 监控 API | 应用层监控 | top/htop/perf/airymaxmon | [SS] |
@@ -80,7 +80,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | sched_tac 统计 | 不涉及 | airymaxmon 读取 task_desc + vtime | [SC] |
 | MemoryRovol 监控 | heapstore 监控 | airymaxmon 读取 L1-L4 指标 | [SC] |
 | 配置管理 | 应用配置 | sysctl + systemd-config | [SS] |
-| AI 助手 | 自研助手 | DevStation（agentrt-linux 自研） | [SS] |
+| AI 助手 | 自研助手 | DevStation（agent-linux 自研） | [SS] |
 | IPC 通信 | 用户态消息队列 | DevStation io_uring IPC | [SC] |
 | 日志 | log_write | journald + syslog | [SS] |
 | 跨平台 | Linux/macOS/Windows | Linux 6.6 专属 | [IND] |
@@ -113,7 +113,7 @@ system/
 
 ### 3.1 package-manager/（包管理）[IND]
 
-遵循 **agentrt-linux 标准**：
+遵循 **agent-linux 标准**：
 - `rpm/`：RPM 包构建工具（rpmbuild）[IND]。
 - `dnf/`：dnf 包管理器配置 [IND]。
 - `repos/`：仓库配置（airymaxos.repo）[IND]。
@@ -126,11 +126,11 @@ system/
 - `systemd-config/`：systemd 配置（/etc/systemd/）[IND]。
 - `network-config/`：网络配置（NetworkManager）[IND]。
 - `kernel-config/`：内核配置工具（kernel-config）[IND]。
-- `agentrt-config/`：agentrt-linux 专属配置 [IND]，路径 `/etc/agentrt/`（**禁止**非 agentrt 命名空间的旧路径，SSoT 见 `11-unified-config.md`）。
+- `agentrt-config/`：agent-linux 专属配置 [IND]，路径 `/etc/agentrt/`（**禁止**非 agentrt 命名空间的旧路径，SSoT 见 `11-unified-config.md`）。
 
 ### 3.2.1 config-d/（config_d，12 daemon 之一）[IND/SS]
 
-config_d 是 agentrt-linux 12 daemon 之一，负责统一配置管理：
+config_d 是 agent-linux 12 daemon 之一，负责统一配置管理：
 - `core/`：守护进程核心（systemd unit + D-Bus 接口）[IND]。
 - `parsers/`：YAML/TOML 解析器（**禁止** JSON 配置）[IND]。
 - `loaders/`：配置加载器（sysfs/procfs 与内核交互）[IND]。
@@ -159,7 +159,7 @@ config_d 是 agentrt-linux 12 daemon 之一，负责统一配置管理：
 - `perf/`：perf 性能分析工具 [IND]。
 - `bpftrace/`：bpftrace 动态追踪 [IND]。
 - `sysstat/`：sar、iostat 等系统统计 [IND]。
-- `airymaxmon/`：agentrt-linux 专属监控工具，读取 [SC] 共享类型 [IND]：
+- `airymaxmon/`：agent-linux 专属监控工具，读取 [SC] 共享类型 [IND]：
   - struct_ops 状态机（INIT/REGISTERED/ACTIVE/DRAINING）[SC]
   - sched_tac 统计（task_desc magic 0x41475453 + vtime）[SC]
   - MemoryRovol L1-L4 指标（GFP 掩码语义）[SC]
@@ -171,7 +171,7 @@ DevStation 与 agentrt commons AI 助手语义同源 [SS]，通过 io_uring IPC 
 - `ai-assistant`：AI 智能助手（自然语言交互，引用 CoreLoopThree 阶段枚举 [SC]）[SS]。
 - `dev-tools`：开发工具集成 [IND]。
 - `ops-tools`：运维工具集成 [IND]。
-- `knowledge-base`：知识库（agentrt-linux 文档）[IND]。
+- `knowledge-base`：知识库（agent-linux 文档）[IND]。
 - `auto-fix`：自动修复（常见问题自动诊断与修复）[IND]。
 - `code-gen`：代码生成（基于 LLM，引用 LLM 推理阶段枚举 [SC]）[IND]。
 
@@ -179,10 +179,10 @@ DevStation 与 agentrt commons AI 助手语义同源 [SS]，通过 io_uring IPC 
 
 ## 4. 核心特性
 
-### 4.1 包管理（RPM + dnf，agentrt-linux 标准）[IND]
+### 4.1 包管理（RPM + dnf，agent-linux 标准）[IND]
 
-遵循 **agentrt-linux 包管理标准**：
-- RPM 包格式：与 agentrt-linux、Fedora、CentOS 兼容 [IND]。
+遵循 **agent-linux 包管理标准**：
+- RPM 包格式：与 agent-linux、Fedora、CentOS 兼容 [IND]。
 - dnf 包管理器：依赖解析、仓库管理、事务处理 [IND]。
 - 包签名：GPG 签名验证，防止篡改 [IND]。
 - 模块化：支持模块（module）与流（stream）[IND]。
@@ -191,14 +191,14 @@ DevStation 与 agentrt commons AI 助手语义同源 [SS]，通过 io_uring IPC 
 ```ini
 # /etc/yum.repos.d/airymaxos.repo
 [airymaxos-base]
-name=agentrt-linux Base Repository
+name=agent-linux Base Repository
 baseurl=https://repo.airymaxos.io/$releasever/base/$basearch/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
 
 [airymaxos-updates]
-name=agentrt-linux Updates Repository
+name=agent-linux Updates Repository
 baseurl=https://repo.airymaxos.io/$releasever/updates/$basearch/
 enabled=1
 gpgcheck=1
@@ -261,7 +261,7 @@ net.ipv4.tcp_max_syn_backlog = 65535
 **bpftrace**：动态追踪（基于 eBPF，读取 struct_ops 状态 [SC]）[IND]。
 **sysstat**：系统统计（sar、iostat）[IND]。
 
-**agentrt-linux 专属监控（airymaxmon）**——读取 [SC] 共享契约层类型：
+**agent-linux 专属监控（airymaxmon）**——读取 [SC] 共享契约层类型：
 - struct_ops 状态机监控（INIT/REGISTERED/ACTIVE/DRAINING 四态）[SC]。
 - sched_tac 调度统计（task_desc magic 0x41475453 + vtime 衰减）[SC]。
 - MemoryRovol L1-L4 分级内存指标（GFP 掩码语义）[SC]。
@@ -269,11 +269,11 @@ net.ipv4.tcp_max_syn_backlog = 65535
 - CoreLoopThree 认知循环阶段监控（PERCEPT/THINK/ACT）[SC]。
 - 与 `cloudnative/observability` 集成 [IND]。
 
-### 4.6 DevStation（基于 agentrt-linux AI 智能助手）[SS]
+### 4.6 DevStation（基于 agent-linux AI 智能助手）[SS]
 
 DevStation 与 agentrt commons AI 助手语义同源 [SS]，通过 io_uring IPC 通信 [SC]：
 - AI 智能助手：自然语言交互，辅助开发运维 [SS]。
-- 知识库：集成 agentrt-linux 文档 [IND]。
+- 知识库：集成 agent-linux 文档 [IND]。
 - 自动修复：常见问题自动诊断与修复 [IND]。
 - 代码生成：基于 LLM 生成配置脚本、systemd unit 等 [IND]。
 - 与 `cognition` 协作，调用 LLM 推理（引用 CoreLoopThree 阶段枚举 [SC]）[SS]。
@@ -305,7 +305,7 @@ DevStation: 检测到 agent.slice 内存使用达到上限。
 
 ### 4.7 config_d（统一配置管理，12 daemon 之一）[IND/SS]
 
-config_d 是 agentrt-linux 12 daemon 之一（完整名单见 §6.7），负责统一配置管理。SSoT 见 `11-unified-config.md`。
+config_d 是 agent-linux 12 daemon 之一（完整名单见 §6.7），负责统一配置管理。SSoT 见 `11-unified-config.md`。
 
 **配置路径**：
 - 标准路径：`/etc/agentrt/`（**禁止**非 agentrt 命名空间的旧路径，SSoT 见 `11-unified-config.md`）。
@@ -405,7 +405,7 @@ airymaxmon 通过 [SC] 共享契约层读取内核子系统状态，确保监控
 
 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进。系统模块的同源 API：
 
-| 序号 | 语义 | agentrt 实现 | agentrt-linux 实现 |
+| 序号 | 语义 | agentrt 实现 | agent-linux 实现 |
 |------|------|-------------|-------------------|
 | 1 | commons 公共工具 | 应用层 commons 工具 | OS 级系统管理工具 |
 | 2 | 监控 API | 应用层监控 | top/htop/perf/airymaxmon |
@@ -420,18 +420,18 @@ airymaxmon 通过 [SC] 共享契约层读取内核子系统状态，确保监控
 
 | 序号 | 内容 | 不共享原因 |
 |------|------|-----------|
-| 1 | RPM + dnf 包管理 | OS 级包管理仅 agentrt-linux |
-| 2 | glibc + musl 基础库 | OS 级 C 库仅 agentrt-linux |
-| 3 | bash/fish/zsh shell | OS 级 shell 仅 agentrt-linux |
-| 4 | sysctl 配置实现 | 内核参数配置仅 agentrt-linux |
-| 5 | systemd-config 实现 | OS 级服务管理仅 agentrt-linux |
-| 6 | top/htop/perf 工具实现 | OS 级监控工具仅 agentrt-linux |
-| 7 | bpftrace 动态追踪 | 内核 eBPF 追踪仅 agentrt-linux |
-| 8 | sysstat 系统统计 | OS 级统计工具仅 agentrt-linux |
-| 9 | DevStation auto-fix | OS 级自动修复仅 agentrt-linux |
-| 10 | DevStation code-gen | OS 级代码生成仅 agentrt-linux |
-| 11 | DevStation knowledge-base | OS 级知识库仅 agentrt-linux |
-| 12 | airymaxmon 实现 | OS 级专属监控工具仅 agentrt-linux |
+| 1 | RPM + dnf 包管理 | OS 级包管理仅 agent-linux |
+| 2 | glibc + musl 基础库 | OS 级 C 库仅 agent-linux |
+| 3 | bash/fish/zsh shell | OS 级 shell 仅 agent-linux |
+| 4 | sysctl 配置实现 | 内核参数配置仅 agent-linux |
+| 5 | systemd-config 实现 | OS 级服务管理仅 agent-linux |
+| 6 | top/htop/perf 工具实现 | OS 级监控工具仅 agent-linux |
+| 7 | bpftrace 动态追踪 | 内核 eBPF 追踪仅 agent-linux |
+| 8 | sysstat 系统统计 | OS 级统计工具仅 agent-linux |
+| 9 | DevStation auto-fix | OS 级自动修复仅 agent-linux |
+| 10 | DevStation code-gen | OS 级代码生成仅 agent-linux |
+| 11 | DevStation knowledge-base | OS 级知识库仅 agent-linux |
+| 12 | airymaxmon 实现 | OS 级专属监控工具仅 agent-linux |
 
 ### 6.4 [DSL] 降级生存层落地
 
@@ -459,7 +459,7 @@ v1.0.1 Capability Folding（ADR-014 seL4 唯一来源，参见 `docs/architectur
 
 ### 6.6 12 daemon 完整名单与系统子仓协作
 
-agentrt-linux 12 daemon 完整名单（参考 `02-services.md` §1.2 SSoT），系统子仓与各 daemon 的协作关系：
+agent-linux 12 daemon 完整名单（参考 `02-services.md` §1.2 SSoT），系统子仓与各 daemon 的协作关系：
 
 | 序号 | daemon | 系统子仓协作内容 |
 | -- | ------ | ---------- |
@@ -578,13 +578,13 @@ graph TD
 
 ---
 
-## 7. agentrt-linux 工程基线
+## 7. agent-linux 工程基线
 
-- **agentrt-linux 基础系统治理组**：基础系统工具最佳实践。
-- **agentrt-linux 包管理**：RPM + dnf 集成经验。
-- **agentrt-linux DevStation**：AI 智能助手基线。
-- **agentrt-linux 监控工具**：系统监控工具基线。
-- **agentrt-linux shell**：shell 配置基线。
+- **agent-linux 基础系统治理组**：基础系统工具最佳实践。
+- **agent-linux 包管理**：RPM + dnf 集成经验。
+- **agent-linux DevStation**：AI 智能助手基线。
+- **agent-linux 监控工具**：系统监控工具基线。
+- **agent-linux shell**：shell 配置基线。
 
 ---
 
@@ -592,9 +592,9 @@ graph TD
 
 | 理论 | 来源 | 应用 |
 |------|------|------|
-| agentrt-linux DevStation | agentrt-linux | AI 智能助手 |
+| agent-linux DevStation | agent-linux | AI 智能助手 |
 | 标准 Linux 工具链 | Linux 生态 | 系统工具 |
-| RPM + dnf | Fedora/agentrt-linux | 包管理 |
+| RPM + dnf | Fedora/agent-linux | 包管理 |
 | systemd | systemd 项目 | 系统管理 |
 | bpftrace | eBPF | 动态追踪 |
 | perf | Linux | 性能分析 |
@@ -643,7 +643,7 @@ graph TD
 
 | 检查项 | 验证内容 | 结果 |
 |--------|----------|------|
-| 命名一致性 | 核心表述使用 `agentrt-linux（AirymaxOS）` 全角括号配对 | PASS |
+| 命名一致性 | 核心表述使用 `agent-linux（AirymaxOS）` 全角括号配对 | PASS |
 | 语义同源标注 | commons/监控/配置/AI 助手/日志等标注 [SS] | PASS |
 | IRON-9 v3 四层合规 | [SC] 10 头文件 + [SS] 8 API + [IND] 12 项独立实现 + [DSL] 4 降级场景 + v1.0.1 Capability Folding sysfs 推送 + 12 daemon 完整列表 | PASS |
 | [SC] 头文件引用 | error.h + log_types.h + memory_types.h + security_types.h + cognition_types.h + sched.h + ipc.h + syscalls.h + uapi_compat.h + lsm_types.h 共 10 个均在 §6.1 引用 | PASS |
@@ -680,8 +680,8 @@ graph TD
 
 ## 13. 参考
 
-- agentrt-linux 基础系统治理组文档
-- agentrt-linux DevStation 文档
+- agent-linux 基础系统治理组文档
+- agent-linux DevStation 文档
 - RPM 项目文档
 - dnf 项目文档
 - systemd 官方文档

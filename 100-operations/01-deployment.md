@@ -1,13 +1,13 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）部署体系
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）运维体系第 1 卷——部署工程。本文档规定从裸机到可用 Agent 工作负载的完整交付链路：RPM 包格式、dnf 包管理器、ISO 镜像制作、Kickstart 自动化安装、PXE 网络安装、系统初始化、12 daemons 部署、DevStation 部署、版本升级路径与回滚机制。\
+# agent-linux（AirymaxOS）部署体系
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）运维体系第 1 卷——部署工程。本文档规定从裸机到可用 Agent 工作负载的完整交付链路：RPM 包格式、dnf 包管理器、ISO 镜像制作、Kickstart 自动化安装、PXE 网络安装、系统初始化、12 daemons 部署、DevStation 部署、版本升级路径与回滚机制。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt daemons（12 个用户态服务）+ Linux 6.6 systemd 集成 + MicroCoreRT 极简内核契约\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 五维正交 24 原则 + S-1 反馈闭环\
-> **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 同源语义，agentrt-linux 独立承担发行版部署责任
+> **核心约束**：IRON-9 v3 同源且部分代码共享——与 agentrt 同源语义，agent-linux 独立承担发行版部署责任
 
 ---
 
@@ -15,7 +15,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 部署链路总览
 
-agentrt-linux 部署体系继承 Linux 6.6 内核基线沉淀的发行版交付哲学，并在其上扩展智能体操作系统的专属部署需求。完整链路覆盖五个阶段：**构建阶段**（源码 → RPM 包，rpmbuild + mock 隔离构建）→ **组装阶段**（RPM 仓库 → ISO 镜像，lorax + livemedia-creator）→ **交付阶段**（ISO / PXE / Kickstart → 裸机或虚拟机安装）→ **初始化阶段**（firstboot → sysctl 应用 → 12 daemons 启动）→ **运维阶段**（dnf 升级 + 回滚 + DevStation 接管）。
+agent-linux 部署体系继承 Linux 6.6 内核基线沉淀的发行版交付哲学，并在其上扩展智能体操作系统的专属部署需求。完整链路覆盖五个阶段：**构建阶段**（源码 → RPM 包，rpmbuild + mock 隔离构建）→ **组装阶段**（RPM 仓库 → ISO 镜像，lorax + livemedia-creator）→ **交付阶段**（ISO / PXE / Kickstart → 裸机或虚拟机安装）→ **初始化阶段**（firstboot → sysctl 应用 → 12 daemons 启动）→ **运维阶段**（dnf 升级 + 回滚 + DevStation 接管）。
 
 **OS-OPS-001**：所有部署产物（RPM、ISO、initramfs、Kickstart 文件、PXE 镜像）必须经 GPG 签名且签名校验为部署的前置条件，未签名产物禁止进入生产环境。
 
@@ -23,7 +23,7 @@ agentrt-linux 部署体系继承 Linux 6.6 内核基线沉淀的发行版交付�
 
 ### 1.2 部署体系与 MicroCoreRT 的关系
 
-MicroCoreRT 是 Airymax 微核心运行时基座，在 agentrt-linux 内核态对其保持同源语义。部署体系必须保证 MicroCoreRT 契约在内核包（`airymaxos-kernel`）与服务包（`airymaxos-services-*`）两端同时落地：内核包提供 MicroCoreRT 内核态实现，服务包提供 MicroCoreRT 用户态适配层。任何一端缺失即视为部署不完整。
+MicroCoreRT 是 Airymax 微核心运行时基座，在 agent-linux 内核态对其保持同源语义。部署体系必须保证 MicroCoreRT 契约在内核包（`airymaxos-kernel`）与服务包（`airymaxos-services-*`）两端同时落地：内核包提供 MicroCoreRT 内核态实现，服务包提供 MicroCoreRT 用户态适配层。任何一端缺失即视为部署不完整。
 
 **OS-OPS-003**：`airymaxos-kernel` 与 `airymaxos-services-core` 的版本号必须在安装时强一致，dnf 版本锁禁止解耦两者。这是 IRON-9 v3 同源且部分代码共享原则在部署层的硬约束——同源语义必须由同源版本承载。
 
@@ -50,7 +50,7 @@ flowchart LR
 
 ### 2.1 包命名与分层
 
-agentrt-linux 采用 RPM 包格式作为唯一二进制交付单元。包命名遵循 `name-version-release.arch.rpm` 规范，并在 `name` 上分层：
+agent-linux 采用 RPM 包格式作为唯一二进制交付单元。包命名遵循 `name-version-release.arch.rpm` 规范，并在 `name` 上分层：
 
 | 层 | 包名前缀 | 内容 |
 |----|---------|------|
@@ -72,14 +72,14 @@ agentrt-linux 采用 RPM 包格式作为唯一二进制交付单元。包命名�
 Name:           airymaxos-services-core
 Version:        1.0.1
 Release:        1%{?dist}
-Summary:        agentrt-linux 12 daemons userspace core
+Summary:        agent-linux 12 daemons userspace core
 License:        SPDX-License-Identifier-Apache-2.0
 Requires(pre):  airymaxos-kernel%{?_isa} == %{version}
 Requires(post): systemd
 Requires:       airymaxos-services-common%{?_isa} == %{version}
 
 %description
-agentrt-linux 12 daemons userspace core, IRON-9 v3 同源且部分代码共享于 agentrt daemons.
+agent-linux 12 daemons userspace core, IRON-9 v3 同源且部分代码共享于 agentrt daemons.
 
 %install
 install -D -m 0755 build/gateway_d %{buildroot}%{_libdir}/agentrt/gateway_d
@@ -95,7 +95,7 @@ install -D -m 0644 systemd/agentrt-gateway.service %{buildroot}%{_unitdir}/
 
 **OS-OPS-032**：所有二进制文件安装权限必须为 `0755`，配置文件 `0644`，密钥文件 `0600`，禁止 `0777` 与 world-writable。
 
-**OS-OPS-004**：所有 RPM 包必须经 agentrt-linux 构建密钥 GPG 签名，`rpm --checksig` 必须在安装前由 dnf 自动执行；未签名或签名不匹配的包禁止安装（E-1 安全内生）。
+**OS-OPS-004**：所有 RPM 包必须经 agent-linux 构建密钥 GPG 签名，`rpm --checksig` 必须在安装前由 dnf 自动执行；未签名或签名不匹配的包禁止安装（E-1 安全内生）。
 
 ---
 
@@ -103,7 +103,7 @@ install -D -m 0644 systemd/agentrt-gateway.service %{buildroot}%{_unitdir}/
 
 ### 3.1 仓库组织
 
-agentrt-linux 使用 dnf 作为唯一包管理器。仓库分为四类：
+agent-linux 使用 dnf 作为唯一包管理器。仓库分为四类：
 
 | 仓库 | 用途 | 启用条件 |
 |------|------|---------|
@@ -119,7 +119,7 @@ agentrt-linux 使用 dnf 作为唯一包管理器。仓库分为四类：
 ```ini
 # /etc/yum.repos.d/airymaxos-base.repo
 [airymaxos-base]
-name=agentrt-linux $releasever - Base
+name=agent-linux $releasever - Base
 baseurl=https://repo.airymaxos.dev/$releasever/base/$basearch/
 enabled=1
 gpgcheck=1
@@ -162,10 +162,10 @@ initramfs 承载早期用户态（内核启动后、根文件系统挂载前运�
 
 ### 5.1 Kickstart 文件结构
 
-Kickstart 是 agentrt-linux 自动化安装的核心机制，文件由命令段、包段、脚本段构成：
+Kickstart 是 agent-linux 自动化安装的核心机制，文件由命令段、包段、脚本段构成：
 
 ```kickstart
-# agentrt-linux-v1.0.1-aarch64.ks
+# agent-linux-v1.0.1-aarch64.ks
 text
 lang en_US.UTF-8
 timezone Asia/Shanghai --isUtc
@@ -202,7 +202,7 @@ sysctl --system
 
 ### 5.2 分区约定
 
-agentrt-linux 推荐分区方案将 Agent 记忆卷（L1 原始卷）独立挂载到 `/var/lib/agentrt`，与系统根分区隔离。这与 C-3 记忆卷载原则对齐——记忆数据独立于系统升级路径，便于回滚时不丢记忆。
+agent-linux 推荐分区方案将 Agent 记忆卷（L1 原始卷）独立挂载到 `/var/lib/agentrt`，与系统根分区隔离。这与 C-3 记忆卷载原则对齐——记忆数据独立于系统升级路径，便于回滚时不丢记忆。
 
 **OS-OPS-036**：`/var/lib/agentrt` 必须独立分区或独立逻辑卷，禁止与 `/` 共享；该分区在 dnf 升级与系统回滚期间必须保持不格式化。
 
@@ -258,7 +258,7 @@ sequenceDiagram
 ```ini
 # /etc/systemd/system/agentrt.target
 [Unit]
-Description=agentrt-linux 12 daemons aggregated target
+Description=agent-linux 12 daemons aggregated target
 Requires=sysinit.target
 After=sysinit.target network-online.target
 Wants=agentrt-macro-superv.service agentrt-logger.service agentrt-config.service
@@ -278,7 +278,7 @@ WantedBy=multi-user.target
 
 ### 8.1 daemon 到 systemd unit 映射
 
-agentrt 的 12 个 daemons 在 agentrt-linux 中以 systemd 服务运行，遵循 IRON-9 v3 同源且部分代码共享原则——二进制名与 agentrt 同源（`macro_d`/`logger_d`/`config_d` 及 `*_d` 后缀守护进程），systemd 服务名采用 `agentrt-*.service` 格式（独立）。
+agentrt 的 12 个 daemons 在 agent-linux 中以 systemd 服务运行，遵循 IRON-9 v3 同源且部分代码共享原则——二进制名与 agentrt 同源（`macro_d`/`logger_d`/`config_d` 及 `*_d` 后缀守护进程），systemd 服务名采用 `agentrt-*.service` 格式（独立）。
 
 | 二进制 | systemd unit | 职责 | 启动顺序 |
 |--------|--------------|------|---------|
@@ -302,7 +302,7 @@ agentrt 的 12 个 daemons 在 agentrt-linux 中以 systemd 服务运行，遵�
 ```ini
 # /etc/systemd/system/agentrt-gateway.service
 [Unit]
-Description=agentrt-linux Gateway Daemon (agentrt gateway_d)
+Description=agent-linux Gateway Daemon (agentrt gateway_d)
 Requires=agentrt-sched.service
 After=network-online.target agentrt-sched.service
 ConditionPathExists=/etc/agentrt/gateway.conf
@@ -342,11 +342,11 @@ AgentsIPC 是 Airymax 智能体进程间通信协议，128B 定长消息头是�
 
 ### 9.1 DevStation 定位
 
-DevStation 是 agentrt-linux 提供的 AI 辅助开发运维环境，提升开发者体验（A-3 人文关怀）。它由 `devstation-core`（自然语言交互入口）、`devstation-tools`（开发工具集成）、`devstation-ops`（运维工具集成）三个组件构成。
+DevStation 是 agent-linux 提供的 AI 辅助开发运维环境，提升开发者体验（A-3 人文关怀）。它由 `devstation-core`（自然语言交互入口）、`devstation-tools`（开发工具集成）、`devstation-ops`（运维工具集成）三个组件构成。
 
 ### 9.2 DevStation 部署模式
 
-DevStation 支持两种部署模式：**侧车模式**（与生产 agentrt-linux 实例同机部署，仅监听 localhost）与**独立模式**（独立 agentrt-linux 实例，作为开发集群的统一入口）。
+DevStation 支持两种部署模式：**侧车模式**（与生产 agent-linux 实例同机部署，仅监听 localhost）与**独立模式**（独立 agent-linux 实例，作为开发集群的统一入口）。
 
 **OS-OPS-017**：DevStation 侧车模式禁止监听非 loopback 地址；生产环境的 DevStation 必须部署在独立实例或通过 SSH 隧道访问（E-1 安全内生）。
 
@@ -357,7 +357,7 @@ DevStation 支持两种部署模式：**侧车模式**（与生产 agentrt-linux
 ```ini
 # /etc/systemd/system/airymaxos-devstation.service
 [Unit]
-Description=agentrt-linux DevStation (AI dev/ops assistant)
+Description=agent-linux DevStation (AI dev/ops assistant)
 After=agentrt.target network-online.target
 Requires=agentrt-gateway.service
 
@@ -418,7 +418,7 @@ flowchart TD
 
 ### 10.4 部署生命周期状态机
 
-agentrt-linux 部署从源码编译到生产环境验证的完整状态转换，覆盖构建、测试、staging、生产部署与回滚全链路：
+agent-linux 部署从源码编译到生产环境验证的完整状态转换，覆盖构建、测试、staging、生产部署与回滚全链路：
 
 ```mermaid
 stateDiagram-v2
@@ -487,7 +487,7 @@ stateDiagram-v2
 
 ### 11.1 回滚层次
 
-agentrt-linux 回滚机制分三层，由浅入深：
+agent-linux 回滚机制分三层，由浅入深：
 
 | 层 | 机制 | 范围 | 耗时 |
 |----|------|------|------|
@@ -497,7 +497,7 @@ agentrt-linux 回滚机制分三层，由浅入深：
 
 ### 11.2 根分区快照回滚
 
-agentrt-linux 推荐使用 btrfs 子卷或 LVM thin snapshot 实现根分区快照。升级前由 `airymaxos-upgrade-pre` 服务自动创建快照（`btrfs subvolume snapshot / /snapshots/pre-upgrade-<ts>`）；回滚时执行 `btrfs subvolume set-default` 指向旧快照并重启。
+agent-linux 推荐使用 btrfs 子卷或 LVM thin snapshot 实现根分区快照。升级前由 `airymaxos-upgrade-pre` 服务自动创建快照（`btrfs subvolume snapshot / /snapshots/pre-upgrade-<ts>`）；回滚时执行 `btrfs subvolume set-default` 指向旧快照并重启。
 
 **OS-OPS-021**：生产环境必须启用根分区快照机制（btrfs 或 LVM 二选一），升级前自动快照，快照保留 7 天；7 天后自动清理（C-4 遗忘机制在运维层的体现）。
 
@@ -509,7 +509,7 @@ agentrt-linux 推荐使用 btrfs 子卷或 LVM thin snapshot 实现根分区快�
 
 ## 第 12 章 五维原则映射
 
-agentrt-linux 部署体系是 Airymax 五维正交 24 原则在交付链路的具体落地：
+agent-linux 部署体系是 Airymax 五维正交 24 原则在交付链路的具体落地：
 
 | 原则 | 在部署体系的体现 | 落地规则 |
 |------|----------------|---------|
@@ -529,22 +529,22 @@ agentrt-linux 部署体系是 Airymax 五维正交 24 原则在交付链路的�
 
 ### 13.1 同源关系
 
-agentrt-linux 部署体系与 agentrt 遵循 IRON-9 v3 同源且部分代码共享原则：**同源**——12 daemons 二进制名（`*_d`）与 agentrt 完全一致，AgentsIPC 128B 消息头协议两端共享，MicroCoreRT 极简内核契约两端共享，配置目录 `/etc/agentrt/` 两端共享语义；**独立**——agentrt-linux 独立承担发行版部署责任（RPM 打包、dnf 仓库、ISO 制作、Kickstart、PXE、systemd 集成、根分区快照回滚），这些都是 agentrt 用户态运行时不涉及的领域；**互操作**——agentrt 遵循其用户态部署（pip/npm 安装），agentrt-linux 遵循其发行版部署（RPM/dnf），两端通过同源二进制名与 AgentsIPC 协议实现无适配层互操作。
+agent-linux 部署体系与 agentrt 遵循 IRON-9 v3 同源且部分代码共享原则：**同源**——12 daemons 二进制名（`*_d`）与 agentrt 完全一致，AgentsIPC 128B 消息头协议两端共享，MicroCoreRT 极简内核契约两端共享，配置目录 `/etc/agentrt/` 两端共享语义；**独立**——agent-linux 独立承担发行版部署责任（RPM 打包、dnf 仓库、ISO 制作、Kickstart、PXE、systemd 集成、根分区快照回滚），这些都是 agentrt 用户态运行时不涉及的领域；**互操作**——agentrt 遵循其用户态部署（pip/npm 安装），agent-linux 遵循其发行版部署（RPM/dnf），两端通过同源二进制名与 AgentsIPC 协议实现无适配层互操作。
 
 ### 13.2 同源映射表
 
-| 维度 | agentrt（用户态运行时） | agentrt-linux（发行版部署） |
+| 维度 | agentrt（用户态运行时） | agent-linux（发行版部署） |
 |------|------------------------|------------------------|
 | 二进制交付 / 服务管理 | pip wheel / npm tarball；自研 supervisor | RPM 包；systemd unit |
 | 配置目录 | `~/.agentrt/` 或环境变量 | `/etc/agentrt/`（系统级） |
 | IPC 协议 / 微核心契约 | AgentsIPC 128B 消息头；MicroCoreRT 用户态适配 | 同源，由 `airymaxos-services-common` 提供；MicroCoreRT 内核态实现（`airymaxos-kernel`） |
 | 升级 / 回滚 | pip/npm upgrade；版本号回退 | dnf system-upgrade + 快照回滚；根分区快照 + dnf history |
 
-**OS-OPS-024**：agentrt-linux 部署的 12 daemons 必须与同版本 agentrt 用户态 SDK 的 AgentsIPC 协议版本一致；版本不一致时 daemon 拒绝接受 SDK 连接并输出诊断码（IRON-9 v3 同源且部分代码共享在协议层的强制）。
+**OS-OPS-024**：agent-linux 部署的 12 daemons 必须与同版本 agentrt 用户态 SDK 的 AgentsIPC 协议版本一致；版本不一致时 daemon 拒绝接受 SDK 连接并输出诊断码（IRON-9 v3 同源且部分代码共享在协议层的强制）。
 
 ### 13.3 IRON-9 v3 四层共享模型
 
-IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux（发行版部署）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦部署体系的三层映射。
+IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agent-linux（发行版部署）之间的同源关系细分为三个正交层次：[SC] 共享契约层（头文件级代码共享）、[SS] 语义同源层（语义两端一致但实现独立）、[IND] 完全独立层（发行版固有责任）。本节聚焦部署体系的三层映射。
 
 #### 13.3.1 三层模型概览
 
@@ -552,7 +552,7 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 |------|---------|-------------|
 | **[SC] 共享契约层** | 头文件级代码共享 | `include/uapi/linux/airymax/sched.h`（任务描述符 magic 0x41475453 'AGTS'）、`include/uapi/linux/airymax/ipc.h`（IPC magic 0x41524531 + 128B 消息头） |
 | **[SS] 语义同源层** | 语义两端一致，实现独立 | systemd unit 文件模式、daemon 生命周期管理、依赖排序、环境变量传递 |
-| **[IND] 完全独立层** | agentrt-linux 独有 | systemd 内核集成、RPM 打包、initramfs 构建、dracut 模块、镜像构建（ISO/qcow2） |
+| **[IND] 完全独立层** | agent-linux 独有 | systemd 内核集成、RPM 打包、initramfs 构建、dracut 模块、镜像构建（ISO/qcow2） |
 
 #### 13.3.2 [SC] 共享契约层
 
@@ -574,9 +574,9 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 
 #### 13.3.3 [SS] 语义同源层
 
-[SS] 层的语义两端一致，但实现独立：agentrt 用户态使用自研 supervisor 管理守护进程，agentrt-linux 使用 systemd 管理发行版服务单元。两端语义映射如下：
+[SS] 层的语义两端一致，但实现独立：agentrt 用户态使用自研 supervisor 管理守护进程，agent-linux 使用 systemd 管理发行版服务单元。两端语义映射如下：
 
-| 语义维度 | agentrt（用户态运行时） | agentrt-linux（发行版部署） |
+| 语义维度 | agentrt（用户态运行时） | agent-linux（发行版部署） |
 |------|------------------------|------------------------|
 | 服务单元定义 | supervisor 配置文件（daemon 进程组） | systemd unit 文件（[Unit]/[Service]/[Install] 三段式） |
 | 生命周期管理 | supervisor start/stop/restart | systemctl start/stop/restart |
@@ -585,11 +585,11 @@ IRON-9 v3 四层共享模型将 agentrt（用户态运行时）与 agentrt-linux
 | 故障恢复 | supervisor 自动重启 | systemd Restart=on-failure + WatchdogSec= |
 | 日志收集 | 应用层日志文件 | journald（结构化日志） |
 
-两端在语义上完全同源——daemon 启动顺序、环境变量注入、故障恢复策略的概念模型一致——但 agentrt-linux 将这些语义落地为 systemd 原生能力（cgroup v2 集成、socket activation、journald 日志），而 agentrt 用户态运行时保持 supervisor 的轻量实现。这种语义同源使得 Agent 从 agentrt 迁移到 agentrt-linux 时，部署配置无需语义转换，仅实现载体从 supervisor 配置变为 systemd unit。
+两端在语义上完全同源——daemon 启动顺序、环境变量注入、故障恢复策略的概念模型一致——但 agent-linux 将这些语义落地为 systemd 原生能力（cgroup v2 集成、socket activation、journald 日志），而 agentrt 用户态运行时保持 supervisor 的轻量实现。这种语义同源使得 Agent 从 agentrt 迁移到 agent-linux 时，部署配置无需语义转换，仅实现载体从 supervisor 配置变为 systemd unit。
 
 #### 13.3.4 [IND] 完全独立层
 
-[IND] 层是 agentrt-linux 发行版的固有责任，agentrt 用户态运行时不涉及：
+[IND] 层是 agent-linux 发行版的固有责任，agentrt 用户态运行时不涉及：
 
 | 独立实现项 | 说明 | agentrt 是否涉及 |
 |------|------|------|
@@ -609,7 +609,7 @@ graph LR
         S1["sched.h<br/>AIRY_TASK_MAGIC 0x41475453"]
         S2["ipc.h<br/>AIRY_IPC_MAGIC 0x41524531<br/>128B 消息头"]
     end
-    SC -->|"参数约束"| D["agentrt-linux<br/>systemd 集成<br/>RPM/dnf 部署"]
+    SC -->|"参数约束"| D["agent-linux<br/>systemd 集成<br/>RPM/dnf 部署"]
     D -->|"daemon 间通信"| E["AgentsIPC<br/>128B 消息头协议"]
     style SC fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style A fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
@@ -617,7 +617,7 @@ graph LR
     style E fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
 ```
 
-部署协作流：agentrt 12 daemons 以 `*_d` 二进制名同源交付，部署到 agentrt-linux 时通过 [SC] 层的 `sched.h` 完成任务注册（`AIRY_TASK_MAGIC` 校验任务描述符完整性），通过 `ipc.h` 的 128B 消息头实现 daemon 间通信。agentrt-linux 独立承担 systemd 单元编排（[SS] 语义同源——unit 文件三段式对应 supervisor 配置语义）与 RPM/initramfs/镜像构建（[IND] 完全独立），两端在部署阶段通过同源二进制名与共享 IPC 协议实现无适配层互操作。
+部署协作流：agentrt 12 daemons 以 `*_d` 二进制名同源交付，部署到 agent-linux 时通过 [SC] 层的 `sched.h` 完成任务注册（`AIRY_TASK_MAGIC` 校验任务描述符完整性），通过 `ipc.h` 的 128B 消息头实现 daemon 间通信。agent-linux 独立承担 systemd 单元编排（[SS] 语义同源——unit 文件三段式对应 supervisor 配置语义）与 RPM/initramfs/镜像构建（[IND] 完全独立），两端在部署阶段通过同源二进制名与共享 IPC 协议实现无适配层互操作。
 
 ### 13.4 12 daemons systemd 生命周期管理
 
@@ -724,7 +724,7 @@ graph TD
     style CONFIG fill:#e1f5fe,stroke:#01579b,color:#000
 ```
 
-#### 13.4.4 agentrt-linux 扩展深化规则
+#### 13.4.4 agent-linux 扩展深化规则
 
 **OS-OPS-025**：所有 12 daemons 的 systemd unit 必须设置 `RestartSec=5s`（OOM kill 场景 `RestartSec=10s`），避免崩溃后立即重启导致抖动；连续重启次数上限 5 次/10 分钟，超限触发 `audit_d` 告警并停止自动重启。
 
@@ -758,7 +758,7 @@ graph TD
 
 ## 附录 A: 接口定义
 
-> **附录定位**： 本附录汇集部署体系所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核基线 RPM/systemd 工程实践、主流 Linux 发行版工具链（rpmbuild/dnf/lorax/dractu），以及 agentrt-linux 12 daemons 部署专属契约（`include/airymax/deploy_types.h`）。
+> **附录定位**： 本附录汇集部署体系所需的完整接口契约，供直接参照实现。所有数据结构与函数签名对齐 Linux 6.6 内核基线 RPM/systemd 工程实践、主流 Linux 发行版工具链（rpmbuild/dnf/lorax/dractu），以及 agent-linux 12 daemons 部署专属契约（`include/airymax/deploy_types.h`）。
 
 ### A.1 核心数据结构
 
@@ -772,7 +772,7 @@ graph TD
  * 每个字段映射 spec 文件的一个段（Name/Version/Release/...）。
  *
  * 对齐 Linux 6.6 内核基线 rpmbuild + 主流 Linux 发行版打包规范
- * 对齐 agentrt-linux OS-OPS-029 ~ OS-OPS-032
+ * 对齐 agent-linux OS-OPS-029 ~ OS-OPS-032
  */
 struct rpm_spec {
     const char *name;            /* @field: 包名（如 "airymaxos-services-core"） */
@@ -807,7 +807,7 @@ struct rpm_spec {
  * 用于 systemd_install() 安装单元、daemon 依赖图校验。
  *
  * 对齐 Linux 6.6 systemd（v254+）unit 配置规范
- * 对齐 agentrt-linux OS-OPS-037 / OS-OPS-014
+ * 对齐 agent-linux OS-OPS-037 / OS-OPS-014
  */
 struct systemd_unit {
     const char *unit_name;       /* @field: 单元名（如 "agentrt-gateway.service"） */
@@ -838,12 +838,12 @@ struct systemd_unit {
 
 ```c
 /**
- * struct daemon_config - daemon 进程配置（agentrt-linux 专属）
+ * struct daemon_config - daemon 进程配置（agent-linux 专属）
  *
  * 对齐 agentrt 12 daemons 用户态服务配置语义。
  * 每个 daemon 启动时从 /etc/agentrt/<daemon>.conf 加载本结构。
  *
- * agentrt-linux 专属（IRON-9 v3 同源，对齐 12 daemons）
+ * agent-linux 专属（IRON-9 v3 同源，对齐 12 daemons）
  */
 struct daemon_config {
     uint32_t    daemon_id;         /* @field: daemon ID（1-12，对应启动顺序） */
@@ -866,7 +866,7 @@ struct daemon_config {
 };
 
 /**
- * agentrt 12 daemons 名称常量（agentrt-linux 专属）
+ * agentrt 12 daemons 名称常量（agent-linux 专属）
  * 对齐表 8.1 daemon 到 systemd unit 映射
  */
 #define AIRY_DAEMON_COUNT          12
@@ -1064,7 +1064,7 @@ int systemd_install(const struct systemd_unit *unit,
  * @return: 0 成功，<0 失败（见 DAEMON_* 错误码）
  * @since 0.1.1
  *
- * agentrt-linux 专属（对齐 12 daemons 生命周期管理）
+ * agent-linux 专属（对齐 12 daemons 生命周期管理）
  */
 int daemon_start(const struct daemon_config *config);
 
@@ -1168,7 +1168,7 @@ int pxe_setup(const struct pxe_config *pxe, bool repo_sync);
  * SYSTEMD_UNIT_TYPE_* - systemd 单元类型枚举
  *
  * 对齐 Linux 6.6 systemd（v254+）单元类型
- * 对齐 agentrt-linux OS-OPS-037
+ * 对齐 agent-linux OS-OPS-037
  */
 #define SYSTEMD_UNIT_TYPE_SERVICE   1  /* service 单元（12 daemons 使用） */
 #define SYSTEMD_UNIT_TYPE_SOCKET    2  /* socket 单元（socket activation） */
@@ -1184,7 +1184,7 @@ int pxe_setup(const struct pxe_config *pxe, bool repo_sync);
 /**
  * DAEMON_* - daemon 生命周期管理错误码
  *
- * agentrt-linux 专属，对齐 12 daemons 部署错误场景
+ * agent-linux 专属，对齐 12 daemons 部署错误场景
  * 对齐 errno 语义（负值表示失败）
  */
 #define DAEMON_OK                  0    /* 操作成功 */
@@ -1239,7 +1239,7 @@ int pxe_setup(const struct pxe_config *pxe, bool repo_sync);
 
 ```c
 /**
- * 部署路径常量（agentrt-linux 专属）
+ * 部署路径常量（agent-linux 专属）
  *
  * 对齐 /etc/agentrt/ 与 systemd 标准路径规范
  */
@@ -1256,7 +1256,7 @@ int pxe_setup(const struct pxe_config *pxe, bool repo_sync);
 /**
  * 仓库类型常量
  *
- * 对齐 agentrt-linux 仓库组织（OS-OPS-005）
+ * 对齐 agent-linux 仓库组织（OS-OPS-005）
  */
 #define REPO_NAME_BASE            "airymaxos-base"
 #define REPO_NAME_UPDATES         "airymaxos-updates"

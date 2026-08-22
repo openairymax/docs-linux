@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 云原生 Agent 部署设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）云原生工程体系主索引——K8s CRD、containerd-shim、超节点 OS 与 A-ULS 统一生命周期\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）云原生工程体系主索引——K8s CRD、containerd-shim、超节点 OS 与 A-ULS 统一生命周期\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[AirymaxOS 总览](../README.md)
@@ -26,7 +26,7 @@ AirymaxOS 与生俱来具备云原生亲和力：sched_tac 调度语义与 K8s �
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有云原生设计必须以本声明为基线——containerd-shim 不得依赖 sched_ext、IPC 传输不得使用 page flipping、安全沙箱不得依赖 BPF LSM。
+agent-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度做出**不可妥协**的技术选型。本目录所有云原生设计必须以本声明为基线——containerd-shim 不得依赖 sched_ext、IPC 传输不得使用 page flipping、安全沙箱不得依赖 BPF LSM。
 
 | # | 技术维度 | 选定方案 | 明确不采用 | 选定理由 |
 |---|---------|---------|-----------|---------|

@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）驱动模型设计
-> **文档定位**：agentrt-linux（AirymaxOS）驱动子系统工程设计主索引（设备驱动管理 + VFIO 直通 + DMA 安全规范）\
+# agent-linux（AirymaxOS）驱动模型设计
+> **文档定位**：agent-linux（AirymaxOS）驱动子系统工程设计主索引（设备驱动管理 + VFIO 直通 + DMA 安全规范）\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-agentrt-linux 驱动模型是连接内核能力与硬件/虚拟设备的核心抽象层。它继承 Linux 内核 30+ 年沉淀的 device/driver/bus 三元组解耦哲学，并在其上扩展智能体工作负载所需的"软驱动"概念——Agent 行为契约作为一类虚拟设备参与驱动模型。本目录覆盖三方面职责：
+agent-linux 驱动模型是连接内核能力与硬件/虚拟设备的核心抽象层。它继承 Linux 内核 30+ 年沉淀的 device/driver/bus 三元组解耦哲学，并在其上扩展智能体工作负载所需的"软驱动"概念——Agent 行为契约作为一类虚拟设备参与驱动模型。本目录覆盖三方面职责：
 
 1. **设备驱动管理**：device/driver/bus/class 四元组抽象，platform 总线、misc 框架、`module_*_driver` 宏样板消除、`devm_` 资源托管扩展（含 Token 预算、记忆卷载、IPC 通道等智能体资源）。
 2. **VFIO 直通**：将物理设备安全直通给用户态守护进程（dev_d 等），驱动模型负责设备生命周期与 IOMMU 隔离边界。
@@ -27,7 +27,7 @@ agentrt-linux 驱动模型是连接内核能力与硬件/虚拟设备的核心�
 | **bus** | 总线类型（匹配 device 与 driver） | `include/linux/device/bus.h` |
 | **class** | 设备功能分类（电源/输入/网络等） | `include/linux/device/class.h` |
 
-### 1.2 agentrt-linux 扩展
+### 1.2 agent-linux 扩展
 
 - **Agent 虚拟驱动**：将 Agent 行为契约作为虚拟设备，通过 `agent_driver_register()` 注册到 `agent_bus_type`
 - **智能体资源托管**：`devm_` 资源管理扩展至 Token 预算、记忆卷载、IPC 通道等智能体资源
@@ -37,7 +37,7 @@ agentrt-linux 驱动模型是连接内核能力与硬件/虚拟设备的核心�
 
 ## 2. 技术选型声明
 
-agentrt-linux v1.0 驱动模型在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。驱动模型作为 A-IPC 设备 DMA 与 A-ULS 设备生命周期的承载者，五个维度的选型在本目录的具体落地如下：
+agent-linux v1.0 驱动模型在内核调度、IPC 传输、安全钩子、内存分配与同源代码共享五个维度遵循 [AirymaxOS 总览](../README.md) §2 的不可妥协基线。驱动模型作为 A-IPC 设备 DMA 与 A-ULS 设备生命周期的承载者，五个维度的选型在本目录的具体落地如下：
 
 | # | 技术维度 | 选定方案 | 明确不采用的方案 | 在本目录的落地 |
 |---|---------|---------|----------------|--------------|
@@ -58,7 +58,7 @@ agentrt-linux v1.0 驱动模型在内核调度、IPC 传输、安全钩子、内
 
 ### 2.2 openEuler 硬件驱动 LAYER 复用
 
-agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-018-openeuler-硬件驱动复用-layer-决策vanilla-66144--openeuler-硬件适配层正交叠加)）复用 openEuler OLK-6.6 的硬件适配能力：
+agent-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-018-openeuler-硬件驱动复用-layer-决策vanilla-66144--openeuler-硬件适配层正交叠加)）复用 openEuler OLK-6.6 的硬件适配能力：
 
 - **arch/sw_64/**：完整导入申威架构支持（367 文件），vanilla 6.6.149 不含此架构
 - **arch/{x86,arm64}/configs/openeuler_defconfig**：作为硬件配置底座
@@ -67,7 +67,7 @@ agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-
 
 核心子系统（调度/安全/IPC/内存）保持 vanilla 基线纯净，由 `configs/defconfig-agent` IRON-7 覆盖保障。驱动代码通过标准 Linux 驱动模型（device/driver/bus）接入，与核心子系统通过既定接口交互，不改变核心子系统行为。
 
-> 详细设计见闭源文档 [01-openeuler-tech-reference/](../../../docs-closed/agentrt-linux/01-openeuler-tech-reference/)。
+> 详细设计见闭源文档 [01-openeuler-tech-reference/](../../../docs-closed/agent-linux/01-openeuler-tech-reference/)。
 
 ---
 
@@ -94,7 +94,7 @@ agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-
 
 - `03-devm-resource.md`：`devm_` 资源管理与生命周期（含智能体资源托管扩展）
 - `04-misc-framework.md`：misc 框架与轻量级字符设备
-- `05-agent-driver.md`：agentrt-linux 专属 Agent 虚拟设备驱动
+- `05-agent-driver.md`：agent-linux 专属 Agent 虚拟设备驱动
 - `06-vfio-passthrough.md`：VFIO 直通与 IOMMU 隔离
 - `07-driver-testing.md`：驱动测试方法（KUnit + kselftest）
 
@@ -159,4 +159,4 @@ agentrt-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-
 
 ---
 
-> **文档结束** | agentrt-linux 驱动模型设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 驱动模型设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."

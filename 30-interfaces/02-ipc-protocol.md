@@ -1,20 +1,20 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # IPC 协议
-> **文档定位**：agentrt-linux（AirymaxOS） 进程间通信协议的 Layout C v4 128B 消息头、5 种 payload、io_uring 零拷贝与同源映射、Capability Folding Badge 模型\
+> **文档定位**：agent-linux（AirymaxOS） 进程间通信协议的 Layout C v4 128B 消息头、5 种 payload、io_uring 零拷贝与同源映射、Capability Folding Badge 模型\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-26\
 > **v4.3 锁定说明**：IPC 协议锁定 v1.0.1 为唯一基线（IRON-7），v1.0 从未发布，版本协商机制降级为 v2.0+ 预留。7 opcode 自 v1.0.1 起稳定。\
-> **上级文档**：[agentrt-linux 设计文档](README.md)
+> **上级文档**：[agent-linux 设计文档](README.md)
 
 ---
 
 ## 1. IPC 协议设计原则
 
-agentrt-linux IPC 协议与 agentrt AgentsIPC 同源，保留 128 字节定长消息头设计，并在底层升级为基于 io_uring 的零拷贝实现。v1.0.1 起，集成 **Capability Folding** 设计模式——将 capability check 从独立控制面操作"折叠"到 IPC 数据面 fastpath 中，由 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段承载 64-bit Native Word Badge（D-9 修复后 8 字节对齐至 offset 40），由 fastpath C-S9 内联校验。设计原则：
+agent-linux IPC 协议与 agentrt AgentsIPC 同源，保留 128 字节定长消息头设计，并在底层升级为基于 io_uring 的零拷贝实现。v1.0.1 起，集成 **Capability Folding** 设计模式——将 capability check 从独立控制面操作"折叠"到 IPC 数据面 fastpath 中，由 [SC] `ipc.h` Layout C v4 消息头 offset 40-47 的 `capability_badge` 字段承载 64-bit Native Word Badge（D-9 修复后 8 字节对齐至 offset 40），由 fastpath C-S9 内联校验。设计原则：
 
 1. **定长消息头**: 128 字节定长，自然对齐布局（Layout C v4 SSoT，`__attribute__((aligned(64)))`，D-9 修复移除 `__attribute__((packed))`），128 字节 = 2 cache lines，便于零拷贝 IORING_OP_URING_CMD + registered buffer。参考 OLK 6.6 内核协议头（`struct ethhdr`/`struct iphdr`）手动安排字段对齐的做法，不使用 packed。
-2. **同源兼容**: 消息头字段布局与 agentrt AgentsIPC 保持兼容，agentrt 在 agentrt-linux 上运行无需协议转换。
+2. **同源兼容**: 消息头字段布局与 agentrt AgentsIPC 保持兼容，agentrt 在 agent-linux 上运行无需协议转换。
 3. **机制与策略分离**: 协议提供消息传递机制，消息语义（RPC / 事件 / 流）由 payload 类型决定。
 4. **零拷贝优先**: 高频路径基于 io_uring + registered buffers + IORING_OP_URING_CMD 语义映射，避免数据复制。
 5. **可观测性**: 消息头携带 `trace_id`（OpenTelemetry）与 `timestamp_ns`，全链路可追踪。
@@ -55,7 +55,7 @@ extern "C" {
 
 /* flags 定义 */
 #define AIRY_IPC_FLAG_ZEROCOPY		0x0001
-#define AIRY_IPC_FLAG_CAP_CARRY		0x0002  /* 携带 Badge（agentrt-linux 内核必置） */
+#define AIRY_IPC_FLAG_CAP_CARRY		0x0002  /* 携带 Badge（agent-linux 内核必置） */
 #define AIRY_IPC_FLAG_ENCRYPT		0x0004  /* 保留，0.1.1 不启用 */
 #define AIRY_IPC_FLAG_COMPRESS		0x0008  /* 保留，0.1.1 不启用 */
 #define AIRY_IPC_FLAG_BATCH_TAIL		0x0010  /* SEND_BATCH 的最后一个 SQE */
@@ -86,7 +86,7 @@ extern "C" {
  *   offset 16: timestamp_ns       (8B) CLOCK_MONOTONIC ns
  *   offset 24: src_task           (8B) source Agent/daemon task_id
  *   offset 32: dst_task           (8B) destination Agent/daemon task_id
- *   offset 40: capability_badge   (8B) [SS] agentrt-linux uses, agentrt=0
+ *   offset 40: capability_badge   (8B) [SS] agent-linux uses, agentrt=0
  *   offset 48: payload_len        (4B) payload length (excluding header)
  *   offset 52: crc32              (4B) CRC32 over header[0:52) + payload
  *   offset 56: reserved[72]       (72B) must be zero ([56:64) CL1 tail + [64:128) CL2)
@@ -101,7 +101,7 @@ struct airy_ipc_msg_hdr {
 	__u64	timestamp_ns;		/* offset 16, CLOCK_MONOTONIC nanoseconds */
 	__u64	src_task;		/* offset 24, source Agent/daemon task_id */
 	__u64	dst_task;		/* offset 32, destination Agent/daemon task_id */
-	__u64	capability_badge;	/* offset 40, [SS] agentrt-linux uses, agentrt=0 */
+	__u64	capability_badge;	/* offset 40, [SS] agent-linux uses, agentrt=0 */
 	__u32	payload_len;		/* offset 48, payload length (excluding header) */
 	__u32	crc32;			/* offset 52, CRC32 over header[0:52) + payload */
 	__u8	reserved[72];		/* offset 56, must be zero (CL1 [56:64) + CL2 [64:128)) */
@@ -116,7 +116,7 @@ _Static_assert(offsetof(struct airy_ipc_msg_hdr, crc32) == 52,
 
 /* ===== Badge 位布局（[SC] ipc.h 定义，校验逻辑属 [SS] 语义同源层）===== */
 /* agentrt 用户态：capability_badge 始终为 0（H3） */
-/* agentrt-linux 内核：capability_badge 由 sec_d 编译（H4） */
+/* agent-linux 内核：capability_badge 由 sec_d 编译（H4） */
 /* [DSL] 降级模式：capability_badge = 0，跳过 C-S9（H6） */
 
 #define AIRY_BADGE_EPOCH_SHIFT		48
@@ -169,7 +169,7 @@ _Static_assert(offsetof(struct airy_ipc_msg_hdr, crc32) == 52,
 | `timestamp_ns` | 16 | 8 | 纳秒时间戳（CLOCK_MONOTONIC，单调递增，见 §2.4） | 不校验（透传） |
 | `src_task` | 24 | 8 | 源任务 ID（0 表示内核发起），与 Badge 编译时绑定 | C-S9（与 `agent_caps[]` 对照） |
 | `dst_task` | 32 | 8 | 目标任务 ID（0 表示广播），决定 kfifo 路由 | C-S5/C-S6（路由） |
-| `capability_badge` | 40 | 8 | [SS] 语义同源：agentrt-linux 内核由 sec_d 编译，agentrt 用户态始终为 0（D-9 修复后 8 字节对齐至 offset 40） | C-S9（Badge 校验） |
+| `capability_badge` | 40 | 8 | [SS] 语义同源：agent-linux 内核由 sec_d 编译，agentrt 用户态始终为 0（D-9 修复后 8 字节对齐至 offset 40） | C-S9（Badge 校验） |
 | `payload_len` | 48 | 4 | payload 字节数，0 表示无 payload | C-S3/C-S4 |
 | `crc32` | 52 | 4 | CRC32 覆盖 `header[0:52) + payload`，发送方计算填入 | C-S12（投递前校验） |
 | `reserved` | 56 | 72 | 保留字段，必须为零，未来扩展（[56:64) 为 cache line 1 尾部，[64:128) 为 cache line 2） | C-S4（reserved 检查） |
@@ -260,7 +260,7 @@ CRC32 覆盖范围: header[0:52) + payload（D-9 修复后字段顺序调整，�
 H1: Layout C v4 总长保持 128 字节，magic 保持 0x41524531 'ARE1'
 H2: capability_badge 字段进入 [SC] ipc.h，但校验机制属于 [SS] 层
 H3: agentrt 用户态 capability_badge 始终为 0，使用传统 cap_t 引用
-H4: agentrt-linux 内核 capability_badge 由 sec_d 编译，fastpath C-S9 校验
+H4: agent-linux 内核 capability_badge 由 sec_d 编译，fastpath C-S9 校验
 H5: 纯 C LSM 模块职责不变（策略/撤销/审计/执法），Badge 校验是其 fastpath 内联
 H6: [DSL] 降级模式下 capability_badge 字段存在但被忽略（值=0，跳过校验）
 ```
@@ -280,7 +280,7 @@ H6: [DSL] 降级模式下 capability_badge 字段存在但被忽略（值=0，�
 
 **与原 cap_t 模型的关系**：
 - agentrt 用户态继续使用 `cap_t` 引用（H3），`capability_badge` 字段始终为 0，不影响其语义。
-- agentrt-linux 内核使用 Badge 模型（H4），fastpath C-S9 内联校验，无需独立 capability syscall。
+- agent-linux 内核使用 Badge 模型（H4），fastpath C-S9 内联校验，无需独立 capability syscall。
 - [DSL] 降级模式下 Badge 字段被忽略（H6），`capability_badge=0`，跳过 C-S9，退化到 `airy_cap_check()` slowpath 兜底路径（基于 `agent_caps[1024]` 静态数组；`AIRY_ECAP_RADIX_MISS`/`STATIC_KEY` 错误码保留编号但 v1.0.1 不触发）。
 
 **Badge 错误码**（错误码 SSoT 见 [08-sc-error-contract.md §2.4](08-sc-error-contract.md)）：
@@ -396,7 +396,7 @@ typedef struct airy_ipc_control {
 
 ## 4. io_uring 零拷贝实现
 
-agentrt-linux IPC 基于 Linux 6.6 内核基线的 io_uring 子系统实现零拷贝消息传递。
+agent-linux IPC 基于 Linux 6.6 内核基线的 io_uring 子系统实现零拷贝消息传递。
 
 ### 4.1 通信原语
 
@@ -455,7 +455,7 @@ AIRY_API int airy_sys_ipc_register_ring(int ring_fd, __u64 dst_task);
 
 ### 4.4 io_uring OP 复用（Capability Folding 单平面架构）
 
-agentrt-linux 不注册独立的 IPC 专用 io_uring OP，全部 IPC 数据传递通过 `IORING_OP_URING_CMD` 复用，由 `cmd_op` 字段区分操作类型（详见 [20-modules/01-kernel.md](../20-modules/01-kernel.md) 第 4.2 节）：
+agent-linux 不注册独立的 IPC 专用 io_uring OP，全部 IPC 数据传递通过 `IORING_OP_URING_CMD` 复用，由 `cmd_op` 字段区分操作类型（详见 [20-modules/01-kernel.md](../20-modules/01-kernel.md) 第 4.2 节）：
 
 | `IORING_OP_URING_CMD` 的 `cmd_op` | 用途 | 对应消息头 opcode |
 |----|------|----|
@@ -475,11 +475,11 @@ agentrt-linux 不注册独立的 IPC 专用 io_uring OP，全部 IPC 数据传�
 
 ### 4.6 Capability Folding：Badge 校验
 
-agentrt-linux 内核态 IPC 通过 `capability_badge` 字段承载 64-bit Native Word Badge（详见 §2.6），由 fastpath C-S9 内联校验，无需独立 capability syscall。**v1.0.1 起，原 `airy_sys_ipc_send_with_cap()` 已废弃，Badge 模型取代 cap_slot 派生模型。**
+agent-linux 内核态 IPC 通过 `capability_badge` 字段承载 64-bit Native Word Badge（详见 §2.6），由 fastpath C-S9 内联校验，无需独立 capability syscall。**v1.0.1 起，原 `airy_sys_ipc_send_with_cap()` 已废弃，Badge 模型取代 cap_slot 派生模型。**
 
 **Capability Folding 校验流程**（详见 [07-ipc-fastpath.md §5.2](07-ipc-fastpath.md)）:
 
-1. **发送方**：在 `capability_badge` 字段填入 sec_d 编译的 Badge，`flags` 置位 `AIRY_IPC_FLAG_CAP_CARRY`（agentrt-linux 内核必置，agentrt 用户态不置）。
+1. **发送方**：在 `capability_badge` 字段填入 sec_d 编译的 Badge，`flags` 置位 `AIRY_IPC_FLAG_CAP_CARRY`（agent-linux 内核必置，agentrt 用户态不置）。
 2. **fastpath C-S9 内联校验**（接收方，~10ns）：
    - 提取 `badge_epoch = AIRY_BADGE_EPOCH(badge)`
    - 提取 `badge_randtag = AIRY_BADGE_RANDTAG(badge)`
@@ -497,7 +497,7 @@ agentrt-linux 内核态 IPC 通过 `capability_badge` 字段承载 64-bit Native
 
 ### 4.7 端点状态机（seL4 风格，Step 2.4 #2 补齐）
 
-参考 seL4 Endpoint 状态机（ADR-014，源码证据 `include/object/structures.h:36-41`：`EPState_Idle/EPState_Send/EPState_Recv`），agentrt-linux IPC 端点有 3 个状态，由内核维护，用户态不可直接观测。**命名严格对齐 seL4**：状态名描述"端点所处的语义态"而非"线程等待态"，因此不带 `Waiting` 后缀。
+参考 seL4 Endpoint 状态机（ADR-014，源码证据 `include/object/structures.h:36-41`：`EPState_Idle/EPState_Send/EPState_Recv`），agent-linux IPC 端点有 3 个状态，由内核维护，用户态不可直接观测。**命名严格对齐 seL4**：状态名描述"端点所处的语义态"而非"线程等待态"，因此不带 `Waiting` 后缀。
 
 | 状态 | 含义 | 触发转换 |
 |------|------|----------|
@@ -513,18 +513,18 @@ agentrt-linux 内核态 IPC 通过 `capability_badge` 字段承载 64-bit Native
 
 **Fastpath 优化**（借鉴 seL4）：当端点处于 Idle 且发送方与接收方同时就绪时，走 Fastpath——内核直接切换上下文，不经过 SQE/CQE 队列，延迟 < 1μs。Slowpath（阻塞情况）走 io_uring SQE/CQE 标准路径。
 
-**与 seL4 的差异**：seL4 端点状态机是微内核核心（形式化验证）；agentrt-linux 在 io_uring 之上实现端点状态语义，Fastpath 用用户态调度器直接调度（SCHED_FIFO），Slowpath 用 io_uring CQE 通知。状态机语义在 [SS] 语义同源层与 agentrt 共享，实现独立。
+**与 seL4 的差异**：seL4 端点状态机是微内核核心（形式化验证）；agent-linux 在 io_uring 之上实现端点状态语义，Fastpath 用用户态调度器直接调度（SCHED_FIFO），Slowpath 用 io_uring CQE 通知。状态机语义在 [SS] 语义同源层与 agentrt 共享，实现独立。
 
 ### 4.8 Reply 原子性（seL4 `doReplyTransfer` 临界区串行执行模式）
 
-参考 seL4 Reply 语义（ADR-014，源码证据 `src/object/endpoint.c:115-127` 的 `doReplyTransfer` + `src/kernel/thread.c:131-200` 的线程状态切换）：**seL4 不存在独立的"Reply Capability 原子性"机制**，原子性是"线程状态切换 + 回复消息传递"两步在 `doReplyTransfer` 函数内串行执行的涌现属性。agentrt-linux 借鉴该模式：`AIRY_SYS_REPLY` 在内核临界区内串行完成"写入回复 + 恢复接收方"，要么完全成功（接收方收到回复并恢复运行），要么完全失败（回复方阻塞等待接收方就绪），保证 IPC 调用-回复的语义完整性，不会出现"回复已发送但接收方未恢复"的中间状态。
+参考 seL4 Reply 语义（ADR-014，源码证据 `src/object/endpoint.c:115-127` 的 `doReplyTransfer` + `src/kernel/thread.c:131-200` 的线程状态切换）：**seL4 不存在独立的"Reply Capability 原子性"机制**，原子性是"线程状态切换 + 回复消息传递"两步在 `doReplyTransfer` 函数内串行执行的涌现属性。agent-linux 借鉴该模式：`AIRY_SYS_REPLY` 在内核临界区内串行完成"写入回复 + 恢复接收方"，要么完全成功（接收方收到回复并恢复运行），要么完全失败（回复方阻塞等待接收方就绪），保证 IPC 调用-回复的语义完整性，不会出现"回复已发送但接收方未恢复"的中间状态。
 
 **seL4 原子性来源（源码级分析）**：
 1. seL4 master 模式：`doReplyTransfer()` 内部先 `setThreadState(blocked, ts_idle)` 再 `sendIPC()`，调用方 caller slot 由 `setupCallerCap` 在 Call 阶段绑定到 TCB 内嵌的 `tcbCaller`（`src/object/endpoint.c:115-127` + `src/kernel/thread.c:131-200`），整个调用链在单核上不可抢占，因此天然串行。
 2. seL4 MCS 模式：通过 `reply_t` 对象 + `reply_push/reply_remove` 显式管理回复链，仍非显式 "atomic reply" 系统调用。
 3. **关键澄清**：seL4 没有 "Reply Capability 原子性" 独立设计，原子性是临界区串行执行的涌现属性。
 
-**agentrt-linux 原子性保证机制**（借鉴 `doReplyTransfer` 模式，实现独立）：
+**agent-linux 原子性保证机制**（借鉴 `doReplyTransfer` 模式，实现独立）：
 1. Reply 操作在内核态持端点锁（`airy_ep->lock`）期间完成——对齐 seL4 单核不可抢占语义。
 2. 内核将回复消息写入接收方地址空间，并恢复接收方上下文——两步在同一临界区内串行完成，对齐 seL4 `doReplyTransfer` 的"setThreadState + sendIPC"两步串行模式。
 3. 若接收方未在 Recv 状态（端点未处于接收态），回复方阻塞（端点转 Send 态），等待接收方 Recv。
@@ -549,11 +549,11 @@ static int airy_ipc_reply(struct airy_endpoint *ep,
 }
 ```
 
-**与 seL4 的差异**：seL4 Reply 原子性通过"TCB 内嵌 caller slot + `doReplyTransfer` 临界区串行 + 形式化验证"三重保证；agentrt-linux 通过"自旋锁 + 临界区串行"保证（非形式化验证），借鉴 `doReplyTransfer` 模式但实现独立（M1 暂不引入 TCB 内嵌 reply slot，1.0.1 M2+ 评估 C-C07）。Reply 原子性语义在 [SS] 语义同源层与 agentrt 共享。
+**与 seL4 的差异**：seL4 Reply 原子性通过"TCB 内嵌 caller slot + `doReplyTransfer` 临界区串行 + 形式化验证"三重保证；agent-linux 通过"自旋锁 + 临界区串行"保证（非形式化验证），借鉴 `doReplyTransfer` 模式但实现独立（M1 暂不引入 TCB 内嵌 reply slot，1.0.1 M2+ 评估 C-C07）。Reply 原子性语义在 [SS] 语义同源层与 agentrt 共享。
 
 ### 4.9 SQE128 模式（cmd 字段扩展，D-7 修复）
 
-**背景**：OLK 6.6 `include/uapi/linux/io_uring.h` 中 `struct io_uring_sqe` 的 `cmd` 字段标准大小为 16 字节（`__u8 cmd[16]`），不足以承载 agentrt-linux IPC 的 `airy_ipc_cmd` 结构体（含消息头指针 + payload 指针 + 路由信息，~40 字节）。v1.0.1 方案早期文档错误声称可直接传递 80 字节 `airy_ipc_cmd`，未说明需要启用 SQE128 模式。D-7 修复对此进行文档化。
+**背景**：OLK 6.6 `include/uapi/linux/io_uring.h` 中 `struct io_uring_sqe` 的 `cmd` 字段标准大小为 16 字节（`__u8 cmd[16]`），不足以承载 agent-linux IPC 的 `airy_ipc_cmd` 结构体（含消息头指针 + payload 指针 + 路由信息，~40 字节）。v1.0.1 方案早期文档错误声称可直接传递 80 字节 `airy_ipc_cmd`，未说明需要启用 SQE128 模式。D-7 修复对此进行文档化。
 
 **SQE128 模式**（`IORING_SETUP_SQE128`，Linux 5.18+，OLK 6.6 基线支持）：
 
@@ -609,22 +609,22 @@ BUILD_BUG_ON(sizeof(struct airy_ipc_cmd) > 80);
 
 ## 5. 与 agentrt AgentsIPC 的同源映射
 
-agentrt-linux IPC 与 agentrt AgentsIPC 同源，保留 128B 定长消息头布局兼容。
+agent-linux IPC 与 agentrt AgentsIPC 同源，保留 128B 定长消息头布局兼容。
 
-| 维度 | agentrt AgentsIPC | agentrt-linux IPC | 同源关系 |
+| 维度 | agentrt AgentsIPC | agent-linux IPC | 同源关系 |
 |------|------------------|---------------|---------|
 | 消息头长度 | 128B 定长 | 128B 定长 | 完全兼容 |
 | magic | 'ARE1' | 'ARE1' | 完全兼容（同源 agentrt） |
 | src_task / dst_task | 任务 ID | 任务 ID | 完全兼容 |
 | trace_id | OpenTelemetry | OpenTelemetry | 完全兼容 |
 | timestamp_ns | CLOCK_MONOTONIC | CLOCK_MONOTONIC | 完全兼容 |
-| 底层传输 | 用户态消息队列 | io_uring 零拷贝 | agentrt-linux 升级 |
-| payload 协议 | 自定义 | 5 种（REQUEST/RESPONSE/EVENT/STREAM/CONTROL） | agentrt-linux 扩展 |
-| capability | 应用权限模型 | seL4 风格 capability | agentrt-linux 升级 |
+| 底层传输 | 用户态消息队列 | io_uring 零拷贝 | agent-linux 升级 |
+| payload 协议 | 自定义 | 5 种（REQUEST/RESPONSE/EVENT/STREAM/CONTROL） | agent-linux 扩展 |
+| capability | 应用权限模型 | seL4 风格 capability | agent-linux 升级 |
 
-**同源红利**: agentrt 在 agentrt-linux 上运行时，IPC 消息头布局完全兼容，无需协议转换层，天然契合。
+**同源红利**: agentrt 在 agent-linux 上运行时，IPC 消息头布局完全兼容，无需协议转换层，天然契合。
 
-**独立性**: agentrt-linux IPC 为 OS 级实现（基于 io_uring + 内核固定 OP），agentrt AgentsIPC 为应用级实现（用户态消息队列），二者在分层上独立。遵循 IRON-9"同源且部分代码共享"原则。
+**独立性**: agent-linux IPC 为 OS 级实现（基于 io_uring + 内核固定 OP），agentrt AgentsIPC 为应用级实现（用户态消息队列），二者在分层上独立。遵循 IRON-9"同源且部分代码共享"原则。
 
 ---
 
@@ -671,22 +671,22 @@ IPC 性能约束对齐非功能性需求 NFR-P-002（详见 [00-requirements/03-
 
 ## 8. IRON-9 v3 四层共享模型
 
-> **OS-IFACE-003**： IPC 协议遵循 IRON-9 v3 四层共享模型——Layout C v4 128B 消息头结构、magic 0x41524531（'ARE1'）、`capability_badge` 位布局、5 种 payload type 通过 [SC] 共享契约层 `ipc.h` 完全共享；io_uring `cmd_op` 与传输实现各自独立。禁止在 agentrt 与 agentrt-linux 之间引入协议转换层或字节序适配层。Capability Folding 校验机制属于 [SS] 语义同源层，[DSL] 降级模式下 `capability_badge=0` 跳过 C-S9。
+> **OS-IFACE-003**： IPC 协议遵循 IRON-9 v3 四层共享模型——Layout C v4 128B 消息头结构、magic 0x41524531（'ARE1'）、`capability_badge` 位布局、5 种 payload type 通过 [SC] 共享契约层 `ipc.h` 完全共享；io_uring `cmd_op` 与传输实现各自独立。禁止在 agentrt 与 agent-linux 之间引入协议转换层或字节序适配层。Capability Folding 校验机制属于 [SS] 语义同源层，[DSL] 降级模式下 `capability_badge=0` 跳过 C-S9。
 
 ### 8.1 四层模型概览
 
 | 层次 | 共享程度 | 本接口涉及内容 |
 |------|---------|---------------|
 | **[SC] 共享契约层** | 完全共享代码 | `ipc.h`（IPC magic 0x41524531 'ARE1' + `struct airy_ipc_msg_hdr` Layout C v4 128B 定长头含 `capability_badge`/`crc32` + 7 种 opcode + flags 位 + Badge 位布局宏 + Capability 权限位 + 5 种 payload type） |
-| **[SS] 语义同源层** | 操作模式同源（注册/匹配/生命周期/Capability Folding 校验等概念一致），函数签名因抽象层级不同而独立 | agentrt AgentsIPC（`atoms/ipc`）↔ agentrt-linux `io-uring-ipc`（services）的 send/recv/register_ring 同源 API；C-S9 Badge 校验逻辑同源 |
-| **[IND] 完全独立层** | 完全独立 | agentrt POSIX MQ + mmap 传输 + `cap_t` 引用 ↔ agentrt-linux io_uring + SQPOLL + IORING_OP_URING_CMD + registered buffer 零拷贝传输 + Badge 模型 |
+| **[SS] 语义同源层** | 操作模式同源（注册/匹配/生命周期/Capability Folding 校验等概念一致），函数签名因抽象层级不同而独立 | agentrt AgentsIPC（`atoms/ipc`）↔ agent-linux `io-uring-ipc`（services）的 send/recv/register_ring 同源 API；C-S9 Badge 校验逻辑同源 |
+| **[IND] 完全独立层** | 完全独立 | agentrt POSIX MQ + mmap 传输 + `cap_t` 引用 ↔ agent-linux io_uring + SQPOLL + IORING_OP_URING_CMD + registered buffer 零拷贝传输 + Badge 模型 |
 | **[DSL] 降级生存层** | 最小生存子集 | `#ifdef AIRY_SC_FALLBACK` 降级块：`capability_badge=0`、跳过 C-S9、退化到 `airy_cap_check()` slowpath 兜底路径（基于 `agent_caps[1024]` 静态数组；`AIRY_ECAP_RADIX_MISS`/`STATIC_KEY` 保留编号但 v1.0.1 不触发） |
 
 ### 8.2 [SC] 共享契约层——`ipc.h` 在 IPC 协议中的角色
 
 | `ipc.h` 定义项 | 在协议中的角色 | 消费方 |
 |---------------|---------------|--------|
-| `AIRY_IPC_MAGIC` 0x41524531 'ARE1' | 协议识别魔数，消息头首 4 字节 | agentrt AgentsIPC / agentrt-linux io-uring-ipc |
+| `AIRY_IPC_MAGIC` 0x41524531 'ARE1' | 协议识别魔数，消息头首 4 字节 | agentrt AgentsIPC / agent-linux io-uring-ipc |
 | `struct airy_ipc_msg_hdr` 128B 定长头（Layout C v4） | 自然对齐消息头结构（D-9 修复后移除 packed，使用 `AIRY_ALIGNED(64)` 宏——定义于 `uapi_compat.h`，跨编译器可移植，详见 [C_Cpp_coding_style.md §6.5.1](../50-engineering-standards/10-coding-style/C_Cpp_coding_style.md) OS-IRON-016；字段顺序 magic/opcode/flags/trace_id/timestamp_ns/src_task/dst_task/capability_badge/payload_len/crc32/reserved[72]） | send/recv 路径 |
 | `AIRY_IPC_OP_*` opcode | SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE 操作码 | io_uring `cmd_op` 路由 |
 | `AIRY_IPC_FLAG_*` flags 位 | ZEROCOPY/CAP_CARRY/ENCRYPT/COMPRESS/BATCH_TAIL 标志位 | 消息处理 |
@@ -694,22 +694,22 @@ IPC 性能约束对齐非功能性需求 NFR-P-002（详见 [00-requirements/03-
 | `AIRY_BADGE_*` 位布局宏 | Epoch/RandomTag/Perms 提取与编译宏 | Badge 校验与编译 |
 | `AIRY_CAP_PERM_*` 权限位 | SEND/RECV/DERIVE/KILL/FILE_OPEN/ROTATE/SUPERVISE 权限位 | C-S9 权限校验 |
 
-> **cancelBadgedSends（P1-8，v1.0.1 已实现）**：seL4 在 `endpoint.c:476-489` 提供 `cancelBadgedSends(ep, badge)` 操作，撤销指定 endpoint 上匹配 badge 的所有待发送消息。agentrt-linux 已实现等价操作 `airy_ipc_cancel_badged_sends(ring, badge)`（`kernel/corekern/ipc/airy_ipc_ring.c` L179），通过将匹配 slot 的 `magic` 清零实现取消（`airy_ipc_ring_consume()` 跳过 `magic==0` 的 slot），在 badge 撤销路径（`airy_cap_derive` REVOKE）调用，确保以已失效 Badge 投递的消息永不被投递。M2 阶段可在 `AIRY_IPC_OP_*` opcode 体系中新增 `AIRY_IPC_OP_CANCEL_BADGED`，由 sec_d（唯一持有 `AIRY_CAP_PERM_DERIVE` 的 Agent）经 io_uring `cmd_op` 调用。详见 [09-known-caveats.md §8.4 P1-8](../10-architecture/09-known-caveats.md)。
+> **cancelBadgedSends（P1-8，v1.0.1 已实现）**：seL4 在 `endpoint.c:476-489` 提供 `cancelBadgedSends(ep, badge)` 操作，撤销指定 endpoint 上匹配 badge 的所有待发送消息。agent-linux 已实现等价操作 `airy_ipc_cancel_badged_sends(ring, badge)`（`kernel/corekern/ipc/airy_ipc_ring.c` L179），通过将匹配 slot 的 `magic` 清零实现取消（`airy_ipc_ring_consume()` 跳过 `magic==0` 的 slot），在 badge 撤销路径（`airy_cap_derive` REVOKE）调用，确保以已失效 Badge 投递的消息永不被投递。M2 阶段可在 `AIRY_IPC_OP_*` opcode 体系中新增 `AIRY_IPC_OP_CANCEL_BADGED`，由 sec_d（唯一持有 `AIRY_CAP_PERM_DERIVE` 的 Agent）经 io_uring `cmd_op` 调用。详见 [09-known-caveats.md §8.4 P1-8](../10-architecture/09-known-caveats.md)。
 
-### 8.3 [SS] 语义同源层——agentrt ↔ agentrt-linux IPC API 映射
+### 8.3 [SS] 语义同源层——agentrt ↔ agent-linux IPC API 映射
 
-| agentrt AgentsIPC（用户态） | agentrt-linux io-uring-ipc（内核态） | 同源签名 | 实现差异 |
+| agentrt AgentsIPC（用户态） | agent-linux io-uring-ipc（内核态） | 同源签名 | 实现差异 |
 |----------------------------|--------------------------------------|---------|---------|
 | `airy_ipc_send()` | `IORING_OP_URING_CMD + cmd_op=AIRY_URING_CMD_IPC_SEND`（v1.0.1 无独立 syscall） | `(const struct airy_ipc_msg_hdr *, const void *) -> int` | 用户态 POSIX MQ vs 内核 io_uring SQE |
 | `airy_ipc_recv()` | CQE poll（v1.0.1 无独立 syscall） | `(struct airy_ipc_msg_hdr *, void *, size_t) -> int` | 用户态 mq_receive vs 内核 io_uring CQE |
 | `airy_ipc_register_ring()` | `io_uring_register`（v1.0.1 无独立 syscall） | `(int ring_fd, __u64 dst_task) -> int` | 用户态 mmap 共享 vs 内核 io_uring_register |
-| `airy_cap_badge_ok()`（v1.0.1 新增） | fastpath C-S9 内联校验 | `(badge, src_task, required_perms) -> bool` | agentrt 用户态始终返回 true（badge=0，H3）；agentrt-linux 内核完整校验（H4） |
+| `airy_cap_badge_ok()`（v1.0.1 新增） | fastpath C-S9 内联校验 | `(badge, src_task, required_perms) -> bool` | agentrt 用户态始终返回 true（badge=0，H3）；agent-linux 内核完整校验（H4） |
 
-> **v1.0.1 变更说明**：原 `airy_ipc_send_with_cap()` / `airy_sys_ipc_send_with_cap()` 已废弃。Capability Folding 模式下，Badge 直接嵌入消息头 `capability_badge` 字段，无需独立 cap_slot 参数。agentrt 用户态 `capability_badge=0`（H3），不调用 `airy_cap_badge_ok()`；agentrt-linux 内核 fastpath C-S9 内联校验（H4）。
+> **v1.0.1 变更说明**：原 `airy_ipc_send_with_cap()` / `airy_sys_ipc_send_with_cap()` 已废弃。Capability Folding 模式下，Badge 直接嵌入消息头 `capability_badge` 字段，无需独立 cap_slot 参数。agentrt 用户态 `capability_badge=0`（H3），不调用 `airy_cap_badge_ok()`；agent-linux 内核 fastpath C-S9 内联校验（H4）。
 
 ### 8.4 [IND] 完全独立层
 
-| 独立项 | agentrt 实现 | agentrt-linux 实现 | 独立原因 |
+| 独立项 | agentrt 实现 | agent-linux 实现 | 独立原因 |
 |--------|-------------|-------------------|---------|
 | 传输后端 | POSIX MQ + mmap | io_uring + SQPOLL + registered buffers | 内核态零拷贝优势 |
 | 零拷贝机制 | 用户态 page 共享（mmap） | IORING_OP_URING_CMD（registered buffer 引用传递） | 内核态性能 |
@@ -723,7 +723,7 @@ IPC 性能约束对齐非功能性需求 NFR-P-002（详见 [00-requirements/03-
 
 | 维度 | 正常模式（v1.0.1） | [DSL] 降级模式 |
 |------|------|--------------|
-| `capability_badge` 字段 | agentrt-linux 内核由 sec_d 编译，C-S9 校验 | 字段存在但被忽略（值=0，跳过 C-S9） |
+| `capability_badge` 字段 | agent-linux 内核由 sec_d 编译，C-S9 校验 | 字段存在但被忽略（值=0，跳过 C-S9） |
 | Capability 校验 | Badge + Epoch + RandomTag + Perms（C-S9 内联） | 退化到 `airy_cap_check()` slowpath 兜底（基于 `agent_caps[1024]` 静态数组；`AIRY_ECAP_RADIX_MISS`/`STATIC_KEY` 保留编号但 v1.0.1 不触发） |
 | opcode 集 | 7 种（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE） | 2 种（SEND/RECV） |
 | Fault 码 | 0x1001-0x1003 启用（CAP_FORGED/CAP_LEAK/RING_CORRUPT） | Fault 码禁用，统一 Panic |
@@ -737,7 +737,7 @@ graph TB
         RT_RECV[airy_ipc_recv<br/>atoms/ipc]
     end
 
-    subgraph "agentrt-linux 内核态 io-uring-ipc"
+    subgraph "agent-linux 内核态 io-uring-ipc"
         OS_SQE[IORING_OP_URING_CMD<br/>cmd_op=IPC_SEND<br/>capability_badge=Badge]
         OS_CQE[CQE poll<br/>cmd_op=IPC_RECV]
         OS_CSFastpath[fastpath C-S9<br/>airy_cap_badge_ok]
@@ -769,7 +769,7 @@ graph TB
     style DSL fill:#fff9c4,stroke:#f57f17,stroke-dasharray: 5 5
 ```
 
-> **OS-IFACE-004**： IPC 协议的 Layout C v4 128B 消息头布局（`struct airy_ipc_msg_hdr`）与 magic 0x41524531（'ARE1'）在 agentrt 与 agentrt-linux 间完全共享同一份 `ipc.h`——agentrt 在 agentrt-linux 上运行时无需任何协议转换或字节序适配，消息头字段布局二进制兼容。`capability_badge` 字段在 [SC] 层共享定义（H2），但校验机制属于 [SS] 语义同源层——两端对同一字段的消费方式不同（agentrt 用户态始终为 0，agentrt-linux 内核由 sec_d 编译并 C-S9 校验），这属于 [SS] 层范畴，不违反 [SC] 逐字节相同原则。
+> **OS-IFACE-004**： IPC 协议的 Layout C v4 128B 消息头布局（`struct airy_ipc_msg_hdr`）与 magic 0x41524531（'ARE1'）在 agentrt 与 agent-linux 间完全共享同一份 `ipc.h`——agentrt 在 agent-linux 上运行时无需任何协议转换或字节序适配，消息头字段布局二进制兼容。`capability_badge` 字段在 [SC] 层共享定义（H2），但校验机制属于 [SS] 语义同源层——两端对同一字段的消费方式不同（agentrt 用户态始终为 0，agent-linux 内核由 sec_d 编译并 C-S9 校验），这属于 [SS] 层范畴，不违反 [SC] 逐字节相同原则。
 
 ---
 
@@ -777,7 +777,7 @@ graph TB
 
 ### 9.1 设计边界声明（SSoT）
 
-> **跨节点 IPC 单一权威源声明**：本节是 agentrt-linux 跨节点 IPC 架构与 Badge 跨主机作用域的唯一权威源。A-IPC（agentrt-linux IPC）的**物理作用域严格限定为单节点**——基于 io_uring + per-cpu kfifo 的单节点内核 IPC 体系（H1-H6 硬约束），Badge 64-bit Native Word 是**单节点内核 artifact**（存储于 `agent_caps[]` 静态数组，per-node 独立）。跨节点 IPC 通过独立的网络协议层（gRPC over QUIC/TCP + mTLS）实现，由 `gateway_d` daemon 在用户态承载，**Badge 不跨主机共享**——每个节点独立维护 `agent_caps[]` 与 `airy_cap_global_epoch`，跨节点 IPC 在每个节点的入站路径上重新进行 Badge 校验。
+> **跨节点 IPC 单一权威源声明**：本节是 agent-linux 跨节点 IPC 架构与 Badge 跨主机作用域的唯一权威源。A-IPC（agent-linux IPC）的**物理作用域严格限定为单节点**——基于 io_uring + per-cpu kfifo 的单节点内核 IPC 体系（H1-H6 硬约束），Badge 64-bit Native Word 是**单节点内核 artifact**（存储于 `agent_caps[]` 静态数组，per-node 独立）。跨节点 IPC 通过独立的网络协议层（gRPC over QUIC/TCP + mTLS）实现，由 `gateway_d` daemon 在用户态承载，**Badge 不跨主机共享**——每个节点独立维护 `agent_caps[]` 与 `airy_cap_global_epoch`，跨节点 IPC 在每个节点的入站路径上重新进行 Badge 校验。
 
 #### 9.1.1 为什么 Badge 不跨主机共享
 

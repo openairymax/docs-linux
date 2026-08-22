@@ -1,14 +1,14 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Agent 编排设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）Agent 应用开发体系核心子文档，定义多 Agent 协作模型、DAG 工作流编排与 TaskFlow 引擎在 OS 层的应用\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）Agent 应用开发体系核心子文档，定义多 Agent 协作模型、DAG 工作流编排与 TaskFlow 引擎在 OS 层的应用\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt 用户态运行时 MAC 框架 + TaskFlow 引擎（IRON-9 v3 [SS] 语义同源层）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
-> **IRON-9 v3 层次**：[SS] 语义同源层（协作模式高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进——agentrt-linux 基于内核 kthread + stc_agent，agentrt 基于用户态线程）
+> **IRON-9 v3 层次**：[SS] 语义同源层（协作模式高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进——agent-linux 基于内核 kthread + stc_agent，agentrt 基于用户态线程）
 
 ---
 
@@ -16,7 +16,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）将多 Agent 编排视为操作系统级一等公民能力。Agent 编排设计达成以下工程目标：
+agent-linux（AirymaxOS）将多 Agent 编排视为操作系统级一等公民能力。Agent 编排设计达成以下工程目标：
 
 1. **OS 级编排**：编排引擎运行于内核态（kthread），获得 stc_agent 调度优先级与确定性延迟
 2. **DAG 工作流**：支持有向无环图（DAG）表达复杂任务依赖，超步（superstep）执行
@@ -31,13 +31,13 @@ agentrt-linux（AirymaxOS）将多 Agent 编排视为操作系统级一等公民
 | L1 | 单 Agent 任务 | 单进程执行 | 顺序认知循环 |
 | L2 | DAG 工作流 | TaskFlow 超步 | 任务依赖编排 |
 | L3 | 多 Agent 协作 | MAC 框架 | 跨 Agent 协同 |
-| **L4** | **OS 级编排** | **内核 kthread + stc_agent** | **agentrt-linux 专属** |
+| **L4** | **OS 级编排** | **内核 kthread + stc_agent** | **agent-linux 专属** |
 
 ### 1.3 与 agentrt 同源关系
 
 agentrt 用户态运行时的 MAC 框架与 TaskFlow 引擎与本设计遵循 IRON-9 v3 [SS] 语义同源层：
 
-| 维度 | agentrt（微核心） | agentrt-linux（微内核） |
+| 维度 | agentrt（微核心） | agent-linux（微内核） |
 |------|-------------------|------------------------|
 | 编排引擎 | 用户态线程池 | 内核 kthread + stc_agent |
 | 协作模式 API | `mac_*` | `mac_*`（同源签名） |
@@ -324,7 +324,7 @@ static struct airy_task_node nodes[] = {
 
 ### 5.1 内核态 TaskFlow 引擎
 
-agentrt-linux 将 TaskFlow 引擎实现为内核 kthread，获得 OS 级调度优先级：
+agent-linux 将 TaskFlow 引擎实现为内核 kthread，获得 OS 级调度优先级：
 
 ```c
 /* cognition/taskflow.c（内核态） */
@@ -558,12 +558,12 @@ int airy_delegation_dispatch(uint32_t master, uint32_t slave,
 
 ### 8.1 跨运行时编排
 
-agentrt 用户态运行时的 MAC 框架与 agentrt-linux 的内核态 TaskFlow 引擎可互操作：
+agentrt 用户态运行时的 MAC 框架与 agent-linux 的内核态 TaskFlow 引擎可互操作：
 
 | 场景 | 机制 | 性能 |
 |------|------|------|
 | agentrt 内部编排 | 用户态 TaskFlow | 高 |
-| agentrt-linux 内部编排 | 内核态 TaskFlow | 最高 |
+| agent-linux 内部编排 | 内核态 TaskFlow | 最高 |
 | 跨运行时编排 | AgentsIPC 跨进程通信 | 中（IPC 开销） |
 
 ### 8.2 API 同源保证
@@ -628,5 +628,5 @@ result = mac.execute(workflow=research_dag,
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）Agent 编排设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）Agent 编排设计 v1.0.1
 > 遵循 IRON-9 v3 [SS] 语义同源层与 agentrt MAC/TaskFlow 同源

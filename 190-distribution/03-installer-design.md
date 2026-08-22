@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）安装器设计
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、cloud-init 云定制、安装测试与错误处理\
+# agent-linux（AirymaxOS）安装器设计
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、cloud-init 云定制、安装测试与错误处理\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其安装器是用户首次接触产品的入口。本文档定义安装器工程设计，聚焦以下目标：
+agent-linux（AirymaxOS）作为智能体操作系统发行版，其安装器是用户首次接触产品的入口。本文档定义安装器工程设计，聚焦以下目标：
 
 1. **三模式安装**：最小安装（Minimal）/ 完整安装（Full）/ 自定义安装（Expert）三种模式覆盖不同场景
 2. **多场景覆盖**：支持裸机安装（ISO）、虚拟机部署（QCOW2）、容器化部署（Docker）、云镜像部署（cloud-init）、PXE 网络安装
@@ -31,12 +31,12 @@ agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其安装器�
 | 安装器框架 | Anaconda 衍生 | 主流 Linux 发行版标准 |
 | 文件系统 | Btrfs（默认）/ XFS（备选） | Btrfs 支持子卷与快照回滚 |
 | 引导加载器 | GRUB 2.06+ | 支持 Secure Boot |
-| 内核版本 | Linux 6.6 | agentrt-linux 1.0.1 锁定基线 |
+| 内核版本 | Linux 6.6 | agent-linux 1.0.1 锁定基线 |
 | 字符串安全 | `strscpy` | 安装器代码中字符串操作必须安全（OS-BAN-004） |
 
 ### 1.3 术语规范
 
-本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agentrt-linux（OS 发行版）= 微内核（micro-kernel）。安装器设计独立于 agentrt（[IND] 完全独立层），不与 agentrt 共享安装器代码。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，安装器实践对照一律表述为"主流 Linux 发行版"。
+本文档严格遵循术语规范：agentrt（用户态运行时）= 微核心（micro-core）；agent-linux（OS 发行版）= 微内核（micro-kernel）。安装器设计独立于 agentrt（[IND] 完全独立层），不与 agentrt 共享安装器代码。文中不使用 主流 Linux 发行版/主流 Linux 发行版 字样，安装器实践对照一律表述为"主流 Linux 发行版"。
 
 ### 1.4 安装场景矩阵
 
@@ -75,7 +75,7 @@ agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其安装器�
 
 ### 2.2 最小安装包列表
 
-最小安装包含运行 agentrt-linux 所需的最小包集：
+最小安装包含运行 agent-linux 所需的最小包集：
 
 ```
 最小安装包组：
@@ -122,7 +122,7 @@ agentrt-linux（AirymaxOS）作为智能体操作系统发行版，其安装器�
 
 ### 3.1 默认分区方案（Btrfs 子卷）
 
-agentrt-linux 默认采用 Btrfs 子卷方案，支持快照回滚：
+agent-linux 默认采用 Btrfs 子卷方案，支持快照回滚：
 
 | 分区 | 挂载点 | 文件系统 | 大小 | 说明 |
 |------|--------|----------|------|------|
@@ -224,7 +224,7 @@ hugetlbfs /var/lib/agentrt/hugepages hugetlbfs mode=1770,gid=1000 0 0
 
 ### 4.1 GRUB 目录结构
 
-agentrt-linux 使用 GRUB 2.06+ 作为引导加载器，支持 UEFI 与 BIOS 两种模式：
+agent-linux 使用 GRUB 2.06+ 作为引导加载器，支持 UEFI 与 BIOS 两种模式：
 
 ```
 /boot/efi/EFI/airymaxos/
@@ -237,10 +237,10 @@ agentrt-linux 使用 GRUB 2.06+ 作为引导加载器，支持 UEFI 与 BIOS 两
 ### 4.2 GRUB 配置文件
 
 ```bash
-# /etc/default/grub —— agentrt-linux GRUB2 默认配置
+# /etc/default/grub —— agent-linux GRUB2 默认配置
 
 GRUB_TIMEOUT=5
-GRUB_DISTRIBUTOR="agentrt-linux (AirymaxOS)"
+GRUB_DISTRIBUTOR="agent-linux (AirymaxOS)"
 GRUB_DEFAULT=saved
 GRUB_DISABLE_SUBMENU=true
 GRUB_TERMINAL_OUTPUT="console"
@@ -264,7 +264,7 @@ GRUB_ENABLE_CRYPTODISK=y
 ```bash
 # /boot/grub2/grub.cfg（自动生成）
 
-menuentry "agentrt-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-agentrt)" {
+menuentry "agent-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-agentrt)" {
     set root=(hd0,gpt2)
     linux /boot/vmlinuz-6.6.0-agentrt \
         root=/dev/mapper/airymaxos--vg-root \
@@ -280,7 +280,7 @@ menuentry "agentrt-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-agentrt)" {
     initrd /boot/initramfs-6.6.0-agentrt.img
 }
 
-menuentry "agentrt-linux (AirymaxOS) 1.0.1 (recovery mode)" {
+menuentry "agent-linux (AirymaxOS) 1.0.1 (recovery mode)" {
     set root=(hd0,gpt2)
     linux /boot/vmlinuz-6.6.0-agentrt \
         root=/dev/mapper/airymaxos--vg-root \
@@ -291,7 +291,7 @@ menuentry "agentrt-linux (AirymaxOS) 1.0.1 (recovery mode)" {
 
 ### 4.4 Secure Boot 配置
 
-agentrt-linux 启用 Secure Boot，所有内核模块与 GRUB EFI 程序必须签名：
+agent-linux 启用 Secure Boot，所有内核模块与 GRUB EFI 程序必须签名：
 
 ```bash
 # 1. 生成 Secure Boot 密钥
@@ -323,7 +323,7 @@ mokutil --list-enrolled | grep "AIRYMAXOS"
 
 ### 4.5 TPM 2.0 度量
 
-agentrt-linux 在引导阶段启用 TPM 2.0 度量，记录引导链各阶段哈希：
+agent-linux 在引导阶段启用 TPM 2.0 度量，记录引导链各阶段哈希：
 
 ```bash
 # 查看 TPM 度量值
@@ -348,7 +348,7 @@ tpm2_pcrread -L sha256:0,1,2,3,4,5,6,7
 
 ```kickstart
 # /usr/lib/airymaxos/installer/airymaxos-minimal.ks
-# agentrt-linux (AirymaxOS) 最小安装 kickstart 配置
+# agent-linux (AirymaxOS) 最小安装 kickstart 配置
 
 install
 cdrom
@@ -400,7 +400,7 @@ reboot
 
 ```kickstart
 # /usr/lib/airymaxos/installer/airymaxos-full.ks
-# agentrt-linux (AirymaxOS) 完整安装 kickstart 配置
+# agent-linux (AirymaxOS) 完整安装 kickstart 配置
 
 install
 cdrom
@@ -557,7 +557,7 @@ fi
 安装日志位于 `/var/log/agentrt-install.log`：
 
 ```
-2026-07-09 10:00:00 [INFO] agentrt-linux 安装器启动
+2026-07-09 10:00:00 [INFO] agent-linux 安装器启动
 2026-07-09 10:00:01 [INFO] 安装模式: 完整安装
 2026-07-09 10:00:02 [INFO] 分区方案: Btrfs 子卷
 2026-07-09 10:00:05 [INFO] 网络: DHCP, eth0
@@ -569,7 +569,7 @@ fi
 2026-07-09 10:08:45 [INFO] dnf 仓库配置完成
 2026-07-09 10:08:50 [INFO] MGLRU 配置完成
 2026-07-09 10:08:55 [INFO] 安装后快照创建完成
-2026-07-09 10:09:00 [INFO] agentrt-linux 完整安装完成
+2026-07-09 10:09:00 [INFO] agent-linux 完整安装完成
 ```
 
 ---
@@ -581,7 +581,7 @@ fi
 ```bash
 #!/bin/bash
 # /usr/lib/airymaxos/scripts/build_iso.sh
-# 构建 agentrt-linux 安装 ISO 镜像
+# 构建 agent-linux 安装 ISO 镜像
 
 set -euo pipefail
 VERSION=${1:-1.0.1}
@@ -608,7 +608,7 @@ PROMPT 0
 TIMEOUT 30
 
 LABEL airymaxos
-    MENU LABEL agentrt-linux (AirymaxOS) ${VERSION}
+    MENU LABEL agent-linux (AirymaxOS) ${VERSION}
     KERNEL /isolinux/vmlinuz
     APPEND initrd=/isolinux/initrd.img \
         inst.stage2=hd:LABEL=AIRYMAXOS \
@@ -646,7 +646,7 @@ echo "[完成] ISO 镜像已生成: $ISO_NAME"
 ```bash
 #!/bin/bash
 # /usr/lib/airymaxos/scripts/build_qcow2.sh
-# 构建 agentrt-linux 虚拟机 QCOW2 镜像
+# 构建 agent-linux 虚拟机 QCOW2 镜像
 
 set -euo pipefail
 VERSION=${1:-1.0.1}
@@ -689,7 +689,7 @@ qemu-img info "$IMG_NAME"
 
 ```yaml
 # /etc/cloud/cloud.cfg.d/99-airymaxos.cfg
-# agentrt-linux cloud-init 配置
+# agent-linux cloud-init 配置
 
 system_info:
   default_user:
@@ -765,7 +765,7 @@ write_files:
       locale = zh_CN.UTF-8
 
 runcmd:
-  - echo "agentrt-linux (AirymaxOS) cloud-init 完成"
+  - echo "agent-linux (AirymaxOS) cloud-init 完成"
   - systemctl restart cogn_d.service
 ```
 
@@ -912,7 +912,7 @@ int airy_installer_run(struct install_config *cfg)
     if (err)
         goto out_free_services;
 
-    pr_info("agentrt-linux: 安装完成\n");
+    pr_info("agent-linux: 安装完成\n");
     return 0;
 
 out_free_services:
@@ -951,7 +951,7 @@ out_free_ctx:
 
 ## 12. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[IND]） | agentrt（[IND]） |
+| 组件 | agent-linux（[IND]） | agentrt（[IND]） |
 |------|--------------------------|------------------|
 | 安装器 | Anaconda + kickstart | 无（用户态运行时） |
 | 引导加载器 | GRUB2 / systemd-boot | 无 |
@@ -960,7 +960,7 @@ out_free_ctx:
 | Secure Boot | 完整支持 | 无 |
 | TPM 度量 | 完整支持 | 无 |
 
-agentrt-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），各自演进。
+agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），各自演进。
 
 ---
 
@@ -1002,4 +1002,4 @@ agentrt-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）安装器设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）安装器设计 v1.0.1

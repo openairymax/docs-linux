@@ -1,10 +1,10 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agentrt-linux（AirymaxOS）Locale 设计详细规范
-> **文档定位**：agentrt-linux（AirymaxOS，极境智能体操作系统）多语言支持架构与 locale 机制详细设计\
+# agent-linux（AirymaxOS）Locale 设计详细规范
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）多语言支持架构与 locale 机制详细设计\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **上级文档**：[agentrt-linux 设计文档](README.md)\
+> **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 设计目标
 
-agentrt-linux（AirymaxOS）Locale 设计旨在为全球开发者与用户提供一致的多语言支持架构。本设计聚焦三大目标：
+agent-linux（AirymaxOS）Locale 设计旨在为全球开发者与用户提供一致的多语言支持架构。本设计聚焦三大目标：
 
 1. **用户态 locale 全链路覆盖**：12 个 daemon 与 9 种协议适配层在 zh-CN / en-US / ja-JP 三种核心 locale 下行为一致
 2. **内核日志 UTF-8 原生支持**：printk 与 trace_printk 输出完整 UTF-8 多语言消息，无需依赖用户态翻译表
@@ -30,7 +30,7 @@ agentrt-linux（AirymaxOS）Locale 设计旨在为全球开发者与用户提供
 
 ### 1.3 术语规范
 
-本设计严格遵守 agentrt-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agentrt-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。Agent 提示词与 locale 在 agentrt 与 agentrt-linux 之间属于 IRON-9 v3 [SS] 语义同源层。
+本设计严格遵守 agent-linux 术语规范：agentrt（用户态）称为**微核心**（micro-core），agent-linux（OS 发行版）称为**微内核**（micro-kernel）。所有外部 Linux 发行版统一表述为"主流 Linux 发行版"，禁止使用 主流 Linux 发行版/主流 Linux 发行版 字样。Agent 提示词与 locale 在 agentrt 与 agent-linux 之间属于 IRON-9 v3 [SS] 语义同源层。
 
 ### 1.4 locale 支持矩阵
 
@@ -73,7 +73,7 @@ agentrt-linux（AirymaxOS）Locale 设计旨在为全球开发者与用户提供
 
 ### 2.2 locale 标识符规范
 
-agentrt-linux 严格遵循 POSIX locale 命名规范 `language[_TERRITORY][.codeset][@modifier]`：
+agent-linux 严格遵循 POSIX locale 命名规范 `language[_TERRITORY][.codeset][@modifier]`：
 
 ```c
 /* 规划态：[SC] 共享契约层暂无 locale.h（include/uapi/linux/airymax/ 下 12 个头文件中
@@ -84,7 +84,7 @@ agentrt-linux 严格遵循 POSIX locale 命名规范 `language[_TERRITORY][.code
 
 #include <linux/types.h>
 
-/* agentrt-linux 支持的 locale 枚举 */
+/* agent-linux 支持的 locale 枚举 */
 enum airy_locale_id {
 	AIRY_LOCALE_EN_US = 0,    /* 默认 locale */
 	AIRY_LOCALE_ZH_CN,        /* 简体中文 + 国密 */
@@ -123,7 +123,7 @@ static const struct airy_locale_desc airy_locales[] = {
 
 ### 2.3 LC_* 分类与应用
 
-agentrt-linux 完整支持 glibc 的 LC_* 分类，每个 daemon 可独立配置：
+agent-linux 完整支持 glibc 的 LC_* 分类，每个 daemon 可独立配置：
 
 ```bash
 # /etc/agentrt/locale.conf —— 系统级 locale 配置
@@ -154,7 +154,7 @@ locale -a | grep -E "zh_CN|en_US|ja_JP|ko_KR"
 
 ### 3.1 printk 多语言消息表
 
-agentrt-linux 在 Linux 6.6 内核基线上扩展 printk，支持运行时 locale 切换的多语言消息。所有内核消息以 UTF-8 编码存储，禁止使用 `wchar_t`（内核态不支持）。
+agent-linux 在 Linux 6.6 内核基线上扩展 printk，支持运行时 locale 切换的多语言消息。所有内核消息以 UTF-8 编码存储，禁止使用 `wchar_t`（内核态不支持）。
 
 ```c
 /* kernel/kernel/airy_i18n.c */
@@ -185,9 +185,9 @@ struct airy_kmsg_entry {
 /* 编译期消息表（rodata 段，无运行时分配） */
 static const struct airy_kmsg_entry kmsg_table[] = {
 	{KMSG_BOOT_START,
-	 "agentrt-linux (AirymaxOS) starting up...",
-	 "agentrt-linux（AirymaxOS，极境智能体操作系统）启动中...",
-	 "agentrt-linux（AirymaxOS）を起動しています..."},
+	 "agent-linux (AirymaxOS) starting up...",
+	 "agent-linux（AirymaxOS，极境智能体操作系统）启动中...",
+	 "agent-linux（AirymaxOS）を起動しています..."},
 	{KMSG_SCHED_LOADED,
 	 "User-space scheduler (sched_tac) loaded successfully",
 	 "用户态调度器（sched_tac）加载成功",
@@ -311,7 +311,7 @@ int main(void)
 
 	/* dmesg 将输出中文 */
 	/* 输出示例：
-	 * [    0.123456] agentrt-linux（AirymaxOS，极境智能体操作系统）启动中...
+	 * [    0.123456] agent-linux（AirymaxOS，极境智能体操作系统）启动中...
 	 * [    0.234567] 用户态调度器（sched_tac）加载成功
 	 * [    0.345678] MemoryRovol L1-L4 已初始化，容量=16384 MB
 	 */
@@ -330,7 +330,7 @@ int main(void)
 ```ini
 # /etc/systemd/system/cogn_d.service —— cogn_d daemon 的 locale 配置
 [Unit]
-Description=agentrt-linux LLM Inference Daemon (cogn_d)
+Description=agent-linux LLM Inference Daemon (cogn_d)
 After=network.target
 
 [Service]
@@ -471,12 +471,12 @@ enum airy_locale_id airy_locale_from_accept_language(const char *accept)
 # /usr/share/locale/zh_CN/LC_MESSAGES/airymaxos.po
 msgid ""
 msgstr ""
-"Project-Id-Version: agentrt-linux 1.0.1\n"
+"Project-Id-Version: agent-linux 1.0.1\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: zh_CN\n"
 
-msgid "agentrt-linux started"
-msgstr "agentrt-linux（AirymaxOS）已启动"
+msgid "agent-linux started"
+msgstr "agent-linux（AirymaxOS）已启动"
 
 msgid "Agent task submitted: %s"
 msgstr "Agent 任务已提交：%s"
@@ -616,7 +616,7 @@ void *airy_mo_mmap(const char *domain, const char *locale)
 
 ## 8. 错误码体系对接
 
-国际化子系统错误码纳入 agentrt-linux 统一错误码体系（[SC] 共享契约层，扩展段）：
+国际化子系统错误码纳入 agent-linux 统一错误码体系（[SC] 共享契约层，扩展段）：
 
 | 错误码 | 数值 | 含义 |
 |--------|------|------|
@@ -642,7 +642,7 @@ void *airy_mo_mmap(const char *domain, const char *locale)
 
 ## 10. IRON-9 v3 同源映射
 
-| 组件 | agentrt-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
+| 组件 | agent-linux（[SS]） | agentrt（[SS]） | 共享（[SC]） |
 |------|------------------------|------------------|--------------|
 | locale 枚举 | 内核 + 用户态 | 用户态 | locale_id 枚举 |
 | 多语言错误码 | AIRY_E_I18N_* | AIRY_E_I18N_* | `error.h` 错误码段 |
@@ -671,4 +671,4 @@ void *airy_mo_mmap(const char *domain, const char *locale)
 
 ---
 
-> **文档结束** | agentrt-linux（AirymaxOS）Locale 设计详细规范 
+> **文档结束** | agent-linux（AirymaxOS）Locale 设计详细规范 
