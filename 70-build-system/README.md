@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-31\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
-> **同源映射**：agentrt `cmake/`（伞仓直属 5 模块）+ Linux 6.6 Kbuild 系统\
+> **同源映射**：agentrt `cmake/`（agentrt 管理仓直属 5 模块，v0.1.2 起自伞仓迁入）+ Linux 6.6 Kbuild 系统\
 > **理论根基**：Linux Kbuild 递归构建 + Airymax E-7 文档即代码 + SSoT v2 单一权威源
 
 ---
