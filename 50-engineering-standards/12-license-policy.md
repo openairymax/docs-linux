@@ -144,7 +144,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | sdk | cli, sdk-go, sdk-python, sdk-rust, sdk-typescript, tui, (sdk 根) |
 | ecosystem | examples, manager, openlab, prompts, skills, (ecosystem 根) |
 | products (除 memoryrovol) | docker, desktop, (products 根) |
-| 其他 | devtools |
+| 其他 | tools（v0.1.4 由 devtools 改名） |
 
 **源代码 SPDX 标签格式**:
 
@@ -285,7 +285,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | 33 | `agent-linux/services/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 34 | `agent-linux/system/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 35 | `agent-linux/tests-linux/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 36 | `devtools/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 36 | `tools/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 37 | `agent-linux/kernel/LICENSE` | **L4** | `GPL-2.0-only` |
 | 38 | `products/memoryrovol/LICENSE` | **L5** | `LicenseRef-SPHARX-MemoryRovol-EULA-1.0` |
 
@@ -312,7 +312,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 |----------|-------------|
 | `docs/OpenStandards/` 下的源代码（若有） | `CC-BY-4.0` |
 | `docs/` 下的源代码（若有） | `CC-BY-NC-4.0` |
-| `agentrt/`, `sdk/`, `ecosystem/`, `products/{docker,desktop}/`, `devtools/` 下 | `AGPL-3.0-or-later OR Apache-2.0` |
+| `agentrt/`, `sdk/`, `ecosystem/`, `products/{docker,desktop}/`, `tools/` 下 | `AGPL-3.0-or-later OR Apache-2.0` |
 | `agent-linux/kernel/` 下 | `GPL-2.0-only` |
 | `agent-linux/kernel/include/uapi/` 下 UAPI 头文件（Linux syscall-note 例外） | `GPL-2.0-only WITH Linux-syscall-note` |
 | `agent-linux/{其他子仓}` 用户态代码 | `AGPL-3.0-or-later OR Apache-2.0` |
@@ -471,7 +471,7 @@ set(PROJECT_LICENSE "AGPL-3.0-or-later OR Apache-2.0")
 | **LC-07** | agentrt/ 所有源代码包含 SPDX 标签 | 见 5.4 检查命令 |
 | **LC-08** | agent-linux/kernel/ 所有源代码 SPDX 为 GPL-2.0-only | `grep -r "SPDX-License-Identifier" agent-linux/kernel/` |
 | **LC-09** | agent-linux/{其他子仓} 用户态代码 SPDX 为双许可证 | 逐文件检查 |
-| **LC-10** | sdk/, products/{docker,desktop}/, ecosystem/, devtools/ 源代码 SPDX 为双许可证 | 见 5.4 检查命令 |
+| **LC-10** | sdk/, products/{docker,desktop}/, ecosystem/, tools/ 源代码 SPDX 为双许可证 | 见 5.4 检查命令 |
 
 ### 9.3 文档与配置验收
 
