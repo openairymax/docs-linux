@@ -2502,8 +2502,8 @@ agentrt/commons/utils/config_unified/include/core_config.h
 Shell 脚本和 Python 脚本使用 snake_case 或 kebab-case：
 
 ```
-scripts/ci/pipeline/run-tests.sh
-scripts/ci/pipeline/security-scan.sh
+scripts/ci/pipeline/test/run-tests.sh
+scripts/ci/verify/security/security-scan.sh
 scripts/ci/quality/check-quality.sh
 scripts/dev/utils/run_all_fixes.sh
 ```
