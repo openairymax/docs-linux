@@ -139,8 +139,6 @@ agent-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-01
 
 **与 §2.1 Linux 6.6 stable 补丁追踪的关系**：Linux 6.6 stable 补丁追踪（§2.1-2.3）针对 vanilla 内核基线的安全/缺陷修复；本节（§2.4）针对 openEuler 硬件适配层的同步。两者正交，不冲突——stable 补丁修复内核核心，LAYER 同步扩展硬件兼容。
 
-> 详细 LAYER 可行性论证见闭源文档 [11-layer-feasibility-study.md](../../../docs-closed/agent-linux/01-openeuler-tech-reference/11-layer-feasibility-study.md)。
-
 ---
 
 ## 3. merge window 策略

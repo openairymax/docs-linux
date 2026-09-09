@@ -340,13 +340,12 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 
 **任务**：创建 openEuler 驱动复用层（LAYER 方案），导入 sw_64 架构 + openEuler defconfig 底座 + IRON-7 覆盖 + 构建链产物。
 
-**落地产物**（详见 [12-build-and-flash-strategy.md §11](../../docs-closed/agent-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)）：
+**落地产物**：
 
 | 仓库 | commit | 内容 |
 |------|--------|------|
 | kernel (ALK-6.6-dev) | `airy/arch: import sw_64 and add LAYER config fragments` | arch/sw_64/（367 文件）+ openeuler_defconfig 底座（x86/arm64）+ euler_hw 硬件碎片 + defconfig-agent IRON-7 覆盖 + Kconfig stale source 修复 |
 | agent-linux (main) | `airy/build: add LAYER build artifacts for openEuler toolchain reuse` | build/airy-kernel.spec + meta-airymax/ + custom/cfg_airymax/ + ks-airymax.cfg |
-| docs-closed (main) | `airy/docs: register LAYER implementation progress in build strategy` | 12-build-and-flash-strategy.md §11 实施进度章节 |
 
 **验证**：三架构 `make ARCH={sw_64,x86,arm64} airy_defconfig` 均生成有效 .config（CONFIG_SECURITY_AIRY=y）；x86 `make -j$(nproc)` 编译通过（bzImage ready）；arch/sw_64/ 无 `__KABI`/`Makefile.oever`/`kernel/sched`/`security` 引用。
 
@@ -462,7 +461,7 @@ ES-SEL4-3（服务用户态化）的落地风险待 1.0.1 阶段评估：
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-07-28 | 新增 §8 已修复缺陷登记（K9-1 回归 6 项致命缺陷：CAP-FIX-01~05 + IPC-FIX-01），关联 ADR-017；§8.3 登记 7 项非阻塞设计观察（OBS-01~07）；原 §8-12 顺延为 §9-13 |
 | v1.0.1 | 2026-07-30 | §8.3 OBS-02/OBS-03 标记为已修复（MDB 派生树 + 级联 REVOKE 已在代码实现）；新增 §8.4 v3.6 评审发现登记（12 项逐项对照代码验证：8 项待修复、3 项已修复、1 项存疑） |
-| v1.0.1 | 2026-07-31 | **§8.4 P1-3 闭环**：commit `0d5b4b05ce68` 重写 `airy_vtime_decay` 注释为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），P1-3 由"待评估"转为"✅ 已修复"。§8.4 结论由"11/12 已修复，1 项存疑"更新为"12/12 已全部修复"。修复类提交落款 `lidecheng@spharx.cn` |
+| v1.0.1 | 2026-07-31 | **§8.4 P1-3 闭环**：commit `0d5b4b05ce68` 重写 `airy_vtime_decay` 注释为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），P1-3 由"待评估"转为"✅ 已修复"。§8.4 结论由"11/12 已修复，1 项存疑"更新为"12/12 已全部修复"。 |
 
 ***
 

@@ -1656,7 +1656,7 @@ arr = kcalloc(n, sizeof(*arr), GFP_KERNEL);
 
 ### 8.5 OLK-6.6 品味哲学——8 项隐性工程智慧（OS-STD-STY-005~012）
 
-> **来源**：Linux 6.6 内核基线（openEuler OLK-6.6 标杆）源码深度提炼，`_review_0.9.0/01-olk66-code-taste-distillation.md`。以下 8 项隐性工程智慧不在 Linux 内核编码风格文档中显式书写，但在 OLK-6.6 源码中反复体现，是 Linus Torvalds 所称"代码品味（code taste）"的核心组成。agent-linux（AirymaxOS）内核态 C 代码必须遵循。
+> **来源**：Linux 6.6 内核基线（openEuler OLK-6.6 标杆）源码深度提炼。以下 8 项隐性工程智慧不在 Linux 内核编码风格文档中显式书写，但在 OLK-6.6 源码中反复体现，是 Linus Torvalds 所称"代码品味（code taste）"的核心组成。agent-linux（AirymaxOS）内核态 C 代码必须遵循。
 
 #### 8.5.1 信任读者——暴露而非封装（OS-STD-STY-005）
 

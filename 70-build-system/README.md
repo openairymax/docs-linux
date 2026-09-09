@@ -111,8 +111,6 @@ AirymaxOS 全面复用 openEuler 24.03 LTS 构建体系（LAYER 方案，详见 
 2. **版本对齐**：agent-linux 内核基线 6.6.149（OLK-6.6 为 openEuler 在 6.6.0 分叉并自带补丁维护，非 vanilla 同版本号对应）
 3. **IRON-7 不变**：openeuler_defconfig 中触及核心子系统的 CONFIG 由 `configs/defconfig-agent` 覆盖回 vanilla 默认值
 
-> 详细构建与烧录策略见闭源文档 [12-build-and-flash-strategy.md](../../../docs-closed/agent-linux/01-openeuler-tech-reference/12-build-and-flash-strategy.md)。
-
 ---
 
 ## 4. Airymax Unify Design 映射

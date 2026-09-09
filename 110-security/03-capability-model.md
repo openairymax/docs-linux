@@ -2285,7 +2285,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 | 1.0.1 | 2027-XX-XX | 内核实现完成，TPM Vault 封存落地，形式化验证探索 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-07-28 | §15.2 新增 K9-1 per-agent epoch 回归 5 项致命缺陷修复登记（CAP-FIX-01~05），关联 ADR-017（ADR-017 标题所称"6 项"含另一项 IPC Ring Buffer 缺陷）。经 seL4 cteInsert/cteMove/cteRevoke/emptySlot 与 Linux 6.6 prepare_creds/key_revoke 双参考实现交叉验证 |
-| v1.0.1 | 2026-07-31 | **v3.6 Perms 位名 SSoT 对齐**：[SC] `security_types.h` 已删除旧名 `CALL/GRANT/REVOKE/FREEZE/BATCH`，统一为新名 `SEND(0x0001)/RECV(0x0002)/DERIVE(0x0004)/KILL(0x0008)/FILE_OPEN(0x0010)/ROTATE(0x0020)/SUPERVISE(0x0040)`。同步 §2.5 `#define` 块 7 行、§2.6.1 opcode→perms 表（SEND_BATCH 复用 SEND、FREEZE 改用 SUPERVISE）及设计原则注释；§2.6.2 `airy_cap_badge_compile()` 参数校验掩码更新为新 SSoT 全位掩码 `0x007F`。修复类提交落款 `lidecheng@spharx.cn` |
+| v1.0.1 | 2026-07-31 | **v3.6 Perms 位名 SSoT 对齐**：[SC] `security_types.h` 已删除旧名 `CALL/GRANT/REVOKE/FREEZE/BATCH`，统一为新名 `SEND(0x0001)/RECV(0x0002)/DERIVE(0x0004)/KILL(0x0008)/FILE_OPEN(0x0010)/ROTATE(0x0020)/SUPERVISE(0x0040)`。同步 §2.5 `#define` 块 7 行、§2.6.1 opcode→perms 表（SEND_BATCH 复用 SEND、FREEZE 改用 SUPERVISE）及设计原则注释；§2.6.2 `airy_cap_badge_compile()` 参数校验掩码更新为新 SSoT 全位掩码 `0x007F`。 |
 
 ---
 

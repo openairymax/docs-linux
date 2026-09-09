@@ -67,8 +67,6 @@ agent-linux 通过 LAYER 方案（[ADR-018](../10-architecture/05-adrs.md#adr-01
 
 核心子系统（调度/安全/IPC/内存）保持 vanilla 基线纯净，由 `configs/defconfig-agent` IRON-7 覆盖保障。驱动代码通过标准 Linux 驱动模型（device/driver/bus）接入，与核心子系统通过既定接口交互，不改变核心子系统行为。
 
-> 详细设计见闭源文档 [01-openeuler-tech-reference/](../../../docs-closed/agent-linux/01-openeuler-tech-reference/)。
-
 ---
 
 ## 3. 文档索引

@@ -103,7 +103,7 @@ AIRY_API int airy_sys_rovol_ctl(__u32 op,
 | 0x09 | `AIRY_ROVOL_PROMOTE` | L4→L3→L2→L1 层级晋升 | `airy_rovol_tier_op_t *op` | v1.0.1 |
 | 0x0A | `AIRY_ROVOL_TIER_GET` | 获取 CXL 内存分层策略 | `airy_cxl_tier_policy_t *policy_out` | v1.0.1 |
 
-> **op 码编号权威源**：op 码数值（0x01-0x0A）以 [07-syscall-registry.md §4.3/§6.2](07-syscall-registry.md) 为唯一权威。注意 [SC] `memory_types.h` 当前**尚未落地** `AIRY_ROVOL_OP_*` 枚举（10 op 待 [SC] 补齐，见 docs-closed 执行视图 P1-2 计划），落地时须保持"注册表 ↔ UAPI 头文件 ↔ 内核实现"三方一致。
+> **op 码编号权威源**：op 码数值（0x01-0x0A）以 [07-syscall-registry.md §4.3/§6.2](07-syscall-registry.md) 为唯一权威。注意 [SC] `memory_types.h` 当前**尚未落地** `AIRY_ROVOL_OP_*` 枚举（10 op 待 [SC] 补齐），落地时须保持"注册表 ↔ UAPI 头文件 ↔ 内核实现"三方一致。
 
 **0.1.1 → v1.0.1 迁移映射表**：
 
@@ -1745,7 +1745,7 @@ stress-ng --cpu 4 --io 2 --vm 2 --vm-bytes 1G --timeout 60s &
 
 所有 `airy_sys_rovol_ctl` (549) op-dispatch 操作必须通过 capability 守卫，由 `op` 参数查表分派对应 capability 检查：
 
-> **⚠️ 待 [SC] 扩展**：`security_types.h` 当前**未定义** `AIRY_CAP_ROVOL_*` 权限位（仅有 `AIRY_CAP_PERM_*` 16 位 perms 与 POSIX 44 ID）。本表为**规划守卫表**，待 [SC] 扩展（docs-closed 执行视图 P1-2 计划：Badge perms 位扩展 rovol 操作位），落地前以 `security_types.h` 实际定义为准。
+> **⚠️ 待 [SC] 扩展**：`security_types.h` 当前**未定义** `AIRY_CAP_ROVOL_*` 权限位（仅有 `AIRY_CAP_PERM_*` 16 位 perms 与 POSIX 44 ID）。本表为**规划守卫表**，待 [SC] 扩展（Badge perms 位扩展 rovol 操作位），落地前以 `security_types.h` 实际定义为准。
 
 | op 码 | 所需 capability | 说明 |
 |-------|---------------|------|

@@ -135,7 +135,7 @@ P0 阶段覆盖 M0-M6，净工期 91 天（13 周），其中多个里程碑并�
 
 #### 3.3.1 CBS 准入算法（runtime governance 补强）
 
-> **背景**：v3.6 评审 §1.1 主要差距第 4 点指出"CBS 带宽准入……均未实现（M2-M5 项）"，[08-closure-summary-v3.6.md](../../../docs-closed/agent-linux/00-reviews/_review_v3.6/08-closure-summary-v3.6.md) §4.3 列为 P2-1。本小节补齐 CBS 准入的技术细节。
+> **背景**：设计评审曾指出"CBS 带宽准入……均未实现"为已知差距。本小节补齐 CBS 准入的技术细节。
 
 **目标**：在 sched_tac 之上为 Agent 提供利用率上界（utilization bound）保证与可预测的补充周期（replenishment period），杜绝过载时的带宽倾斜与活锁。
 

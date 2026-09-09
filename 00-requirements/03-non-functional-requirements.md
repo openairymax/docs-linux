@@ -349,7 +349,7 @@ airymaxos-audit-check --tamper-detect
 airymaxos-soak-test --duration 7d --workload agent-mixed
 
 # 内存泄漏检测
-valgrind --leak-check=full --show-leak-kinds=all ./agent-workload
+valgrind --leak-check=full --show-leak-kinds=all airymaxos-soak-test --workload agent-mixed
 
 # 资源监控
 airymaxos-monitor --resources --interval 60s --duration 7d
