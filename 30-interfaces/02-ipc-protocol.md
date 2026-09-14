@@ -62,7 +62,8 @@ extern "C" {
 #define AIRY_IPC_FLAG_RESERVED		0xFFE0  /* 必须为零 */
 
 /* 注：无 AIRY_IPC_TYPE_* 宏——payload 协议类型（REQUEST/RESPONSE/EVENT/STREAM/
- * CONTROL）不下沉为 [SC] 宏，由 payload 体首字段携带（见第 3 章） */
+ * CONTROL）的判别常量以 AIRY_IPC_PT_* 形式下沉为 [SC] 宏（0x0001–0x0005，
+ * 见第 3 章），随 payload 首部判别字段（struct airy_ipc_payload）携带 */
 
 /**
  * struct airy_ipc_msg_hdr - IPC 128 字节定长消息头（SSoT：Layout C v4）
@@ -174,7 +175,7 @@ _Static_assert(offsetof(struct airy_ipc_msg_hdr, crc32) == 52,
 | `crc32` | 52 | 4 | CRC32 覆盖 `header[0:52) + payload`，发送方计算填入 | C-S12（投递前校验） |
 | `reserved` | 56 | 72 | 保留字段，必须为零，未来扩展（[56:64) 为 cache line 1 尾部，[64:128) 为 cache line 2） | C-S4（reserved 检查） |
 
-> **注意**：Layout C v4 消息头无 `version` 与 `type` 字段。`opcode` 是传输层 SQE/CQE 操作码（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），与 payload 协议类型（REQUEST/RESPONSE/EVENT/STREAM/CONTROL）不同——后者下沉至 payload 体首字段携带（见第 3 章）。
+> **注意**：Layout C v4 消息头无 `version` 与 `type` 字段。`opcode` 是传输层 SQE/CQE 操作码（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），与 payload 协议类型（REQUEST/RESPONSE/EVENT/STREAM/CONTROL）不同——后者由 payload 首部判别字段携带（见第 3 章）。
 >
 > **v1.0.1 变更说明**：相对 v0.1.1，Layout C v4 在 offset 40 新增 `capability_badge`（8B）字段承载 Capability Folding Badge；在 offset 52 新增 `crc32`（4B）字段保证消息完整性；`reserved` 字段从 84 字节收缩至 72 字节；新增 opcode `FREEZE`(0x0005)/`CAP_REQUEST`(0x0010)/`CAP_RESPONSE`(0x0011)；新增 flags `AIRY_IPC_FLAG_BATCH_TAIL`(0x0010) 与 `AIRY_IPC_FLAG_RESERVED`(0xFFE0)。原 NOWAIT/SIGNAL 已废弃（NOWAIT 由 io_uring `IOSQE_ASYNC` 替代，SIGNAL 由 IORING_CQE_F_NOTIF 替代）。
 >
@@ -299,9 +300,9 @@ H6: [DSL] 降级模式下 capability_badge 字段存在但被忽略（值=0，�
 
 ## 3. 5 种 payload 协议
 
-> **字段说明**：Layout C v4 128B 消息头（见第 2 章）无 `type` 字段。下列 5 种 payload 协议类型（REQUEST/RESPONSE/EVENT/STREAM/CONTROL）由 payload 体首字段携带，而非消息头 `opcode`。`opcode` 是传输层 SQE/CQE 操作码（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），二者分属不同层次。
+> **字段说明**：Layout C v4 128B 消息头（见第 2 章）无 `type` 字段。下列 5 种 payload 协议类型（REQUEST/RESPONSE/EVENT/STREAM/CONTROL）由 payload 首部判别字段（`struct airy_ipc_payload`，8B 判别头）携带，而非消息头 `opcode`。判别常量以 `AIRY_IPC_PT_*`（0x0001–0x0005）下沉为 [SC] 宏（`commons/include/airymax/ipc.h`，无 `AIRY_IPC_TYPE_*` 宏）。`opcode` 是传输层 SQE/CQE 操作码（SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE），二者分属不同层次。
 
-payload 协议类型共 5 种：
+payload 协议类型共 5 种（**状态：已实现**——判别头、5 个 body 结构体与布局锁 `_Static_assert` 已落于 `commons/include/airymax/ipc.h`；L2 桥 typed envelope 与 `daemon_l2_payload_frame`/`daemon_l2_payload_parse`/`daemon_l2_publish_event`/`daemon_l2_stream_send`/`daemon_l2_ctrl_send` 已落于 `daemons/common/src/daemon/daemon_l2_bridge.c`）：
 
 | type 值 | 协议 | 用途 | 通信模式 |
 |---------|------|------|---------|
@@ -690,7 +691,7 @@ IPC 性能约束对齐非功能性需求 NFR-P-002（详见 [00-requirements/03-
 | `struct airy_ipc_msg_hdr` 128B 定长头（Layout C v4） | 自然对齐消息头结构（D-9 修复后移除 packed，使用 `AIRY_ALIGNED(64)` 宏——定义于 `uapi_compat.h`，跨编译器可移植，详见 [C_Cpp_coding_style.md §6.5.1](../50-engineering-standards/10-coding-style/C_Cpp_coding_style.md) OS-IRON-016；字段顺序 magic/opcode/flags/trace_id/timestamp_ns/src_task/dst_task/capability_badge/payload_len/crc32/reserved[72]） | send/recv 路径 |
 | `AIRY_IPC_OP_*` opcode | SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE 操作码 | io_uring `cmd_op` 路由 |
 | `AIRY_IPC_FLAG_*` flags 位 | ZEROCOPY/CAP_CARRY/ENCRYPT/COMPRESS/BATCH_TAIL 标志位 | 消息处理 |
-| payload 协议类型（非 [SC] 宏） | REQUEST/RESPONSE/EVENT/STREAM/CONTROL 5 种类型由 payload 体首字段携带（无 `AIRY_IPC_TYPE_*` 宏） | payload 解码 |
+| `AIRY_IPC_PT_*` 判别常量 + `struct airy_ipc_payload` | REQUEST/RESPONSE/EVENT/STREAM/CONTROL 5 种类型由 payload 首部判别字段（8B 判别头）携带，常量 `0x0001`–`0x0005` 已下沉为 [SC] 宏（无 `AIRY_IPC_TYPE_*` 宏） | payload 解码 |
 | `AIRY_BADGE_*` 位布局宏 | Epoch/RandomTag/Perms 提取与编译宏 | Badge 校验与编译 |
 | `AIRY_CAP_PERM_*` 权限位 | SEND/RECV/DERIVE/KILL/FILE_OPEN/ROTATE/SUPERVISE 权限位 | C-S9 权限校验 |
 
