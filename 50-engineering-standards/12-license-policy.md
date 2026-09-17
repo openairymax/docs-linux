@@ -141,7 +141,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 |--------|------|
 | agentrt | atoms, commons, cupolas, daemons, gateway, heapstore, protocols, (agentrt 根) |
 | agent-linux (除 kernel) | cloudnative, cognition, memory, security, services, system, tests-linux, (agent-linux 根) |
-| sdk | cli, sdk-go, sdk-python, sdk-rust, sdk-typescript, tui, (sdk 根) |
+| sdk | console, sdk-go, sdk-python, sdk-rust, sdk-typescript, tui, (sdk 根) |
 | ecosystem | examples, manager, openlab, prompts, skills, (ecosystem 根) |
 | products (除 memoryrovol) | docker, desktop, (products 根) |
 | 其他 | tools（v0.1.4 由 devtools 改名） |
@@ -262,7 +262,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | 10 | `agentrt/heapstore/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 11 | `agentrt/protocols/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 12 | `sdk/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
-| 13 | `sdk/cli/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
+| 13 | `sdk/console/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 14 | `sdk/sdk-go/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 15 | `sdk/sdk-python/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 16 | `sdk/sdk-rust/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
