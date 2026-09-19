@@ -1498,7 +1498,7 @@ graph LR
 - [五维正交原则](02-five-dimensional-principles.md)：五维正交 24 原则落地映射
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
 - [工程基线](04-engineering-baseline.md)：agent-linux 工程基线
-- [架构原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
+- [架构原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
 - 工程标准规范手册：IRON-9 / IRON-10 / BAN-361 等工程铁律
 
 ***

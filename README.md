@@ -13,11 +13,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 1. 模块概述
 
-本文档是 `docs/AirymaxOS/` 目录的**顶层纲领**，承担四项核心职责：
+本文档是 `docs/docs-linux/` 目录的**顶层纲领**，承担四项核心职责：
 
 1. **整体方案总览**：定义 agent-linux（AirymaxOS）作为基于 Linux 内核的智能体操作系统发行版的整体设计思想、架构支柱与子仓清单。
 2. **技术选型声明**：明确声明 v1.x.x 阶段的五大核心技术选型（sched\_tac、IORING\_OP\_URING\_CMD、纯 C LSM、alloc\_pages + mmap、IRON-9 v3 四层模型），作为全文档体系的不可妥协基线。
-3. **文档索引**：列出 `docs/AirymaxOS/` 下全部子目录及其文档数量，提供导航入口。
+3. **文档索引**：列出 `docs/docs-linux/` 下全部子目录及其文档数量，提供导航入口。
 4. **Unify Design 映射**：阐述 Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）在文档体系中的分布。
 
 agent-linux 与 agentrt（AgentRT 极境智能体运行底座平台工程）同源：agentrt 是跨平台用户态运行时（Linux/macOS/Windows），agent-linux 是基于 Linux 6.6 内核基线的发行版（专为 Agent 工作负载优化），两者共享 Airymax 工程设计思想，agentrt 在 agent-linux 上运行天然更稳健和适配，架构同源，无适配层。
@@ -66,10 +66,10 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 
 ## 4. 文档索引
 
-`docs/AirymaxOS/` 下共 20 个子目录，覆盖需求、架构、模块、接口、数据流、工程标准、驱动、构建、测试、可观测性、运维、安全、开发流程、路线图、应用开发、云原生、兼容性、性能、国际化与发行版管理全维度。
+`docs/docs-linux/` 下共 20 个子目录，覆盖需求、架构、模块、接口、数据流、工程标准、驱动、构建、测试、可观测性、运维、安全、开发流程、路线图、应用开发、云原生、兼容性、性能、国际化与发行版管理全维度。
 
 ```
-docs/AirymaxOS/
+docs/docs-linux/
 ├── README.md                            # 本文件（总览，v1.0）
 ├── 00-requirements/                     # 需求分析层（README + 3 文档）
 ├── 10-architecture/                     # 架构设计层（README + 11 文档）
@@ -149,7 +149,7 @@ docs/AirymaxOS/
 
 ## 5. Airymax Unify Design 映射
 
-Airymax Unify Design 是 agent-linux v1.0 的**统一设计总纲**，定义五个横切模块，贯穿 agent-linux 的内核态与用户态、设计层与实现层。五模块在 `docs/AirymaxOS/` 各目录中的分布如下：
+Airymax Unify Design 是 agent-linux v1.0 的**统一设计总纲**，定义五个横切模块，贯穿 agent-linux 的内核态与用户态、设计层与实现层。五模块在 `docs/docs-linux/` 各目录中的分布如下：
 
 | Unify 模块  | 全称                                                | 核心职责                                                                               | 主要分布目录                                                                                                                                                                                                                   |
 | --------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -257,7 +257,7 @@ agentrt（AirymaxAgentRT，跨平台用户态运行时）
 - [模块设计层](20-modules/README.md)：8 子仓 + A-ULS/A-ULP/A-UCS
 - [数据流程设计层](40-dataflows/README.md)：认知 + 记忆 + IPC + 调度 + 日志 + Panic 生存
 - [工程标准规范](50-engineering-standards/README.md)：SSoT v2 + \[SC] 类型桥接
-- [Airymax 架构设计原则](../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 - IRON-9 v3 工程铁律（含同源代码共享 + 类型桥接）
 
 ***

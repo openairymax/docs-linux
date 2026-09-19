@@ -320,12 +320,12 @@ agent-linux（AirymaxOS）的项目文档遵循 E-7 文档即代码原则，全�
 
 | 文档类型 | 存放位置 | 版本控制 | 审查要求 |
 |----------|----------|----------|----------|
-| 设计文档 | `docs/AirymaxOS/` | Git | 子仓治理组审查 |
-| 项目管理规范 | `docs/AirymaxOS/50-engineering-standards/` | Git | 工程规范委员会审查 |
+| 设计文档 | `docs/docs-linux/` | Git | 子仓治理组审查 |
+| 项目管理规范 | `docs/docs-linux/50-engineering-standards/` | Git | 工程规范委员会审查 |
 | 工程标准规范 | 内部参考文档 | Git | 工程规范委员会审查 |
 | 代码注释 | 各子仓代码内 | Git | 代码审查 |
 | API 文档 | Doxygen 生成 | Git（源码） | 代码审查 |
-| 发布公告 | `docs/AirymaxOS/releases/` | Git | 发布工程师审查 |
+| 发布公告 | `docs/docs-linux/releases/` | Git | 发布工程师审查 |
 
 ### 5.10 项目工具链规范
 

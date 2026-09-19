@@ -194,7 +194,7 @@ config AIRY_SC_FALLBACK
     help
       启用 [DSL] 降级生存层。当 [SC] 共享契约头文件损坏或缺失时，
       系统降级为最小可运行子集。正常情况下应保持 n。
-      详见 docs/AirymaxOS/10-architecture/11-degraded-survival-layer.md
+      详见 docs/docs-linux/10-architecture/11-degraded-survival-layer.md
 ```
 
 ---

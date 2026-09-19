@@ -440,7 +440,7 @@ graph LR
 
 ### 8.2 同源 Airymax 文档
 
-- `docs/AirymaxRT/10-architecture/00-architectural-principles.md` — 五维正交 24 原则
+- `docs/docs-workload/10-architecture/00-architectural-principles.md` — 五维正交 24 原则
 - IRON-9 v3 工程铁律 — 17 类规则编号体系（v28.0，含 IRON-9）
 - agentrt 工程改进方案 — agentrt 三大支柱方案（v4.2，§37 风险登记册）
 

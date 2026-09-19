@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[agent-linux 设计文档](README.md)\
-> **同源映射**：`docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ agentrt 17 类规则编号体系（IRON-9 v3 同源且部分代码共享）\
+> **同源映射**：`docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ agentrt 17 类规则编号体系（IRON-9 v3 同源且部分代码共享）\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
 > **SSoT 声明**：OS-IRON 铁律编号的唯一权威来源为 [09-ssot-registry.md §2](./09-ssot-registry.md)（16 条铁律，含 OS-IRON-015 编号管理元规则 2026-07-15 提升、OS-IRON-016 UAPI 编译器无关原则 2026-07-29 登记）。本文档第 5-10 章中标注的历史 OS-IRON-003~006 编号与 SSoT 存在语义偏移（详见下方 §0 对齐映射表）。正文中保留的历史编号仅作章节内引用，**规则定义以 SSoT 为准**；本文档与 SSoT 的任何冲突，以 SSoT 为准。
 
@@ -670,5 +670,5 @@ agent-linux 作为一个新建的智能体操作系统发行版，其工程组�
 ---
 
 > **文档结束** | agent-linux 工程标准 50-engineering-standards/04-engineering-philosophy.md
-> **同源文档**： `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）| IRON-9 v3 工程铁律（工程标准规范，17 类规则编号体系）
+> **同源文档**： `docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）| IRON-9 v3 工程铁律（工程标准规范，17 类规则编号体系）
 > **下游文档**： `05-development-process.md`（开发流程）| `07-maintainers-and-governance.md`（维护者制度与治理）

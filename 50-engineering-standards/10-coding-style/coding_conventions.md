@@ -1275,7 +1275,7 @@ audit:
 
 ## Part III: Airymax 日志打印规范
 
-> **SSoT 声明**： 本文档的日志格式与传输管道契约以 AirymaxOS [`50-engineering-standards/20-contracts/contracts.md`](../../../AirymaxOS/50-engineering-standards/20-contracts/contracts.md) 为单一数据源（SSoT）。本文档仅补充 agentrt 用户态运行时特有的日志打印差异（如 `AIRY_LOG_*` / `SVC_LOG_*` 宏的跨平台用法、HiLog 语法参考映射）。当两者冲突时，以 AirymaxOS SSoT 为准。
+> **SSoT 声明**： 本文档的日志格式与传输管道契约以 AirymaxOS [`50-engineering-standards/20-contracts/contracts.md`](../../../docs-linux/50-engineering-standards/20-contracts/contracts.md) 为单一数据源（SSoT）。本文档仅补充 agentrt 用户态运行时特有的日志打印差异（如 `AIRY_LOG_*` / `SVC_LOG_*` 宏的跨平台用法、HiLog 语法参考映射）。当两者冲突时，以 AirymaxOS SSoT 为准。
 
 ### 第 0 章 Airymax 日志体系总览
 

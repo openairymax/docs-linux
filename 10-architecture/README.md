@@ -208,7 +208,7 @@ agent-linux 与 agentrt 同源且部分代码共享（IRON-9 v3）。两者在�
 - [接口设计层](../30-interfaces/README.md)：syscall + IPC + SDK + 编码规范
 - [数据流程设计层](../40-dataflows/README.md)：A-UEF/A-IPC/A-ULS/A-ULP 数据流路径
 - [工程标准规范](../50-engineering-standards/README.md)：SSoT v2 + [SC] 类型桥接
-- [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---
 

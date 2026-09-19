@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[agent-linux 设计文档](README.md)\
-> **原则来源**：[00-architectural-principles.md](../../AirymaxRT/10-architecture/00-architectural-principles.md)
+> **原则来源**：[00-architectural-principles.md](../../docs-workload/10-architecture/00-architectural-principles.md)
 
 ---
 
@@ -381,8 +381,8 @@ Score(agent) = w1 * (1/cost) + w2 * success_rate + w3 * trust_score
 
 | 文档体系 | 位置 | 内容 |
 |----------|------|------|
-| docs/AirymaxOS/ | agent-linux 设计文档 | 19 模块三层体系（核心设计层 + 工程标准与实施层 + 延伸层，~85 文档） |
-| docs/AirymaxRT/10-architecture/00-architectural-principles.md | 架构原则 | 五维正交 24 原则 |
+| docs/docs-linux/ | agent-linux 设计文档 | 19 模块三层体系（核心设计层 + 工程标准与实施层 + 延伸层，~85 文档） |
+| docs/docs-workload/10-architecture/00-architectural-principles.md | 架构原则 | 五维正交 24 原则 |
 | 50-engineering-standards/10-coding-style/ | 编码规范 | C / Rust / 安全编码规范文件 |
 | Doxygen 注释 | 代码内文档 | 每个公共 API 的契约注释 |
 | ADR | 架构决策记录 | [05-adrs.md](05-adrs.md)（18 个 ADR） |
@@ -572,7 +572,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
 - [工程基线](04-engineering-baseline.md)：agent-linux 工程基线
 - [架构决策记录](05-adrs.md)：18 个核心 ADR
-- [架构原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
+- [架构原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
 
 ---
 

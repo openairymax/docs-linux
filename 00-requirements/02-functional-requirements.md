@@ -371,7 +371,7 @@ flowchart TD
 - [业务需求分析](01-business-requirements.md)：Agent 工作负载与生态对齐
 - [非功能需求分析](03-non-functional-requirements.md)：性能、安全、可靠性需求
 - [agent-linux 总览](../README.md)：agent-linux 整体设计与子仓清单
-- [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---
 

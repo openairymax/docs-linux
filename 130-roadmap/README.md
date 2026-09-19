@@ -146,7 +146,7 @@ agent-linux 路线图与 agentrt 路线图遵循 **IRON-9 v3 四层模型**（[S
 - [170-performance/README.md](../170-performance/README.md) —— 性能工程（Part 9，SLO 验收依据）
 
 ### 5.3 同源 Airymax 文档
-- `docs/AirymaxRT/10-architecture/00-architectural-principles.md` —— 五维正交 24 原则
+- `docs/docs-workload/10-architecture/00-architectural-principles.md` —— 五维正交 24 原则
 - IRON-9 v3 工程铁律 —— 17 类规则编号体系
 
 ---

@@ -179,7 +179,7 @@ agent-linux 需求采用统一的「前缀-序号」编号规则：
 ### 9.2 上游参考文档
 
 - [agent-linux 总览](../README.md)：agent-linux v1.0 整体设计与技术选型声明
-- [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ### 9.3 下游设计文档
 

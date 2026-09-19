@@ -109,7 +109,7 @@ M:	Alice Chen <alice@airymaxos.org>
 R:	Bob Li <bob@airymaxos.org>
 L:	https://github.com/agent-linux/system/issues
 S:	Maintained
-W:	docs/AirymaxOS/30-interfaces/
+W:	docs/docs-linux/30-interfaces/
 Q:	https://github.com/orgs/agent-linux/projects/airy_ipc
 B:	https://github.com/agent-linux/system/issues/new?template=bug.md
 C:	matrix:#airy_ipc

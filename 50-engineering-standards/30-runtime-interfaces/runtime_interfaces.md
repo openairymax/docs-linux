@@ -12,7 +12,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## Part I: agent-linux L1 核心运行时接口规范
 
-> **SSoT 声明**： 本文档的 L1 核心运行时接口规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如内核态 syscall 实现、ops 注入的 Linux 加速路径、seL4 形式化验证思想落地）。当两者冲突时，以 AirymaxRT SSoT 为准。
+> **SSoT 声明**： 本文档的 L1 核心运行时接口规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md`](../../../docs-workload/30-interfaces/05-runtime-interfaces/01-l1-runtime-interface.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如内核态 syscall 实现、ops 注入的 Linux 加速路径、seL4 形式化验证思想落地）。当两者冲突时，以 AirymaxRT SSoT 为准。
 
 ### 文档信息卡
 - **目标读者**: OS 内核开发者、运行时接口实现者、调度器开发者、安全架构师  
@@ -1401,7 +1401,7 @@ agent-linux L2 协议遵循以下向前兼容规则：
 
 ## Part III: agent-linux L3 安全与治理规范
 
-> **SSoT 声明**： 本文档的 L3 安全与治理规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/03-l3-security-governance.md`](../../../AirymaxRT/30-interfaces/05-runtime-interfaces/03-l3-security-governance.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如 LSM 钩子集成、内核态 capability 派生实现、审计日志内核管道）。当两者冲突时，以 AirymaxRT SSoT 为准。
+> **SSoT 声明**： 本文档的 L3 安全与治理规范以 AirymaxRT [`30-interfaces/05-runtime-interfaces/03-l3-security-governance.md`](../../../docs-workload/30-interfaces/05-runtime-interfaces/03-l3-security-governance.md) 为单一数据源（SSoT）。本文档仅补充 agent-linux（AirymaxOS）特有的差异（如 LSM 钩子集成、内核态 capability 派生实现、审计日志内核管道）。当两者冲突时，以 AirymaxRT SSoT 为准。
 
 ### 文档信息卡
 - **目标读者**: 安全架构师、OS 安全开发者、合规工程师、审计人员、开源合规官  

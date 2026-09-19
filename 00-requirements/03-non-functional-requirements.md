@@ -818,7 +818,7 @@ airy_active_sessions 1500
 - [业务需求分析](01-business-requirements.md)：Agent 工作负载与生态对齐
 - [功能需求分析](02-functional-requirements.md)：8 子仓功能矩阵与能力清单
 - [agent-linux 总览](../README.md)：agent-linux 整体设计
-- [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---
 

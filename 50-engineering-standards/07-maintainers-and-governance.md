@@ -5,7 +5,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[agent-linux 设计文档](README.md)\
-> **同源映射**：agentrt `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ Linux 6.6 内核基线 `MAINTAINERS`（734KB）维护者制度范本\
+> **同源映射**：agentrt `docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ Linux 6.6 内核基线 `MAINTAINERS`（734KB）维护者制度范本\
 > **理论根基**：Linux 内核 30+ 年沉淀的 Lieutenant System（副官系统）+ Airymax 体系并行论\
 > **替代关系**：本文档替代 Linux `Documentation/process/management-style.rst`、`submitting-patches.rst`（DCO 章节）、`contribution-maturity-model.rst`、`6.Followthrough.rst` 在 agent-linux 场景下的适用
 
@@ -678,7 +678,7 @@ agent-linux 总维护者承担 BDFL（Benevolent Dictator For Life）角色。�
 
 ### 12.1 同源 Airymax 文档
 
-- `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）
+- `docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）
 - IRON-9 v3 工程铁律（17 类规则编号体系，v28.0）
 
 ### 12.2 agent-linux 工程标准

@@ -63,8 +63,8 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 |------|-----|
 | **许可证** | Creative Commons Attribution 4.0 International |
 | **SPDX 标识符** | `CC-BY-4.0` |
-| **覆盖路径** | `docs/OpenStandards/` |
-| **LICENSE 文件** | `docs/OpenStandards/LICENSE` |
+| **覆盖路径** | `docs/openstandards/` |
+| **LICENSE 文件** | `docs/openstandards/LICENSE` |
 | **目的** | 让任何第三方（商业或非商业）可以自由实现 Airymax 标准 |
 
 **权利与义务**:
@@ -78,14 +78,14 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 - 与"成为行业标准"的战略目标一致
 
 **覆盖内容**:
-- `docs/OpenStandards/01-airy-agent-runtime-standard.md`
-- `docs/OpenStandards/02-airy-ipc-protocol-standard.md`
-- `docs/OpenStandards/03-airy-security-model-standard.md`
-- `docs/OpenStandards/04-airy-memory-rovol-standard.md`
-- `docs/OpenStandards/05-airy-cognition-loop-standard.md`
-- `docs/OpenStandards/06-airy-scheduling-standard.md`
-- `docs/OpenStandards/07-airy-syscall-standard.md`
-- `docs/OpenStandards/README.md`
+- `docs/openstandards/01-airy-agent-runtime-standard.md`
+- `docs/openstandards/02-airy-ipc-protocol-standard.md`
+- `docs/openstandards/03-airy-security-model-standard.md`
+- `docs/openstandards/04-airy-memory-rovol-standard.md`
+- `docs/openstandards/05-airy-cognition-loop-standard.md`
+- `docs/openstandards/06-airy-scheduling-standard.md`
+- `docs/openstandards/07-airy-syscall-standard.md`
+- `docs/openstandards/README.md`
 
 ---
 
@@ -95,7 +95,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 |------|-----|
 | **许可证** | Creative Commons Attribution-NonCommercial 4.0 International |
 | **SPDX 标识符** | `CC-BY-NC-4.0` |
-| **覆盖路径** | `docs/`（除 `docs/OpenStandards/`） |
+| **覆盖路径** | `docs/`（除 `docs/openstandards/`） |
 | **LICENSE 文件** | `docs/LICENSE` |
 | **目的** | 保护 SPHARX Ltd. 工程文档版权，允许非商业自由使用 |
 
@@ -105,8 +105,8 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 - 保留版权声明并标注 SPHARX Ltd. 为原作者
 
 **覆盖内容**:
-- `docs/AirymaxOS/`（工程标准、设计文档）
-- `docs/AirymaxRT/`（运行时文档）
+- `docs/docs-linux/`（工程标准、设计文档）
+- `docs/docs-workload/`（运行时文档）
 - `docs/Publications/`（论文、白皮书）
 - `docs/` 下其他非 OpenStandards 文档
 
@@ -251,7 +251,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 | # | 路径 | 层 | SPDX 标识符 |
 |---|------|----|----|
 | 1 | `airymaxhub/LICENSE` | 伞仓 | （策略概述文件） |
-| 2 | `docs/OpenStandards/LICENSE` | L1 | `CC-BY-4.0` |
+| 2 | `docs/openstandards/LICENSE` | L1 | `CC-BY-4.0` |
 | 3 | `docs/LICENSE` | L2 | `CC-BY-NC-4.0` |
 | 4 | `agentrt/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
 | 5 | `agentrt/atoms/LICENSE` | L3 | `AGPL-3.0-or-later OR Apache-2.0` |
@@ -310,7 +310,7 @@ Airymax 采用 **Open Core + Fair Source** 分层许可模式，按内容性质�
 
 | 文件位置 | SPDX 标识符 |
 |----------|-------------|
-| `docs/OpenStandards/` 下的源代码（若有） | `CC-BY-4.0` |
+| `docs/openstandards/` 下的源代码（若有） | `CC-BY-4.0` |
 | `docs/` 下的源代码（若有） | `CC-BY-NC-4.0` |
 | `agentrt/`, `sdk/`, `ecosystem/`, `products/{docker,desktop}/`, `tools/` 下 | `AGPL-3.0-or-later OR Apache-2.0` |
 | `agent-linux/kernel/` 下 | `GPL-2.0-only` |
@@ -458,7 +458,7 @@ set(PROJECT_LICENSE "AGPL-3.0-or-later OR Apache-2.0")
 | 编号 | 描述 | 验证方法 |
 |------|------|----------|
 | **LC-01** | airymaxhub/LICENSE 存在并包含 5 层策略概述 | `ls airymaxhub/LICENSE` |
-| **LC-02** | docs/OpenStandards/LICENSE 为 CC-BY-4.0 | `head -1 docs/OpenStandards/LICENSE` |
+| **LC-02** | docs/openstandards/LICENSE 为 CC-BY-4.0 | `head -1 docs/openstandards/LICENSE` |
 | **LC-03** | docs/LICENSE 为 CC-BY-NC-4.0 | `head -1 docs/LICENSE` |
 | **LC-04** | agent-linux/kernel/LICENSE 为 GPL-2.0-only | `head -10 agent-linux/kernel/LICENSE \| grep SPDX` |
 | **LC-05** | products/memoryrovol/LICENSE 为 SPHARX EULA | `head -1 products/memoryrovol/LICENSE` |

@@ -68,7 +68,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | workflow | 触发路径 | 排除路径 |
 |---------|---------|---------|
 | `ci-kernel.yml` | `kernel/**` / `services/**` / `security/**` / `memory/**` / `cognition/**` / `cloudnative/**` / `system/**` | `docs/**` / `*.md` |
-| `ssot-validate.yml` | `docs/AirymaxOS/**` / `kernel/include/uapi/linux/airymax/**` / `airy_defconfig` | — |
+| `ssot-validate.yml` | `docs/docs-linux/**` / `kernel/include/uapi/linux/airymax/**` / `airy_defconfig` | — |
 | `sc-dual-ci.yml` | `kernel/include/uapi/linux/airymax/**`（仅 12 个 [SC] 头文件） | — |
 | `nightly.yml` | 全部 | — |
 | `release.yml` | tag `v*` | — |
@@ -265,13 +265,13 @@ on:
   push:
     branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
     paths:
-      - 'docs/AirymaxOS/**'
+      - 'docs/docs-linux/**'
       - 'kernel/include/uapi/linux/airymax/**'
       - 'airy_defconfig'
   pull_request:
     branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
     paths:
-      - 'docs/AirymaxOS/**'
+      - 'docs/docs-linux/**'
       - 'kernel/include/uapi/linux/airymax/**'
       - 'airy_defconfig'
 ```

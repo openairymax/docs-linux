@@ -267,7 +267,7 @@ RC 测试由 QA 团队执行，包括：
 ### 5.8 步骤 7：发布归档
 
 - **文档快照**：在 `docs-AirymaxOS-vMAJOR.MINOR` 分支保存本版本的文档快照。
-- **release notes**：归档到 `docs/AirymaxOS/190-distribution/release-notes/`。
+- **release notes**：归档到 `docs/docs-linux/190-distribution/release-notes/`。
 - **SBOM 归档**：归档到 `sbom/MAJOR.MINOR.PATCH/`。
 - **签核记录归档**：归档到 `agent-linux-mgmt/releases/MAJOR.MINOR.PATCH/`。
 

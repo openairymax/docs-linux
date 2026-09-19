@@ -28,7 +28,7 @@ agent-linux 与 agentrt 遵循"同源且部分代码共享"原则（IRON-9 v3）
 
 **关键区分**：
 
-- agentrt 用户态契约：定义应用层组件间的交互协议（HTTP/WS/Stdio 网关、JSON-RPC 2.0、Agent 契约、Skill 契约），位于 `docs/AirymaxRT/30-interfaces/07-rpc-api/`。
+- agentrt 用户态契约：定义应用层组件间的交互协议（HTTP/WS/Stdio 网关、JSON-RPC 2.0、Agent 契约、Skill 契约），位于 `docs/docs-workload/30-interfaces/07-rpc-api/`。
 - agent-linux OS 层契约：定义 OS 级组件间的交互协议（系统调用 API、IPC 协议、驱动接口、日志格式），位于本目录。
 
 ### 1.3 契约在 OS 架构中的位置
@@ -278,7 +278,7 @@ agent-linux OS 层契约在 MAJOR 版本内提供以下 ABI 兼容性保证：
 - [系统调用接口](../../30-interfaces/01-syscalls.md)
 - [IPC 协议](../../30-interfaces/02-ipc-protocol.md)
 - [编码规范](../../30-interfaces/04-coding-standard.md)
-- [agentrt 用户态契约](../../../AirymaxRT/30-interfaces/07-rpc-api/README.md)
+- [agentrt 用户态契约](../../../docs-workload/30-interfaces/07-rpc-api/README.md)
 
 ---
 

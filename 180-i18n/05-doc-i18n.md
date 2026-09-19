@@ -43,12 +43,12 @@ agent-linux（AirymaxOS）作为面向全球开发者和用户的智能体操作
 
 ### 2.1 双语文件命名规范
 
-> **规划态声明**：以下"英文权威 + 中文翻译"双语机制为**规划目标**，当前 `docs/AirymaxOS/` 全目录为**中文单语**（无 `README_zh.md` / `*_zh.md` 翻译镜像文件）。双语化将在后续版本按本规范分批实施。
+> **规划态声明**：以下"英文权威 + 中文翻译"双语机制为**规划目标**，当前 `docs/docs-linux/` 全目录为**中文单语**（无 `README_zh.md` / `*_zh.md` 翻译镜像文件）。双语化将在后续版本按本规范分批实施。
 
 agent-linux 文档体系采用"英文权威 + 中文翻译"的命名规范：
 
 ```
-docs/AirymaxOS/
+docs/docs-linux/
 ├── README.md                # 英文（权威源 SSoT）
 ├── README_zh.md             # 中文（翻译镜像）
 ├── 10-architecture/

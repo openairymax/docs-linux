@@ -687,7 +687,7 @@ config AIRY_DEVMEM_RW
 - 本文档 Part III — 代码风格（模块化 / 抽象层次 / 防御性）
 - `50-engineering-standards/04-engineering-philosophy.md` — 工程思想（双层稳定性 / 策略机制分离）
 - `50-engineering-standards/07-maintainers-and-governance.md` — 维护者制度与规则编号注册表
-- `docs/AirymaxRT/10-architecture/00-architectural-principles.md` — Airymax 五维正交 24 原则
+- `docs/docs-workload/10-architecture/00-architectural-principles.md` — Airymax 五维正交 24 原则
 - `50-engineering-standards/magic-numbers.md` — agent-linux magic number 注册表
 - `30-interfaces/01-syscall-spec.md` — 系统调用规范（UABI 边界）
 

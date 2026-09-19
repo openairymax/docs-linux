@@ -525,7 +525,7 @@ flowchart TD
 | SBOM | `sbom/MAJOR.MINOR.PATCH/` | 永久 |
 | `airy_defconfig` | AtomGit releases | 永久 |
 | 文档快照 | `docs-AirymaxOS-vMAJOR.MINOR` 分支 | 永久 |
-| release notes | `docs/AirymaxOS/190-distribution/release-notes/` | 永久 |
+| release notes | `docs/docs-linux/190-distribution/release-notes/` | 永久 |
 | 签核记录 | `agent-linux-mgmt/releases/MAJOR.MINOR.PATCH/` | 永久 |
 | ABI 报告 | `abi-reports/MAJOR.MINOR.PATCH/` | 永久 |
 | 构建日志 | CI 系统 | 1 年 |

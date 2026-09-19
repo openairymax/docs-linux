@@ -4,7 +4,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范的主索引与总纲，含 SSoT v2 注册表、编码风格、运行时接口、契约、集成、ERP、术语、跨项目共享与 [SC] 类型桥接\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
-> **同源映射**：agentrt `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ IRON-9 v3 工程铁律（四层模型，17 类规则编号体系）\
+> **同源映射**：agentrt `docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ IRON-9 v3 工程铁律（四层模型，17 类规则编号体系）\
 > **理论根基**：Linux 6.6 内核工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
 > **上级文档**：[agent-linux 总览](../README.md)
 
@@ -230,9 +230,9 @@ agent-linux 在 agentrt 17 类规则编号体系基础上，新增 OS 专属编�
 
 ### 9.1 同源 Airymax 文档
 
-- `docs/AirymaxRT/10-architecture/00-architectural-principles.md`（五维正交 24 原则）
-- `docs/AirymaxOS/50-engineering-standards/10-coding-style/`（编码规范子目录，6 文档）
-- `docs/AirymaxOS/50-engineering-standards/90-terminology.md`（术语规范 SSoT）
+- `docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）
+- `docs/docs-linux/50-engineering-standards/10-coding-style/`（编码规范子目录，6 文档）
+- `docs/docs-linux/50-engineering-standards/90-terminology.md`（术语规范 SSoT）
 - IRON-9 v3 工程铁律（17 类规则编号体系 + [DSL] 降级生存层）
 
 ### 9.2 agent-linux 设计文档

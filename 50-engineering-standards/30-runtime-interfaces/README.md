@@ -262,7 +262,7 @@ ARE Standards 采用语义版本命名：
 
 ### 5.3 当前结论
 
-在 v0.1.1 草案阶段，ARE Standards 保留在 agent-linux 仓库的 `docs/AirymaxOS/50-engineering-standards/30-runtime-interfaces/` 目录下，不独立仓库。原因：
+在 v0.1.1 草案阶段，ARE Standards 保留在 agent-linux 仓库的 `docs/docs-linux/50-engineering-standards/30-runtime-interfaces/` 目录下，不独立仓库。原因：
 - 标准尚未稳定，独立会增加变更成本
 - 当前共享模型（IRON-9 v3）已经解决大部分一致性问题
 - 等标准进入候选阶段（v1.0.1）后，再重新评估独立仓库的必要性
@@ -491,8 +491,8 @@ ARE Standards 的设计全程遵循五维正交24原则，关键映射如下：
 
 1. [工程标准规范手册](../00-engineering-standards-handbook.md)
 2. [agent-linux（AirymaxOS）工程思想](../../50-engineering-standards/04-engineering-philosophy.md)
-3. [体系并行论](../../../AirymaxRT/00-requirements/01-mcis-cn.md)
-4. [系统设计原则](../../../AirymaxRT/00-requirements/04-design-principles-cn.md)
+3. [体系并行论](../../../docs-workload/00-requirements/01-mcis-cn.md)
+4. [系统设计原则](../../../docs-workload/00-requirements/04-design-principles-cn.md)
 5. IRON-9 v3 工程铁律
 6. seL4 微内核项目文档：https://sel4.systems/
 

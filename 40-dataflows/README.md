@@ -200,7 +200,7 @@ agent-linux 数据流设计与 agentrt 数据流保持「同源且部分代码�
 - [工程标准规范](../50-engineering-standards/README.md)：SSoT v2 + [SC] 类型桥接
 - [功能需求分析](../00-requirements/02-functional-requirements.md)：FR-001 ~ FR-080
 - [非功能需求分析](../00-requirements/03-non-functional-requirements.md)：NFR-P/S/R/C/O 系列
-- [Airymax 架构设计原则](../../AirymaxRT/10-architecture/00-architectural-principles.md)：五维正交 24 原则
+- [Airymax 架构设计原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则
 
 ---
 

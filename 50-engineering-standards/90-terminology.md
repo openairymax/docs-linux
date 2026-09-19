@@ -1057,7 +1057,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 **参见**: 五维正交性、体系并行论、IRON-9 v3、Airymax Unify Design
 
-**关联文档**: `docs/AirymaxOS/10-architecture/02-five-dimensional-principles.md`（完整落地映射）
+**关联文档**: `docs/docs-linux/10-architecture/02-five-dimensional-principles.md`（完整落地映射）
 
 ***
 
@@ -1367,23 +1367,23 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 ## 参考文献
 
-\[1] 体系并行论 — `docs/AirymaxRT/00-requirements/01-mcis-cn.md`\
-\[2] 认知层理论 — `docs/AirymaxRT/00-requirements/02-cognition-design-cn.md`\
-\[3] 记忆层理论 — `docs/AirymaxRT/00-requirements/03-memory-design-cn.md`\
-\[4] 设计原则 — `docs/AirymaxRT/00-requirements/04-design-principles-cn.md`\
-\[5] 五维正交24原则与 agent-linux（AirymaxOS）落地映射 — `docs/AirymaxOS/10-architecture/02-five-dimensional-principles.md`\
-\[6] agent-linux 架构设计 — `docs/AirymaxOS/10-architecture/01-system-architecture.md`\
-\[7] 微内核设计思想详解 — `docs/AirymaxOS/10-architecture/03-microkernel-strategy.md`\
-\[8] agent-linux（AirymaxOS）工程基线 — `docs/AirymaxOS/10-architecture/04-engineering-baseline.md`\
-\[9] IRON-9 v3 共享模型 — `docs/AirymaxOS/10-architecture/06-iron9-shared-model.md`\
-\[10] Airymax Unify Design 总纲 — `docs/AirymaxOS/10-architecture/10-unify-design.md`\
-\[11] \[DSL] 降级生存层 — `docs/AirymaxOS/10-architecture/11-degraded-survival-layer.md`\
-\[12] agent-linux 工程标准规范 — `docs/AirymaxOS/50-engineering-standards/README.md`\
-\[13] IRON-9 v3 四层共享模型落地规范 — `docs/AirymaxOS/50-engineering-standards/120-cross-project-code-sharing.md`\
-\[14] SSoT 规则编号权威注册表 — `docs/AirymaxOS/50-engineering-standards/09-ssot-registry.md`\
+\[1] 体系并行论 — `docs/docs-workload/00-requirements/01-mcis-cn.md`\
+\[2] 认知层理论 — `docs/docs-workload/00-requirements/02-cognition-design-cn.md`\
+\[3] 记忆层理论 — `docs/docs-workload/00-requirements/03-memory-design-cn.md`\
+\[4] 设计原则 — `docs/docs-workload/00-requirements/04-design-principles-cn.md`\
+\[5] 五维正交24原则与 agent-linux（AirymaxOS）落地映射 — `docs/docs-linux/10-architecture/02-five-dimensional-principles.md`\
+\[6] agent-linux 架构设计 — `docs/docs-linux/10-architecture/01-system-architecture.md`\
+\[7] 微内核设计思想详解 — `docs/docs-linux/10-architecture/03-microkernel-strategy.md`\
+\[8] agent-linux（AirymaxOS）工程基线 — `docs/docs-linux/10-architecture/04-engineering-baseline.md`\
+\[9] IRON-9 v3 共享模型 — `docs/docs-linux/10-architecture/06-iron9-shared-model.md`\
+\[10] Airymax Unify Design 总纲 — `docs/docs-linux/10-architecture/10-unify-design.md`\
+\[11] \[DSL] 降级生存层 — `docs/docs-linux/10-architecture/11-degraded-survival-layer.md`\
+\[12] agent-linux 工程标准规范 — `docs/docs-linux/50-engineering-standards/README.md`\
+\[13] IRON-9 v3 四层共享模型落地规范 — `docs/docs-linux/50-engineering-standards/120-cross-project-code-sharing.md`\
+\[14] SSoT 规则编号权威注册表 — `docs/docs-linux/50-engineering-standards/09-ssot-registry.md`\
 \[15] SSoT v2 机器可读 Schema — `agent-linux/ssot-registry.yaml`（管理仓根）\
-\[16] 12 daemons 部署映射 — `docs/AirymaxOS/100-operations/01-deployment.md`\
-\[17] 调度性能与sched\_tac — `docs/AirymaxOS/170-performance/01-scheduling-performance.md`\\
+\[16] 12 daemons 部署映射 — `docs/docs-linux/100-operations/01-deployment.md`\
+\[17] 调度性能与sched\_tac — `docs/docs-linux/170-performance/01-scheduling-performance.md`\\
 
 ***
 

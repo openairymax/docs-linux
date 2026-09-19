@@ -301,7 +301,7 @@ int airy_agent_register(const struct airy_agent_config *config,
  * agent-linux (AirymaxOS) Agent 专用系统调用编号定义
  *
  * 本文件由 140-application-development/07-syscall-registry.md 派生。
- * 编号注册表 SSoT: docs/AirymaxOS/140-application-development/07-syscall-registry.md
+ * 编号注册表 SSoT: docs/docs-linux/140-application-development/07-syscall-registry.md
  *
  * 编号规则:
  *   - 起始编号 548（避开 Linux 6.6 标准 0-511 + x86_64 x32 区域 512-547）

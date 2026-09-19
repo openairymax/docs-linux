@@ -255,9 +255,9 @@ flowchart LR
   - 如何提交 PR（链接到 03 卷）。
   - 如何签署 DCO。
   - 如何选择 issue。
-- **新贡献者指南**：`docs/AirymaxOS/120-development-process/07-contribution-workflow.md`（本文档）。
-- **开发环境搭建**：`docs/AirymaxOS/140-application-development/` 下的开发环境文档。
-- **代码规范**：`docs/AirymaxOS/50-engineering-standards/10-coding-style/`。
+- **新贡献者指南**：`docs/docs-linux/120-development-process/07-contribution-workflow.md`（本文档）。
+- **开发环境搭建**：`docs/docs-linux/140-application-development/` 下的开发环境文档。
+- **代码规范**：`docs/docs-linux/50-engineering-standards/10-coding-style/`。
 
 ### 5.3 导师制度
 

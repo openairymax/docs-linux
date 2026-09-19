@@ -302,7 +302,7 @@ agent-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四
 
 | 范围 | 规范 | 说明 |
 |------|------|------|
-| 开源文档（docs/AirymaxOS/） | 禁止出现 开源品牌表述 | 100% 清零，防止抄袭争议 |
+| 开源文档（docs/docs-linux/） | 禁止出现 开源品牌表述 | 100% 清零，防止抄袭争议 |
 | 内部参考文档 | 允许作为技术参考引用 | 内部参考，不公开 |
 | 代码注释 | 禁止出现 开源品牌表述 | 防止开源后引发争议 |
 | 与 上游 Linux 项目的关系 | 仅技术参考，不共享代码 | 符合 2026-07-07 开源极境工程与规范委员会决策 |
@@ -364,11 +364,11 @@ agent-linux 工程标准贯彻乔布斯美学——不仅用户可见的表面�
 | 检查项 | 检查方法 | 通过标准 |
 |--------|---------|---------|
 | 禁词清零 | `grep -rE "MGLRU 2.0\|PREEMPT_LAZY\|Rust 正式转正\|XFS 自修复\|eBPF 签名验证" docs/` | 0 结果（排除禁词清单本身） |
-| 开源品牌清零 | `grep -riE "主流 Linux 发行版" docs/AirymaxOS/` | 0 结果（排除审查报告） |
-| 微核心概念一致 | `grep -r "微内核" docs/AirymaxOS/ \| grep -i agentrt` | 0 结果（agentrt 不应使用"微内核"） |
+| 开源品牌清零 | `grep -riE "主流 Linux 发行版" docs/docs-linux/` | 0 结果（排除审查报告） |
+| 微核心概念一致 | `grep -r "微内核" docs/docs-linux/ \| grep -i agentrt` | 0 结果（agentrt 不应使用"微内核"） |
 | SSoT 编号一致 | 对照 [09-ssot-registry.md](./09-ssot-registry.md) | 所有编号引用与注册表一致 |
-| Copyright 完整 | `grep -rL "Copyright (c) 2025-2026 SPHARX" --include="*.md" docs/AirymaxOS/` | 0 结果 |
-| 基线声明完整 | `grep -rL "Linux 6.6" --include="*.md" docs/AirymaxOS/` | 仅顶层 README 可缺失 |
+| Copyright 完整 | `grep -rL "Copyright (c) 2025-2026 SPHARX" --include="*.md" docs/docs-linux/` | 0 结果 |
+| 基线声明完整 | `grep -rL "Linux 6.6" --include="*.md" docs/docs-linux/` | 仅顶层 README 可缺失 |
 
 ---
 
