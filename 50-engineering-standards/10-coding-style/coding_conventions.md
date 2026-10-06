@@ -2652,7 +2652,7 @@ agentrt（用户态运行底座）与 agent-linux（智能体操作系统）共�
 | `airy_cap_*` | Capability 令牌系统 | [SS] | `airy_cap_mint()`、`airy_cap_derive(AIRY_CAP_OP_REVOKE, ...)` |
 | `airy_sandbox_*` | 沙箱隔离 | [SS] | `airy_sandbox_create()`、`airy_sandbox_enter()` |
 | `airy_security_*` | 安全策略 | [SS] | `airy_security_check()`、`airy_security_enforce()` |
-| `cupolas_*` | Cupolas 安全穹顶服务 | [SS] | `cupolas_init()`、`cupolas_config_load()` |
+| `cupolas_*` | Cupolas 安全穹顶服务 | [SS] | `cupolas_init()`、`cupolas_cleanup()` |
 | `cupolas_sig_*` | Cupolas 签名验证 | [SS] | `cupolas_sig_verify()`、`cupolas_sig_generate()` |
 | `cupolas_net_*` | Cupolas 网络安全 | [SS] | `cupolas_net_check()`、`cupolas_net_block()` |
 | `cupolas_ent_*` | Cupolas 权限授权 | [SS] | `cupolas_ent_check()`、`cupolas_ent_grant()` |
