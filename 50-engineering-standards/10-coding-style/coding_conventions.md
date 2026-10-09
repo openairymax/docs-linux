@@ -2880,9 +2880,6 @@ typedef enum {
     CONFIG_TYPE_INT64 = 3,
     CONFIG_TYPE_DOUBLE = 4,
     CONFIG_TYPE_STRING = 5,
-    CONFIG_TYPE_ARRAY = 6,
-    CONFIG_TYPE_OBJECT = 7,
-    CONFIG_TYPE_BINARY = 8,
 } config_value_type_t;
 ```
 

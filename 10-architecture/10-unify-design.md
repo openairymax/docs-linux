@@ -40,7 +40,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | C-01 | sched_ext / SCHED_AGENT 表述不一致 | 50 个文件各自定义调度策略，sched_ext 在 vanilla 6.6 不可用（OLK 6.6 已 backport 但选择不使用） | A-ULS + sched_tac 统一三层调度，零内核调度器修改 |
 | C-02 | page flipping 表述不一致 | 6 个文件引用已废弃的 page flipping 零拷贝路径 | A-IPC 统一 IORING_OP_URING_CMD + registered buffer + mmap（v1.0.1 进一步升级为 Capability Folding 单平面架构） |
 | C-03 | VFS 用户态化决策矛盾 | 2 个文件对"VFS 是否完全下沉用户态"结论相反 | A-ULS 统一决策：内核保留路径解析，FS 实现用户态化 |
-| C-04 | [SC] 头文件数量不一致 | 多处文档对共享头文件数量有 6/10 等不同说法 | A-UEF/A-ULP/A-UCS 联合约束 [SC] 头文件物理宿主为 `kernel/include/uapi/linux/airymax/`，共 10 个 |
+| C-04 | [SC] 头文件数量不一致 | 多处文档对共享头文件数量有 6/10/12 等不同说法 | A-UEF/A-ULP/A-UCS 联合约束 [SC] 头文件物理宿主为 `kernel/include/uapi/linux/airymax/`，核心契约头 10 个、目录内 `.h` 共 12 个（10 核心 + `bpf_struct_ops.h` + `syscall_gen.h`） |
 | C-05 | 错误码双轨制 | agentrt 全仓库 `AIRY_E*` 与 `AIRY_ERR_*` 并存 | A-UEF 统一为 `AIRY_E*`（Error 负数空间）+ `AIRY_FAULT_*`（Fault 正数空间） |
 | C-06 | 日志双轨制 | `LOG_*` 与 `AIRY_LOG_*` 并存，128B 记录格式多处定义 | A-ULP 统一为 `AIRY_LOG_*` 枚举（对齐 [SC] log_types.h L37-44）+ 128B 固定记录格式，单一权威源 |
 | C-07 | DMA 一致性内存误用 | 14 个文件误用 DMA 一致性内存用于日志/IPC 共享内存 | A-ULP/A-IPC 统一 `alloc_pages(GFP_KERNEL)` + mmap，x86_64 默认缓存一致 |
