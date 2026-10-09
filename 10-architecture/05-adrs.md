@@ -1374,7 +1374,7 @@ ALK-6.6 = vanilla 6.6.149 (IRON-7 基线)
 | `security_types.h`  | ADR-004 | 44 cap（41 POSIX + 3 扩展）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，lsm_types.h）+ Cupolas 4 值裁决 + `airy_cap_op` 7 派生操作 | kernel / security  |
 | `cognition_types.h` | ADR-006 | 三阶段枚举（PERCEPT/THINK/ACT）+ Thinkdual                                     | kernel / cognition |
 | `syscalls.h`        | ADR-010 | Syscall 编号体系（v1.0.1: 4 核心 548-551 + 20 预留 552-571 = 24 槽位）                                            | kernel / cognition |
-| `syscall.h`         | ADR-010 | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551）                                   | kernel / services  |
+| `syscall_gen.h`    | ADR-010 | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551）                                   | kernel / services  |
 | `uapi_compat.h`     | ADR-010 | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）                                       | IRON-9 跨端          |
 | `lsm_types.h`       | ADR-004 | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架 | kernel / security  |
 | `bpf_struct_ops.h`  | ADR-010 | struct_ops 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局 | kernel / cognition |
@@ -1419,7 +1419,7 @@ graph TB
     end
 
     subgraph "[SC] 共享契约层（12 头文件）"
-        SC[error.h + log_types.h + ipc.h + sched.h<br/>memory_types.h + security_types.h + cognition_types.h<br/>syscalls.h + syscall.h + uapi_compat.h + lsm_types.h + bpf_struct_ops.h]
+        SC[error.h + log_types.h + ipc.h + sched.h<br/>memory_types.h + security_types.h + cognition_types.h<br/>syscalls.h + syscall_gen.h + uapi_compat.h + lsm_types.h + bpf_struct_ops.h]
     end
 
     subgraph "[DSL] 降级生存层"

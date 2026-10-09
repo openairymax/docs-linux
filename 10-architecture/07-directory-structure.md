@@ -1327,7 +1327,7 @@ sc-dual-ci:
 | 6 | `security_types.h` | 安全 | — | `kernel/include/uapi/linux/airymax/security_types.h` | capability 44 ID（41 POSIX + 3 Airymax 扩展，CAP_AGENT_SPAWN=41 起）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，定义于 `lsm_types.h`）+ `enum airy_verdict`（ALLOW/DENY/AUDIT/COMPLAIN）+ `enum airy_cap_op`（7 操作：Copy/Mint/Move/Mutate/Revoke/Delete/Rotate）+ `cap_t` = `__u64`（64-bit，v1.0.1 无 cap_idx_t） |
 | 7 | `cognition_types.h` | A-UCS | — | `kernel/include/uapi/linux/airymax/cognition_types.h` | `airy_q16_t`（= `__s32`，Q16.16 定点数，因 -mno-80387 禁 FPU）+ `enum airy_cog_phase`（PERCEPT/THINK/ACT）+ `enum airy_think_mode`（FAST/SLOW） |
 | 8 | `syscalls.h` | 系统调用 | — | `kernel/include/uapi/linux/airymax/syscalls.h` | v1.0.1: 4 核心系统调用（AIRY_SYS_CALL=548 ... AIRY_SYS_CLT_NOTIFY=551）+ 20 预留（552-571）= 24 槽位 |
-| 9 | `syscall.h` | 系统调用 | — | `kernel/include/uapi/linux/airymax/syscall.h` | `airy_sys_*` syscall 语义/ABI 声明（与 syscalls.h 编号表配套） |
+| 9 | `syscall_gen.h` | 系统调用 | — | `kernel/include/uapi/linux/airymax/syscall_gen.h` | `airy_sys_*` syscall 语义/ABI 声明（与 syscalls.h 编号表配套） |
 | 10 | `uapi_compat.h` | 桥接 | — | `kernel/include/uapi/linux/airymax/uapi_compat.h` | 三路类型桥接（`#ifdef __KERNEL__` / `#elif defined(__linux__)` / `#else`），确保 [SC] 头文件跨平台逐字节相同编译 |
 | 11 | `lsm_types.h` | 安全 | — | `kernel/include/uapi/linux/airymax/lsm_types.h` | `struct airy_task_sec` + `struct airy_cap_slot`（80B，含 MDB 派生树）+ `airy_capability_check()` 回调原型 |
 | 12 | `bpf_struct_ops.h` | 可观测性 | — | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF struct_ops 状态管理共享结构（`struct airy_struct_ops_value` + `enum airy_struct_ops_state`），仅可观测性用（H5 约束，非核心架构） |

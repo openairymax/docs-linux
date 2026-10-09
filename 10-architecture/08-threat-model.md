@@ -85,7 +85,7 @@ agent-linux 定义三级信任边界（L1/L2/L3），与 [`110-security/README.m
 
 **A1 内核内存空间**：包括内核代码段、数据段、堆栈、slab/slub 缓存。内核内存是 L1 信任根的物理载体，任何向用户态泄露内核地址（`copy_to_user` 含内核指针）或未初始化内存的行为均违反 OS-SEC-125/126。防护依赖 `copy_from_user`/`copy_to_user` 边界检查（OS-SEC-111）、`memzero_explicit`/`kfree_sensitive` 敏感数据清零（OS-SEC-127）与 KASLR。
 
-**A2 \[SC] 共享契约层头文件（12 个）**：12 个 [SC] 头文件（`error.h`、`log_types.h`、`memory_types.h`、`security_types.h`、`cognition_types.h`、`sched.h`、`ipc.h`、`syscalls.h`、`syscall.h`、`uapi_compat.h`、`lsm_types.h`、`bpf_struct_ops.h`），唯一物理宿主于 `kernel/include/uapi/linux/airymax/`。OS-IRON-014 强制其为单一数据源，禁止物理副本。任何篡改将导致 agentrt 用户态与 agent-linux 内核态契约不一致，引发 ABI 破坏与内存破坏。
+**A2 \[SC] 共享契约层头文件（12 个）**：12 个 [SC] 头文件（`error.h`、`log_types.h`、`memory_types.h`、`security_types.h`、`cognition_types.h`、`sched.h`、`ipc.h`、`syscalls.h`、`syscall_gen.h`、`uapi_compat.h`、`lsm_types.h`、`bpf_struct_ops.h`），唯一物理宿主于 `kernel/include/uapi/linux/airymax/`。OS-IRON-014 强制其为单一数据源，禁止物理副本。任何篡改将导致 agentrt 用户态与 agent-linux 内核态契约不一致，引发 ABI 破坏与内存破坏。
 
 **A3 Capability 表**：seL4 风格 CNode 表 + POSIX 41 ID capability（编号 0-40，`CAP_LAST_CAP=CAP_CHECKPOINT_RESTORE=40`）+ 3 个 Airymax 专属（编号 41-43，`AIRY_CAP_AGENT_SPAWN` 等）。capability 使用 `LSM_ORDER_FIRST`（OLK 6.6 硬编码，仅用于 capabilities），永远在 Landlock/Cupolas 之前执行；airy_lsm 使用 `LSM_ORDER_MUTABLE` + `CONFIG_LSM` 首位置于 capability 之后。伪造或绕过 capability 检查直接导致权限提升（OS-SEC-121）。
 

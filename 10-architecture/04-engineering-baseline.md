@@ -533,7 +533,7 @@ agent-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态接�
 
 | 层次              | Euler API 兼容策略                                                                         | 落地方式                                                                                                                                                 |
 | --------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **\[SC] 共享契约层** | 共享类型定义与 IPC 契约与 Euler API 语义对齐（如 capability 模型、IPC 消息头布局参考 Euler IPC 规范演进）             | 12 个 \[SC] 头文件（error.h / log_types.h / ipc.h / sched.h / memory_types.h / security_types.h / cognition_types.h / syscalls.h / syscall.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h）在 agentrt 与 agent-linux 间共享，语义与 Euler API 对齐 |
+| **\[SC] 共享契约层** | 共享类型定义与 IPC 契约与 Euler API 语义对齐（如 capability 模型、IPC 消息头布局参考 Euler IPC 规范演进）             | 12 个 \[SC] 头文件（error.h / log_types.h / ipc.h / sched.h / memory_types.h / security_types.h / cognition_types.h / syscalls.h / syscall_gen.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h）在 agentrt 与 agent-linux 间共享，语义与 Euler API 对齐 |
 | **\[SS] 语义同源层** | 高层 API 语义与 Euler API 保持同源（如 12 daemons 语义对应 Euler 系统服务、io\_uring IPC 原语对应 Euler IO 接口） | API 签名独立演进，语义操作一致，详见 `20-modules/02-services.md` §6.2 \[SS] 语义同源层 20 项 API 映射                                                                        |
 | **\[IND] 独立层**  | agent-linux syscall 编号体系独立（AIRY\_SYS\_ 前缀，v1.0.1: 4 核心（548-551）+ 20 预留（552-571）= 24 槽位），不复用 Euler API 编号    | capability invocation 统一入口 `airy_sys_call` 消除独立 syscall 需求，编号体系详见 `30-interfaces/01-syscalls.md`                                                     |
 
@@ -608,7 +608,7 @@ agent-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态接�
 | `security_types.h`  | 44 cap（41 POSIX + 3 扩展）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，lsm_types.h）+ Cupolas 4 值裁决 + `airy_cap_op` 7 派生操作 + `typedef __u64 cap_t`                                | kernel-doc + minimal typedef | kernel / security  |
 | `cognition_types.h` | 三阶段枚举 + Thinkdual 模式                                           | kernel-doc + snake\_case     | kernel / cognition |
 | `syscalls.h`        | 4 核心 syscall 编号（548-551）+ 20 预留槽位（552-571，v1.0.1）          | kernel-doc + K\&R            | kernel / cognition |
-| `syscall.h`         | syscall 语义声明（与 syscalls.h 编号表配套的 ABI 契约）                   | kernel-doc + K\&R            | kernel / 全部      |
+| `syscall_gen.h`    | syscall 语义声明（与 syscalls.h 编号表配套的 ABI 契约）                   | kernel-doc + K\&R            | kernel / 全部      |
 | `uapi_compat.h`     | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）                       | kernel-doc + minimal typedef | IRON-9 跨端 |
 | `lsm_types.h`       | 纯 C LSM 类型定义 + `DEFINE_LSM(airy)` 骨架 + Capability 缓存结构        | kernel-doc + minimal typedef | kernel / security  |
 | `bpf_struct_ops.h`  | eBPF struct\_ops 状态机（INIT/REGISTERED/ACTIVE/DRAINING，可观测性用，非核心架构，H5 约束） | kernel-doc + minimal typedef | kernel / services  |
@@ -649,7 +649,7 @@ graph TB
     end
 
     subgraph "[SC] 共享契约层（12 头文件）"
-        SC[Linux 6.6 内核基线 编码契约<br/>error.h / log_types.h / ipc.h / sched.h<br/>memory_types.h / security_types.h / cognition_types.h<br/>syscalls.h / syscall.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h]
+        SC[Linux 6.6 内核基线 编码契约<br/>error.h / log_types.h / ipc.h / sched.h<br/>memory_types.h / security_types.h / cognition_types.h<br/>syscalls.h / syscall_gen.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h]
     end
 
     subgraph "[DSL] 降级生存层"

@@ -143,7 +143,7 @@ jobs:
         run: |
           set -e
           for h in error.h log_types.h ipc.h sched.h memory_types.h \
-                   security_types.h cognition_types.h syscalls.h syscall.h \
+                   security_types.h cognition_types.h syscalls.h syscall_gen.h \
                    uapi_compat.h lsm_types.h bpf_struct_ops.h; do
             test -f "kernel/include/uapi/linux/airymax/$h" || { echo "FAIL: $h missing"; exit 1; }
           done

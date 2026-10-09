@@ -1554,7 +1554,7 @@ done
 
 **规则 OS-CHK-DOC-04**：所有引用 [SC] 共享契约层的文档必须与 12 个头文件清单一致。
 
-**12 个 [SC] 头文件清单**（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`；权威定义见 [120-cross-project-code-sharing.md §2.1](./120-cross-project-code-sharing.md)，SSoT 规则登记为 [OS-IRON-014](./09-ssot-registry.md)；`00-engineering-standards-handbook.md §4.2` 为公开镜像，内容与权威定义逐项一致）：
+**12 个 [SC] 头文件清单**（10 核心 + 2 补充：`syscall_gen.h`、`bpf_struct_ops.h`；权威定义见 [120-cross-project-code-sharing.md §2.1](./120-cross-project-code-sharing.md)，SSoT 规则登记为 [OS-IRON-014](./09-ssot-registry.md)；`00-engineering-standards-handbook.md §4.2` 为公开镜像，内容与权威定义逐项一致）：
 
 | # | 头文件 | 子系统 | 内容摘要 |
 |---|--------|--------|----------|
@@ -1568,7 +1568,7 @@ done
 | 8 | `include/uapi/linux/airymax/log_types.h` | 日志 | A-ULP 统一日志类型（128B 固定记录格式 + 5 级日志枚举 + printk 8 级映射） |
 | 9 | `include/uapi/linux/airymax/uapi_compat.h` | 兼容 | 三路类型桥接（\_\_u32 ↔ uint32_t ↔ 第三方 uint32_t），确保 [SC] 头文件跨平台逐字节相同 |
 | 10 | `include/uapi/linux/airymax/lsm_types.h` | 安全 | 纯 C LSM 模块类型定义（airy_lsm_blob + capability_check 回调 + Capability 缓存） |
-| 11 | `include/uapi/linux/airymax/syscall.h` | SYS | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT） |
+| 11 | `include/uapi/linux/airymax/syscall_gen.h` | SYS | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT） |
 | 12 | `include/uapi/linux/airymax/bpf_struct_ops.h` | 调度 | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费） |
 
 **检查方法**：grep `include/uapi/linux/airymax/` 引用，核对是否与上述 12 个头文件一致。

@@ -474,7 +474,7 @@ sub airy_check {
 
 ### 8.1 检查目标
 
-IRON-9 v3 [SC] 共享契约层的 12 个头文件（`error.h` / `log_types.h` / `ipc.h` / `sched.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `syscalls.h` / `syscall.h` / `uapi_compat.h` / `lsm_types.h` / `bpf_struct_ops.h`）必须**编译器无关**——即用 GCC、Clang、TinyCC（TCC）等任意 C 编译器均能编译通过，且语义一致。这保证 [SC] 头文件可在 agentrt（用户态）与 agent-linux（内核态）之间无障碍共享。
+IRON-9 v3 [SC] 共享契约层的 12 个头文件（`error.h` / `log_types.h` / `ipc.h` / `sched.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `syscalls.h` / `syscall_gen.h` / `uapi_compat.h` / `lsm_types.h` / `bpf_struct_ops.h`）必须**编译器无关**——即用 GCC、Clang、TinyCC（TCC）等任意 C 编译器均能编译通过，且语义一致。这保证 [SC] 头文件可在 agentrt（用户态）与 agent-linux（内核态）之间无障碍共享。
 
 ### 8.2 `check-uapi-compiler-agnostic.sh` 脚本
 
@@ -487,7 +487,7 @@ set -euo pipefail
 
 SC_HEADERS=(
     "error.h" "log_types.h" "ipc.h" "sched.h" "memory_types.h"
-    "security_types.h" "cognition_types.h" "syscalls.h" "syscall.h"
+    "security_types.h" "cognition_types.h" "syscalls.h" "syscall_gen.h"
     "uapi_compat.h" "lsm_types.h" "bpf_struct_ops.h"
 )
 

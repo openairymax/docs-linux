@@ -1483,7 +1483,7 @@ kfree(old);
 
 #### 10.1 [SC] 层定义
 
-[SC] 共享契约层是 IRON-9 v3 四层模型中**代码完全共享**的层级。agent-linux（AirymaxOS）与 agentrt 共享 `include/uapi/linux/airymax/` 下的 12 个头文件（10 核心 + 2 补充 `syscall.h`/`bpf_struct_ops.h`）：
+[SC] 共享契约层是 IRON-9 v3 四层模型中**代码完全共享**的层级。agent-linux（AirymaxOS）与 agentrt 共享 `include/uapi/linux/airymax/` 下的 12 个头文件（10 核心 + 2 补充 `syscall_gen.h`/`bpf_struct_ops.h`）：
 - `syscalls.h`：v1.0.1 4 核心 syscall 编号（AIRY_SYS_CALL/ROVOL_CTL/SCHED_CTL/CLT_NOTIFY）+ 20 预留槽位
 - `memory_types.h`：MemoryRovol L1-L4 数据结构 + GFP 掩码语义 + PMEM 持久化接口
 - `security_types.h`：Cupolas capability 令牌结构、capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）、LSM 钩子 250 ID 枚举、capability 派生模型、Vault backend 抽象、策略裁决 4 值枚举
@@ -1494,7 +1494,7 @@ kfree(old);
 - `log_types.h`：A-ULP 统一日志类型（128B 固定记录格式 + 5 级日志枚举 + printk 8 级映射）
 - `uapi_compat.h`：三路类型桥接（内核态 \_\_u32 ↔ 用户态 Linux uint32_t ↔ 第三方 uint32_t with stdint.h），确保 [SC] 头文件跨平台逐字节相同编译
 - `lsm_types.h`：纯 C LSM 模块类型定义（struct airy_lsm_blob + airy_capability_check() 回调原型 + Capability 缓存结构）
-- `syscall.h`：syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）——补充共享文件
+- `syscall_gen.h`：syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）——补充共享文件
 - `bpf_struct_ops.h`：struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）——补充共享文件
 
 #### 10.2 [SC] 层代码编写规则（OS-KER-021）

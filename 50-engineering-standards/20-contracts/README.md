@@ -84,7 +84,7 @@ graph TB
 
 ### 2.1 [SC] 共享契约层：12 个共享头文件
 
-[SC] 层是 agentrt 与 agent-linux 代码字面一致的头文件库，位于 `include/uapi/linux/airymax/` 目录。这 12 个头文件（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`）是 agent-linux OS 层契约的"共享基础"：
+[SC] 层是 agentrt 与 agent-linux 代码字面一致的头文件库，位于 `include/uapi/linux/airymax/` 目录。这 12 个头文件（10 核心 + 2 补充：`syscall_gen.h`、`bpf_struct_ops.h`）是 agent-linux OS 层契约的"共享基础"：
 
 | 头文件 | 全路径 | 定义内容 | 对应契约 |
 |--------|--------|---------|---------|
@@ -97,7 +97,7 @@ graph TB
 | `sched.h` | `include/uapi/linux/airymax/sched.h` | sched_tac 调度类约束（使用 SCHED_DEADLINE/SCHED_FIFO/EEVDF 原生调度类，禁止 SCHED_AGENT 内核调度类宏）+ 任务描述符（magic 0x41475453 'AGTS'）+ vtime 衰减公式 + 优先级 0-139 + AIRY_SLICE_DFL（20ms） | syscall API 契约 |
 | `ipc.h` | `include/uapi/linux/airymax/ipc.h` | IPC magic（0x41524531 'ARE1'）+ 128B 消息头结构（struct airy_ipc_msg_hdr）+ SQE/CQE 操作码与标志位 | IPC 协议契约 |
 | `syscalls.h` | `include/uapi/linux/airymax/syscalls.h` | v1.0.1: 4 核心 syscall 编号（AIRY_SYS_CALL/ROVOL_CTL/SCHED_CTL/CLT_NOTIFY）+ 20 预留槽位 | syscall API 契约 |
-| `syscall.h` | `include/uapi/linux/airymax/syscall.h` | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT） | syscall API 契约（补充共享文件） |
+| `syscall_gen.h` | `include/uapi/linux/airymax/syscall_gen.h` | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT） | syscall API 契约（补充共享文件） |
 | `bpf_struct_ops.h` | `include/uapi/linux/airymax/bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费） | 调度契约（补充共享文件） |
 | `uapi_compat.h` | `include/uapi/linux/airymax/uapi_compat.h` | 用户态-内核态 ABI 兼容性定义 + 类型映射（`__u32`/`__u16` 等）+ 字节序与对齐规范 | ABI 兼容契约 |
 

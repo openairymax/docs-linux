@@ -102,7 +102,7 @@ IRON-9 v3 [SC] 共享契约层包含 12 个头文件，物理宿主于 `kernel/i
 | 6 | `sched.h` | sched_tac 调度类约束（SCHED_DEADLINE/SCHED_FIFO/EEVDF，**禁止 SCHED_AGENT 宏**）+ 任务描述符（magic 0x41475453 'AGTS'，12 字段 64B）+ vtime 类型与衰减公式 + 优先级范围 + AIRY_SLICE_DFL | **A-UEF** + **A-ULS** | kernel |
 | 7 | `ipc.h` | IPC magic（0x41524531 'ARE1'）+ 128B 消息头结构（`struct airy_ipc_msg_hdr`，`__aligned(64)`，capability_badge@40）+ 7 种操作码（0x0001-0x0011）+ 5 个 active 标志位 | **A-IPC** | kernel + services |
 | 8 | `syscalls.h` | Syscall 编号体系（v1.0.1: 4 核心（548-551）+ 20 预留（552-571）= 24 槽位，`AIRY_SYS_*` 前缀；`airy_sys_call` / `airy_sys_rovol_ctl` / `airy_sys_sched_ctl` / `airy_sys_clt_notify`） | **A-UCS** | kernel + 全部 |
-| 9 | `syscall.h` | `airy_sys_*` syscall 语义/ABI 声明（与 syscalls.h 编号表配套） | **A-UCS** | kernel + 全部 |
+| 9 | `syscall_gen.h` | `airy_sys_*` syscall 语义/ABI 声明（与 syscalls.h 编号表配套） | **A-UCS** | kernel + 全部 |
 | 10 | `uapi_compat.h` | UAPI 兼容性定义（`__u32`/`__u64` 用户态可见类型 + ABI 稳定性约束 + 三路类型桥接） | — | kernel + 全部 |
 | 11 | `lsm_types.h` | 纯 C LSM 钩子类型定义（`security_hook_list` 注册 + `airy_lsm` blob 布局，`LSM_ORDER_MUTABLE`）+ `airy_cap_slot`（80B，含 MDB 派生树） | **A-ULS** | kernel + security |
 | 12 | `bpf_struct_ops.h` | eBPF struct\_ops 状态机（INIT/REGISTERED/ACTIVE/DRAINING，仅可观测性用，H5 约束） | — | kernel + services |

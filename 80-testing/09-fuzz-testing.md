@@ -164,9 +164,9 @@ CONFIG_KALLSYMS_ALL=y
 agent-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 + 20 预留）；其中 4 核心 syscall 占用 548-551，编号起点 548 以避开 x86_64 x32 历史遗留区域 512-547。IPC 数据面走 io_uring `IORING_OP_URING_CMD`（零 syscall），能力校验经 v1.0.1 Capability Folding 折叠到 IPC fastpath C-S9。
 
 ```c
-/* include/uapi/linux/airymax/syscall.h（[SC] 共享契约层） */
-#ifndef _UAPI_AIRY_SYSCALL_H
-#define _UAPI_AIRY_SYSCALL_H
+/* include/uapi/linux/airymax/syscall_gen.h（[SC] 共享契约层） */
+#ifndef AIRY_SYSCALL_GEN_H
+#define AIRY_SYSCALL_GEN_H
 
 /* 4 核心 syscall（v1.0.1 Capability Folding） */
 #define __NR_airy_sys_call        548
@@ -178,7 +178,7 @@ agent-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 + 
 #define __NR_airy_reserved_base   552
 #define __NR_airy_last            571
 
-#endif /* _UAPI_AIRY_SYSCALL_H */
+#endif /* AIRY_SYSCALL_GEN_H */
 ```
 
 4 核心 syscall 通过 `op` 参数（op-dispatch）承载多种操作，操作码定义见 `include/uapi/linux/airymax/syscalls.h` 与 `ipc.h`（早期设计中的 `rovol.h` / `clt.h` / `uring_cmd.h` 不在实际 [SC] 12 个头文件清单内，对应语义已并入 `syscalls.h` / `ipc.h`）。
@@ -191,7 +191,7 @@ agent-linux 在 syscall 表中保留编号 548-571，共 24 槽位（4 核心 + 
 # syzkaller/sys/airymaxos/airy_syscall.txt
 # agent-linux Agent syscall 描述（编号 548-551）+ op-dispatch
 
-include <uapi/linux/airymax/syscall.h>
+include <uapi/linux/airymax/syscall_gen.h>
 include <uapi/linux/airymax/syscalls.h>
 include <uapi/linux/airymax/sched.h>
 include <uapi/linux/airymax/ipc.h>

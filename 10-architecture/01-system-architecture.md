@@ -273,7 +273,7 @@ agent-linux 的 IPC 子系统 (kernel + services):
 | `security_types.h` | capability 44 ID 枚举（41 POSIX 0-40 + 3 Airymax 扩展 41-43）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，定义于 `lsm_types.h`）+ Cupolas 4 值裁决 + `airy_cap_op` 7 派生操作 + `typedef __u64 cap_t` | kernel / security |
 | `cognition_types.h` | CoreLoopThree 阶段枚举（PERCEPT/THINK/ACT）+ Thinkdual 模式 + Token 能效指标 | kernel / cognition |
 | `syscalls.h` | 4 核心 syscall 编号（548-551）+ 20 预留槽位（552-571，v1.0.1 Capability Folding 后）| kernel / cognition |
-| `syscall.h` | Agent 专用 syscall 编号生成产物（`syscall_gen.py` 生成，`__NR_airy_sys_*` 548-551） | kernel / services |
+| `syscall_gen.h` | Agent 专用 syscall 编号生成产物（`syscall_gen.py` 生成，`__NR_airy_sys_*` 548-551） | kernel / services |
 | `uapi_compat.h` | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`） | IRON-9 跨端 |
 | `lsm_types.h` | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架 | kernel / security |
 | `bpf_struct_ops.h` | struct_ops 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局 | kernel / cognition |
@@ -322,7 +322,7 @@ graph TB
     end
 
     subgraph "[SC] 共享契约层（12 头文件）"
-        SC[error.h / log_types.h / ipc.h / sched.h<br/>memory_types.h / security_types.h / cognition_types.h<br/>syscalls.h / syscall.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h]
+        SC[error.h / log_types.h / ipc.h / sched.h<br/>memory_types.h / security_types.h / cognition_types.h<br/>syscalls.h / syscall_gen.h / uapi_compat.h / lsm_types.h / bpf_struct_ops.h]
     end
 
     subgraph "[DSL] 降级生存层"

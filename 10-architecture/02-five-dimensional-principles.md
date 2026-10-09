@@ -609,7 +609,7 @@ Airymax 将乔布斯与艾夫的设计哲学确立为 A-1 简约至上原则的�
 | `security_types.h` | E 工程观 | 44 capability（41 POSIX 0-40 + 3 扩展 41-43）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，lsm_types.h）+ Cupolas 4 值裁决 + `airy_cap_op` 7 派生操作 | kernel / security |
 | `cognition_types.h` | C 认知观 | 三阶段枚举（PERCEPT/THINK/ACT）+ Thinkdual 模式 | kernel / cognition |
 | `syscalls.h` | K 接口契约 | 4 核心（548-551）+ 20 预留（552-571）= 24 槽位（1 Capability Invocation + 3 控制原语，v1.0.1 Capability Folding 后） | kernel / cognition |
-| `syscall.h` | K 接口契约 | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551） | kernel / services |
+| `syscall_gen.h` | K 接口契约 | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551） | kernel / services |
 | `uapi_compat.h` | E 工程观 | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）支持 E-4 跨平台一致性 | IRON-9 跨端 |
 | `lsm_types.h` | E 工程观 | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架（E-1 安全内生） | kernel / security |
 | `bpf_struct_ops.h` | E 工程观 | struct_ops 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局 | kernel / cognition |
@@ -652,7 +652,7 @@ graph TB
     end
 
     subgraph "[SC] 共享契约层（12 头文件）"
-        SC[error.h + log_types.h + ipc.h + sched.h<br/>memory_types.h + security_types.h + cognition_types.h<br/>syscalls.h + syscall.h + uapi_compat.h + lsm_types.h + bpf_struct_ops.h]
+        SC[error.h + log_types.h + ipc.h + sched.h<br/>memory_types.h + security_types.h + cognition_types.h<br/>syscalls.h + syscall_gen.h + uapi_compat.h + lsm_types.h + bpf_struct_ops.h]
     end
 
     subgraph "[DSL] 降级生存层"

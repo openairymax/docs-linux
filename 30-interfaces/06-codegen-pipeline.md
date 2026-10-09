@@ -63,7 +63,7 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
   syscall.xml — agent-linux 系统调用契约源（R-01 SSoT）
   物理宿主: include/uapi/linux/airymax/syscall.xml
   生成器:   tools/codegen/syscall_gen.py
-  禁止手工修改生成产物: include/uapi/linux/airymax/syscall.h 等
+  禁止手工修改生成产物: include/uapi/linux/airymax/syscall_gen.h 等
 -->
 <syscalls version="0x0100"
           core_count="4"
@@ -160,7 +160,7 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
 
 - **4 核心 syscall + 20 预留 = 24 槽位**（v1.0.1 Capability Folding 后），与 [01-syscalls.md](01-syscalls.md) §2.2 编号分配完全一致。
 - 内部编号 0-3 为核心调用，4-23 为预留段（`<reserved>` 元素），生成器对预留段只生成编号宏占位（`#define AIRY_SYS_RESERVED_4 4`），不生成函数声明与 syscall 表实现。
-- Linux 注册号映射：内部编号 N → Linux 注册号 `N + 548`，固定偏移，由 `syscall.h` 通过 `#define __NR_airy_sys_call 548` 锁定（OS-IFACE-002）。
+- Linux 注册号映射：内部编号 N → Linux 注册号 `N + 548`，固定偏移，由 `syscall_gen.h` 通过 `#define __NR_airy_sys_call 548` 锁定（OS-IFACE-002）。
 - 编号在 MAJOR 版本内不可变更，新增调用只能追加到预留段末尾，不可复用已废弃编号。
 
 ### 2.4 生成目标
@@ -169,14 +169,14 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
 
 | 语言 | 生成目标 | 内容 |
 |------|---------|------|
-| C | `include/uapi/linux/airymax/syscall.h` | 内部索引宏（`#define AIRY_SYS_IDX_CALL 0`）+ `__NR_*` Linux 注册号宏（`__NR_airy_sys_call 548`）+ 函数原型声明 |
+| C | `include/uapi/linux/airymax/syscall_gen.h` | 内部索引宏（`#define AIRY_SYS_IDX_CALL 0`）+ `__NR_*` Linux 注册号宏（`__NR_airy_sys_call 548`）+ 函数原型声明 |
 | C | `arch/x86/entry/syscalls/syscall_64.tbl`（Airymax 段） | x86 syscall 表条目（`548 common airy_sys_call sys_airy_sys_call`） |
 | Rust | `kernel/src/syscall.rs` | Rust syscall 绑定（`pub const AIRY_SYS_IDX_CALL: u32 = 0;` + `pub const __NR_AIRY_SYS_CALL: u32 = 548;` + `extern "C"` 原型） |
 | Python | `sdk/python/airyx/syscalls.py` | Python 绑定（`AIRY_SYS_IDX_CALL = 0` + `__NR_AIRY_SYS_CALL = 548` + ctypes 封装） |
 | Go | `sdk/go/airyx/syscalls.go` | Go 绑定（`const AirySysIdxCall = 0` + `const NrAirySysCall = 548` + `syscall.Syscall` 封装） |
 | TypeScript | `sdk/ts/airyx/syscalls.ts` | TypeScript 绑定（`export const AIRY_SYS_IDX_CALL = 0` + `export const __NR_AIRY_SYS_CALL = 548` + 常量表） |
 
-> **v4.0 修复说明**：P0-21/03-P0-22——原表使用 `AIRY_SYS_CALL = 0`，与 SSoT 命名空间冲突（`AIRY_SYS_CALL = 548` 定义在 [SC] `syscalls.h` 中，是实际 syscall 号；codegen 产物 `syscall.h` 使用 `AIRY_SYS_IDX_*` 前缀表示内部索引 0-3）。已修正为 `AIRY_SYS_IDX_CALL = 0` + `__NR_airy_sys_call 548`，对齐 SSoT `syscall.h` L27-35（内部索引命名空间分离）。
+> **v4.0 修复说明**：P0-21/03-P0-22——原表使用 `AIRY_SYS_CALL = 0`，与 SSoT 命名空间冲突（`AIRY_SYS_CALL = 548` 定义在 [SC] `syscalls.h` 中，是实际 syscall 号；codegen 产物 `syscall_gen.h` 使用 `AIRY_SYS_IDX_*` 前缀表示内部索引 0-3）。已修正为 `AIRY_SYS_IDX_CALL = 0` + `__NR_airy_sys_call 548`，对齐 SSoT `syscall_gen.h` L27-35（内部索引命名空间分离）。
 
 生成产物头部统一注入标记：
 
@@ -567,7 +567,7 @@ enum airy_cap_id {
 
 | 工具 | 路径 | 输入 | 输出 | 说明 |
 |------|------|------|------|------|
-| `syscall_gen.py` | `tools/codegen/syscall_gen.py` | `syscall.xml` | C syscall.h + syscall_64.tbl + Rust/Python/Go/TS 绑定 | syscall XML → 多语言生成 |
+| `syscall_gen.py` | `tools/codegen/syscall_gen.py` | `syscall.xml` | C syscall_gen.h + syscall_64.tbl + Rust/Python/Go/TS 绑定 | syscall XML → 多语言生成 |
 | `bitfield_gen.py` | `tools/codegen/bitfield_gen.py` | `structures_32.bf` / `structures_64.bf` | C structures_*_gen.h | .bf → C 头文件生成（参考 seL4） |
 | `ipc_gen.py` | `tools/codegen/ipc_gen.py` | `contracts.md` §2 | C/Rust/Python/Go/TS IPC 消息头绑定 | IPC 消息头生成 |
 | `cap_gen.py` | `tools/codegen/cap_gen.py` | `airy_cap_ids.def` | C security_types.h + Rust/Python 绑定 | Capability ID 生成（**不生成 LSM 钩子**——LSM 钩子通过 `LSM_HOOK_INIT` 宏名静态注册，详见 §5.3） |
@@ -696,7 +696,7 @@ on:
       - '50-engineering-standards/20-contracts/contracts.md'
       - 'security/include/airy_cap_ids.def'
       - 'tools/codegen/**'
-      - 'include/uapi/linux/airymax/syscall.h'
+      - 'include/uapi/linux/airymax/syscall_gen.h'
       - 'arch/x86/entry/syscalls/syscall_64.tbl'
       - 'include/uapi/linux/airymax/structures_*_gen.h'
       - 'include/uapi/linux/airymax/ipc.h'
@@ -773,14 +773,14 @@ graph LR
 
 - **引擎**：Jinja2 >= 3.1
 - **模板位置**：`tools/codegen/templates/`
-- **命名约定**：`<output_filename>.<lang>.j2`，如 `syscall.h.j2` 生成 `syscall.h`，`syscall.rs.j2` 生成 `syscall.rs`。
+- **命名约定**：`<output_filename>.<lang>.j2`，如 `syscall_gen.h.j2` 生成 `syscall_gen.h`，`syscall.rs.j2` 生成 `syscall.rs`。
 - **渲染约定**：模板使用 `trim_blocks=True` + `lstrip_blocks=True`，避免生成代码出现多余空行，确保确定性输出。
 
 ### 8.2 模板列表
 
 | 模板文件 | 用途 | 输出目标 |
 |---------|------|---------|
-| `syscall.h.j2` | C syscall 头文件模板 | `include/uapi/linux/airymax/syscall.h` |
+| `syscall_gen.h.j2` | C syscall 头文件模板 | `include/uapi/linux/airymax/syscall_gen.h` |
 | `syscall_64.tbl.j2` | x86 syscall 表模板 | `arch/x86/entry/syscalls/syscall_64.tbl`（Airymax 段） |
 | `syscall.rs.j2` | Rust syscall 绑定模板 | `kernel/src/syscall.rs` |
 | `syscall.py.j2` | Python syscall 绑定模板 | `sdk/python/airyx/syscalls.py` |
@@ -794,15 +794,15 @@ graph LR
 
 ### 8.3 Jinja2 模板示例
 
-**syscall.h.j2**——C syscall 头文件模板：
+**syscall_gen.h.j2**——C syscall 头文件模板：
 
 ```jinja2
-{# syscall.h.j2 — C syscall 头文件模板 #}
+{# syscall_gen.h.j2 — C syscall 头文件模板 #}
 {#- SPDX-License-Identifier: GPL-2.0 -#}
 /* @generated by syscall_gen.py v{{ generator_version }} from syscall.xml — DO NOT EDIT */
 /* Source: include/uapi/linux/airymax/syscall.xml (R-01 SSoT) */
-#ifndef _UAPI_AIRYMAX_SYSCALLS_H
-#define _UAPI_AIRYMAX_SYSCALLS_H
+#ifndef AIRY_SYSCALL_GEN_H
+#define AIRY_SYSCALL_GEN_H
 
 #include <stdint.h>
 #include "airymax/ipc.h"
@@ -839,7 +839,7 @@ AIRY_API int {{ sc.name }}({{ sc.signature }});
 #ifdef __cplusplus
 }
 #endif
-#endif /* _UAPI_AIRYMAX_SYSCALLS_H */
+#endif /* AIRY_SYSCALL_GEN_H */
 ```
 
 **syscall_64.tbl.j2**——x86 syscall 表模板（Airymax 段）：

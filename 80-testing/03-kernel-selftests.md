@@ -463,7 +463,7 @@ static const u8 airy_sc_expected_sha256[12][32] = {
     AIRY_SECURITY_TYPES_H_SHA256, /* security_types.h */
     AIRY_COGNITION_TYPES_H_SHA256, /* cognition_types.h */
     AIRY_SYSCALLS_H_SHA256,     /* syscalls.h */
-    AIRY_SYSCALL_H_SHA256,      /* syscall.h */
+    AIRY_SYSCALL_GEN_H_SHA256,  /* syscall_gen.h */
     AIRY_UAPI_COMPAT_H_SHA256,  /* uapi_compat.h */
     AIRY_LSM_TYPES_H_SHA256,    /* lsm_types.h */
     AIRY_BPF_STRUCT_OPS_H_SHA256, /* bpf_struct_ops.h */
@@ -472,7 +472,7 @@ static const u8 airy_sc_expected_sha256[12][32] = {
 static const char *airy_sc_names[12] = {
     "error.h", "log_types.h", "ipc.h", "sched.h",
     "memory_types.h", "security_types.h", "cognition_types.h",
-    "syscalls.h", "syscall.h", "uapi_compat.h",
+    "syscalls.h", "syscall_gen.h", "uapi_compat.h",
     "lsm_types.h", "bpf_struct_ops.h"
 };
 
@@ -635,7 +635,7 @@ jobs:
       - name: Diff 12 [SC] headers
         run: |
           for h in error.h log_types.h ipc.h sched.h memory_types.h \
-                   security_types.h cognition_types.h syscalls.h syscall.h \
+                   security_types.h cognition_types.h syscalls.h syscall_gen.h \
                    uapi_compat.h lsm_types.h bpf_struct_ops.h; do
             if ! diff -q agentrt/include/uapi/linux/airymax/$h \
                         agent-linux/include/uapi/linux/airymax/$h >/dev/null; then

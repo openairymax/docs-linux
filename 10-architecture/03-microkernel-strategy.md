@@ -609,7 +609,7 @@ seL4 采用 TSC（Technical Steering Committee）集中治理模式（ES-SEL4-36
 | `security_types.h`  | CNode / Capability   | 44 cap（41 POSIX 0-40 + 3 扩展 41-43）+ 7 钩子实现（`AIRY_LSM_HOOK_IMPLEMENTED=7`）+ 250 框架总槽位（`AIRY_LSM_KERNEL_HOOK_TOTAL`，lsm_types.h）+ Cupolas 4 值裁决 + `airy_cap_op` 7 派生操作 + `typedef __u64 cap_t` | kernel / security  |
 | `cognition_types.h` | —                    | 三阶段枚举（PERCEPT/THINK/ACT）+ Thinkdual 模式                                  | kernel / cognition |
 | `syscalls.h`        | seL4 7-11 syscall 模型 | v1.0.1: 4 核心（548-551）+ 20 预留（552-571）= 24 槽位（1 Capability Invocation + 3 控制原语）                                | kernel / cognition |
-| `syscall.h`         | syscall 编号生成       | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551）                                   | kernel / services |
+| `syscall_gen.h`    | syscall 编号生成       | `syscall_gen.py` 生成产物（`__NR_airy_sys_*` 548-551）                                   | kernel / services |
 | `uapi_compat.h`     | 用户态 ABI 桥接        | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）                                       | IRON-9 跨端 |
 | `lsm_types.h`       | 安全钩子契约            | 纯 C LSM 类型定义（`AIRY_LSM_HOOK_IMPLEMENTED=7` / `AIRY_LSM_KERNEL_HOOK_TOTAL=250`）+ 安全 blob（`airy_task_sec`/`airy_inode_sec`）+ `airy_cap_slot`（80B，AIRY_ALIGNED(64)）+ `DEFINE_LSM(airy)` 骨架 | kernel / security  |
 | `bpf_struct_ops.h`  | struct_ops 状态机      | 4 态状态机（INIT/REGISTERED/ACTIVE/DRAINING）+ `bpf_struct_ops_common_val` 布局        | kernel / cognition |

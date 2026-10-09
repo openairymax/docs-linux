@@ -755,7 +755,7 @@ CoreLoopThree 是 agent-linux 的认知运行时，实现"感知-思考-行动"�
 
 #### 9.1 [SC] 层共享
 
-agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享（10 核心 + 2 补充：`syscall.h`、`bpf_struct_ops.h`；下表列系统调用相关的子集）：
+agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享（10 核心 + 2 补充：`syscall_gen.h`、`bpf_struct_ops.h`；下表列系统调用相关的子集）：
 
 | 头文件 | 共享内容 | 对应系统调用分类 |
 |--------|---------|----------------|

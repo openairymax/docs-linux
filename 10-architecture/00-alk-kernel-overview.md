@@ -134,7 +134,7 @@ kernel/                          # Linux 6.6 内核源码树
 │   │   ├── security_types.h     # 44 cap（41 POSIX + 3 Airymax）+ Badge 访问宏
 │   │   ├── cognition_types.h    # 三阶段枚举
 │   │   ├── syscalls.h           # 4 核心 syscall 编号（548-551）
-│   │   ├── syscall.h            # syscall 语义/ABI 声明
+│   │   ├── syscall_gen.h        # syscall 语义/ABI 声明
 │   │   ├── uapi_compat.h        # __KERNEL__/__linux__ 桥接
 │   │   ├── lsm_types.h          # DEFINE_LSM(airy) 骨架 + capability 槽位
 │   │   ├── bpf_struct_ops.h     # eBPF struct_ops 状态同步（可观测性用，H5 约束）
