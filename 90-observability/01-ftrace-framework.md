@@ -474,7 +474,7 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 ### 12.1 IRON-9 v3 四层共享模型
 
-本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确可观测性层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 10 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。可观测性层是 5 个卷中**唯一拥有 [SC] 共享头文件**的卷——ftrace Agent 追踪事件通过 `include/uapi/linux/airymax/ipc.h` 定义的 IPC magic 与 128B 消息头跨态上报。
+本节将上节"同源 agentrt 映射"进一步细化为 **IRON-9 v3 四层共享模型**，明确可观测性层在用户态（agentrt）与内核态（agent-linux）之间的代码共享边界。三层分别为：**[SC] 共享契约层**（共享头文件 / 数据结构定义）、**[SS] 语义同源层**（设计模式同源但实现独立）、**[IND] 完全独立层**（双方各自独立实现）。该模型由 12 个 [SC] 头文件契约、跨态语义对照表与独立实现清单共同支撑。可观测性层是 5 个卷中**唯一拥有 [SC] 共享头文件**的卷——ftrace Agent 追踪事件通过 `include/uapi/linux/airymax/ipc.h` 定义的 IPC magic 与 128B 消息头跨态上报。
 
 #### 12.1.1 三层模型概览表
 
@@ -486,7 +486,7 @@ MicroCoreRT 极简内核契约要求：内核态不解析用户态写入的事�
 
 #### 12.1.2 [SC] 共享契约层
 
-`include/uapi/linux/airymax/ipc.h` 是 IRON-9 v3 的 10 个 [SC] 共享头文件之一，定义了 agentrt 用户态与 agent-linux 内核态共享的 IPC 契约。ftrace Agent 追踪事件通过此头文件定义的 IPC magic 与 128B 消息头跨态上报，确保两端事件格式一致，便于跨态聚合分析（对应 **OS-STD-006**）。
+`include/uapi/linux/airymax/ipc.h` 是 IRON-9 v3 的 12 个 [SC] 共享头文件之一，定义了 agentrt 用户态与 agent-linux 内核态共享的 IPC 契约。ftrace Agent 追踪事件通过此头文件定义的 IPC magic 与 128B 消息头跨态上报，确保两端事件格式一致，便于跨态聚合分析（对应 **OS-STD-006**）。
 
 ```c
 /* include/uapi/linux/airymax/ipc.h — IRON-9 v3 [SC] 共享契约层 */

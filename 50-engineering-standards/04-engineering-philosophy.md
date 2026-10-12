@@ -42,7 +42,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | OS-IRON-005 | 审查优先文化 | §6 | OS-IRON-004 | 已改标 |
 | OS-IRON-006 | 不破坏用户空间原则 | §9 | OS-IRON-005 | 已改标 |
 | OS-IRON-007 | DCO Signed-off-by 强制 | §7 | （§7 可追溯性覆盖） | 内容覆盖 |
-| OS-IRON-008 | [SC] 共享契约层 10 个 [SC] 核心头文件双向 CI | — | — | SSoT 专属，本文档不涉及 |
+| OS-IRON-008 | [SC] 共享契约层 12 个 [SC] 头文件双向 CI | — | — | SSoT 专属，本文档不涉及 |
 | OS-IRON-009~014 | 工程规范委员会专属铁律 | — | — | SSoT 专属，本文档不涉及 |
 
 ### 0.2 历史标签处置
@@ -58,7 +58,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 0.3 完整 IRON 铁律索引（SSoT 16 条）
 
-完整的 16 条 OS-IRON 铁律定义见 [09-ssot-registry.md §2](./09-ssot-registry.md)。本文档作为公开工程思想文档，覆盖其中 IRON-001~007 的哲学阐述以及 IRON-016（§2.4 UAPI 编译器无关原则）；IRON-008~014 涉及工程规范委员会专属工程决策（[SC] 共享契约层、代码共享边界、双源声明、seL4 借鉴范围、8 子仓管理），IRON-015 为编号管理元规则，其哲学阐述分散于本文档 §9（[SC] 层）、§12（工程取向）等章节，但不赋予独立 IRON 编号以避免与 SSoT 冲突。
+完整的 16 条 OS-IRON 铁律定义见 [09-ssot-registry.md §2](./09-ssot-registry.md)。本文档作为公开工程思想文档，覆盖其中 IRON-001~007 的哲学阐述以及 IRON-016（§2.4 UAPI 编译器无关原则）；IRON-008~014 涉及工程规范委员会专属工程决策（[SC] 共享契约层、代码共享边界、双源声明、seL4 借鉴范围、9 子仓管理），IRON-015 为编号管理元规则，其哲学阐述分散于本文档 §9（[SC] 层）、§12（工程取向）等章节，但不赋予独立 IRON 编号以避免与 SSoT 冲突。
 
 ---
 
@@ -628,12 +628,12 @@ agent-linux 作为一个新建的智能体操作系统发行版，其工程组�
 | OS-IRON-005 | §6 | 审查优先文化（Reviewed-by 强制，out-of-tree 是低质量状态） |
 | OS-IRON-006 | §9 | 不破坏用户空间原则（regression 零容忍，导出后永不破坏兼容） |
 | OS-IRON-007 | 07 §5 | DCO Signed-off-by 链强制 |
-| OS-IRON-008 | 120 §SC | 共享契约层 10 个头文件双向 CI 验证 |
+| OS-IRON-008 | 120 §SC | 共享契约层 12 个 [SC] 头文件双向 CI 验证 |
 | OS-IRON-009 | 120 / 07 §1.4 | 代码共享边界：仅 agentrt ↔ AirymaxOS |
 | OS-IRON-010 | §12 | "Linux 6.6 为基、seL4 为鉴"工程取向 |
 | OS-IRON-011 | §12 | 双源边界声明（技术参考非代码共享） |
 | OS-IRON-012 | §12 | seL4 借鉴仅限架构层（ES-SEL4-1~5） |
-| OS-IRON-013 | §13 | 8 子仓独立 git 仓库 + submodule 管理 |
+| OS-IRON-013 | §13 | 8 架构子仓 + distro 发行版子仓（`.gitmodules` 共 9 个）独立 git 仓库 + submodule 管理 |
 | OS-IRON-014 | 120 §SC | [SC] 共享契约层 10 核心 + 2 补充（`syscall_gen.h`/`bpf_struct_ops.h`）共 12 个 [SC] 头文件单一数据源（禁止物理副本） |
 | OS-IRON-015 | 90-obs/02 §14.2 | 编号管理元规则——编号一经分配不得复用 |
 | OS-IRON-016 | §2.4 | UAPI 头文件编译器无关原则（C11 标准，禁止编译器扩展；sanctioned exceptions：结构体对齐 `AIRY_ALIGNED(N)` 与符号导出 `AIRY_API` 两个宏，均定义于 `uapi_compat.h`） |

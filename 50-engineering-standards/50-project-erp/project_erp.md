@@ -635,7 +635,7 @@ agent-linux（AirymaxOS）采用双错误码体系的核心原因在于内核态
 
 ##### 3.1.1 [SC] 共享契约层 — 错误码 SSoT 定义
 
-错误码定义统一收纳在 [SC] `include/uapi/linux/airymax/error.h` 中（10 子空间，[-1,-300]），agentrt 和 agent-linux 使用相同的错误码数值和语义。`error.h` 是错误码的唯一 SSoT 物理宿主，其余 9 个 [SC] 头文件（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`）通过 `#include <uapi/linux/airymax/error.h>` 引用错误码，不重复定义：
+错误码定义统一收纳在 [SC] `include/uapi/linux/airymax/error.h` 中（10 子空间，[-1,-300]），agentrt 和 agent-linux 使用相同的错误码数值和语义。`error.h` 是错误码的唯一 SSoT 物理宿主，其余 11 个 [SC] 头文件（`syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h` / `syscall_gen.h` / `bpf_struct_ops.h`）通过 `#include <uapi/linux/airymax/error.h>` 引用错误码，不重复定义：
 
 | [SC] 头文件 | 错误码分类 | 说明 |
 |------------|-----------|------|

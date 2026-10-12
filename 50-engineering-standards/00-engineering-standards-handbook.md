@@ -75,13 +75,13 @@ agent-linux 工程标准由 4 主题文档构成，本手册为其总索引与�
 | **OS-IRON-005** | 审查优先文化——所有代码进入主线前必须通过至少一名维护者审查并获得 Reviewed-by 标签 | S-3 / S-1 | 04 工程思想 §6 / 07 治理 §6 |
 | **OS-IRON-006** | 不破坏用户空间原则——任何补丁不得导致用户空间程序行为改变，除非该行为被明确标记为 bug（regression 零容忍） | E-6 | 04 工程思想 §9 / 05 开发流程 |
 | **OS-IRON-007** | DCO 强制——所有补丁必须包含 Signed-off-by 标签，CI 中 DCO bot 自动验证链条完整性 | E-6 | 07 治理 §5 |
-| **OS-IRON-008** | 共享契约层 10 个 [SC] 核心头文件（包含 error.h，bpf_struct_ops.h 为补充共享文件非 [SC] 核心）双向 CI 验证——[SC] 头文件变更必须通过 agentrt + AirymaxOS CI 同时通过 | E-6 / E-8 | 120 跨项目代码共享 |
+| **OS-IRON-008** | 共享契约层 12 个 [SC] 头文件（10 核心 + 2 补充：`syscall_gen.h`、`bpf_struct_ops.h`）双向 CI 验证——[SC] 头文件变更必须通过 agentrt + AirymaxOS CI 同时通过 | E-6 / E-8 | 120 跨项目代码共享 |
 | **OS-IRON-009** | 代码共享边界：仅 agentrt ↔ AirymaxOS——与 主流 Linux 发行版 项目仅技术参考，不共享代码 | — | 120 跨项目代码共享 / 07 治理 §1.4 |
 | **OS-IRON-010** | "Linux 6.6 为基、seL4 为鉴"工程取向——以 Linux 6.6 内核基线 工程思想为基线，以 seL4 微内核思想为架构层借鉴 | — | 04 工程思想 §12 |
 | **OS-IRON-011** | 双源边界声明——Linux 6.6 内核基线 与 seL4 源码仅为本地参考路径研究对象，关系是"技术参考"非"代码共享" | — | 04 工程思想 §12 |
 | **OS-IRON-012** | seL4 借鉴仅限架构层（ES-SEL4-1~5）——不包括编码风格层（4 空格 / camelCase / 重度 typedef） | — | 04 工程思想 §12 |
 | **OS-IRON-013** | 8 子仓独立 git 仓库 + submodule 管理——拆分为 8 个独立 leaf 仓，由管理仓通过 submodule 统一管理 | S-2 | 04 工程思想 §13 |
-| **OS-IRON-014** | [SC] 共享契约层 10 个 [SC] 核心头文件单一数据源（禁止物理副本）——10 个 [SC] 头文件物理宿主在 kernel/include/uapi/linux/airymax/，其他子仓通过 -I 引用（bpf_struct_ops.h 为补充共享文件，非 [SC] 核心） | E-7 | 120 跨项目代码共享 |
+| **OS-IRON-014** | [SC] 共享契约层 10 核心 + 2 补充（`syscall_gen.h`/`bpf_struct_ops.h`）共 12 个 [SC] 头文件单一数据源（禁止物理副本）——12 个 [SC] 头文件物理宿主在 kernel/include/uapi/linux/airymax/，其他子仓通过 -I 引用 | E-7 | 120 跨项目代码共享 |
 | **OS-IRON-015** | 编号管理元规则——OS-KER / OS-STD / OS-OBS / OS-DRV 等所有规则编号一经分配不得复用；废弃规则标记 `DEPRECATED` 但保留编号（原 OS-STD-017，2026-07-15 提升为 OS-IRON-015） | S-1 | 90-observability/02-ebpf-probes.md §14.2 |
 | **OS-IRON-016** | UAPI 头文件编译器无关原则——`include/uapi/linux/airymax/` 下的用户态接口头文件必须坚持 C 标准（C11），避免直接使用编译器扩展（`__attribute__`/`__builtin_*`/`__asm__`/`__sync_*`/`__atomic_*`/`typeof`）。sanctioned exceptions：结构体对齐 `AIRY_ALIGNED(N)`（因 C11 `_Alignas` 不支持结构体类型定义后对齐）与符号导出 `AIRY_API` 两个宏，均定义于 `uapi_compat.h` | K-2 / E-7 | 04 工程思想 §2.4 |
 
@@ -172,7 +172,7 @@ agent-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四
 
 | 层次 | 标注 | 共享程度 | 共享内容 | 共享方式 |
 |------|------|---------|---------|---------|
-| **共享契约层** | [SC] | 完全共享头文件 | 10 个头文件（见 §4.2） | `include/uapi/linux/airymax/` 目录，两端 `#include` 同一头文件 |
+| **共享契约层** | [SC] | 完全共享头文件 | 12 个头文件（见 §4.2） | `include/uapi/linux/airymax/` 目录，两端 `#include` 同一头文件 |
 | **语义同源层** | [SS] | 语义一致，实现独立 | MicroCoreRT 调度语义 / AgentsIPC 128B 消息头 / Cupolas 安全模型 / CoreLoopThree 三层循环 | 两端独立实现，通过行为契约测试验证语义一致 |
 | **完全独立层** | [IND] | 完全独立 | agent-linux 专属：内核驱动框架、Kbuild、内核内部 API；agentrt 专属：跨平台用户态运行时、SDK 四语言 | 各自独立仓库，无依赖关系 |
 | **降级生存层** | [DSL] | 自包含降级块 | 38 POSIX 码降级映射 + 最简 IPC + EEVDF 默认调度 | `#ifdef AIRY_SC_FALLBACK` 降级块内嵌 [SC] 头文件，损坏时最小可运行子集 |
@@ -199,7 +199,7 @@ agent-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四
 
 | 边界 | 共享策略 | 说明 |
 |------|---------|------|
-| agentrt ↔ agent-linux | [SC] 共享契约层 10 个头文件 | 唯一的代码共享通道 |
+| agentrt ↔ agent-linux | [SC] 共享契约层 12 个头文件 | 唯一的代码共享通道 |
 | agent-linux ↔ Linux 6.6 基线 | 仅技术参考，不共享代码 | 参考主流 Linux 工程思想与实现方式，不共享代码 |
 | agentrt ↔ 第三方项目 | 按许可证条款使用 | agentrt 采用 AGPL-3.0 + Apache-2.0 双开源许可证，第三方项目按相应许可证条款使用 |
 
@@ -412,7 +412,7 @@ agent-linux 工程标准贯彻乔布斯美学——不仅用户可见的表面�
 | 2 | 开源文档 开源品牌清零 | 验证通过 | Grep 验证 0 结果 |
 | 3 | MGLRU 2.0 清零 | 验证通过 | 10/10 实际违规已修复 |
 | 4 | SSoT 规则编号无冲突 | 验证通过 | OS-KER-001 / OS-STD-001 冲突已消解 |
-| 5 | IRON-9 v3 四层模型落地 | 验证通过 | 10 个 [SC] 共享头文件已定义 |
+| 5 | IRON-9 v3 四层模型落地 | 验证通过 | 12 个 [SC] 共享头文件已定义 |
 | 6 | 工程标准规范手册产出 | 交付 | 本手册（交付成果 #3） |
 | 7 | 高优先级修复（5 项） | M0 阶段 | — |
 | 8 | Linux 6.6 内核基线 源码验证 | 验证通过 | 7 项关键路径验证通过 |

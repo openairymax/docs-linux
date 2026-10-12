@@ -203,7 +203,7 @@ LTS 分支的 commit 来源有三：
 
 ### 5.2 [SC] 头文件向后兼容
 
-- **保证范围**：10 个 [SC] 头文件（`kernel/include/uapi/linux/airymax/*.h`）。
+- **保证范围**：12 个 [SC] 头文件（10 核心 + 2 补充，`kernel/include/uapi/linux/airymax/*.h`）。
 - **保证标准**：LTS 周期内 [SC] 头文件不引入破坏性变更。
 - **允许的变更**：
   - 新增结构体字段（必须附加在末尾，且不改变 sizeof）。

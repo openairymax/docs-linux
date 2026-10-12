@@ -93,7 +93,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 完全独立层 | \[IND] | Independent             | 完全独立实现                            |
 | 降级生存层 | \[DSL] | Degraded Survival Layer | 自包含降级块（`#ifdef AIRY_SC_FALLBACK`） |
 
-### 2.5 \[SC] 10 个共享契约头文件
+### 2.5 \[SC] 12 个共享契约头文件
 
 | #  | 头文件                 | 模块归属        | magic / 标识                     |
 | -- | ------------------- | ----------- | ------------------------------ |
@@ -107,6 +107,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 8  | `syscalls.h`        | 系统调用        | 24 槽位                          |
 | 9  | `uapi_compat.h`     | 桥接          | 三路类型桥接                         |
 | 10 | `lsm_types.h`       | 安全          | 纯 C LSM 类型                     |
+| 11 | `syscall_gen.h`     | 系统调用        | codegen 派生 syscall 入口（R-01 SSoT: syscall.xml） |
+| 12 | `bpf_struct_ops.h`  | 桥接/调度       | struct_ops 4 状态机（INIT/REGISTERED/ACTIVE/DRAINING） |
 
 ### 2.6 调度相关错误码对照
 
@@ -865,7 +867,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 | 层次        | 标注     | 共享程度               | 内容                                                                                                                                                                                                                                                                                                                       |
 | --------- | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **共享契约层** | \[SC]  | 完全共享代码             | `include/uapi/linux/airymax/` 10 个头文件：`error.h`（A-UEF）、`log_types.h`（A-ULP）、`ipc.h`（A-IPC）、`sched.h`（sched\_tac）、`memory_types.h`（MemoryRovol L1-L4）、`security_types.h`（capability + LSM）、`cognition_types.h`（CoreLoopThree 阶段）、`syscalls.h`（24 槽位）、`uapi_compat.h`（三路类型桥接）、`lsm_types.h`（纯 C LSM）。另含错误码、规则编号体系、五维正交24原则 |
+| **共享契约层** | \[SC]  | 完全共享代码             | `include/uapi/linux/airymax/` 12 个头文件（10 核心 + 2 补充）：`error.h`（A-UEF）、`log_types.h`（A-ULP）、`ipc.h`（A-IPC）、`sched.h`（sched\_tac）、`memory_types.h`（MemoryRovol L1-L4）、`security_types.h`（capability + LSM）、`cognition_types.h`（CoreLoopThree 阶段）、`syscalls.h`（24 槽位）、`uapi_compat.h`（三路类型桥接）、`lsm_types.h`（纯 C LSM）、`syscall_gen.h`（syscall 入口）、`bpf_struct_ops.h`（eBPF struct_ops）。另含错误码、规则编号体系、五维正交24原则 |
 | **语义同源层** | \[SS]  | 高层 API 语义同源，签名独立演进 | 调度语义（MicroCoreRT）、安全模型（Cupolas）、IPC 传输（AgentsIPC）、记忆模型（MemoryRovol）、认知模型（CoreLoopThree）                                                                                                                                                                                                                                  |
 | **完全独立层** | \[IND] | 完全独立               | agent-linux 专属：内核驱动框架、Kbuild、systemd 集成、内核内部 API、纯 C LSM 实现；agentrt 专属：跨平台用户态运行时、SDK 四语言、CLI/TUI                                                                                                                                                                                                                       |
 | **降级生存层** | \[DSL] | 自包含降级块（\[SC] 头文件内） | `#ifdef AIRY_SC_FALLBACK` 降级块；\[SC] 损坏时的最小可运行子集（38 POSIX 码 + 最简 IPC + EEVDF 默认调度）                                                                                                                                                                                                                                        |
@@ -874,7 +876,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 | 维度    | IRON-9 v2         | IRON-9 v3                     |
 | ----- | ----------------- | ----------------------------- |
-| 契约层代码 | **完全共享**（10 个头文件） | **完全共享**（10 个头文件，v3 沿用）       |
+| 契约层代码 | **完全共享**（6 个头文件） | **完全共享**（12 个头文件，v3 扩展）       |
 | CI 校验 | 契约层变更双向校验         | 契约层变更双向校验 + magic 双向校验（v3 增强） |
 | 降级路径  | 无                 | **\[DSL] 降级生存层**（v3 新增第四层）    |
 
@@ -888,7 +890,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 #### \[SC] / Shared Contract（共享契约层）
 
-**定义**: IRON-9 v3 四层模型的第一层，**Shared Contract（共享契约层）**。agentrt 与 agent-linux **物理共享同一份头文件**，逐字节相同，通过 `#include` 引用。物理宿主在 `agent-linux/kernel/include/uapi/linux/airymax/` 目录，共 10 个头文件。
+**定义**: IRON-9 v3 四层模型的第一层，**Shared Contract（共享契约层）**。agentrt 与 agent-linux **物理共享同一份头文件**，逐字节相同，通过 `#include` 引用。物理宿主在 `agent-linux/kernel/include/uapi/linux/airymax/` 目录，共 12 个头文件（10 核心 + 2 补充：`syscall_gen.h`/`bpf_struct_ops.h`）。
 
 **特征**:
 

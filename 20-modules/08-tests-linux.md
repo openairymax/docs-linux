@@ -65,7 +65,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | 层次               | 共享程度                               | 测试子系统内容                                                                                                                                                                                                                                                                                                                  | 组织方式                                    |
 | ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
-| **\[SC] 共享契约层**  | 完全共享代码                             | IPC 测试验证的消息头格式（magic 0x41524531 'ARE1' + 128B `struct airy_ipc_msg_hdr`）；调度器测试验证的 task\_desc（magic 0x41475453 'AGTS'）+ vtime 衰减公式；安全形式化验证的 capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举 + LSM 250 ID 枚举；struct\_ops 状态机验证（INIT/REGISTERED/ACTIVE/DRAINING）；MemoryRovol 快照一致性验证的 L1-L4 数据结构 + GFP 掩码语义；认知测试验证的 CoreLoopThree 阶段枚举 + Thinkdual 模式枚举；v1.0.1 `agent_caps[1024]` 静态数组 + 64-bit Badge 布局；`AIRY_E*` 错误码 + `AIRY_FAULT_*` 故障码；纯 C LSM 类型（`DEFINE_LSM(airy)`） | `include/uapi/linux/airymax/` 10 个头文件（测试框架验证这些共享类型） |
+| **\[SC] 共享契约层**  | 完全共享代码                             | IPC 测试验证的消息头格式（magic 0x41524531 'ARE1' + 128B `struct airy_ipc_msg_hdr`）；调度器测试验证的 task\_desc（magic 0x41475453 'AGTS'）+ vtime 衰减公式；安全形式化验证的 capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举 + LSM 250 ID 枚举；struct\_ops 状态机验证（INIT/REGISTERED/ACTIVE/DRAINING）；MemoryRovol 快照一致性验证的 L1-L4 数据结构 + GFP 掩码语义；认知测试验证的 CoreLoopThree 阶段枚举 + Thinkdual 模式枚举；v1.0.1 `agent_caps[1024]` 静态数组 + 64-bit Badge 布局；`AIRY_E*` 错误码 + `AIRY_FAULT_*` 故障码；纯 C LSM 类型（`DEFINE_LSM(airy)`） | `include/uapi/linux/airymax/` 12 个头文件（测试框架验证这些共享类型） |
 | **\[SS] 语义同源层**  | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | 单元测试框架语义（agentrt cargo test/go test/googletest → OS 级同框架）、集成测试模式（agentrt 集成测试 → OS 级集成测试）、性能基准指标（IPC 延迟/调度延迟/内存吞吐/I/O 吞吐——两端同指标）、覆盖率目标（≥90%/≥80%/≥70%——两端同标准）、回归测试方法（性能不退化——两端同方法）等 8+ 项                                                                                                                                 | 各自独立实现                                  |
 | **\[IND] 完全独立层** | 完全独立                               | 形式化验证框架（CBMC + TLA+ + Coq/Isabelle，借鉴 seL4 l4v / capDL 方法论——OS 专属）、Soak Test 框架（72h 持续运行——OS 专属）、混沌工程框架（Chaos Mesh 类似——OS 专属）、eBPF 可观测性验证（OS 专属）、agent-linux 集成测试框架（OS 专属）、测试运行器与报告生成（OS 专属）                                                                                                                                                      | 各自独立仓库                                  |
 | **\[DSL] 降级生存层** | 降级模式下最小可用 | 测试框架自身的降级：[SC] 头文件 SHA-256 校验失败时启用 `#ifdef AIRY_SC_FALLBACK` 降级块验证；airymaxmon 在 struct_ops 状态不可读时降级为 Prometheus 拉取模式验证；config_d 配置源不可达时降级为内置默认配置 + 只读运行测试；DevStation 在 LLM 通道断开时降级为规则引擎模式测试 | 各自独立实现，但共享降级触发语义 |
@@ -93,7 +93,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - 保留 agentrt 的性能基准指标（IPC 延迟/调度延迟/内存吞吐——两端同指标）\[SS]。
 - 保留 agentrt 的覆盖率目标（≥90%/≥80%/≥70%——两端同标准）\[SS]。
 - 保留 agentrt 的回归测试方法（性能不退化——两端同方法）\[SS]。
-- 测试框架验证 \[SC] 共享契约层的 10 个头文件类型（error.h / log\_types.h / memory\_types.h / security\_types.h / cognition\_types.h / sched.h / ipc.h / syscalls.h / uapi\_compat.h / lsm\_types.h），确保两端契约一致。
+- 测试框架验证 \[SC] 共享契约层的 12 个头文件类型（error.h / log\_types.h / memory\_types.h / security\_types.h / cognition\_types.h / sched.h / ipc.h / syscalls.h / uapi\_compat.h / lsm\_types.h / syscall\_gen.h / bpf\_struct\_ops.h），确保两端契约一致。
 - 升级为 OS 级测试，引入形式化验证 + Soak + 混沌工程 + eBPF 验证 \[IND]。
 - 新增 \[DSL] 降级生存层验证：[SC] 头文件损坏时验证 `#ifdef AIRY_SC_FALLBACK` 降级块可运行 + 12 daemon 各自降级模式（详见 §4.8）。
 
@@ -223,7 +223,7 @@ tests-linux/
 - 工具代码：≥ 70% \[SS]。
 
 **\[SC] 共享契约层验证**：
-单元测试验证 10 个 \[SC] 头文件类型的正确性（v3 在 v2 的 6 个基础上新增 `error.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`）：
+单元测试验证 12 个 \[SC] 头文件类型的正确性（v3 在 v2 的 6 个基础上新增 `error.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`，v1.0.1 补全 `syscall_gen.h` / `bpf_struct_ops.h`）：
 
 - `include/uapi/linux/airymax/error.h`：验证 `AIRY_E*` 错误码 + `AIRY_FAULT_*` 故障码 + [DSL] 降级块（`AIRY_ESEC_D_THROTTLED = -83` / `AIRY_ECAP_FROZEN = -82` / `AIRY_FAULT_URING_MALFORMED = 0x100A` / `AIRY_FAULT_AUDIT_TAMPER = 0x100B`）\[SC]。
 - `include/uapi/linux/airymax/log_types.h`：验证 `AIRY_LOG_MAGIC` + 128B 记录 + 5 级日志枚举 + printk 映射 \[SC]。
@@ -621,7 +621,7 @@ sec_d 是 v1.0.1 Capability Folding 的唯一 Badge 编译者，必须保证串�
 
 ### 5.4 共享契约层验证 \[SC]
 
-测试框架验证 \[SC] 共享契约层的 10 个头文件，确保 agentrt 与 agent-linux 两端契约一致：
+测试框架验证 \[SC] 共享契约层的 12 个头文件，确保 agentrt 与 agent-linux 两端契约一致：
 
 - 单元测试验证类型正确性 \[SC]。
 - 形式化验证验证性质正确性 \[SC]。
@@ -632,9 +632,9 @@ sec_d 是 v1.0.1 Capability Folding 的唯一 Badge 编译者，必须保证串�
 
 ## 6. IRON-9 v3 四层共享模型落地
 
-### 6.1 \[SC] 共享契约层——10 个头文件验证
+### 6.1 \[SC] 共享契约层——12 个头文件验证
 
-测试模块验证 10 个 \[SC] 头文件的正确性与一致性（v3 在 v2 的 6 个基础上新增 `error.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`，bpf\_struct\_ops.h 为补充共享文件但不计入核心 10 头文件清单）：
+测试模块验证 12 个 \[SC] 头文件的正确性与一致性（10 核心 + 2 补充；v3 在 v2 的 6 个基础上新增 `error.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h`，v1.0.1 补全 `syscall_gen.h` / `bpf_struct_ops.h`）：
 
 | 头文件                                 | 验证内容                                                      | 测试方式                             |
 | ----------------------------------- | --------------------------------------------------------- | -------------------------------- |
@@ -648,6 +648,8 @@ sec_d 是 v1.0.1 Capability Folding 的唯一 Badge 编译者，必须保证串�
 | `include/uapi/linux/airymax/cognition_types.h` | CoreLoopThree 阶段枚举 + Thinkdual 模式枚举 + LLM 推理阶段枚举          | 单元测试 + 形式化验证（Coq 阶段转换）+ Soak 监控  |
 | `include/uapi/linux/airymax/uapi_compat.h`     | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）+ [SC] 双端契约 | 单元测试 + sc-dual-ci 双端校验 |
 | `include/uapi/linux/airymax/lsm_types.h`       | 纯 C LSM 类型 + `DEFINE_LSM(airy)` 骨架 + `LSM_ORDER_MUTABLE` 注册（不使用 `LSM_ORDER_FIRST`，不使用 BPF LSM） | 单元测试 + CBMC 注册逻辑验证 |
+| `include/uapi/linux/airymax/bpf_struct_ops.h`  | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING） + 注册状态读取 | 单元测试 + sc-dual-ci 双端校验 |
+| `include/uapi/linux/airymax/syscall_gen.h`     | syscall 入口定义（由 `syscall.xml` 经 `syscall_gen.py` 派生）+ 参数类型 | 单元测试 + codegen-verify 零漂移校验 |
 
 ### 6.2 \[SS] 语义同源层——8 项 API 映射
 
@@ -833,8 +835,8 @@ graph TD
 | -------------- | ----------------------------------------------------------------- | ---- |
 | 命名一致性          | 核心表述使用 `agent-linux（AirymaxOS）` 全角括号配对                          | PASS |
 | 语义同源标注         | 单元测试框架/性能基准指标/覆盖率目标/回归测试标注 \[SS]                                  | PASS |
-| IRON-9 v3 四层合规 | \[SC] 10 头文件验证 + \[SS] 8 API + \[IND] 10 项独立实现 + \[DSL] 降级生存层验证                     | PASS |
-| \[SC] 头文件引用    | 10 个头文件均在 §1.1/§3.3/§4.1/§4.3/§6.1 引用                              | PASS |
+| IRON-9 v3 四层合规 | \[SC] 12 头文件（10 核心 + 2 补充）验证 + \[SS] 8 API + \[IND] 10 项独立实现 + \[DSL] 降级生存层验证                     | PASS |
+| \[SC] 头文件引用    | 12 个头文件均在 §1.1/§3.3/§4.1/§4.3/§6.1 引用                              | PASS |
 | 不移植特性声明        | 无 KABI\_RESERVE/BPF\_SCHED/KMSAN/etmem/dynamic\_pool/numa\_remote | PASS |
 | 横切关注点声明        | §1.1 声明测试贯穿 4 大数据流                                                | PASS |
 | Mermaid 图      | §6.4 sequenceDiagram + §6.5 graph TD（≥2）                          | PASS |

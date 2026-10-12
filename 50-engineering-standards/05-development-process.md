@@ -2081,7 +2081,7 @@ scripts/
 [2026-07-07 18:30:01] [  OK  ] OS-CHK-DOC-02 Forbidden words: 0 violations
 [2026-07-07 18:30:02] [  OK  ] OS-CHK-DOC-03 IRON-9 v2 annotations: 8/8 modules pass
 [2026-07-07 18:30:03] [  OK  ] OS-CHK-DOC-05 Link integrity: 0 broken links
-[2026-07-07 18:30:04] [  OK  ] OS-CHK-IRON-01 [SC] consistency: 10/10 headers identical
+[2026-07-07 18:30:04] [  OK  ] OS-CHK-IRON-01 [SC] consistency: 12/12 headers identical
 ```
 
 **违规报告**：

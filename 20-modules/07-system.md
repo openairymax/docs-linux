@@ -398,8 +398,10 @@ airymaxmon 通过 [SC] 共享契约层读取内核子系统状态，确保监控
 | `include/uapi/linux/airymax/syscalls.h` | v1.0.1 Syscall 24 槽位（4 核心 + 20 预留）：`airy_sys_call`(0)/`airy_sys_rovol_ctl`(1)/`airy_sys_sched_ctl`(2)/`airy_sys_clt_notify`(3) | airymaxmon 监控 syscall 调用统计 + config_d 推送配置 |
 | `include/uapi/linux/airymax/uapi_compat.h` | UAPI 兼容层宏（`__aligned(64)`、`__u32`/`__u16`/`__u64`/`__u8`）+ SQE128 模式 `cmd[80]` 扩展 | IPC 消息头对齐 + airymaxmon 读取 io_uring SQE128 字段 |
 | `include/uapi/linux/airymax/lsm_types.h` | airy_lsm 钩子 ID 250 枚举 + `LSM_ORDER_MUTABLE` 排序定义 + `uring_cmd` 单参数钩子签名 | airymaxmon 安全监控 + config_d 推送 `LSM_ORDER_MUTABLE` 配置 |
+| `include/uapi/linux/airymax/bpf_struct_ops.h` | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态） | airymaxmon 读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态 |
+| `include/uapi/linux/airymax/syscall_gen.h` | codegen 派生的 syscall 入口定义（参数类型） | airymaxmon 监控 syscall 调用统计 |
 
-> **补充共享文件说明**：`include/linux/bpf_struct_ops.h` 是补充共享文件（位于内核源码 `include/linux/`），**不是** [SC] 核心头文件。`bpf_struct_ops.h` 定义 struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态），airymaxmon 通过它读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态。**[SC] 核心头文件严格为 10 个**（清单见上表），`bpf_struct_ops.h` 仅作为内核侧补充引用。
+> **补充共享文件说明**：12 个 [SC] 头文件 = 10 核心 + 2 补充共享文件（`syscall_gen.h`/`bpf_struct_ops.h`），物理宿主均为 `kernel/include/uapi/linux/airymax/`。`bpf_struct_ops.h` 定义 struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态），airymaxmon 通过它读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态；`syscall_gen.h` 由 `syscall_gen.py` 从 `syscall.xml` 派生。2 个补充共享文件与 10 个核心头同等参与 `sc-dual-ci.yml` 逐字节校验。详见 [11-sc-header-type-bridging.md](../50-engineering-standards/11-sc-header-type-bridging.md) §4。
 
 ### 6.2 [SS] 语义同源层——8 项 API 映射
 
@@ -645,9 +647,9 @@ graph TD
 |--------|----------|------|
 | 命名一致性 | 核心表述使用 `agent-linux（AirymaxOS）` 全角括号配对 | PASS |
 | 语义同源标注 | commons/监控/配置/AI 助手/日志等标注 [SS] | PASS |
-| IRON-9 v3 四层合规 | [SC] 10 头文件 + [SS] 8 API + [IND] 12 项独立实现 + [DSL] 4 降级场景 + v1.0.1 Capability Folding sysfs 推送 + 12 daemon 完整列表 | PASS |
-| [SC] 头文件引用 | error.h + log_types.h + memory_types.h + security_types.h + cognition_types.h + sched.h + ipc.h + syscalls.h + uapi_compat.h + lsm_types.h 共 10 个均在 §6.1 引用 | PASS |
-| bpf_struct_ops.h 归类 | §6.1 明确说明 bpf_struct_ops.h 是补充共享文件（非 [SC] 核心头文件），10 个核心头文件严格独立 | PASS |
+| IRON-9 v3 四层合规 | [SC] 12 头文件（10 核心 + 2 补充）+ [SS] 8 API + [IND] 12 项独立实现 + [DSL] 4 降级场景 + v1.0.1 Capability Folding sysfs 推送 + 12 daemon 完整列表 | PASS |
+| [SC] 头文件引用 | error.h + log_types.h + memory_types.h + security_types.h + cognition_types.h + sched.h + ipc.h + syscalls.h + uapi_compat.h + lsm_types.h + bpf_struct_ops.h + syscall_gen.h 共 12 个均在 §6.1 引用 | PASS |
+| bpf_struct_ops.h / syscall_gen.h 归类 | §6.1 明确说明二者是 [SC] 补充共享文件（非核心），10 个核心头文件严格独立；12 个 [SC] 头文件同等参与逐字节校验 | PASS |
 | config_d 完整性 | §1.2/§3.2.1/§4.7/§6.5/§6.6 均引用 config_d（路径 `/etc/agentrt/`，YAML/TOML，sysfs 推送，热重载，与 sec_d 协作） | PASS |
 | 配置路径 SSoT | `/etc/agentrt/`（禁止非 agentrt 命名空间的旧路径），SSoT 见 `11-unified-config.md` | PASS |
 | v1.0.1 Capability Folding | `agent_caps[1024]` + 64-bit Badge + O(1) 撤销 + fastpath C-S9 + slowpath airy_lsm（`LSM_ORDER_MUTABLE`）均在 §6.5 引用 | PASS |
@@ -671,7 +673,7 @@ graph TD
 - [05-cognition.md](05-cognition.md)——认知模块（[SC] cognition_types.h，DevStation 调用 LLM）
 - [06-cloudnative.md](06-cloudnative.md)——云原生模块（gateway_d 跨节点 Badge 一致性，airymaxmon 与 OpenTelemetry 集成）
 - [11-unified-config.md](../11-unified-config.md)——统一配置 SSoT（`/etc/agentrt/`，YAML/TOML，禁止非 agentrt 命名空间的旧路径）
-- [50-engineering-standards/README.md](../50-engineering-standards/README.md)——[SC] 共享契约层 10 头文件清单
+- [50-engineering-standards/README.md](../50-engineering-standards/README.md)——[SC] 共享契约层 12 头文件清单
 - [50-engineering-standards/120-cross-project-code-sharing.md](../50-engineering-standards/120-cross-project-code-sharing.md)——[SC] Layout C 物理宿主 + bpf_struct_ops.h 补充共享文件归类
 - [docs/architecture/adr/ADR-012.md](../../architecture/adr/ADR-012.md)——ADR-012 微内核化技术路线
 - [docs/architecture/adr/ADR-014.md](../../architecture/adr/ADR-014.md)——ADR-014 seL4 唯一来源

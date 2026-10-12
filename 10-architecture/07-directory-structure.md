@@ -126,35 +126,40 @@ airymaxhub/                          # 伞仓（OpenAirymax 总入口）
 ### 2.2 agent-linux 管理仓结构
 
 ```
-agent-linux/                       # 管理仓（独立 git repo，内含 8 个 submodule）
-├── .gitmodules                      # 8 个 submodule 登记
+agent-linux/                       # 管理仓（独立 git repo，内含 9 个 submodule）
+├── .gitmodules                      # 9 个 submodule 登记
 ├── README.md                        # 管理仓说明（含双许可证描述）
 ├── README_zh.md                     # 中文说明
 ├── LICENSE                           # AGPL-3.0-or-later OR Apache-2.0
 ├── NOTICE                            # 商标与版权声明
 ├── MAINTAINERS                      # 维护者名单
 ├── CONTRIBUTING.md                  # 贡献指南
-├── CHANGELOG.md                     # 变更日志
+├── SECURITY.md                      # 安全策略
+├── CODEOWNERS                       # 代码所有者
+├── ssot-registry.yaml               # SSoT 规则注册表
 ├── .clang-format                    # 代码格式（全仓统一）
 ├── .editorconfig                    # 编辑器配置
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yml                   # 主 CI
+│   │   ├── ci-kernel.yml            # kernel 子仓 CI
+│   │   ├── ci-airy.yml              # Airymax 专属代码 CI
+│   │   ├── codegen-verify.yml       # codegen 零漂移门禁
+│   │   ├── ssot-validate.yml        # SSoT 规则 ID 校验
 │   │   ├── sc-dual-ci.yml           # [SC] 双向字节级校验（核心）
-│   │   └── release.yml              # 发布流水线
+│   │   ├── nightly.yml              # nightly build
+│   │   ├── release.yml              # 发布流水线
+│   │   └── mgmt-orchestrator.yml    # 管理仓编排
 │   └── ISSUE_TEMPLATE/
-├── docs/                            # 管理仓文档（子仓各有自己的 Documentation/）
-│   └── AirymaxOS/                   # 本设计文档体系
-├── tools/                           # 跨子仓分析/调试工具（编译产物）
-│   ├── ipc-profiler/                # IPC 性能分析器
-│   ├── cap-inspector/               # Capability 检查器
-│   ├── mem-tier-analyzer/           # 记忆分层分析器
-│   └── sched-monitor/               # sched_tac 监控器
+├── sdk/                             # SDK（[SC] 消费侧）
+│   ├── go/ python/ rust/ ts/        # 多语言绑定
+├── tools/                           # 跨子仓分析/调试/CI 工具
+│   ├── codegen/                     # [SC] IRON-9 代码生成器
+│   ├── abi-check/                   # ABI 校验
+│   ├── aggregate-subrepo-ci.py      # 子仓 CI 状态聚合
+│   ├── validate-ssot.py             # SSoT 规则校验
+│   └── check-copyright.py           # 版权头校验
 ├── scripts/                         # 构建/引导/安装脚本
-│   ├── build.sh                     # 全量构建
-│   ├── bootstrap.sh                 # 开发环境引导
-│   ├── install.sh                   # 安装到系统
-│   └── gen-version.sh               # 版本号生成
+│   └── airymax/                     # Airymax 专属脚本
 ├── kernel/                          # submodule 1（[SC] 头文件物理宿主）
 ├── services/                        # submodule 2
 ├── security/                        # submodule 3
@@ -162,7 +167,8 @@ agent-linux/                       # 管理仓（独立 git repo，内含 8 个 
 ├── cognition/                       # submodule 5
 ├── cloudnative/                     # submodule 6
 ├── system/                          # submodule 7
-└── tests-linux/                     # submodule 8
+├── tests-linux/                     # submodule 8
+└── distro/                          # submodule 9：发行版
 ```
 
 ### 2.3 8 子仓职责矩阵
@@ -284,13 +290,13 @@ agent-linux/                       # 管理仓（独立 git repo，内含 8 个 
 - [SS] 3 daemon：gateway_d / sched_d / cogn_d（与 agentrt 同源 OS 升级）
 - [IND] 9 daemon：macro_d / logger_d / config_d / vfs_d / net_d / mem_d / sec_d / audit_d / dev_d（agent-linux 专属）
 
-### 3.5 决策 E：8/10 [SC] 头文件缺失（问题 5）
+### 3.5 决策 E：[SC] 头文件缺失（问题 5）
 
-**问题陈述**：v1.1 仅 error.h 实际创建（195 行），其余 9 个 [SC] 头文件缺失，违反 IRON-2 禁止桩文件与 IRON-9 v3 [SC] 层定义。
+**问题陈述**：v1.1 仅 error.h 实际创建（195 行），其余 11 个 [SC] 头文件缺失，违反 IRON-2 禁止桩文件与 IRON-9 v3 [SC] 层定义。
 
 **备选方案**：
 - E1（全量创建 12 头文件）：在 kernel/include/uapi/linux/airymax/ 下创建全部 12 个 [SC] 头文件，0.1.1 内完成
-- E2（分批创建）：0.1.1 创建 5 个，1.0.1 创建 5 个
+- E2（分批创建）：0.1.1 创建 6 个，1.0.1 创建 6 个
 - E3（仅创建 error.h）：保持现状
 
 **决策依据**：
@@ -312,6 +318,8 @@ agent-linux/                       # 管理仓（独立 git repo，内含 8 个 
 8. syscalls.h（24 槽位，~90 行）
 9. uapi_compat.h（三路桥接，~80 行）
 10. lsm_types.h（纯 C LSM 类型，~60 行）
+11. syscall_gen.h（[SC] 补充共享文件，codegen 派生的 syscall 入口定义）
+12. bpf_struct_ops.h（[SC] 补充共享文件，eBPF struct_ops 状态机框架）
 
 ### 3.6 决策 F：7/8 子仓为纯桩（问题 6）
 
@@ -1871,7 +1879,7 @@ agentrt/          agent-linux/
 
 | 版本 | 计划内容 | 预计时间 |
 |------|---------|---------|
-| 0.1.1 | 全部 10 [SC] 头文件创建 + 8 子仓最小可编译骨架 + 12 daemon 实现 | 2026-08 |
+| 0.1.1 | 全部 12 [SC] 头文件创建 + 8 子仓最小可编译骨架 + 12 daemon 实现 | 2026-08 |
 | 1.0.1 | 生产就绪 + 29 仓拆分 + 完整生态 | 2026-Q4 |
 
 **禁止**：0.1.2 / 0.2.0 / 0.3.0 / 1.0.0 任何中间过渡版本（约束 14）。

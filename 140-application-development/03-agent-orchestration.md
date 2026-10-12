@@ -53,7 +53,7 @@ agentrt 用户态运行时的 MAC 框架与 TaskFlow 引擎与本设计遵循 IR
 
 ```c
 /* include/uapi/linux/airymax/mac.h（规划新增 [SC] 头文件，当前未创建；
- * [SC] 头文件集合为固定 10 个（07-syscall-registry.md §10.1 口径），
+ * [SC] 头文件集合为固定 12 个（07-syscall-registry.md §10.1 口径），
  * 新增 mac.h 需 SSoT 委员会决议（OS-IRON 约束）） */
 enum airy_mac_mode {
 	AIRY_MAC_MODE_INDEPENDENT = 0,  /* 独立：各 Agent 独立执行 */

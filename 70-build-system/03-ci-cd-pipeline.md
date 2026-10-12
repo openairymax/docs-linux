@@ -64,9 +64,9 @@ agent-linux CI/CD 管道的设计目标是把"代码进入主线"的工程契约
 
 ### 1.2 全量 CI 覆盖
 
-CI 覆盖范围遵循 OS-IRON-013（8 子仓独立 git 仓库 + submodule 管理）：
+CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9 个独立 git 仓库 + submodule 管理）：
 
-- **8 子仓**：每个子仓独立维护 `.github/workflows/`，CI 互相隔离、独立失败、独立回滚。
+- **9 子仓**：每个子仓独立维护 `.github/workflows/`，CI 互相隔离、独立失败、独立回滚。
 - **管理仓（agentrt）**：维护 SSoT 校验、文件完整性、子仓状态聚合、文档格式校验，串行执行。
 - **kernel 子仓**：CI 最重，承载 Kbuild 编译、checkpatch、sparse、Coccinelle、KUnit、kselftest 全套内核验证。
 - **[SC] 共享契约层**：跨 kernel ↔ agentrt 的双向 CI（OS-IRON-008），由变更触发自动联动。
@@ -94,6 +94,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 子仓独立 git 仓库 + submodule 管理
 agent-linux/.github/workflows/
 ├── ci-kernel.yml            # kernel 子仓 CI（31 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
 ├── ci-airy.yml              # Airymax 专属代码 CI（airy_defconfig 4 架构构建 + checkpatch + SPDX + 符号完整性）
+├── codegen-verify.yml       # codegen 一致性校验（契约源 → 生成产物零漂移 SSoT gate，见 30-interfaces/06-codegen-pipeline.md §7.2）
 ├── ssot-validate.yml        # SSoT 规则 ID 校验（全仓）
 ├── sc-dual-ci.yml           # [SC] 共享契约层双向 CI（OS-IRON-008）
 ├── nightly.yml              # develop nightly build（L5/L6 连接/协议验证；formal/soak/chaos 工具未实现，降级 SKIP）
@@ -101,14 +102,14 @@ agent-linux/.github/workflows/
 └── mgmt-orchestrator.yml    # 管理仓编排：文件完整性 + 子仓 CI 编排
 ```
 
-> **规划说明**：coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 7 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。
+> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。
 
 ### 2.2 管理仓 CI（mgmt-orchestrator.yml）
 
 管理仓 CI 由 **2 个 job** 组成：`file-integrity`（治理文件与子仓完整性）→ `orchestrate-leaf-ci`（子仓 CI 编排），任一失败即阻断：
 
-1. **file-integrity（治理文件完整性）**：校验 `.gitmodules` 中声明的 8 子仓 submodule 目录实际存在（kernel/services/security/memory/cognition/cloudnative/system/tests-linux）；校验 `kernel/include/uapi/linux/airymax/` 下 12 个头文件物理存在（OS-IRON-014）；校验治理文件（README/LICENSE/NOTICE/MAINTAINERS/CODEOWNERS 等）齐备；校验无 `airymaxos-` 前缀残留。
-2. **orchestrate-leaf-ci（子仓 CI 编排）**：通过 `aggregate-subrepo-ci.py` 聚合 8 子仓最近一次 CI 状态（任一子仓主干红则管理仓红）；markdownlint 校验 `docs/`；校验文档版权头（`check-copyright.py`）。
+1. **file-integrity（治理文件完整性）**：校验 `.gitmodules` 中声明的 9 子仓 submodule 目录实际存在（kernel/services/security/memory/cognition/cloudnative/system/tests-linux/distro）；校验 `kernel/include/uapi/linux/airymax/` 下 12 个头文件物理存在（OS-IRON-014）；校验治理文件（README/LICENSE/NOTICE/MAINTAINERS/CODEOWNERS 等）齐备；校验无 `airymaxos-` 前缀残留。
+2. **orchestrate-leaf-ci（子仓 CI 编排）**：通过 `aggregate-subrepo-ci.py` 聚合 9 子仓最近一次 CI 状态（任一子仓主干红则管理仓红）；markdownlint 校验 `docs/`；校验文档版权头（`check-copyright.py`）。
 
 > **职责划分**：SSoT 规则 ID 校验不在此 workflow 内，由独立的 `ssot-validate.yml` 承担（§6）。本 workflow 通过 `needs: file-integrity` 保证 job 2 串行等待 job 1。
 
@@ -679,9 +680,9 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 
 ### 7.1 触发条件
 
-[SC] 共享契约层是 agentrt ↔ agent-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-dual-ci 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 14 个文件：12 个 `.h`（11 个 [SC] 校验头 + `syscall_gen.h` codegen 产物）+ `syscall.xml`（syscall 编号 SSoT）+ `Kbuild`。
+[SC] 共享契约层是 agentrt ↔ agent-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-dual-ci 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 18 个文件：14 个 `.h`（12 个 [SC] 头文件 + 2 个 codegen 派生头 `structures_32_gen.h`/`structures_64_gen.h`）+ `syscall.xml`（R-01 SSoT）、`structures_32.bf`/`structures_64.bf`（R-02 SSoT）、`Kbuild`。
 
-当以下 11 个 [SC] 头文件中任一发生变更时，触发双向 CI（`bpf_struct_ops.h` 为补充共享文件，与 10 个核心头同等强制字节校验）：
+当以下 12 个 [SC] 头文件中任一发生变更时，触发双向 CI（`syscall_gen.h`/`bpf_struct_ops.h` 为 2 个补充共享文件，与 10 个核心头同等强制字节校验）：
 
 | 序号 | 文件 | 共享内容 |
 |------|------|---------|
@@ -693,11 +694,12 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 | 6 | `kernel/include/uapi/linux/airymax/security_types.h` | LSM 钩子/capability 类型 |
 | 7 | `kernel/include/uapi/linux/airymax/cognition_types.h` | 认知模块类型 |
 | 8 | `kernel/include/uapi/linux/airymax/syscalls.h` | syscall 编号声明 |
-| 9 | `kernel/include/uapi/linux/airymax/uapi_compat.h` | 用户态兼容桥接 |
-| 10 | `kernel/include/uapi/linux/airymax/lsm_types.h` | LSM 专用类型 |
-| 11 | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF 结构操作 |
+| 9 | `kernel/include/uapi/linux/airymax/syscall_gen.h` | syscall 编号宏（codegen 产物，`__NR_airy_sys_*` 548-551） |
+| 10 | `kernel/include/uapi/linux/airymax/uapi_compat.h` | 用户态兼容桥接 |
+| 11 | `kernel/include/uapi/linux/airymax/lsm_types.h` | LSM 专用类型 |
+| 12 | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF 结构操作 |
 
-> 注：`syscall_gen.h`（内核侧 codegen 产物，`__NR_airy_sys_*` 548-551）由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成，不参与镜像复制，不在 sc-dual-ci 触发清单内。
+> 注：`syscall_gen.h`（`__NR_airy_sys_*` 548-551）为 [SC] 补充共享头，内容由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成并提交入库；作为 12 个 [SC] 头文件之一，参与镜像复制与 sc-dual-ci 逐字节校验，禁止手工修改。
 
 ```yaml
 # agent-linux/.github/workflows/sc-dual-ci.yml（触发段）
@@ -715,6 +717,7 @@ on:
       - 'kernel/include/uapi/linux/airymax/uapi_compat.h'
       - 'kernel/include/uapi/linux/airymax/lsm_types.h'
       - 'kernel/include/uapi/linux/airymax/bpf_struct_ops.h'
+      - 'kernel/include/uapi/linux/airymax/syscall_gen.h'
 ```
 
 ### 7.2 双向流程
@@ -750,7 +753,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: kernel CI (18 matrix + checkpatch + sparse + KUnit + kselftest)
-        run: ./agent-linux/tools/run-kernel-ci.sh
+        run: tools/run-kernel-ci.sh
 
   trigger-agentrt-mirror-pr:
     runs-on: ubuntu-latest
@@ -766,7 +769,7 @@ jobs:
           git format-patch origin/${{ github.base_ref }} HEAD -- \
             kernel/include/uapi/linux/airymax/ -o /tmp/patches
           # 在 agentrt 仓创建镜像 PR
-          python3 agent-linux/tools/create-agentrt-mirror-pr.py \
+          python3 tools/create-agentrt-mirror-pr.py \
             --patches /tmp/patches \
             --source-pr ${{ github.event.pull_request.number }} \
             --token "$AGENTRT_TOKEN"

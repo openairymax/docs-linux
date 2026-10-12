@@ -186,7 +186,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | 1 | `ci-kernel.yml` | kernel Kbuild 18 配置矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest | Tier 0/1 | 阻断合入 |
 | 2 | `sc-dual-ci.yml` | agentrt 与 AirymaxOS 两端 [SC] 头文件逐字节一致 + 编译器无关性 + Tier 0 权威源逐字节哈希校验（[SC] 12 头文件 + magic 值）+ 禁止新增 `AIRY_ERR_*` 双轨引用（错误码以 `AIRY_E*` 正数幅值为准，对齐错误码迁移阶段 3+） | Tier 0/1 | 阻断合入，Tier 0 变更要求 TSC 评审 |
 | 3 | `ssot-validate.yml` | §1.7 权威源清单引用一致性 + [SC] 头文件数量为 12 + 每个 [SC] 有 [DSL] 降级块 + [SS] 语义映射文档存在 + [IND] 实现未泄露到 [SC]/[SS] + Unify Design 5 模块边界一致性 + sched_tac 调度选型（禁 sched_ext）+ IPC 零拷贝选型（禁 page flipping）+ 内存选型（禁 DMA 一致性内存用于日志/IPC） | Tier 0/1 | 阻断合入 |
-| 4 | `mgmt-orchestrator.yml` | SSoT 规则 ID 校验 + 本注册表登记的 `OS-*` / agentrt 编号唯一性 + 主题文档引用编号均在注册表覆盖范围内 + 文件完整性（8 子仓 submodule 指针 + [SC] 12 头文件物理存在）+ 子仓 CI 状态聚合 + 文档格式（markdownlint + 版权头 + 链接有效性） | Tier 1/2 | 阻断合入 |
+| 4 | `mgmt-orchestrator.yml` | SSoT 规则 ID 校验 + 本注册表登记的 `OS-*` / agentrt 编号唯一性 + 主题文档引用编号均在注册表覆盖范围内 + 文件完整性（9 子仓 submodule 指针 + [SC] 12 头文件物理存在）+ 子仓 CI 状态聚合 + 文档格式（markdownlint + 版权头 + 链接有效性） | Tier 1/2 | 阻断合入 |
 | 5 | `nightly.yml` | develop 夜间构建（L5/L6 连接/协议验证）+ 性能回归检测 | — | 标记回退 |
 | 6 | `release.yml` | release tag 流水线（L7 发布验证）+ ABI 兼容性校验 | — | 阻断发布 |
 
@@ -218,7 +218,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | OS-IRON-010 | "Linux 6.6 为基、seL4 为鉴"工程取向                                                           | 04 §12                                   | —         |
 | OS-IRON-011 | 双源边界声明（01Reference/ 仅本地参考）                                                           | 04 §12                                   | —         |
 | OS-IRON-012 | seL4 借鉴仅限架构层（ES-SEL4-1\~5）                                                           | 04 §12                                   | —         |
-| OS-IRON-013 | 8 子仓独立 git 仓库 + submodule                                                            | 04 §13                                   | S-2       |
+| OS-IRON-013 | 8 架构子仓 + distro 发行版子仓（`.gitmodules` 共 9 个）独立 git 仓库 + submodule 管理                  | 04 §13                                   | S-2       |
 | OS-IRON-014 | \[SC] 共享契约层 10 核心 + 2 补充（`syscall_gen.h`/`bpf_struct_ops.h`）共 12 个 [SC] 头文件单一数据源（禁止物理副本）——12 个 [SC] 头文件物理宿主在 `kernel/include/uapi/linux/airymax/`，其他子仓通过 -I 引用（syscall_gen.h、bpf\_struct\_ops.h 为补充共享文件，非 [SC] 核心 10 个）                   | 120 跨项目代码共享                              | E-7       |
 | OS-IRON-015 | 编号管理元规则——OS-KER / OS-STD / OS-OBS / OS-DRV 等所有规则编号一经分配不得复用；废弃规则标记 `DEPRECATED` 但保留编号 | 90-observability/02-ebpf-probes.md §14.2 | S-1       |
 | OS-IRON-016 | UAPI 头文件编译器无关原则——`include/uapi/linux/airymax/` 下的用户态接口头文件必须坚持 C 标准（C11），避免直接使用 `__attribute__`/`__builtin_*`/`__asm__`/`__sync_*`/`__atomic_*`/`typeof` 等编译器扩展。sanctioned exceptions：结构体缓存行对齐通过 `AIRY_ALIGNED(N)` 宏、符号导出通过 `AIRY_API` 宏（均定义于 `uapi_compat.h`）实现，因 C11 `_Alignas` 不能用于结构体类型定义后的对齐指定、且无符号可见性标准等价物。`AIRY_ALIGNED(N)` 与 `AIRY_API` 是 OS-IRON-016 的 sanctioned exceptions，所有其他 `__attribute__` 用途仍被禁止 | 04-engineering-philosophy.md §2.4        | K-2 / E-7 |
@@ -971,7 +971,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 
 | 编号          | 规则摘要                                                                                                                                                                                | 权威定义                                                      |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| OS-ARCH-001 | agent-linux 与 agentrt 的同源关系遵循 IRON-9 v3 四层共享模型——\[SC] 共享契约层完全共享代码（10 个核心头文件，bpf\_struct\_ops.h 为补充共享文件非 [SC] 核心）、\[SS] 语义同源层高层 API 语义同源、\[IND] 完全独立层各自独立、\[DSL] 降级生存层提供 [SC] 损坏时的最小可运行子集；禁止在双端之间引入适配层或兼容别名层                                   | 10-architecture/01-system-architecture.md §8 L240         |
+| OS-ARCH-001 | agent-linux 与 agentrt 的同源关系遵循 IRON-9 v3 四层共享模型——\[SC] 共享契约层完全共享代码（12 个头文件 = 10 核心 + 2 补充共享文件 `syscall_gen.h`/`bpf\_struct\_ops.h`）、\[SS] 语义同源层高层 API 语义同源、\[IND] 完全独立层各自独立、\[DSL] 降级生存层提供 [SC] 损坏时的最小可运行子集；禁止在双端之间引入适配层或兼容别名层                                   | 10-architecture/01-system-architecture.md §8 L240         |
 | OS-ARCH-002 | 跨态协作遵循"零适配层天然契合"原则——通过 \[SC] 共享契约层头文件直接对接，不生成 `airy_compat_aliases.h` 或任何兼容层；Linux 平台可选启用 agent-linux 内核加速路径（ops 注入机制，非强制），macOS/Windows 仅走用户态路径                                  | 10-architecture/01-system-architecture.md §8 L330         |
 | OS-ARCH-003 | 五维正交 24 原则在 agentrt（用户态）与 agent-linux（内核态）间遵循 IRON-9 v3 四层共享模型——S/K/C/E/A 五维跨态同源，认知观契约经 \[SC] 共享，内核观实现经 \[IND] 各自独立，禁止为五维原则引入双端适配别名层                                              | 10-architecture/02-five-dimensional-principles.md §9 L568 |
 | OS-ARCH-004 | 五维原则跨态同源遵循"零适配层天然契合"——A 设计美学与 C 认知观经 \[SC] 头文件直接对接，不生成 `five_dim_compat.h` 或任何兼容别名层；K 内核观因平台差异落入 \[IND]，两端各自演进                                                                      | 10-architecture/02-five-dimensional-principles.md §9 L647 |
@@ -1122,7 +1122,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | OS-CHK-DOC-01 | 所有 Markdown 文档必须以 Copyright 头部开头                                             | 05-dev-process §5 L1458 | P0  |
 | OS-CHK-DOC-02 | 开源文档严禁出现禁词（完整禁词清单维护于内部配置文件）                                                  | 05-dev-process §5 L1477 | P0  |
 | OS-CHK-DOC-03 | 深度修订的子系统设计文档必须包含 IRON-9 v3 四层共享模型标注                                          | 05-dev-process §5 L1513 | P0  |
-| OS-CHK-DOC-04 | 所有引用 \[SC] 共享契约层的文档必须与 10 个头文件清单一致                                            | 05-dev-process §5 L1544 | P0  |
+| OS-CHK-DOC-04 | 所有引用 \[SC] 共享契约层的文档必须与 12 个头文件清单一致                                            | 05-dev-process §5 L1544 | P0  |
 | OS-CHK-DOC-05 | 所有 Markdown 内部链接必须指向存在的文件                                                    | 05-dev-process §5 L1561 | P1  |
 | OS-CHK-DOC-06 | 设计文档行数应在合理范围内                                                                | 05-dev-process §5 L1581 | P1  |
 | OS-CHK-DOC-07 | 深度修订的文档应包含至少 2 个 Mermaid 图表                                                  | 05-dev-process §5 L1594 | P1  |

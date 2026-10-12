@@ -496,7 +496,7 @@ static int __init test_airy_sc_byte_for_byte(void)
             return -EILSEQ;
         }
     }
-    pr_info("airy_selftest: sc: 10 [SC] headers byte-for-byte OK\n");
+    pr_info("airy_selftest: sc: 12 [SC] headers byte-for-byte OK\n");
     return 0;
 }
 
@@ -558,7 +558,7 @@ int  airy_sc_compute_sha256(int idx, u8 out[32]);
 [    3.143138] airy_selftest:   ipc    (URING_CMD zero-copy) ....... PASS  (0.8ms)
 [    3.143261] airy_selftest:   cap    (41 IDs grant/revoke) ....... PASS  (12.3ms)
 [    3.143388] airy_selftest:   lsm    (253 hooks coverage) ........ PASS  (45.6ms)
-[    3.143514] airy_selftest:   sc     (10 [SC] headers SHA-256) ... PASS  (8.9ms)
+[    3.143514] airy_selftest:   sc     (12 [SC] headers SHA-256) ... PASS  (8.9ms)
 [    3.143640] airy_selftest: === 5/5 PASS, 0 FAIL, 0 SKIP ===
 ```
 

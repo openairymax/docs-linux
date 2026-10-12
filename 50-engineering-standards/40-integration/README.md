@@ -176,7 +176,7 @@ graph TD
 
 | 集成点 | 所属层级 | 说明 |
 |--------|----------|------|
-| 10 个共享头文件 | [SC] | `syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` |
+| 12 个共享头文件 | [SC] | `syscalls.h` / `memory_types.h` / `security_types.h` / `cognition_types.h` / `sched.h` / `ipc.h` / `error.h` / `log_types.h` / `uapi_compat.h` / `lsm_types.h` / `syscall_gen.h` / `bpf_struct_ops.h` |
 | 调度语义集成 | [SS] | MicroCoreRT ↔ stc_agent 调度语义 |
 | IPC 语义集成 | [SS] | AgentsIPC ↔ io_uring IPC 128B 消息头 |
 | 安全语义集成 | [SS] | Cupolas ↔ capability + LSM 安全模型 |

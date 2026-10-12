@@ -305,9 +305,9 @@ on:
 
 ### 4.6 Job 3：[SC] 数量校验
 
-- **校验内容**：`kernel/include/uapi/linux/airymax/` 下的 [SC] 头文件数量保持为 10 个。
+- **校验内容**：`kernel/include/uapi/linux/airymax/` 下的 [SC] 头文件数量保持为 12 个（10 核心 + 2 补充）。
 - **校验方式**：统计 `kernel/include/uapi/linux/airymax/*.h` 文件数量。
-- **失败处理**：数量不为 10 即 job 失败。
+- **失败处理**：数量不为 12 即 job 失败。
 - **OS-DEV-802**：新增或删除 [SC] 头文件必须通过 SSoT 委员会决议，且同步更新 SSoT 注册表。
 
 ### 4.7 Job 4：跨文档引用一致性

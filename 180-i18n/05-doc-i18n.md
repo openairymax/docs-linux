@@ -544,7 +544,7 @@ def find_untranslated_docs(docs_dir):
     return untranslated
 
 def main():
-    untranslated = find_untranslated_docs("docs/AirymaxOS")
+    untranslated = find_untranslated_docs("docs/docs-linux")
     if untranslated:
         print(f"FAIL: {len(untranslated)} 个文档缺少中文翻译")
         for doc in untranslated:
@@ -581,7 +581,7 @@ def check_encoding(docs_dir):
     return bad_encoding
 
 def main():
-    bad = check_encoding("docs/AirymaxOS")
+    bad = check_encoding("docs/docs-linux")
     if bad:
         print(f"FAIL: {len(bad)} 个文档非 UTF-8 编码")
         for doc in bad:

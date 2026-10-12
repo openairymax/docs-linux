@@ -34,7 +34,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | branch protection | 分支保护规则，禁止 force push 与直推 |
 | CODEOWNERS | 文件路径到维护者的映射文件，自动请求审查 |
 | DCO | Developer Certificate of Origin，开发者来源证明 |
-| [SC] 头文件 | IRON-9 v3 四层模型中的 [SC] 共享契约层头文件（10 个） |
+| [SC] 头文件 | IRON-9 v3 四层模型中的 [SC] 共享契约层头文件（12 个 = 10 核心 + 2 补充） |
 
 ---
 
@@ -257,7 +257,7 @@ SSoT v2 单一权威源模型要求每个技术点只有一个权威源。任何
 
 1. **四层归属校验**：检查变更文件是否正确归属到 [SC] / [SS] / [IND] / [DSL] 之一，归属错误的 PR 阻断。
 2. **权威源唯一性**：检查变更是否引入了与已有权威源冲突的新权威源声明。
-3. **[SC] 数量校验**：验证 `kernel/include/uapi/linux/airymax/` 下的 [SC] 头文件数量保持为 10 个（不可增减）。
+3. **[SC] 数量校验**：验证 `kernel/include/uapi/linux/airymax/` 下的 [SC] 头文件数量保持为 12 个（10 核心 + 2 补充，不可增减）。
 4. **跨文档引用一致性**：验证 SSoT 注册表中的跨文档引用链接有效。
 5. **五大选型守护**：验证变更未偏离五大技术选型声明。
 

@@ -65,7 +65,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | 层次               | 共享程度                               | 云原生子系统内容                                                                                                                                                                                                                                                                                         | 组织方式                                                                                                                                        |
 | ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **\[SC] 共享契约层**  | 完全共享代码                             | IPC 消息头（magic 0x41524531 'ARE1'）、128B 消息头结构（`struct airy_ipc_msg_hdr`）、SQE/CQE 操作码（gateway\_d io\_uring 通道）；capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举（容器沙箱 + CNI 网络策略）；CoreLoopThree 阶段枚举 + Thinkdual 模式枚举（Agent CRD cognition 字段引用）；v1.0.1 Capability Folding 的 `agent_caps[1024]` 静态数组与 64-bit Badge 布局 | `include/uapi/linux/airymax/` 10 个头文件（与 kernel/services/security/cognition/memory 共享），清单见 §6.1 |
+| **\[SC] 共享契约层**  | 完全共享代码                             | IPC 消息头（magic 0x41524531 'ARE1'）、128B 消息头结构（`struct airy_ipc_msg_hdr`）、SQE/CQE 操作码（gateway\_d io\_uring 通道）；capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举（容器沙箱 + CNI 网络策略）；CoreLoopThree 阶段枚举 + Thinkdual 模式枚举（Agent CRD cognition 字段引用）；v1.0.1 Capability Folding 的 `agent_caps[1024]` 静态数组与 64-bit Badge 布局 | `include/uapi/linux/airymax/` 12 个头文件（与 kernel/services/security/cognition/memory 共享），清单见 §6.1 |
 | **\[SS] 语义同源层**  | 高层 API 语义同源（概念操作一致），签名因抽象层级不同而独立演进 | gateway 网关语义（agentrt gateway → K8s Ingress + gateway\_d）、SDK 管理接口语义（agentrt sdk → agentctl）、Agent 生命周期管理（agentrt lifecycle → CRD controller reconcile）、资源声明语义（agentrt resource → K8s resource spec）、可观测性 API（agentrt monitoring → OpenTelemetry）、containerd shim 生命周期、服务网格数据平面语义、CNI 网络语义等 10+ 项 | 各自独立实现                                                                                                                                      |
 | **\[IND] 完全独立层** | 完全独立                               | K8s CRD 定义与控制器实现、containerd shim v2 实现、OCI 镜像规范实现、CNI 插件实现、OpenTelemetry 集成、DPU/IPU 卸载框架、超节点 OS、K8s 自定义调度器、准入 webhook、Multus 多 CNI                                                                                                                                                               | 各自独立仓库                                                                                                                                      |
 | **\[DSL] 降级生存层** | 降级模式下最小可用 | 跨节点 Badge 一致性失效时（gossip 通道断开 ≥ 3s）gateway\_d 退化为单节点 Badge 本地校验 + 100ms 后强制 Epoch 推进；CRD controller 在 etcd 不可达时降级为本地 reconcile cache；containerd shim 在 OCI registry 不可达时降级为本地镜像缓存 + 只读运行 | 各自独立实现，但共享降级触发语义 |
@@ -379,9 +379,9 @@ gateway\_d 是 agentrt gateway 在 OS 级的升级形态 \[SS]：
 
 ## 6. IRON-9 v3 四层共享模型落地
 
-### 6.1 \[SC] 共享契约层——10 个头文件
+### 6.1 \[SC] 共享契约层——12 个头文件
 
-云原生模块的 \[SC] 层通过 10 个头文件与 agentrt 共享（清单与 kernel/services/security/memory/cognition 完全一致，SSoT 见 `50-engineering-standards/120-cross-project-code-sharing.md`）：
+云原生模块的 \[SC] 层通过 12 个头文件（10 核心 + 2 补充）与 agentrt 共享（清单与 kernel/services/security/memory/cognition 完全一致，SSoT 见 `50-engineering-standards/120-cross-project-code-sharing.md`）：
 
 | 头文件                                              | 共享内容                                                                                                    | 云原生使用场景                          |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------- |
@@ -395,6 +395,8 @@ gateway\_d 是 agentrt gateway 在 OS 级的升级形态 \[SS]：
 | `include/uapi/linux/airymax/syscalls.h`           | v1.0.1 Syscall 24 槽位（4 核心 + 20 预留）：`airy_sys_call`(0)/`airy_sys_rovol_ctl`(1)/`airy_sys_sched_ctl`(2)/`airy_sys_clt_notify`(3) | agentctl 与 sec\_d/sched\_d/clt\_notify 协作的 ABI 契约 |
 | `include/uapi/linux/airymax/uapi_compat.h`        | UAPI 兼容层宏（`__aligned(64)`、`__u32`/`__u16`/`__u64`/`__u8`）+ SQE128 模式 `cmd[80]` 扩展 | IPC 消息头对齐 + io\_uring SQE128 64B `__aligned(64)` |
 | `include/uapi/linux/airymax/lsm_types.h`          | airy\_lsm 钩子 ID 250 枚举 + `LSM_ORDER_MUTABLE` 排序定义 + `uring_cmd` 单参数钩子签名 | CNI 网络策略的纯 C LSM（airy_lsm）联动 + 容器沙箱安全钩子 |
+| `include/uapi/linux/airymax/bpf_struct_ops.h`     | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态） | 可观测/eBPF 数据平面读取 BPF struct_ops 注册状态 |
+| `include/uapi/linux/airymax/syscall_gen.h`        | codegen 派生的 syscall 入口定义（参数类型） | agentctl 与各 daemon 协作的 syscall ABI 契约 |
 
 ### 6.2 \[SS] 语义同源层——10 项 API 映射
 

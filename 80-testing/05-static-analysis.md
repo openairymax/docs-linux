@@ -539,7 +539,7 @@ if [ "$failures" -gt 0 ]; then
     exit 1
 fi
 
-echo "[SC] headers compiler-agnostic check: PASS (10 headers × 3 compilers × 4 standards = 120 combinations)"
+echo "[SC] headers compiler-agnostic check: PASS (12 headers × 3 compilers × 4 standards = 144 combinations)"
 exit 0
 ```
 

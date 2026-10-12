@@ -357,7 +357,7 @@ services 层 io\_uring IPC 实现严格遵循 OLK 6.6 工程规范：
 - **`security_uring_cmd` LSM 钩子**：单参数 `struct io_uring_cmd *ioucmd`，由 `airy_lsm` 在 `LSM_ORDER_MUTABLE`（默认值，非 `LSM_ORDER_FIRST`）下注册，仅在 fastpath C-S9 失败时被调用
 - **SQE128 模式**（`IORING_SETUP_SQE128`）：`cmd` 字段从标准 16 字节扩展至 80 字节（16→80），承载 `airy_ipc_cmd` 结构体（≤ 80 字节，`BUILD_BUG_ON(sizeof(struct airy_ipc_cmd) > 80)` 编译期校验）
 - **`airy_lsm` 模块**：物理宿主 `security/airy/`（非 `security/airymax/`），`CONFIG_SECURITY_AIRY` default 'n'
-- **UAPI 标准路径**：`include/uapi/linux/airymax/`（10 个 [SC] 共享契约头文件物理宿主）
+- **UAPI 标准路径**：`include/uapi/linux/airymax/`（12 个 [SC] 共享契约头文件物理宿主）
 
 ***
 

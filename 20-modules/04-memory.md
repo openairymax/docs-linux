@@ -68,7 +68,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | 层次               | 共享程度          | 记忆子系统内容                                                                                                                  | 组织方式                             |
 | ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| **\[SC] 共享契约层**  | 完全共享代码        | `airy_mem_level` L1-L4 层级枚举、`AIRY_GFP_*` 4 个 tier 标志、`AIRY_PAGE_CLASS_*` 4 个页面分类标志、`#ifdef AIRY_SC_FALLBACK` 降级块 | `include/uapi/linux/airymax/memory_types.h`（10 个 [SC] 头文件之一） |
+| **\[SC] 共享契约层**  | 完全共享代码        | `airy_mem_level` L1-L4 层级枚举、`AIRY_GFP_*` 4 个 tier 标志、`AIRY_PAGE_CLASS_*` 4 个页面分类标志、`#ifdef AIRY_SC_FALLBACK` 降级块 | `include/uapi/linux/airymax/memory_types.h`（12 个 [SC] 头文件之一） |
 | **\[SS] 语义同源层**  | 操作模式同源，函数签名独立 | `rovol_snapshot()`、`rovol_restore()`、`rovol_migrate()`、`rovol_compress()`、MGLRU aging/eviction 语义、userfaultfd 处理接口 等 6 项 | 各自独立实现                           |
 | **\[IND] 完全独立层** | 完全独立          | CXL 设备驱动、PMEM 设备驱动、VFS 持久化层实现、THP 优化实现、zswap/zram 集成                                                                     | 各自独立仓库                           |
 | **\[DSL] 降级生存层** | 降级模式生存        | `#ifdef AIRY_SC_FALLBACK` 降级块位于 `memory_types.h` 底部——L1-L4 tier 折叠为 L1 hot 单层、`AIRY_GFP_*` 折叠为 `AIRY_GFP_HOT`、`AIRY_PAGE_CLASS_*` 折叠为 `AIRY_PAGE_CLASS_ANON`（详见 §6.4 SSoT 实际 DSL 块） | 每个 \[SC] 头文件底部 `#ifdef AIRY_SC_FALLBACK` 块 |

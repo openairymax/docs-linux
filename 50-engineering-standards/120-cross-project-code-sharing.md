@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）IRON-9 v3 四层共享模型落地规范
-> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）与 agentrt（微核心用户态运行时）之间的 IRON-9 v3 四层代码共享模型落地规范。详细说明 \[SC] 共享契约层（10 个头文件）、\[SS] 语义同源层、\[IND] 完全独立层、\[DSL] 降级生存层的实施细节，含双向 CI 校验机制与 magic 设计原理。本文件落地 **IRON-9 v3 四层模型（[SC]+[SS]+[IND]+[DSL]）**，权威源为 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）与 agentrt（微核心用户态运行时）之间的 IRON-9 v3 四层代码共享模型落地规范。详细说明 \[SC] 共享契约层（12 个头文件：10 核心 + 2 补充）、\[SS] 语义同源层、\[IND] 完全独立层、\[DSL] 降级生存层的实施细节，含双向 CI 校验机制与 magic 设计原理。本文件落地 **IRON-9 v3 四层模型（[SC]+[SS]+[IND]+[DSL]）**，权威源为 [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。\
 > **文档版本**：v1.0.1\
 > **最后更新**： 2026-07-21\
 > **上级文档**：[10-unify-design.md](../10-architecture/10-unify-design.md)（Unify Design 总纲）\
@@ -47,7 +47,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | 层次          | 缩写     | 共享程度               | 内容                                                        | 组织方式                             |
 | ----------- | ------ | ------------------ | --------------------------------------------------------- | -------------------------------- |
-| **共享契约层**   | \[SC]  | 完全共享代码             | 10 个头文件，定义数据结构、magic、操作码、枚举                                | `include/uapi/linux/airymax/` 独立 UAPI 头文件库（D-8 对齐 OLK 6.6），两端共同依赖 |
+| **共享契约层**   | \[SC]  | 完全共享代码             | 12 个头文件（10 核心 + 2 补充），定义数据结构、magic、操作码、枚举                                | `include/uapi/linux/airymax/` 独立 UAPI 头文件库（D-8 对齐 OLK 6.6），两端共同依赖 |
 | **语义同源层**   | \[SS]  | 高层 API 语义同源，签名独立演进 | 调度语义、安全模型、IPC 传输、记忆模型                                     | 各自独立实现，通过 \[SC] 保证互操作            |
 | **完全独立层**   | \[IND] | 完全独立               | 内核驱动/Kbuild/内核 API（agent-linux）；跨平台用户态/SDK 四语言（agentrt） | 各自独立仓库，无依赖                       |
 | **降级生存层**   | \[DSL] | 自包含降级块（[SC] 头文件内）   | `#ifdef AIRY_SC_FALLBACK` 降级块；[SC] 损坏时的最小可运行子集（38 POSIX 码 + 最简 IPC + EEVDF 默认调度） | 详见 [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md) |
@@ -65,9 +65,9 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## 2. \[SC] 共享契约层
 
-### 2.1 10 个 \[SC] 头文件清单
+### 2.1 12 个 \[SC] 头文件清单（10 核心 + 2 补充）
 
-\[SC] 层包含**10 个**核心共享头文件，**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-dual-ci 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agent-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
+\[SC] 层包含**12 个**共享头文件（10 核心 + 2 补充），**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-dual-ci 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agent-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
 
 | 序号 | 文件                  | 共享内容                                                                                                    | magic 值               | 落地路径                                |
 | -- | ------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------- |
@@ -84,7 +84,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 11 | `syscall_gen.h`     | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）                       | —                     | `include/uapi/linux/airymax/syscall_gen.h`（内核侧 codegen 产物，不镜像） |
 | 12 | `bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）      | —                     | `include/uapi/linux/airymax/bpf_struct_ops.h`（补充共享文件，sc-dual-ci 字节校验） |
 
-**补充内容**（不属于上述 10 个 [SC] 核心头文件，但两端共享语义）：
+**补充内容**（不属于上述 12 个 [SC] 头文件，但两端共享语义）：
 
 - capability 令牌格式
 - 规则编号体系（IRON/BAN/STD/ACC）
@@ -164,7 +164,7 @@ struct airy_struct_ops_value {
 
 > **定位说明**：`uapi_compat.h` 是 [SC] 10 个核心头文件之一（IRON-9 v3 升级），提供三路类型桥接：内核态（`__u32` 等，通过 `<linux/types.h>`）、Linux 用户态（`__u32` 等，通过 `<linux/types.h>`）、非 Linux 用户态（`uint32_t` 等，通过 `<stdint.h>` + typedef 映射为 `__u32`）。
 
-所有 10 个 [SC] 核心头文件 + `bpf_struct_ops.h`（补充）均通过 `#include <linux/airymax/uapi_compat.h>` 获取 `__u8`/`__u16`/`__u32`/`__u64`/`__s32`/`__s64` 等 UAPI 类型。该文件在 Linux 内核态和 Linux 用户态均直接包含 `<linux/types.h>` 复用系统定义（避免 typedef 冲突），在 macOS/Windows 上通过 `<stdint.h>` + typedef 提供等价类型，确保 [SC] 头文件在 agentrt 用户态跨平台（Linux/macOS/Windows）和 agent-linux 内核态均能逐字节相同地编译。
+所有 10 个 [SC] 核心头文件 + 2 个 [SC] 补充共享文件（`syscall_gen.h` / `bpf_struct_ops.h`）均通过 `#include <linux/airymax/uapi_compat.h>` 获取 `__u8`/`__u16`/`__u32`/`__u64`/`__s32`/`__s64` 等 UAPI 类型。该文件在 Linux 内核态和 Linux 用户态均直接包含 `<linux/types.h>` 复用系统定义（避免 typedef 冲突），在 macOS/Windows 上通过 `<stdint.h>` + typedef 提供等价类型，确保 [SC] 头文件在 agentrt 用户态跨平台（Linux/macOS/Windows）和 agent-linux 内核态均能逐字节相同地编译。
 
 > **设计约束**：[SC] 头文件中**禁止**直接 `#include <linux/types.h>`（macOS/Windows 无此头文件），**必须**通过 `<linux/airymax/uapi_compat.h>` 间接获取 UAPI 类型。
 
@@ -194,7 +194,7 @@ struct airy_struct_ops_value {
 
 - **当前权威源**：`kernel/include/uapi/linux/airymax/error.h`（[SC] 物理宿主，已创建，195 行）
 - **历史源**：`agentrt/commons/utils/error/include/error.h` + `agentrt/commons/include/airy_types.h`（迁移完成后废弃）
-- **SSoT 登记**：`09-ssot-registry.md §2 OS-IRON-014`（[SC] 10 个头文件单一数据源）
+- **SSoT 登记**：`09-ssot-registry.md §2 OS-IRON-014`（[SC] 10 核心 + 2 补充共 12 个头文件单一数据源）
 - **CI 校验**：`sc-dual-ci.yml` 逐字节验证两端 error.h 相同
 
 **已废弃方案**：方案 B（runtime_interfaces.md 的 -1/-2/-11 自定义序列）、方案 C（coding_conventions.md 的 -2/-4/-6 旧值）、方案 D（project_erp.md 的位掩码 0x00010000，仅用于 ERP 分类，非错误码方案）均已废弃，禁止在新代码中使用。
@@ -616,7 +616,7 @@ extern "C" {
 
 ### 3.3 [DSL] 与 [SC] 的关系
 
-[DSL] 降级块的物理宿主仍在 [SC] 的 10 个头文件内部（通过 `#ifdef AIRY_SC_FALLBACK` 条件编译实现），但语义独立——[SC] 定义"正常时的完整契约"，[DSL] 定义"失败时的生存契约"。构建系统对每个降级块单独计算 hash（存入 `.fallback_hashes`），即使 [SC] 主体损坏，只要降级块 hash 校验通过，系统仍可降级启动。
+[DSL] 降级块的物理宿主仍在 [SC] 的 12 个头文件内部（通过 `#ifdef AIRY_SC_FALLBACK` 条件编译实现），但语义独立——[SC] 定义"正常时的完整契约"，[DSL] 定义"失败时的生存契约"。构建系统对每个降级块单独计算 hash（存入 `.fallback_hashes`），即使 [SC] 主体损坏，只要降级块 hash 校验通过，系统仍可降级启动。
 
 ### 3.4 [DSL] 降级块触发条件
 
@@ -771,7 +771,7 @@ static void test_ipc_hdr_serialize(void)
 
 ### 7.1 校验流程
 
-\[SC] 层（10 个头文件）的任何变更必须经过**双向 CI 校验**，确保两端均能编译通过：
+\[SC] 层（12 个头文件）的任何变更必须经过**双向 CI 校验**，确保两端均能编译通过：
 
 ```
 开发者提交 [SC] 变更 MR（agent-linux 仓库）
