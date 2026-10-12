@@ -173,7 +173,7 @@ agent-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Clan
 **具体要求**：
 
 1. **禁止在 `include/uapi/linux/airymax/` 头文件中直接使用**：
-   - `__attribute__((...))` —— 改用 C11 `_Alignas` / `_Noreturn` 等标准等价物，或通过 `AIRY_ALIGNED(N)` 宏（见下方例外）
+   - `__attribute__((...))` —— 改用 C11 `_Alignas` / `_Noreturn` 等标准等价物，或通过 `AIRY_ALIGNED(N)` / `AIRY_API` 宏（见下方例外）
    - `__builtin_*` —— 改用标准库函数或内联汇编包装
    - `__asm__` / `asm()` —— 内联汇编不应出现在 UAPI 头文件中
    - `__sync_*` / `__atomic_*` —— 改用 C11 `<stdatomic.h>`
@@ -183,12 +183,15 @@ agent-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Clan
    - C11 标准特性（`_Static_assert`、`_Noreturn`、`_Alignas`、`_Atomic`、`_Generic`）
    - 标准类型（`<stdint.h>` 的 `uint32_t` 等）
    - 标准宏（`NULL`、`offsetof`、`size_t`）
-   - `AIRY_ALIGNED(N)` 宏（定义于 `uapi_compat.h`，见下方例外）
+   - `AIRY_ALIGNED(N)` / `AIRY_API` 宏（定义于 `uapi_compat.h`，见下方例外）
 
-3. **结构体对齐例外（sanctioned exception）**：
-   C11 标准的 `_Alignas` 仅能用于变量声明，不能用于结构体类型定义后的对齐指定（`struct foo { ... } _Alignas(64);` 是非法的）。因此，结构体缓存行对齐必须通过 `AIRY_ALIGNED(N)` 宏实现，该宏定义于 `uapi_compat.h`，内部根据编译器选择合适的扩展（GCC/Clang 用 `__attribute__((aligned(N)))`，MSVC 用 `__declspec(align(N))`，C11 回退用 `_Alignas(N)`）。
-   
-   `uapi_compat.h` 是唯一允许包含 `__attribute__` 的 UAPI 头文件（仅用于 `AIRY_ALIGNED` 宏定义）。所有其他 UAPI 头文件必须通过 `#include <linux/airymax/uapi_compat.h>` 获取此宏，不得直接使用 `__attribute__`。
+3. **编译器可移植性宏例外（sanctioned exception）**：
+
+   例外一——结构体对齐：C11 标准的 `_Alignas` 仅能用于变量声明，不能用于结构体类型定义后的对齐指定（`struct foo { ... } _Alignas(64);` 是非法的）。因此，结构体缓存行对齐必须通过 `AIRY_ALIGNED(N)` 宏实现，该宏定义于 `uapi_compat.h`，内部根据编译器选择合适的扩展（GCC/Clang 用 `__attribute__((aligned(N)))`，MSVC 用 `__declspec(align(N))`，C11 回退用 `_Alignas(N)`）。
+
+   例外二——符号导出：`AIRY_API` 标记函数属于 [SC] 导出的稳定 ABI（形态见 [30-interfaces/01-syscalls.md](../30-interfaces/01-syscalls.md) §3.1）。C11 标准无符号可见性的标准等价物，故该宏同样定义于 `uapi_compat.h`：在 GCC/Clang 下展开为 `__attribute__((visibility("default")))`，保证 `-fvisibility=hidden` 库构建下导出符号仍可见；在其他编译器下展开为空，保持编译器无关性。宏以 `#ifndef AIRY_API` 守卫，允许库构建通过 `-DAIRY_API=...` 覆盖而不触发重定义告警。
+
+   `uapi_compat.h` 是唯一允许包含 `__attribute__` 的 UAPI 头文件（仅用于 `AIRY_ALIGNED` 与 `AIRY_API` 两处宏定义）。所有其他 UAPI 头文件必须通过 `#include <linux/airymax/uapi_compat.h>` 获取这些宏，不得直接使用 `__attribute__`。
    
    使用示例：
    ```c
@@ -200,7 +203,7 @@ agent-linux 作为 Linux 6.6 内核衍生工程，内核态代码使用 GCC/Clan
 
 4. **内核内部头文件不受此约束**：`include/airymax/` 下的内核内部头文件可自由使用 GCC/Clang 扩展，因为内核仅由 GCC/Clang 编译。
 
-**工程价值**：此原则确保 Agent 应用开发者可以使用任意 C11 标准编译器（GCC、Clang、MSVC、ICC 等）消费 UAPI 头文件，而不会被锁定到特定编译器生态。这与 OS-IRON-001（用户空间 ABI 永不破坏）共同构成 L1 接口的稳定性基石——ABI 语义稳定 + 编译器无关。`AIRY_ALIGNED(N)` 宏作为唯一 sanctioned exception，在保证编译器无关性的同时解决了 C11 标准的结构体对齐缺陷。
+**工程价值**：此原则确保 Agent 应用开发者可以使用任意 C11 标准编译器（GCC、Clang、MSVC、ICC 等）消费 UAPI 头文件，而不会被锁定到特定编译器生态。这与 OS-IRON-001（用户空间 ABI 永不破坏）共同构成 L1 接口的稳定性基石——ABI 语义稳定 + 编译器无关。`AIRY_ALIGNED(N)` 与 `AIRY_API` 宏作为 sanctioned exceptions，在保证编译器无关性的同时解决了 C11 标准的结构体对齐与符号导出缺陷；两者均收敛于 `uapi_compat.h` 这一单一宿主，维持了"每个 UAPI 头文件不直接触碰 `__attribute__`"的不变量。
 
 ---
 
@@ -633,7 +636,7 @@ agent-linux 作为一个新建的智能体操作系统发行版，其工程组�
 | OS-IRON-013 | §13 | 8 子仓独立 git 仓库 + submodule 管理 |
 | OS-IRON-014 | 120 §SC | [SC] 共享契约层 10 核心 + 2 补充（`syscall_gen.h`/`bpf_struct_ops.h`）共 12 个 [SC] 头文件单一数据源（禁止物理副本） |
 | OS-IRON-015 | 90-obs/02 §14.2 | 编号管理元规则——编号一经分配不得复用 |
-| OS-IRON-016 | §2.4 | UAPI 头文件编译器无关原则（C11 标准，禁止编译器扩展；唯一例外：结构体缓存行对齐通过 `AIRY_ALIGNED(N)` 宏实现，定义于 `uapi_compat.h`） |
+| OS-IRON-016 | §2.4 | UAPI 头文件编译器无关原则（C11 标准，禁止编译器扩展；sanctioned exceptions：结构体对齐 `AIRY_ALIGNED(N)` 与符号导出 `AIRY_API` 两个宏，均定义于 `uapi_compat.h`） |
 | OS-KER-060 | §2.2 | API 改动者必须修复所有调用点 |
 | OS-KER-061 | §3.2 | 内核不内置策略（IRON-003 子规则） |
 | OS-KER-062 | §4.3 | 补丁序列中点可编译（IRON-004 子规则） |

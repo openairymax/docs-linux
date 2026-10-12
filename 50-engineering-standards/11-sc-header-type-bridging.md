@@ -207,9 +207,10 @@ _Static_assert(sizeof(struct airy_log_record) == 128,
  *
  * C11's _Alignas cannot be placed after a struct type definition (it
  * only applies to variable declarations), so compiler extensions are
- * unavoidable for struct-level alignment. This macro is the single
- * sanctioned exception to OS-IRON-016's prohibition on __attribute__
- * in UAPI headers — all other __attribute__ uses remain prohibited.
+ * unavoidable for struct-level alignment. AIRY_ALIGNED (defined here) and
+ * AIRY_API (defined below) are the sanctioned compiler-portability
+ * exceptions to OS-IRON-016's prohibition on __attribute__ in UAPI
+ * headers — all other __attribute__ uses remain prohibited.
  *
  * Usage (placement after closing brace, same as __attribute__):
  *
@@ -245,6 +246,25 @@ _Static_assert(sizeof(struct airy_log_record) == 128,
 	 * after a type definition. This is a best-effort fallback. */
 	#define AIRY_ALIGNED(n) _Alignas(n)
 #endif
+
+/* ─── Symbol Export Macro (OS-IRON-016 sanctioned exception) ────────────
+ *
+ * AIRY_API marks a function as part of the exported [SC] ABI. It expands
+ * to the default symbol-visibility attribute on GCC>=4 / Clang so that
+ * exports survive a -fvisibility=hidden library build, and to nothing on
+ * compilers without visibility support — keeping the UAPI header
+ * compiler-agnostic. Form follows 30-interfaces/01-syscalls.md §3.1.
+ *
+ * Guarded with #ifndef so a library build may override it (e.g.
+ * -DAIRY_API=...) without a redefinition warning.
+ */
+#ifndef AIRY_API
+#if defined(__GNUC__) && __GNUC__ >= 4
+	#define AIRY_API __attribute__((visibility("default")))
+#else
+	#define AIRY_API
+#endif
+#endif /* AIRY_API */
 
 /* ─── [DSL] Degraded Survival Layer Fallback Block ──────────────────────
  * When AIRY_SC_FALLBACK is defined, the three-way type bridge collapses

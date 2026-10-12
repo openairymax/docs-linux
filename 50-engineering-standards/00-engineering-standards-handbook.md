@@ -83,7 +83,7 @@ agent-linux 工程标准由 4 主题文档构成，本手册为其总索引与�
 | **OS-IRON-013** | 8 子仓独立 git 仓库 + submodule 管理——拆分为 8 个独立 leaf 仓，由管理仓通过 submodule 统一管理 | S-2 | 04 工程思想 §13 |
 | **OS-IRON-014** | [SC] 共享契约层 10 个 [SC] 核心头文件单一数据源（禁止物理副本）——10 个 [SC] 头文件物理宿主在 kernel/include/uapi/linux/airymax/，其他子仓通过 -I 引用（bpf_struct_ops.h 为补充共享文件，非 [SC] 核心） | E-7 | 120 跨项目代码共享 |
 | **OS-IRON-015** | 编号管理元规则——OS-KER / OS-STD / OS-OBS / OS-DRV 等所有规则编号一经分配不得复用；废弃规则标记 `DEPRECATED` 但保留编号（原 OS-STD-017，2026-07-15 提升为 OS-IRON-015） | S-1 | 90-observability/02-ebpf-probes.md §14.2 |
-| **OS-IRON-016** | UAPI 头文件编译器无关原则——`include/uapi/linux/airymax/` 下的用户态接口头文件必须坚持 C 标准（C11），避免直接使用编译器扩展（`__attribute__`/`__builtin_*`/`__asm__`/`__sync_*`/`__atomic_*`/`typeof`）。唯一例外：结构体缓存行对齐通过 `AIRY_ALIGNED(N)` 宏（定义于 `uapi_compat.h`）实现，因 C11 `_Alignas` 不支持结构体类型定义后对齐 | K-2 / E-7 | 04 工程思想 §2.4 |
+| **OS-IRON-016** | UAPI 头文件编译器无关原则——`include/uapi/linux/airymax/` 下的用户态接口头文件必须坚持 C 标准（C11），避免直接使用编译器扩展（`__attribute__`/`__builtin_*`/`__asm__`/`__sync_*`/`__atomic_*`/`typeof`）。sanctioned exceptions：结构体对齐 `AIRY_ALIGNED(N)`（因 C11 `_Alignas` 不支持结构体类型定义后对齐）与符号导出 `AIRY_API` 两个宏，均定义于 `uapi_compat.h` | K-2 / E-7 | 04 工程思想 §2.4 |
 
 ### 2.2 IRON 铁律执行机制
 

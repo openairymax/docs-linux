@@ -348,13 +348,15 @@ Capability Folding 决策将 0.1.1 的 12 核心 syscall 精简为 v1.0.1 的 4 
 ### 3.1 导出宏
 
 ```c
-/* airy_api.h */
+/* uapi_compat.h — 与 AIRY_ALIGNED 同宿主（OS-IRON-016 sanctioned exception） */
 #if defined(__GNUC__) && __GNUC__ >= 4
     #define AIRY_API __attribute__((visibility("default")))
 #else
     #define AIRY_API
 #endif
 ```
+
+> `AIRY_API` 的物理宿主为 `kernel/include/uapi/linux/airymax/uapi_compat.h`——即 OS-IRON-016 认定的唯一编译器可移植性宏宿主（与 `AIRY_ALIGNED` 并列），[SC] 头文件通过 `#include <linux/airymax/uapi_compat.h>` 获取，避免新增物理头文件（对齐 [09-ssot-registry.md](../50-engineering-standards/09-ssot-registry.md) OS-IRON-014）。
 
 > **类型说明**：下述 syscall 签名中的 `cap_t` 为 64 位 capability 引用句柄类型（SSoT：`typedef __u64 cap_t;`，无 `cap_idx_t`），定义于 [SC] 共享头文件 `include/uapi/linux/airymax/security_types.h`。详见 [20-modules/03-security.md §4.1](../20-modules/03-security.md)。
 
