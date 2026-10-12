@@ -155,9 +155,16 @@ _Static_assert(sizeof(struct airy_log_record) == 128,
 
 ## §3 uapi_compat.h 设计：类型桥接的实现头文件
 
-### 3.1 uapi_compat.h 完整实现
+### 3.1 uapi_compat.h 类型桥接骨架
 
-`uapi_compat.h` 是类型桥接的实现头文件，物理宿主为 `kernel/include/uapi/linux/airymax/uapi_compat.h`。实际代码内容如下（与 SSoT 源文件逐字节一致）：
+`uapi_compat.h` 是类型桥接的实现头文件，物理宿主为 `kernel/include/uapi/linux/airymax/uapi_compat.h`。下文给出**类型桥接核心骨架**（三分支类型桥接 + `AIRY_ALIGNED`/`AIRY_API`/`AIRY_COMPILE_ASSERT` 端口宏 + `[DSL]` 降级块）。**完整实现以 SSoT 源文件为唯一权威**——本块不再声称与源文件逐字节一致，以避免文档-代码漂移（历史教训见 §7 版本历史）。
+
+> **与 v1.0.1 初始骨架的差异（源文件已演化，权威以源文件为准）**：
+> - 内核/用户态分支在 `#include <linux/types.h>` 后补 `<linux/stddef.h>`（内核态）或 `<stddef.h>`（用户态），第三方分支补 `<stddef.h>`——为 [SC] 头内 `_Static_assert` 布局断言提供 `offsetof`；内核态借助 Kbuild `-Iinclude` 先于 `-Iinclude/uapi` 的搜索顺序解析到内核内部 `<linux/stddef.h>`。
+> - 三分支末尾置 `_AIRY_UAPI_COMPAT_TYPES_SET` 守卫宏，供 `[DSL]` 降级块判定定宽类型是否已就绪。
+> - `AIRY_ALIGNED` 外层加 `#ifndef AIRY_ALIGNED` 重定义保护（跨头同名宏冲突修复，2026-08-14）。
+> - 新增 `AIRY_COMPILE_ASSERT(cond, msg)` 编译期断言宏（C++/C11/旧编译器三级降级）。
+> - `[DSL]` 降级块以 `_AIRY_UAPI_COMPAT_TYPES_SET` 取代逐类型 `#ifndef __u64` 守卫。
 
 ```c
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
