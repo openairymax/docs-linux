@@ -132,7 +132,7 @@ MAJOR.MINOR.PATCH
 
 - **内核版本**：`Makefile` 头部 `VERSION = 1` / `PATCHLEVEL = 0` / `SUBLEVEL = 0`。
 - **daemon 版本**：每个 daemon 的 `--version` 输出与 meson.build 中的 `version` 字段。
-- **RPM 版本**：`Name: agent-linux-<daemon>` / `Version: 1.0.1` / `Release: 1`。
+- **RPM 版本**：`Name: airymaxos-services-<daemon>` / `Version: 1.0.1` / `Release: 1`。
 - **文档版本**：每份设计文档头部的 `文档版本` 字段。
 
 ---
@@ -294,20 +294,20 @@ RC 测试由 QA 团队执行，包括：
 
 | # | RPM 包名 | 内容 | 依赖 |
 |---|---------|------|------|
-| 1 | `agent-linux-kernel` | 内核镜像 + 模块 + airy_defconfig | — |
-| 2 | `agent-linux-macro-superv` | macro_d daemon | kernel |
-| 3 | `agent-linux-logger` | logger_d | kernel |
-| 4 | `agent-linux-config` | config_d | kernel |
-| 5 | `agent-linux-gateway` | gateway_d | kernel + net |
-| 6 | `agent-linux-sched` | sched_d | kernel |
-| 7 | `agent-linux-vfs` | vfs_d | kernel |
-| 8 | `agent-linux-net` | net_d | kernel |
-| 9 | `agent-linux-mem` | mem_d | kernel |
-| 10 | `agent-linux-cogn` | cogn_d | kernel |
-| 11 | `agent-linux-sec` | sec_d + 纯 C LSM 模块 | kernel |
-| 12 | `agent-linux-audit` | audit_d | kernel |
-| 13 | `agent-linux-dev` | dev_d | kernel |
-| 14 | `agent-linux-devstation` | 开发工具 + SDK + 文档 | 全部 daemon |
+| 1 | `airymaxos-kernel` | 内核镜像 + 模块 + airy_defconfig | — |
+| 2 | `airymaxos-services-macro-superv` | macro_d daemon | kernel |
+| 3 | `airymaxos-services-logger` | logger_d | kernel |
+| 4 | `airymaxos-services-config` | config_d | kernel |
+| 5 | `airymaxos-services-gateway` | gateway_d | kernel + net |
+| 6 | `airymaxos-services-sched` | sched_d | kernel |
+| 7 | `airymaxos-services-vfs` | vfs_d | kernel |
+| 8 | `airymaxos-services-net` | net_d | kernel |
+| 9 | `airymaxos-services-mem` | mem_d | kernel |
+| 10 | `airymaxos-services-cogn` | cogn_d | kernel |
+| 11 | `airymaxos-services-sec` | sec_d + 纯 C LSM 模块 | kernel |
+| 12 | `airymaxos-services-audit` | audit_d | kernel |
+| 13 | `airymaxos-services-dev` | dev_d | kernel |
+| 14 | `airymaxos-devstation` | 开发工具 + SDK + 文档 | 全部 daemon |
 
 ### 6.3 SBOM 内容
 

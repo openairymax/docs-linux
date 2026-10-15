@@ -37,7 +37,7 @@ agent-linux（AirymaxOS）作为基于 Linux 6.6 完整 fork（Model A）构建�
 | NTIA 要素 | SPDX 2.3 字段 | agent-linux 实现 |
 |-----------|---------------|---------------------|
 | 供应商名称（Supplier Name） | `Package.originator` / `Package.supplier` | "SPHARX Ltd."（自有组件）/ 上游供应商（第三方依赖） |
-| 组件名称（Component Name） | `Package.name` | 子仓/包名（如 `agent-linux-kernel`） |
+| 组件名称（Component Name） | `Package.name` | 子仓/包名（如 `airymaxos-kernel`） |
 | 版本字符串（Version String） | `Package.version` | 语义化版本 + git commit hash |
 | 唯一标识符（Unique Identifier） | `Package.SPDXID` + `Package.externalRefs` | `SPDXRef-Package-kernel` + purl/cpe23 |
 | 依赖关系（Dependency Relationship） | `Relationship.type=DEPENDS_ON` | 见 §2.3 组件关系 |
@@ -155,7 +155,7 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-kernel",
-      "name": "agent-linux-kernel",
+      "name": "airymaxos-kernel",
       "versionInfo": "1.0.1+linux6.6.0-airy.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
@@ -190,7 +190,7 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-memory",
-      "name": "agent-linux-memory",
+      "name": "airymaxos-memory",
       "versionInfo": "1.0.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
@@ -202,7 +202,7 @@ SPDX 2.3 JSON 顶层结构包含以下必填字段：
     },
     {
       "SPDXID": "SPDXRef-Package-cognition",
-      "name": "agent-linux-cognition",
+      "name": "airymaxos-cognition",
       "versionInfo": "1.0.1",
       "supplier": "Organization: SPHARX Ltd.",
       "originator": "Organization: SPHARX Ltd.",
@@ -333,14 +333,14 @@ agent-linux 通过 git submodule 管理 8 个子仓。每个子仓作为 SPDX �
 
 | 子仓 | SPDX 包名 | 主要构成 | 默认许可证 | IRON-9 v3 层次 |
 |------|----------|---------|-----------|----------------|
-| kernel | `agent-linux-kernel` | Linux 6.6 fork + Airymax 修改 + corekern/ + [SC] 头文件 | `GPL-2.0-only`（上游）+ `AGPL-3.0-or-later OR Apache-2.0`（修改） | [SC] + [IND] |
-| services | `agent-linux-services` | 12 daemons + VFS 用户态化 + network 用户态化 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| security | `agent-linux-security` | Cupolas LSM + capability + Landlock + 国密（SM2/SM3/SM4） | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| memory | `agent-linux-memory` | MemoryRovol + CXL + PMEM + MGLRU | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| cognition | `agent-linux-cognition` | CoreLoopThree + Wasm 3.0 + LLM 调度 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
-| cloudnative | `agent-linux-cloudnative` | K8s CRD + containerd shim + OCI + CNI | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
-| system | `agent-linux-system` | RPM + dnf + configuration + DevStation | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
-| tests-linux | `agent-linux-tests` | KUnit + kselftest + 形式化验证 | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| kernel | `airymaxos-kernel` | Linux 6.6 fork + Airymax 修改 + corekern/ + [SC] 头文件 | `GPL-2.0-only`（上游）+ `AGPL-3.0-or-later OR Apache-2.0`（修改） | [SC] + [IND] |
+| services | `airymaxos-services` | 12 daemons + VFS 用户态化 + network 用户态化 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| security | `airymaxos-security` | Cupolas LSM + capability + Landlock + 国密（SM2/SM3/SM4） | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| memory | `airymaxos-memory` | MemoryRovol + CXL + PMEM + MGLRU | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| cognition | `airymaxos-cognition` | CoreLoopThree + Wasm 3.0 + LLM 调度 | `AGPL-3.0-or-later OR Apache-2.0` | [SS] + [IND] |
+| cloudnative | `airymaxos-cloudnative` | K8s CRD + containerd shim + OCI + CNI | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| system | `airymaxos-system` | RPM + dnf + configuration + DevStation | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
+| tests-linux | `airymaxos-tests-linux` | KUnit + kselftest + 形式化验证 | `AGPL-3.0-or-later OR Apache-2.0` | [IND] |
 
 #### 3.1.1 kernel 子仓详细清单
 
@@ -358,16 +358,16 @@ services 子仓包含 12 个 daemon 与 2 个用户态化子系统：
 
 | 组件 | SPDX 子包名 | 功能 | 依赖 |
 |------|------------|------|------|
-| gateway_d | `agent-linux-services-gateway` | IPC 网关守护进程 | kernel |
-| cogn_d | `agent-linux-services-cogn` | LLM 调度守护进程 | kernel, cognition |
-| dev_d | `agent-linux-services-dev` | 工具调用守护进程 | kernel |
-| sched_d | `agent-linux-services-sched` | 调度守护进程 | kernel |
-| audit_d | `agent-linux-services-audit` | 监控守护进程 | kernel |
-| net_d | `agent-linux-services-net` | 网络用户态化 | kernel |
-| vfs_d | `agent-linux-services-vfs` | VFS 用户态化 | kernel |
-| 其余 5 个 daemon | `agent-linux-services-*` | 各类系统服务 | kernel |
-| VFS 用户态化 | `agent-linux-services-vfs` | 虚拟文件系统用户态化 | kernel |
-| network 用户态化 | `agent-linux-services-net` | 网络栈用户态化 | kernel |
+| gateway_d | `airymaxos-services-gateway` | IPC 网关守护进程 | kernel |
+| cogn_d | `airymaxos-services-cogn` | LLM 调度守护进程 | kernel, cognition |
+| dev_d | `airymaxos-services-dev` | 工具调用守护进程 | kernel |
+| sched_d | `airymaxos-services-sched` | 调度守护进程 | kernel |
+| audit_d | `airymaxos-services-audit` | 监控守护进程 | kernel |
+| net_d | `airymaxos-services-net` | 网络用户态化 | kernel |
+| vfs_d | `airymaxos-services-vfs` | VFS 用户态化 | kernel |
+| 其余 5 个 daemon | `airymaxos-services-*` | 各类系统服务 | kernel |
+| VFS 用户态化 | `airymaxos-services-vfs` | 虚拟文件系统用户态化 | kernel |
+| network 用户态化 | `airymaxos-services-net` | 网络栈用户态化 | kernel |
 
 ### 3.2 第三方依赖
 
@@ -637,7 +637,7 @@ def scan_all_submodules(config: dict) -> list:
         git_info = scan_submodule_git_info(sub["path"])
         packages.append({
             "spdx_id": sub["spdx_id"],
-            "name": f"agent-linux-{sub['name']}",
+            "name": f"airymaxos-{sub['name']}",
             "version_info": f"{config['project']['version']}+{git_info['commit'][:8]}",
             "supplier": f"Organization: {config['project']['supplier']}",
             "downloadLocation": (
@@ -1200,12 +1200,12 @@ install -m 0644 %{_sourcedir}/sbom/agent-linux-%{version}.spdx.rdf \
 
 ```bash
 # 查看 RPM 内嵌 SBOM
-dnf install agent-linux-kernel-1.0.1
+dnf install airymaxos-kernel-1.0.1
 cat /usr/share/doc/agent-linux/sbom/agent-linux-1.0.1.spdx.json | jq '.packages[] | .name'
 
 # 通过 rpm 命令查询
-rpm -ql agent-linux-kernel | grep sbom
-rpm -q --requires agent-linux-cognition | grep memory
+rpm -ql airymaxos-kernel | grep sbom
+rpm -q --requires airymaxos-cognition | grep memory
 ```
 
 #### 6.1.2 OCI 镜像 SBOM 注解

@@ -195,10 +195,10 @@ agent-linux 以 **Linux 6.6 为唯一原生基线**（IRON-9 v3 工程基线）�
 
 ```bash
 # 安装 DKMS 包
-dnf install agent-linux-dkms
+dnf install airymaxos-dkms
 
 # 或
-apt install agent-linux-dkms
+apt install airymaxos-dkms
 
 # DKMS 自动编译
 dkms autoinstall
@@ -669,7 +669,7 @@ agentctl compat diagnose
 
 ```bash
 # 安装 DKMS 包
-sudo dnf install agent-linux-dkms kernel-devel
+sudo dnf install airymaxos-dkms kernel-devel
 
 # 编译并加载内核模块
 sudo dkms autoinstall

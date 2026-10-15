@@ -161,20 +161,20 @@ flowchart TD
 
 | # | RPM 包名 | 内容 | 架构 |
 |---|---------|------|------|
-| 1 | `agent-linux-kernel` | 内核镜像 + 模块 + `airy_defconfig` | x86_64 / aarch64 / riscv64 / loongarch64 |
-| 2 | `agent-linux-macro-superv` | macro_d daemon | x86_64 / aarch64 |
-| 3 | `agent-linux-logger` | logger_d | x86_64 / aarch64 |
-| 4 | `agent-linux-config` | config_d | x86_64 / aarch64 |
-| 5 | `agent-linux-gateway` | gateway_d | x86_64 / aarch64 |
-| 6 | `agent-linux-sched` | sched_d | x86_64 / aarch64 |
-| 7 | `agent-linux-vfs` | vfs_d | x86_64 / aarch64 |
-| 8 | `agent-linux-net` | net_d | x86_64 / aarch64 |
-| 9 | `agent-linux-mem` | mem_d | x86_64 / aarch64 |
-| 10 | `agent-linux-cogn` | cogn_d | x86_64 / aarch64 |
-| 11 | `agent-linux-sec` | sec_d + 纯 C LSM 模块 | x86_64 / aarch64 |
-| 12 | `agent-linux-audit` | audit_d | x86_64 / aarch64 |
-| 13 | `agent-linux-dev` | dev_d | x86_64 / aarch64 |
-| 14 | `agent-linux-devstation` | 开发工具 + SDK + 文档 | x86_64 |
+| 1 | `airymaxos-kernel` | 内核镜像 + 模块 + `airy_defconfig` | x86_64 / aarch64 / riscv64 / loongarch64 |
+| 2 | `airymaxos-services-macro-superv` | macro_d daemon | x86_64 / aarch64 |
+| 3 | `airymaxos-services-logger` | logger_d | x86_64 / aarch64 |
+| 4 | `airymaxos-services-config` | config_d | x86_64 / aarch64 |
+| 5 | `airymaxos-services-gateway` | gateway_d | x86_64 / aarch64 |
+| 6 | `airymaxos-services-sched` | sched_d | x86_64 / aarch64 |
+| 7 | `airymaxos-services-vfs` | vfs_d | x86_64 / aarch64 |
+| 8 | `airymaxos-services-net` | net_d | x86_64 / aarch64 |
+| 9 | `airymaxos-services-mem` | mem_d | x86_64 / aarch64 |
+| 10 | `airymaxos-services-cogn` | cogn_d | x86_64 / aarch64 |
+| 11 | `airymaxos-services-sec` | sec_d + 纯 C LSM 模块 | x86_64 / aarch64 |
+| 12 | `airymaxos-services-audit` | audit_d | x86_64 / aarch64 |
+| 13 | `airymaxos-services-dev` | dev_d | x86_64 / aarch64 |
+| 14 | `airymaxos-devstation` | 开发工具 + SDK + 文档 | x86_64 |
 
 ### 3.4 SBOM 内容
 
@@ -289,7 +289,7 @@ gpg --recv-keys <主密钥指纹>
 gpg --verify agent-linux-1.0.1.tar.xz.asc agent-linux-1.0.1.tar.xz
 
 # 验证 RPM 签名
-rpm --checksig agent-linux-kernel-1.0.1.x86_64.rpm
+rpm --checksig airymaxos-kernel-1.0.1.x86_64.rpm
 
 # 验证校验和
 sha256sum -c agent-linux-1.0.1.tar.xz.sha256sum
@@ -372,8 +372,8 @@ flowchart LR
 
 - **环境**：干净的虚拟机 / 物理机（x86_64 + aarch64）。
 - **步骤**：
-  1. 安装内核 RPM：`dnf install agent-linux-kernel-1.0.1`。
-  2. 安装 12 daemon RPM：`dnf install agent-linux-*`。
+  1. 安装内核 RPM：`dnf install airymaxos-kernel-1.0.1`。
+  2. 安装 12 daemon RPM：`dnf install airymaxos-services-*`。
   3. 重启系统。
   4. 验证 12 daemon 启动：`systemctl status macro-superv logger ...`。
   5. 验证五大选型：`zcat /proc/config.gz | grep -E 'SCHED_EXT|IO_URING|BPF_LSM|AIRY_LSM'`。
@@ -384,7 +384,7 @@ flowchart LR
 
 - **环境**：已安装上一版本（如 v0.1.1）。
 - **步骤**：
-  1. `dnf upgrade agent-linux-*`。
+  1. `dnf upgrade airymaxos-*`。
   2. 重启系统。
   3. 验证 12 daemon 启动。
   4. 验证配置兼容性（`airy_defconfig` 不变）。

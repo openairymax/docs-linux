@@ -100,7 +100,7 @@ AirymaxOS 全面复用 openEuler 24.03 LTS 构建体系（LAYER 方案，详见 
 
 | 产物 | 路径 | 作用 |
 |------|------|------|
-| airy-kernel.spec | build/airy-kernel.spec | RPM 打包模板（5 包拆分：airy-kernel/devel/headers/modules/debuginfo） |
+| airymaxos-kernel.spec | build/airymaxos-kernel.spec | RPM 打包模板（5 包拆分：airymaxos-kernel/devel/headers/modules/debuginfo） |
 | meta-airymax/ | build/meta-airymax/ | Yocto 自定义层（嵌入式镜像） |
 | custom/cfg_airymax/ | build/custom/cfg_airymax/ | imageTailor 配置覆盖（服务器/桌面镜像） |
 | ks-airymax.cfg | build/ks-airymax.cfg | Kickstart 安装脚本 |

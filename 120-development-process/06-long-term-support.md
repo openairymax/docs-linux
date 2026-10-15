@@ -66,7 +66,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - **分支**：从 `release/<MAJOR.MINOR>` 稳定分支派生 `lts-vX.Y`（保留 `release/<MAJOR.MINOR>` 作为稳定分支）。
 - **tag**：在 LTS 起始时标记 `vX.Y.0-lts`。
 - **文档**：在 README 与 release notes 中标记该版本为 LTS。
-- **RPM**：LTS 版本的 RPM 包名附加 `-lts` 后缀，例如 `agent-linux-kernel-lts-0.1.1`。
+- **RPM**：LTS 版本的 RPM 包名附加 `-lts` 后缀，例如 `airymaxos-kernel-lts-0.1.1`。
 
 ---
 

@@ -535,9 +535,9 @@ on:
 
 | RPM | 架构 | 构建工具 |
 |-----|------|---------|
-| `agent-linux-kernel` | x86_64 / aarch64 / riscv64 / loongarch64 | `rpmbuild` |
+| `airymaxos-kernel` | x86_64 / aarch64 / riscv64 / loongarch64 | `rpmbuild` |
 | 12 daemon RPM | x86_64 / aarch64 | `rpmbuild` |
-| `agent-linux-devstation` | x86_64 | `rpmbuild` |
+| `airymaxos-devstation` | x86_64 | `rpmbuild` |
 
 - **依赖**：daemon RPM 依赖 kernel RPM。
 - **签名**：RPM 构建后使用 GPG 密钥签名。
