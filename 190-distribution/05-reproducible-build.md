@@ -677,8 +677,10 @@ skopeo inspect --format '{{.Digest}}' \
 ```dockerfile
 # cloudnative/oci/Containerfile.agent-base
 # 可重现 Agent 基础镜像
+# 基底镜像须与 distro 目标发行版同源（openEuler 24.03 LTS SP2），
+# 否则 dnf 与 glibc/ABI 会与目标系统错位。
 
-ARG BASE_IMAGE=ghcr.io/spharx/base:1.0.1
+ARG BASE_IMAGE=docker.io/openeuler/openeuler:24.03-lts-sp2
 FROM $BASE_IMAGE
 
 # 构建参数（确定性）
