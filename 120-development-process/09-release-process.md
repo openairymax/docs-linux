@@ -339,12 +339,12 @@ rpm-repo/
 ```
 
 - **仓库元数据**：`repodata/repomd.xml`（含 GPG 签名）。
-- **用户配置**：用户在 `/etc/yum.repos.d/agent-linux.repo` 配置仓库地址。
+- **用户配置**：用户在 `/etc/yum.repos.d/airymaxos.repo` 配置仓库地址。
 
 ### 5.4 容器镜像仓库
 
-- **镜像名**：`spharx/agent-linux:vMAJOR.MINOR.PATCH`。
-- **镜像内容**：最小化 agent-linux 系统（内核 + 12 daemon + 必要工具）。
+- **镜像名**：`ghcr.io/spharx/airymaxos:vMAJOR.MINOR.PATCH`。
+- **镜像分层**：基底镜像 `agent-base` 为内核层（`airymaxos-kernel`）+ SDK 层，系统层在其上叠加 12 daemon 与必要工具。
 - **签名**：容器镜像使用 Cosign 签名。
 - **架构**：x86_64 / aarch64 多架构镜像。
 
