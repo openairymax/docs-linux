@@ -43,7 +43,7 @@ agent-linux 完整继承 Linux 6.6 内核基线的 KUnit 框架（`lib/kunit/`�
 ```mermaid
 flowchart TB
     subgraph "KUnit 框架层次（Linux 6.6 内核基线）"
-        A["make ARCH=um kunit.run<br/>kunit.filter_glob=*"]
+        A["kunit.py run --arch=um<br/>kunit.filter_glob=*"]
         B["executor.c<br/>kunit_run_all_tests()"]
         C["test.c<br/>kunit_run_tests()"]
         D["try-catch.c<br/>kunit_try_catch"]
@@ -66,7 +66,7 @@ flowchart TB
 
 | 载体 | 命令 | 适用场景 |
 |------|------|---------|
-| UML | `make ARCH=um kunit.run` | 开发者本地快速反馈（首选） |
+| UML | `./tools/testing/kunit/kunit.py run --arch=um` | 开发者本地快速反馈（首选） |
 | QEMU | `kunit.enable=1` 启动参数 | 架构相关测试 |
 | 真实硬件 | `kunit.enable=1` 启动参数 | 硬件依赖测试 |
 | 模块加载 | `modprobe my_kunit_test` | 运行时按需测试 |
@@ -423,12 +423,12 @@ CI 矩阵覆盖 `arch: [um, x86_64, arm64, riscv64] × config: [defconfig, allmo
 
 ```bash
 ./tools/testing/kunit/kunit.py run                          # 运行所有套件
-./tools/testing/kunit/kunit.py run --filter_glob=airy_*  # 仅运行 airy_* 套件
+./tools/testing/kunit/kunit.py run 'airy_*'                # 仅运行 airy_* 套件（filter_glob 为位置参数）
 ./tools/testing/kunit/kunit.py run --kernel_args=kunit.action=list  # 列出所有套件
 ./tools/testing/kunit/kunit.py parse < results.tap          # 解析 TAP 结果
 ```
 
-**OS-STD-005**：CI 第 7 层（单元测试层）必须运行 `make ARCH=um kunit.run` 全量套件，且 `kunit.filter_glob=airy_*` 单独运行 agent-linux 套件以隔离命名空间。
+**OS-STD-005**：CI 第 7 层（单元测试层）必须运行 `./tools/testing/kunit/kunit.py run --arch=um` 全量套件，且以 `--kernel_args=kunit.filter_glob=airy_*` 单独运行 agent-linux 套件以隔离命名空间（`kunit.filter_glob` 是内核启动参数，非 `kunit.py` 选项）。
 
 **OS-TEST-012**：PR 引入新 KUnit 套件时，CI 必须对比 PR 前后的 TAP 用例数；新增套件必须使 agent-linux 总用例数单调递增（不可因重构而静默删除套件）。
 
@@ -460,7 +460,7 @@ CI 矩阵覆盖 `arch: [um, x86_64, arm64, riscv64] × config: [defconfig, allmo
 | 生命周期 | `init → run → exit` | `init → run → exit` | 测试执行生命周期 |
 | 参数化测试 | `airy_param_test` 表驱动 | `KUNIT_PARAM_TEST` 表驱动 | 参数化测试模式 |
 | 结果输出 | TAP 13 格式 | TAP 13 格式 | 测试结果报告格式 |
-| 套件过滤 | `--filter` 选项 | `--filter_glob` 选项 | 套件选择过滤 |
+| 套件过滤 | `--filter` 选项 | `filter_glob` 位置参数 | 套件选择过滤 |
 
 **语义说明**：agentrt 用户态测试框架与 agent-linux 内核态的 KUnit 在"声明式测试注册 + 断言驱动"这一核心语义上同源——二者均通过**声明式宏**（`AIRY_TEST` / `KUNIT_CASE`）注册测试用例，通过**断言宏**（`airy_assert_*` / `KUNIT_EXPECT_*`）驱动验证逻辑，遵循统一的 `init → run → exit` 生命周期。这种同源使测试用例的编写心智模型在两端可复用：理解了 KUnit 的 `KUNIT_CASE` 套件注册，即理解了 agentrt 的 `AIRY_TEST` 用例注册。两端还共享 **TAP 13 输出格式**，使 CI 可用统一的解析器处理两端的测试结果。但**机制完全独立**——KUnit 运行于内核态 kthread，agentrt 测试运行于用户态进程，二者无代码共享。
 
@@ -895,17 +895,17 @@ int kunit_run_tests(struct kunit_suite *suite);
 
 /**
  * kunit_run_all_tests - 执行所有已注册套件（executor 入口）
- * @filter:     过滤表达式（filter_glob / filter / filter_action）
  *
- * 从 __kunit_suites_start/end 取得套件集合，应用过滤后逐套件调用
- * kunit_run_tests()。由 `make ARCH=um kunit.run` 触发。
+ * 从 __kunit_suites_start/end 取得套件集合，内部读取 kunit.filter_glob /
+ * kunit.filter / kunit.filter_action 启动参数并应用过滤，逐套件调用
+ * kunit_run_tests()。由 `./tools/testing/kunit/kunit.py run` 触发。
  *
  * 返回: 0 全部成功；非零存在失败用例
  *
  * 对齐 Linux 6.6 lib/kunit/executor.c
  * @since 0.1.1
  */
-int kunit_run_all_tests(const char *filter);
+int kunit_run_all_tests(void);
 ```
 
 #### A.2.3 kunit_test_suite_init — 套件初始化

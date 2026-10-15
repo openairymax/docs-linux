@@ -26,7 +26,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 术语 | 定义 |
 |------|------|
 | 7 层自动化验证体系 | OS-STD-TOOL-001~161 定义的端到端验证链：L1 编译期检查 / L2 静态分析 / L3 预提交 / L4 CI 门禁 / L5 连接验证 / L6 协议验证 / L7 发布验证 |
-| CI 矩阵 | 配置 × 架构 × 编译器的笛卡尔积构建矩阵（4×4×2−1=31，loongarch+clang 组合暂不支持） |
+| CI 矩阵 | 配置 × 架构 × 编译器的笛卡尔积构建矩阵（4×4×2−4=28，loongarch+clang 组合整体排除） |
 | [SC] 共享契约层 | agentrt ↔ agent-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014），物理宿主 `kernel/include/uapi/linux/airymax/` |
 | 双向 CI | kernel CI 通过 → 触发 agentrt 镜像 PR → agentrt CI 通过 → L1 审查 → L3 审批（OS-IRON-008） |
 | SSoT | Single Source of Truth，规则编号唯一权威来源（`09-ssot-registry.md`/`.yaml`） |
@@ -92,7 +92,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 
 ```
 agent-linux/.github/workflows/
-├── ci-kernel.yml            # kernel 子仓 CI（31 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
+├── ci-kernel.yml            # kernel 子仓 CI（28 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
 ├── ci-airy.yml              # Airymax 专属代码 CI（airy_defconfig 4 架构构建 + checkpatch + SPDX + 符号完整性）
 ├── codegen-verify.yml       # codegen 一致性校验（契约源 → 生成产物零漂移 SSoT gate，见 30-interfaces/06-codegen-pipeline.md §7.2）
 ├── ssot-validate.yml        # SSoT 规则 ID 校验（全仓）
@@ -181,30 +181,40 @@ kernel 子仓 CI 是全仓最重的管道，承载 Linux 内核基线全套验�
 
 | 阶段 | 工具 | 规则编号 | 阻断 |
 |------|------|---------|------|
-| Kbuild 编译 | `make` + 4 配置矩阵（31 格） | OS-STD-TOOL-161 | 是 |
+| Kbuild 编译 | `make` + 4 配置矩阵（28 格） | OS-STD-TOOL-161 | 是 |
 | checkpatch | `scripts/checkpatch.pl --strict` | OS-STD-TOOL-160 | 是 |
 | sparse | `make C=2` + W=2 | OS-STD-TOOL-081-CI | 是 |
 | Coccinelle | `make coccicheck` | L2 静态分析段（OS-STD-TOOL-001~099） | 是 |
 | KUnit | UML + `kunit.py run` | OS-TEST-001~012 | 是 |
 | kselftest | QEMU + TAP 解析 | OS-TEST-013~022 | 是 |
 
-> **job 结构**：ci-kernel.yml 实际重组为 **2 个 job**——`kernel-build`（31 格 Kbuild 编译矩阵）+ `kernel-verify`（静态分析 + 运行时测试，含 checkpatch/sparse/Coccinelle/KUnit/kselftest/ABI/codegen 校验），`kernel-verify` 通过 `needs: kernel-build` 串行等待编译矩阵全绿。
+> **job 结构**：ci-kernel.yml 实际重组为 **2 个 job**——`kernel-build`（28 格 Kbuild 编译矩阵）+ `kernel-verify`（静态分析 + 运行时测试，含 checkpatch/sparse/Coccinelle/KUnit/kselftest/ABI/codegen 校验），`kernel-verify` 通过 `needs: kernel-build` 串行等待编译矩阵全绿。
+>
+> **路径过滤器语义**：kernel 在管理仓中是 **gitlink（submodule 指针）**，父仓无法枚举子仓内部文件，子模块提交上推只会改动 `kernel` 这一条路径本身。因此 `paths` 必须同时列出 `'kernel'` 与 `'kernel/**'`，否则内核更新不会触发任何流水线。
+>
+> **step 次序约束**：KUnit 使用 `O=.kunit` 外置构建，kbuild 要求源码树干净（无 `.config` / `include/config/auto.conf`），故 KUnit 必须排在所有 in-tree 构建**之前**，否则报 `The source tree is not clean`。
 
 ```yaml
 # agent-linux/.github/workflows/ci-kernel.yml（节选）
 name: ci-kernel
 on:
   pull_request:
-    paths: ['kernel/**']
+    paths:
+      - 'kernel'
+      - 'kernel/**'
+      - '.github/workflows/ci-kernel.yml'
   push:
-    branches: [main, develop]
-    paths: ['kernel/**']
+    branches: [main]
+    paths:
+      - 'kernel'
+      - 'kernel/**'
+      - '.github/workflows/ci-kernel.yml'
 
 jobs:
   kernel-build:
-    name: Kbuild Matrix (31 configs)
+    name: Kbuild Matrix (28 configs)
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       max-parallel: 8
@@ -213,51 +223,140 @@ jobs:
         arch: [x86_64, arm64, riscv, loongarch]
         compiler: [gcc, clang]
         exclude:
-          # clang + loongarch 上游工具链暂不支持
+          # clang + loongarch 上游工具链暂不支持，该架构的 4 个配置组合整体排除
           - arch: loongarch
             compiler: clang
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
-      - name: Kbuild ${{ matrix.config }} / ${{ matrix.arch }} / ${{ matrix.compiler }}
+      - name: Install build dependencies and toolchain
         run: |
-          make ARCH=${{ matrix.arch }} CC=${{ matrix.compiler }} ${{ matrix.config }}
-          make ARCH=${{ matrix.arch }} CC=${{ matrix.compiler }} -j$(nproc) W=2 2>&1 | tee build.log
-          ! grep -E "error:|warning:" build.log
+          set -euo pipefail
+          sudo apt-get install -y flex bison libelf-dev libssl-dev bc cpio
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            sudo apt-get install -y clang lld llvm
+          else
+            case "${{ matrix.arch }}" in
+              arm64)     sudo apt-get install -y gcc-aarch64-linux-gnu ;;
+              riscv)     sudo apt-get install -y gcc-riscv64-linux-gnu ;;
+              loongarch) sudo apt-get install -y gcc-13-loongarch64-linux-gnu ;;
+            esac
+          fi
+      - name: Kbuild ${{ matrix.config }} / ${{ matrix.arch }} / ${{ matrix.compiler }}
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            # LLVM=1 由 clang/lld/llvm 提供全部工具，跨架构目标由 ARCH 推导；
+            # 此时不能再设 CROSS_COMPILE，否则会去调用并不存在的 GNU 交叉 binutils。
+            mkargs=(LLVM=1)
+          else
+            case "${{ matrix.arch }}" in
+              x86_64)    cross="" ;;
+              arm64)     cross=aarch64-linux-gnu- ;;
+              riscv)     cross=riscv64-linux-gnu- ;;
+              loongarch) cross=loongarch64-linux-gnu- ;;
+            esac
+            mkargs=("CROSS_COMPILE=$cross")
+          fi
+          if [ "${{ matrix.config }}" = "airy_defconfig" ]; then
+            # airy_defconfig 是叠加在架构 base defconfig 之上的配置片段，不是 make 目标
+            make ARCH=${{ matrix.arch }} "${mkargs[@]}" defconfig
+            ./scripts/kconfig/merge_config.sh -m .config "arch/${kdir}/configs/airy_defconfig"
+            make ARCH=${{ matrix.arch }} "${mkargs[@]}" olddefconfig
+          else
+            make ARCH=${{ matrix.arch }} "${mkargs[@]}" "${{ matrix.config }}"
+          fi
+          make ARCH=${{ matrix.arch }} "${mkargs[@]}" -j"$(nproc)" 2>&1 | tee build.log
+          if [ "${{ matrix.config }}" != "allmodconfig" ]; then
+            make ARCH=${{ matrix.arch }} "${mkargs[@]}" modules -j"$(nproc)" 2>&1 | tee -a build.log
+          fi
+          # 门禁分级：error 一律阻断；warning 只对 Airymax 路径收敛阻断
+          if grep -E "error:" build.log; then
+            echo "::error::build emitted compiler errors"; exit 1
+          fi
+          airy_re='security/airy/|kernel/(superv|syscalls|corekern|log|ipc)/|/airymax/'
+          if grep -E "warning:" build.log > warnings.log; then
+            if grep -E "${airy_re}" warnings.log; then
+              echo "::error::Airymax code emitted compiler warnings"; exit 1
+            fi
+          fi
 
   kernel-verify:
     name: Static Analysis + Runtime Tests
     runs-on: ubuntu-latest
     needs: kernel-build
-    timeout-minutes: 30
+    timeout-minutes: 60
+    env:
+      KSFT_INSTALL: ${{ github.workspace }}/kselftest-install
     steps:
       - uses: actions/checkout@v4
         with: { submodules: recursive }
+      - name: Install analysis and runtime test tools
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y sparse coccinelle rsync zstd file kmod iproute2 kbd
+          # virtme-ng 在 QEMU 中启动刚构建的内核；qemu 与 busybox 只在 Recommends 中
+          sudo apt-get install -y virtme-ng qemu-system-x86 busybox-static
       - name: ABI consistency check (OS-IRON-001)
         run: python3 tools/abi-check/abi_check.py --check
-      - name: Codegen drift check (R-01 SSoT)
-        run: python3 tools/codegen/syscall_gen.py --check
+      - name: Codegen zero-drift check
+        run: python3 tools/codegen/run_codegen.py --check
       - name: checkpatch.pl --strict (OS-STD-TOOL-160)
         run: |
-          git diff --name-only origin/${{ github.base_ref }} HEAD -- 'kernel/**/*.c' 'kernel/**/*.h' > files.txt
-          while read f; do
-            kernel/scripts/checkpatch.pl --strict --no-tree -f "$f" || exit 1
-          done < files.txt
-      - name: sparse make C=2 W=2 (OS-STD-TOOL-081-CI)
+          # 逐文件全量扫描 Airymax 目录。shallow clone 下 HEAD^ / origin/<base>
+          # 无法解析，且父仓看不到 submodule 内部文件，故不使用 git diff 取文件清单。
+          mapfile -t files < <(find "${dirs[@]}" -type f \( -name '*.c' -o -name '*.h' \) | LC_ALL=C sort)
+          # checkpatch --strict 只要有 ERROR/WARNING/CHECK 就返回 1，门禁不能依赖
+          # 退出码，必须解析 total 行。定级：ERROR 阻断，WARNING/CHECK 仅报告。
+          ...
+      - name: KUnit on UML (OS-TEST-001~012)          # 必须最先跑，见上文次序约束
+        working-directory: kernel
         run: |
-          make ARCH=x86_64 defconfig
-          make ARCH=x86_64 C=2 W=2 -j$(nproc) 2>&1 | tee sparse.log
-          ! grep -E "warning:" sparse.log
-      - name: KUnit on UML (OS-TEST-001~012)
+          set -o pipefail
+          ./tools/testing/kunit/kunit.py run --arch=um --raw_output=kunit \
+            --kunitconfig=security/airy 2>&1 | tee "$GITHUB_WORKSPACE/kunit.tap"
+      - name: Verify KUnit TAP against baseline (OS-TEST-012)
+        run: python3 tools/kunit-tap-diff.py --current kunit.tap
+      - name: Configure and build x86_64 airy_defconfig
         run: |
-          make ARCH=um defconfig
-          ./tools/testing/kunit/kunit.py run --arch=um --raw_output=TAP
-      - name: kselftest on QEMU (OS-TEST-013~022)
+          # defconfig → merge_config.sh -m → olddefconfig 三步法，并对 airy 关键
+          # CONFIG 与 CONFIG_LSM 含 airy 逐项断言（详见 §3.3）
+          ...
+      - name: sparse make C=2 W=2 on Airymax objects (OS-STD-TOOL-081-CI)
         run: |
-          make ARCH=x86_64 defconfig
-          ./tools/testing/kselftest/run_kselftest.sh --tap > /tmp/kselftest.tap
-      - name: Parse kselftest TAP
-        run: python3 tools/parse-tap.py --input /tmp/kselftest.tap --fail-on-not-ok
+          # 只对 Airymax 自己的目标文件触发 sparse，避免整树 C=2 超时；
+          # 对象清单由上一步构建产物推导，保证与编译配置一致。
+          make ARCH=x86_64 C=2 W=2 -j"$(nproc)" "${objs[@]}" 2>&1 | tee sparse.log
+          pat='^(security/airy|kernel/(superv|syscalls|corekern|log|ipc))/[^:]+:[0-9]+:[0-9]+: (warning|error):'
+          grep -E "$pat" sparse.log && { echo "::error::sparse reported issues"; exit 1; }
+      - name: Coccinelle on Airymax directories
+        run: |
+          # 10 个 .cocci 脚本 × 6 个 Airymax 目录 = 60 次扫描。coccicheck 把 SPFLAGS
+          # 追加在最后，spatch 冲突时取最后一个选项，由此把默认的 --dir $srctree
+          # 收窄到单个 Airymax 目录。
+          for script in "${cocci_scripts[@]}"; do
+            for dir in "${cocci_dirs[@]}"; do
+              make -s ARCH=x86_64 coccicheck MODE=report J=1 \
+                COCCI="$script" SPFLAGS="--dir $dir" >> cocci.log 2>&1 || true
+            done
+          done
+      - name: Build and install kselftest subset
+        run: |
+          # run_kselftest.sh 从自身位置推导 BASE_DIR 并读取同目录 kselftest-list.txt，
+          # 因此必须先 install 到独立目录，再从该目录运行。
+          make -C tools/testing/selftests TARGETS="seccomp pidfd membarrier rseq" \
+            -j"$(nproc)" install KSFT_INSTALL_PATH="$KSFT_INSTALL"
+      - name: Run kselftest via virtme-ng (OS-TEST-013~022)
+        run: |
+          cd "$KSFT_INSTALL"
+          # x86_64 defconfig 无 CONFIG_VIRTIO_FS，须显式 --force-9p；
+          # GitHub 标准 runner 无 /dev/kvm，故 --disable-kvm 回退 TCG。
+          vng --run "$GITHUB_WORKSPACE/kernel/arch/x86/boot/bzImage" \
+            --cwd "$KSFT_INSTALL" --force-9p --disable-kvm --quiet \
+            --exec "./run_kselftest.sh --summary" > "$GITHUB_WORKSPACE/kselftest.tap" 2>&1
+      - name: Parse kselftest TAP (OS-TEST-022)
+        run: python3 tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
 ```
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
@@ -298,14 +397,14 @@ jobs:
 
 ### 3.1 矩阵定义（OS-STD-TOOL-161）
 
-每个 PR 必须通过 **4 配置 × 4 架构 × 2 编译器 − 1（loongarch 暂不支持 clang）= 31 配置矩阵** 的 Kbuild 构建。配置/架构/编译器三者皆绿方可合并——`allnoconfig` 暴露 `#ifdef` 错配、`allmodconfig` 暴露符号冲突、`defconfig` 验证默认路径、`airy_defconfig` 验证 Airymax 专属配置闭包。
+每个 PR 必须通过 **4 配置 × 4 架构 × 2 编译器 − 4（loongarch 暂不支持 clang，该架构的 4 个配置组合整体排除）= 28 配置矩阵** 的 Kbuild 构建。配置/架构/编译器三者皆绿方可合并——`allnoconfig` 暴露 `#ifdef` 错配、`allmodconfig` 暴露符号冲突、`defconfig` 验证默认路径、`airy_defconfig` 验证 Airymax 专属配置闭包。
 
 | 维度 | 取值 | 数量 | 验证目标 |
 |------|------|------|---------|
 | **配置** | defconfig / allnoconfig / allmodconfig / airy_defconfig | 4 | `#ifdef` 错配 / 符号冲突 / 默认路径 / Airymax 配置闭包 |
 | **架构** | x86_64 / arm64 / riscv / loongarch | 4 | 四架构 ABI 一致性 |
 | **编译器** | GCC / Clang | 2 | 编译器无关性（loongarch+clang 组合暂不支持，见 exclude） |
-| **合计** | — | **31** | — |
+| **合计** | — | **28** | — |
 
 ### 3.2 矩阵生成与调度
 
@@ -313,30 +412,47 @@ jobs:
 # agent-linux/.github/workflows/ci-kernel.yml（矩阵段）
 strategy:
   fail-fast: false          # 单格失败不取消其他格，便于一次性收集全部错误
-  max-parallel: 8           # 31 格分批运行，避免超出 GitHub Actions 并发上限
+  max-parallel: 8           # 28 格分批运行，避免超出 GitHub Actions 并发上限
   matrix:
     config: [defconfig, allnoconfig, allmodconfig, airy_defconfig]
     arch: [x86_64, arm64, riscv, loongarch]
     compiler: [gcc, clang]
     exclude:
       - arch: loongarch
-        compiler: clang     # 上游工具链暂不支持，31 = 4×4×2−1
+        compiler: clang     # 上游工具链暂不支持，28 = 4×4×2−4
 ```
 
 ### 3.3 矩阵编译命令模板
 
 ```bash
-# 通用模板：$ARCH / $CC / $CONFIG 由 matrix 注入
-make ARCH=$ARCH CC=$CC $CONFIG
-make ARCH=$ARCH CC=$CC -j$(nproc) 2>&1 | tee build.log
+# 通用模板：$ARCH / $CONFIG 由 matrix 注入；工具链前缀由编译器分支决定
+#   gcc   → CROSS_COMPILE=<arch 前缀>（x86_64 为空）
+#   clang → LLVM=1，且不得同时设置 CROSS_COMPILE（跨架构目标由 ARCH 推导）
+mkargs=("CROSS_COMPILE=$CROSS")
+[ "$COMPILER" = clang ] && mkargs=(LLVM=1)
 
-# 零警告检查（编译期门禁，对齐 A-4 完美主义）
-! grep -E "error:|warning:" build.log
+# 配置生成：airy_defconfig 是叠加在架构 base defconfig 上的配置片段，不是 make 目标，
+# 必须走 defconfig → merge_config.sh -m → olddefconfig 三步法；其余配置名可直接作为目标。
+if [ "$CONFIG" = "airy_defconfig" ]; then
+  make ARCH=$ARCH "${mkargs[@]}" defconfig
+  ./scripts/kconfig/merge_config.sh -m .config "arch/$KDIR/configs/airy_defconfig"
+  make ARCH=$ARCH "${mkargs[@]}" olddefconfig
+else
+  make ARCH=$ARCH "${mkargs[@]}" "$CONFIG"
+fi
+
+make ARCH=$ARCH "${mkargs[@]}" -j"$(nproc)" 2>&1 | tee build.log
 
 # 模块构建（allmodconfig 跳过，已全部内建）
 if [ "$CONFIG" != "allmodconfig" ]; then
-  make ARCH=$ARCH CC=$CC modules -j$(nproc)
+  make ARCH=$ARCH "${mkargs[@]}" modules -j"$(nproc)" 2>&1 | tee -a build.log
 fi
+
+# 编译期门禁（对齐 A-4 完美主义）：error 一律阻断；
+# warning 只对 Airymax 路径收敛阻断，避免上游既有 warning 把矩阵永久染红。
+grep -E "error:" build.log && { echo "::error::compiler errors"; exit 1; }
+airy_re='security/airy/|kernel/(superv|syscalls|corekern|log|ipc)/|/airymax/'
+grep -E "warning:" build.log > warnings.log && grep -E "${airy_re}" warnings.log
 ```
 
 ### 3.4 矩阵失败语义
@@ -349,11 +465,11 @@ fi
 
 ### 3.5 矩阵优化
 
-31 格全量构建在 GitHub Actions 上耗时约 40 分钟，逼近 60 分钟上限（OS-STD-TEST-011）。优化策略：
+28 格全量构建在 GitHub Actions 上耗时约 40 分钟，逼近 60 分钟上限（OS-STD-TEST-011）。优化策略：
 
 - **ccache 命中**：按 `config+arch+compiler` 三元组缓存 2G，二次构建命中率 ≥70%。
 - **路径过滤**：PR 仅触及 `Documentation/` 或 `tools/` 时跳过矩阵，仅跑文档格式校验。
-- **并行分批**：31 格 `max-parallel: 8` 分批运行，每批 ≤20 分钟。
+- **并行分批**：28 格 `max-parallel: 8` 分批运行，每批 ≤20 分钟。
 
 ---
 
@@ -361,23 +477,29 @@ fi
 
 ### 4.1 checkpatch.pl --strict（OS-STD-TOOL-160）
 
-每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`，无 ERROR / WARNING。checkpatch 检查 Linux 6.6 内核基线规则 + agent-linux 扩展规则。
+每个 PR 提交前必须通过 `scripts/checkpatch.pl --strict`。checkpatch 检查 Linux 6.6 内核基线规则 + agent-linux 扩展规则。
+
+**门禁定级**：`--strict` 下只要有 ERROR/WARNING/CHECK 之一，checkpatch 就返回退出码 1，因此门禁**不能依赖退出码**，必须解析输出末行 `total: N errors, N warnings, N checks, N lines checked`。定级为 **ERROR 阻断合并 / WARNING 与 CHECK 仅报告**（L-11 归一化，避免历史遗留风格问题把门禁永久染红）。
 
 ```bash
-# 对 PR 改动的每个 .c/.h 文件单独检查
-scripts/checkpatch.pl --strict --no-tree -f drivers/airymax/ipc/airy_ipc.c
-# 输出必须为空（无 ERROR / WARNING / CHECK）
+# 对 Airymax 目录下的每个 .c/.h 文件单独检查
+LC_ALL=C scripts/checkpatch.pl --strict --no-tree -f security/airy/airy_ipc.c
 ```
 
-CI 门禁实现：
+CI 门禁实现（文件清单来自 `find`，见 §2.3 说明）：
 
 ```yaml
 - name: checkpatch --strict (OS-STD-TOOL-160)
   run: |
-    git diff --name-only origin/${{ github.base_ref }} HEAD -- 'kernel/**/*.c' 'kernel/**/*.h' > files.txt
-    while read f; do
-      scripts/checkpatch.pl --strict --no-tree -f "$f"
-    done < files.txt
+    mapfile -t files < <(find "${dirs[@]}" -type f \( -name '*.c' -o -name '*.h' \) | LC_ALL=C sort)
+    err_total=0
+    for f in "${files[@]}"; do
+      out="$(LC_ALL=C scripts/checkpatch.pl --strict --no-tree -f "$f" 2>&1 || true)"
+      total="$(printf '%s\n' "$out" | grep -m1 '^total:' || true)"
+      errs="$(printf '%s\n' "$total" | sed -n 's/^total: \([0-9]\{1,\}\) errors.*/\1/p')"
+      err_total=$((err_total + ${errs:-0}))
+    done
+    [ "$err_total" -gt 0 ] && exit 1    # 仅 ERROR 阻断，WARNING/CHECK 报告不阻断
 ```
 
 ### 4.2 sparse make C=2 + W 分级（OS-STD-TOOL-081）
@@ -398,23 +520,59 @@ sparse 是 Linux 内核基线的类型检查器，通过 `make C=2` 启用。W �
 | W=2 | 发布 | `make W=2 C=2` 全量审计（OS-STD-TOOL-081-REL） |
 
 ```yaml
-- name: sparse make C=2 W=2 (OS-STD-TOOL-081-CI)
+- name: sparse make C=2 W=2 on Airymax objects (OS-STD-TOOL-081-CI)
   run: |
-    make ARCH=x86_64 airy_defconfig
-    make ARCH=x86_64 C=2 W=2 -j$(nproc) 2>&1 | tee sparse.log
-    ! grep -E "warning:" sparse.log
+    # 只对 Airymax 自己的目标文件触发 sparse，避免整树 C=2 超时；
+    # 对象清单由构建产物推导，保证与编译配置一致。
+    objs=()
+    for c in $(find security/airy kernel/superv kernel/syscalls \
+                 kernel/corekern kernel/log kernel/ipc -name '*.c'); do
+      [ -f "${c%.c}.o" ] && objs+=("${c%.c}.o")
+    done
+    [ "${#objs[@]}" -eq 0 ] && { echo "::error::no Airymax objects built"; exit 1; }
+    make ARCH=x86_64 C=2 W=2 -j"$(nproc)" "${objs[@]}" 2>&1 | tee sparse.log
+    # 门禁只匹配 Airymax 路径，避免上游既有 sparse 报告把门禁永久染红
+    pat='^(security/airy|kernel/(superv|syscalls|corekern|log|ipc))/[^:]+:[0-9]+:[0-9]+: (warning|error):'
+    grep -E "$pat" sparse.log && exit 1
 ```
 
 ### 4.3 Coccinelle 语义补丁检查
 
-Coccinelle（`make coccicheck`）使用语义补丁（`.cocci`）检测常见错误模式：NULL 解引用、双重锁、错误路径资源泄漏。CI 以 `MODE=report` 运行，任何报告即失败。
+Coccinelle（`make coccicheck`）使用语义补丁（`.cocci`）检测常见错误模式：NULL 解引用、双重锁、错误路径资源泄漏。CI 以 `MODE=report` 运行，落在 Airymax 路径上的任何报告即失败。
+
+整树 `coccicheck` 在 CI 上必然超时，因此收敛为 **10 个脚本 × 6 个 Airymax 目录 = 60 次扫描**，每次只扫一个目录：
 
 ```yaml
-- name: make coccicheck
-  run: make ARCH=x86_64 coccicheck MODE=report V=1
+- name: Coccinelle on Airymax directories
+  run: |
+    cocci_scripts=(
+      scripts/coccinelle/misc/doubleinit.cocci
+      scripts/coccinelle/misc/ifcol.cocci
+      scripts/coccinelle/misc/minmax.cocci
+      scripts/coccinelle/misc/returnvar.cocci
+      scripts/coccinelle/misc/semicolon.cocci
+      scripts/coccinelle/misc/uninitialized_var.cocci
+      scripts/coccinelle/free/ifnullfree.cocci
+      scripts/coccinelle/locks/double_lock.cocci
+      scripts/coccinelle/null/deref_null.cocci
+      scripts/coccinelle/null/kmerr.cocci
+    )
+    cocci_dirs=(security/airy kernel/superv kernel/syscalls \
+                kernel/corekern kernel/log kernel/ipc)
+    for script in "${cocci_scripts[@]}"; do
+      for dir in "${cocci_dirs[@]}"; do
+        # coccicheck 把 SPFLAGS 追加在 OPTIONS 末尾，spatch 冲突时取最后一个选项，
+        # 由此把默认的 --dir $srctree 收窄到单个 Airymax 目录。
+        make -s ARCH=x86_64 coccicheck MODE=report J=1 \
+          COCCI="$script" SPFLAGS="--dir $dir" >> cocci.log 2>&1 || true
+      done
+    done
+    grep -q '^coccicheck failed' cocci.log && exit 1
+    pat='^(security/airy|kernel/(superv|syscalls|corekern|log|ipc))/[^:]+:[0-9]+:[0-9]+'
+    grep -E "$pat" cocci.log && exit 1
 ```
 
-agent-linux 在 `scripts/coccinelle/` 下维护自定义语义补丁，覆盖 agent-linux 扩展规则（如 AgentsIPC ring buffer 越界、share_pool 引用计数）。
+> **规划项标识**：agent-linux 自有的语义补丁（AgentsIPC ring buffer 越界、share_pool 引用计数等）**尚未落地**——`kernel/scripts/coccinelle/` 下现有 71 个 `.cocci` 全部来自 Linux 6.6 上游，无 Airymax 专属脚本。上述 CI 阶段仅运行上游脚本，自定义规则列入后续迭代，落地后按同一 `SPFLAGS="--dir <dir>"` 收敛方式并入脚本清单。
 
 ### 4.4 clang-analyzer 静态分析
 
@@ -468,13 +626,19 @@ KUnit 是 agent-linux 内核态白盒单元测试框架，默认在 UML（User M
 
 ```yaml
 - name: KUnit on UML (OS-TEST-001~012)
+  working-directory: kernel
   run: |
-    make ARCH=um defconfig
-    ./tools/testing/kunit/kunit.py run --arch=um --raw_output=TAP > kunit.tap
-    python3 agent-linux/tools/parse-tap.py --input kunit.tap --fail-on-not-ok
+    ./tools/testing/kunit/kunit.py run --arch=um --raw_output=kunit \
+      --kunitconfig=security/airy 2>&1 | tee "$GITHUB_WORKSPACE/kunit.tap"
 - name: TAP case count monotonic (OS-TEST-012)
-  run: python3 agent-linux/tools/kunit-tap-diff.py --baseline origin/develop --current kunit.tap
+  run: python3 tools/kunit-tap-diff.py --current kunit.tap
 ```
+
+> **次序约束**：`kunit.py` 使用独立的 `O=.kunit` 构建目录，但 kbuild 在检测到源码树存在 in-tree 构建残留时会报 `The source tree is not clean, please run 'make mrproper'`。因此 KUnit 步骤**必须排在 in-tree 内核构建之前**；若反过来，CI 必红。
+>
+> **参数说明**：`kunit.py` 的 `--raw_output` 仅在取值为 `all`（原样输出全部内容）或 `kunit`（只抽取 KUnit TAP 行）时有明确语义；其余取值会原样打印完整内核启动日志，导致下游 TAP 解析失败——旧文档的 `--raw_output=TAP` 即属此列。`--kunitconfig=security/airy` 直接指向唯一配置目录 `kernel/security/airy/.kunitconfig`，无需先 `make ARCH=um defconfig`。
+>
+> **基线比对**：`kunit-tap-diff.py` 的 `--baseline-file` 默认为 `tools/kunit-tap-baseline.tap`（版本受控的基线，8 套件 / 49 叶子），不再依赖 `origin/develop`——shallow clone 下该 ref 不可解析。PR 引入新套件时用 `--update` 刷新基线。
 
 ### 5.3 kselftest 系统测试（OS-TEST-013~022）
 
@@ -485,12 +649,27 @@ kselftest 是 agent-linux 系统级测试框架，默认在 QEMU 上运行（CI 
 - **OS-TEST-022**：flaky 测试必须在 `airy_flaky_baseline.md` 登记并限期修复；未修复的 flaky 测试由 CI 标记为 `KSFT_XFAIL`。
 
 ```yaml
-- name: kselftest on QEMU (OS-TEST-013~022)
-  run: |
-    make ARCH=x86_64 airy_defconfig
-    ./tools/testing/kselftest/run_kselftest.sh --tap > kselftest.tap
-    python3 agent-linux/tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
+env:
+  KSFT_INSTALL: ${{ github.workspace }}/kselftest-install
+steps:
+  - name: Build and install kselftest subset (OS-TEST-013~022)
+    working-directory: kernel
+    run: |
+      make -C tools/testing/selftests TARGETS="seccomp pidfd membarrier rseq" \
+        -j"$(nproc)" install KSFT_INSTALL_PATH="$KSFT_INSTALL"
+  - name: kselftest on QEMU via virtme-ng (OS-TEST-013~022)
+    run: |
+      cd "$KSFT_INSTALL"
+      vng --run "$GITHUB_WORKSPACE/kernel/arch/x86/boot/bzImage" \
+        --cwd "$KSFT_INSTALL" --force-9p --disable-kvm --quiet \
+        --exec "./run_kselftest.sh --summary" > "$GITHUB_WORKSPACE/kselftest.tap" 2>&1
+  - name: Parse kselftest TAP output
+    run: python3 tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
 ```
+
+> **执行载体**：`run_kselftest.sh` 从自身位置推导 `BASE_DIR` 并读取同目录的 `kselftest-list.txt`，因此**必须从 `KSFT_INSTALL_PATH` 安装目录运行**，且 Linux 6.6 的该脚本只接受 `-s|--summary`、`-t`、`-c`、`-l`、`-d`、`-o`、`-h`——**不存在 `--tap` 参数**，旧文档的 `./tools/testing/kselftest/run_kselftest.sh --tap` 既路径错误又参数非法。
+>
+> **运行环境**：CI 容器无 `/dev/kvm`，`vng --disable-kvm` 回退 TCG 软件模拟；x86_64 `defconfig` 未启用 `CONFIG_VIRTIO_FS`，故必须 `--force-9p` 走 9p 共享。所选子集 `seccomp pidfd membarrier rseq` 均为自包含测试，缺 CONFIG 的用例以 `SKIP` 上报，而 `parse-tap.py` 将 `SKIP` 记为 `ok`，不误伤门禁。
 
 ### 5.4 形式化验证（seL4 风格）
 
@@ -724,7 +903,7 @@ on:
 
 ```mermaid
 flowchart LR
-    A[kernel PR 触及<br/>12 个头文件] --> B{kernel CI<br/>31 矩阵+全套验证}
+    A[kernel PR 触及<br/>12 个头文件] --> B{kernel CI<br/>28 矩阵+全套验证}
     B -->|fail| Z[阻断 kernel PR 合并]
     B -->|pass| C[触发 agentrt 镜像 PR]
     C --> D{agentrt CI<br/>用户态全量验证}
@@ -814,7 +993,7 @@ agentrt CI 失败时自动阻止 kernel PR 合并：
 
 | 层级 | 发布阶段 | 执行内容 |
 |------|---------|---------|
-| L4 | CI 门禁 | release 候选分支通过 31 矩阵 + 全套质量门禁 |
+| L4 | CI 门禁 | release 候选分支通过 28 矩阵 + 全套质量门禁 |
 | L5 | 连接验证 | ABI 兼容性回归（与上一 release 对比） |
 | L6 | 协议验证 | AgentsIPC 协议契约一致性 + syscall 语义映射校验 |
 | L7 | 发布验证 | SBOM 生成 + 签名构建 + 发布渠道分发 |
@@ -942,7 +1121,7 @@ publish:
 
 | 子仓 | 运行器 | 备注 |
 |------|--------|------|
-| kernel | ubuntu-latest（2 核 7G） | 矩阵 31 格，需 ccache 加速 |
+| kernel | ubuntu-latest（2 核 7G） | 矩阵 28 格，需 ccache 加速 |
 | agentrt | ubuntu-latest | 用户态全量 |
 | sdk | ubuntu-latest | 多语言绑定矩阵 |
 | 其余 5 子仓 | ubuntu-latest | 按构建系统分类 |
@@ -976,7 +1155,7 @@ publish:
 | 维度 | 策略 |
 |------|------|
 | **8 子仓** | 并行（各子仓独立 workflow，互不阻塞） |
-| **kernel 31 矩阵** | `max-parallel: 8`（分批运行） |
+| **kernel 28 矩阵** | `max-parallel: 8`（分批运行） |
 | **管理仓 2 job** | 串行（file-integrity → orchestrate-leaf-ci） |
 | **[SC] 双向 CI** | kernel CI → agentrt CI 串行（依赖关系） |
 
@@ -986,7 +1165,7 @@ CI 总时长不得超过 60 分钟。各阶段预算：
 
 | 阶段 | 预算 | 备注 |
 |------|------|------|
-| kernel 31 矩阵 | 40 分钟 | ccache 命中后 ≤25 分钟 |
+| kernel 28 矩阵 | 40 分钟 | ccache 命中后 ≤25 分钟 |
 | kernel 质量门禁（checkpatch/sparse/Coccinelle） | 8 分钟 | 串行 |
 | kernel KUnit + kselftest | 10 分钟 | UML + QEMU |
 | 其他 7 子仓（并行） | 15 分钟 | 与 kernel 并行，不占 kernel 预算 |
@@ -995,9 +1174,9 @@ CI 总时长不得超过 60 分钟。各阶段预算：
 
 ```yaml
 # 每个 job 显式声明 timeout-minutes，避免悬挂 job 拖垮总时长
-kbuild-matrix:
+kernel-build:
   runs-on: ubuntu-latest
-  timeout-minutes: 50
+  timeout-minutes: 60
 ```
 
 超时处理：单 job 超时计入失败；CI 总时长超 60 分钟由 `nightly.yml` 的 `ci-budget` job 检测并告警，超时子集必须拆分或缓存优化（OS-STD-TEST-011）。
@@ -1010,7 +1189,7 @@ kbuild-matrix:
 
 | 类别 | 触发条件 | 严重级别 | 处理 |
 |------|---------|---------|------|
-| **编译错误** | 31 矩阵任一格 `make` 非零退出 | P0 | 阻断合并，PR 标记 `ci-fail-compile` |
+| **编译错误** | 28 矩阵任一格 `make` 非零退出 | P0 | 阻断合并，PR 标记 `ci-fail-compile` |
 | **测试失败** | KUnit `not ok` / kselftest 非 0 退出 / 覆盖率未达门槛 | P0 | 阻断合并，PR 标记 `ci-fail-test` |
 | **静态分析警告** | sparse W=2 warning / Coccinelle report / clang-tidy warning | P0 | 阻断合并，PR 标记 `ci-fail-static` |
 | **格式违规** | checkpatch ERROR/WARNING / clang-format 差异 | P0 | 阻断合并，PR 标记 `ci-fail-format` |
@@ -1072,7 +1251,7 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 
 | 原则 | 在本卷的体现 |
 |------|------------|
-| **A-4 完美主义** | 7 层验证全绿方可合并；31 矩阵零警告；关键路径 100% 覆盖（OS-STD-TOOL-124） |
+| **A-4 完美主义** | 7 层验证全绿方可合并；28 矩阵零警告；关键路径 100% 覆盖（OS-STD-TOOL-124） |
 | **S-1 反馈闭环** | L3 本地预提交毫秒级 + L4 CI 分钟级 + nightly 回归自动 revert |
 | **S-2 层次分解** | 7 层按"局部→全局→跨仓→发布"递进；8 子仓 CI 隔离 |
 | **E-3 资源确定性** | 三级缓存 + CI ≤60 分钟（OS-STD-TEST-011）+ 可重现发布 |

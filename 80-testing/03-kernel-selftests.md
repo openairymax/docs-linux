@@ -594,7 +594,7 @@ jobs:
         run: |
           # UML 无 airy_*_defconfig 变体：先用架构默认 defconfig 构建，再叠加 airy_defconfig 片段
           make ARCH=um defconfig
-          ./scripts/kconfig/merge_config.sh -m .config arch/x86_64/configs/airy_defconfig
+          ./scripts/kconfig/merge_config.sh -m .config arch/x86/configs/airy_defconfig
           make ARCH=um olddefconfig
           make ARCH=um -j$(nproc)
       - name: Boot UML and capture selftest output
@@ -673,7 +673,7 @@ KUnit（01 卷）是白盒单元测试，运行在用户态 UML 或 `late_initca
 | 维度 | KUnit | 内核自检 |
 |------|-------|---------|
 | 运行载体 | UML / QEMU / 模块 | 真实内核（`late_initcall`） |
-| 触发方式 | `make kunit.run` / `modprobe` | 自动（内核启动） |
+| 触发方式 | `kunit.py run` / `modprobe` | 自动（内核启动） |
 | 反馈时机 | 开发期 | 每次启动 |
 | 测试粒度 | 单函数 | 子系统 |
 | 输出格式 | TAP | `printk` |
