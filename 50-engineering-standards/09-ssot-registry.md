@@ -1009,11 +1009,13 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 
 ## 第 12 章 OS-TEST 测试工程规则
 
-> **权威定义文档**：80-testing/01-kunit-framework.md + 80-testing/02-kselftest.md
+> **权威定义文档**：80-testing/01-kunit-framework.md + 80-testing/02-kselftest.md（OS-TEST-001\~022）+ 80-testing/05-static-analysis.md（OS-TEST-060\~067）
 >
 > **登记背景（2026-07-15）**：历史 OS-TEST-001\~022 共 22 个编号在 80-testing/ 2 个主题文档中使用，但完全未在 SSoT 登记构成 P0 级 SSoT 违规。本节摘要登记，消除违规。
 >
-> **编号空间声明**：OS-TEST-001\~022 为 AirymaxOS 测试工程规则系列，覆盖 KUnit 单元测试（001-012）与 kselftest 系统级测试（013-022）两个子域；新增编号须通过 RFC 流程在本表登记后方可使用。
+> **补登记（2026-10-15）**：OS-TEST-060\~067 共 8 个编号由 80-testing/05-static-analysis.md 定义（静态分析与 Airymax 定制 checkpatch 扩展规则），该卷 §11.1 长期自述其"已注册"而注册表未登记，形成注册表与规范的漂移。依 §1.4 流程在本节补登记，恢复一致。
+>
+> **编号空间声明**：OS-TEST-001\~022 为 AirymaxOS 测试工程规则系列，覆盖 KUnit 单元测试（001-012）与 kselftest 系统级测试（013-022）两个子域；OS-TEST-060\~067 覆盖静态分析子域（checkpatch / Sparse / Smatch / Coccinelle / Clang / Coverity / UAPI 编译器无关性）；新增编号须通过 RFC 流程在本表登记后方可使用。
 
 | 编号          | 规则摘要                                                                                                                        | 权威定义                                      |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -1039,6 +1041,14 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | OS-TEST-020 | agent-linux Agent SDK 的每个公共 ioctl 必须有 kselftest 系统级测试；契约覆盖正常路径 + `EINVAL`/`ENOMEM`/`EBUSY` 各一例异常路径                        | 80-testing/02-kselftest.md §10 L415       |
 | OS-TEST-021 | CI 必须解析 kselftest TAP 输出并上传至测试报告系统；新增/删除测试集必须使总用例数单调变化，PR 评审需显式确认                                                           | 80-testing/02-kselftest.md §11 L570       |
 | OS-TEST-022 | flaky 测试（同一 PR 重复运行结果不一致）必须在 `airy_flaky_baseline.md` 登记并限期修复；未修复的 flaky 测试由 CI 标记为 `KSFT_XFAIL`                            | 80-testing/02-kselftest.md §12 L582       |
+| OS-TEST-060 | CI PR 阶段必须运行 checkpatch + Sparse + Coccinelle 三项静态分析；任一工具报告 `error` 级别问题即阻断 PR                                                     | 80-testing/05-static-analysis.md §1.2 L93 |
+| OS-TEST-061 | agent-linux 专属模块必须使用 `__user`/`__iomem`/`__rcu`/`__bitwise` 注解；Sparse 的 `warning: incorrect type in assignment` 类警告即阻断 PR                 | 80-testing/05-static-analysis.md §2.3 L165 |
+| OS-TEST-062 | CI nightly 必须运行 Smatch 全量扫描；`error:` 级别报告即标记 nightly 失败，`warn:` 级别汇总至 issue 但不阻断                                                     | 80-testing/05-static-analysis.md §3.3 L218 |
+| OS-TEST-063 | agent-linux 专属 Coccinelle 规则（`AIRY-COCCI-001` ~ `AIRY-COCCI-010`）必须在 CI PR 阶段运行；任一规则触发即阻断 PR                                              | 80-testing/05-static-analysis.md §4.4 L301 |
+| OS-TEST-064 | CI nightly 必须运行 Clang 静态分析器扫描 `kernel/airymaxos/`；任一 bug 报告即标记 nightly 失败                                                                   | 80-testing/05-static-analysis.md §5.3 L342 |
+| OS-TEST-065 | Coverity 报告的高优先级缺陷须 72 小时内修复、中优先级 1 周内、低优先级 1 个月内                                                                                  | 80-testing/05-static-analysis.md §6.2 L394 |
+| OS-TEST-066 | CI PR 阶段必须运行 `airy_checkpatch_ext.pl`，扫描 `kernel/airymaxos/` 与 `include/uapi/linux/airymax/`；任一 `error` 级别报告即阻断 PR                        | 80-testing/05-static-analysis.md §7.2 L469 |
+| OS-TEST-067 | CI PR 阶段必须运行 `check-uapi-compiler-agnostic.sh`；任一头文件在任一编译器/标准组合下编译失败即阻断 PR                                                        | 80-testing/05-static-analysis.md §8.3 L562 |
 
 ***
 

@@ -18,7 +18,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - **上游依赖**：README 定义"测试体系分层"——L8 Agent 契约测试由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 14 层（Agent 契约层）。
 - **下游依赖**：09-fuzz-testing 定义"模糊测试怎么跑"；10-formal-verification 定义"形式化验证怎么做"——本卷的契约定义是形式化验证的输入。
 
-本卷所有强制规则均赋予 **OS-TEST** / **OS-KER** / **OS-STD** 编号，与 07 维护者制度的"规则编号注册表"对齐。
+本卷所有强制规则均赋予 **OS-TEST** / **OS-KER** / **OS-STD** 编号，与 50-engineering-standards/09-ssot-registry.md 的"SSoT 规则编号注册表"对齐。
 
 ### 0.1 关键术语
 
@@ -903,7 +903,7 @@ agent-linux 维护一个全局契约注册表 `scripts/airy_agent_contracts.json
 
 ### 11.1 规则编号注册表
 
-本卷强制规则编号 `OS-TEST-090` ~ `OS-TEST-098`、`OS-KER-150`、`OS-STD-101`，已注册至 50-engineering-standards/07 维护者制度的"规则编号注册表"。
+本卷强制规则编号 `OS-TEST-090` ~ `OS-TEST-098`、`OS-KER-150`、`OS-STD-101`，已注册至 50-engineering-standards/09-ssot-registry.md 的"SSoT 规则编号注册表"。
 
 ### 11.2 v1.0.1 新增内容
 

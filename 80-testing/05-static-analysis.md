@@ -18,7 +18,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - **上游依赖**：README 定义"测试体系分层"——L5 静态分析由本卷展开；50-engineering-standards/06-toolchain-and-automation 定义"7 层验证"——本卷对应第 11 层（编译时分析层）。
 - **下游依赖**：06-coverage-metrics 定义"代码覆盖率怎么测"；10-formal-verification 定义"形式化验证怎么做"——本卷的静态分析结果与形式化验证互补。
 
-本卷所有强制规则均赋予 **OS-TEST** / **OS-KER** / **OS-STD** 编号，与 07 维护者制度的"规则编号注册表"对齐。
+本卷所有强制规则均赋予 **OS-TEST** / **OS-KER** / **OS-STD** 编号，与 50-engineering-standards/09-ssot-registry.md 的"SSoT 规则编号注册表"对齐。
 
 ### 0.1 关键术语
 
@@ -702,7 +702,7 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 
 ### 11.1 规则编号注册表
 
-本卷强制规则编号 `OS-TEST-060` ~ `OS-TEST-067`、`OS-KER-120` ~ `OS-KER-122`、`OS-STD-081`，已注册至 50-engineering-standards/07 维护者制度的"规则编号注册表"。
+本卷强制规则编号 `OS-TEST-060` ~ `OS-TEST-067`、`OS-KER-120` ~ `OS-KER-122`、`OS-STD-081`，已注册至 50-engineering-standards/09-ssot-registry.md 的"SSoT 规则编号注册表"。
 
 ### 11.2 v1.0.1 新增内容
 
