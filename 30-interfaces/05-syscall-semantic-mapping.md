@@ -144,7 +144,7 @@ agentrt 在 agent-linux 上运行时，系统调用经过两条路径：
 | 1 | `airy_sys_agent_spawn(agent_spec, out_agent_id)` | #548 `airy_sys_call(COMPILE_BADGE)` | 1 → 1 | agentrt 高层 spawn 语义在内核态通过 COMPILE_BADGE 一次调用完成（提交任务 + 编译 capability） |
 | 2 | `airy_sys_agent_terminate(agent_id)` | #550 `airy_sys_sched_ctl(AIRY_SCHED_YIELD)` + #548 `airy_sys_call(REVOKE_BADGE)` | 1 → 2 | 终止 Agent 在内核态分解为"取消任务 + 撤销 capability" |
 | 3 | `airy_sys_memory_delete` | #549 `airy_sys_rovol_ctl(AIRY_ROVOL_RESTORE, snapshot_id, pid)` | 1 → 1 | 应用层删除记忆 ↔ 内核态从快照恢复（语义逆向） |
-| 4 | `airy_sys_skill_execute` | #551 `airy_sys_clt_notify(AIRY_CLT_WASM_LOAD_MODULE)` + #551 `airy_sys_clt_notify(AIRY_CLT_PHASE_NOTIFY)` | 1 → 2 | Skill 执行在内核态分解为"Wasm 模块加载 + CLT 阶段通知" |
+| 4 | `airy_sys_skill_execute` | #548 `airy_sys_call(AIRY_OP_WASM_LOAD)` + #551 `airy_sys_clt_notify(task_id, AIRY_COG_ACT)` | 1 → 2 | Skill 执行在内核态分解为"Wasm 模块加载 + CLT 认知阶段记录" |
 | 5 | `airy_sys_telemetry_metrics` | 内核 `perf trace` + `bpftrace`（非 syscall） | 1 → 0 | agentrt 应用层 metrics 在 agent-linux 上通过内核原生可观测性工具获取，无专用 syscall |
 
 ### 3.3 语义映射规则
@@ -193,7 +193,7 @@ agentrt 在 agent-linux 上运行时，系统调用经过两条路径：
 | agentrt API | 独有原因 |
 |-------------|---------|
 | `airy_sys_skill_install()` | 应用层 Skill 安装，内核态无直接对应 |
-| `airy_sys_skill_execute()` | 高层执行语义，内核态分解为 wasm_load_module + clt_phase_notify |
+| `airy_sys_skill_execute()` | 高层执行语义，内核态分解为 Wasm 模块加载（548 `AIRY_OP_WASM_LOAD`）+ 认知阶段记录（551 `airy_sys_clt_notify`） |
 | `airy_sys_skill_list()` | 应用层查询，内核态无 list syscall |
 | `airy_sys_skill_uninstall()` | 应用层 Skill 卸载，内核态无直接对应 |
 
@@ -254,13 +254,14 @@ agentrt 在 agent-linux 上运行时，系统调用经过两条路径：
 | #548 | `airy_sys_call(REVOKE_BADGE)` | 撤销 capability，内核态 CNode 操作（agentrt 用户态无 revoke syscall） |
 | #548 | `airy_sys_call(LSM_CTL)` | 加载 airy_lsm 策略，内核态 LSM 钩子 |
 
-### 5.5 认知内核机制（CoreLoopThree kthread + Wasm）
+### 5.5 认知内核机制（CoreLoopThree 阶段记录）
 
 | OS syscall # | 内核 API | 独有原因 |
 |-------------|---------|---------|
-| #551 | `airy_sys_clt_notify(AIRY_CLT_REGISTER_KTHREAD)` | 注册 CoreLoopThree kthread，内核态线程机制 |
-| #551 | `airy_sys_clt_notify(AIRY_CLT_WASM_LOAD_MODULE)` | 加载 Wasm 3.0 模块，内核态运行时 |
+| #551 | `airy_sys_clt_notify(task_id, phase)` | 按 per-agent 记录 CoreLoopThree 认知阶段（`phase` 0/1/2 = `AIRY_COG_PERCEPT`/`AIRY_COG_THINK`/`AIRY_COG_ACT`），内核态认知循环状态记录 |
 | #550 | `airy_sys_sched_ctl(AIRY_SCHED_YIELD)` | 跨超节点迁移任务，内核态 cloudnative 机制 |
+
+> CoreLoopThree kthread 的注册/注销位于 `phase ≥ AIRY_COG_PHASE_MAX`（3）保留区（模块 F，本版本未实现）；Wasm 3.0 模块加载归入 #548 `airy_sys_call(AIRY_OP_WASM_LOAD)`。二者均不经 551 的认知阶段记录路径。
 
 ---
 
@@ -346,7 +347,7 @@ static int detect_kernel_accel(void)
 | `ipc.h` | `struct airy_ipc_msg_hdr` 128B 消息头（magic 0x41524531 'ARE1'）约束 ipc_send/ipc_recv 的语义同源 | 同上 |
 | `security_types.h` | capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举约束 capability_request 的语义同源 | 同上 |
 | `memory_types.h` | MemoryRovol L1-L4 快照结构约束 memory_write/rovol_snapshot 的语义同源 | 同上 |
-| `cognition_types.h` | CoreLoopThree 三阶段枚举约束 clt_phase_notify 的语义同源 | 同上 |
+| `cognition_types.h` | CoreLoopThree 三阶段枚举（`enum airy_cog_phase`）约束 `airy_sys_clt_notify` 认知阶段记录的语义同源 | 同上 |
 | `syscalls.h` | 4 核心（v1.0.1） syscall 编号体系约束 airy_sys_call/rovol_ctl/sched_ctl/clt_notify 的语义同源 | 同上 |
 
 ### 8.3 [SS] 语义同源层——映射完整性

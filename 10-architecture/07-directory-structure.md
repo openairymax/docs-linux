@@ -1929,7 +1929,7 @@ agentrt/          agent-linux/
 | 1 | `AIRY_SYS_CALL` | 548 | Capability Invocation | sec_d 专属管理入口（Badge 编译/撤销 + LSM_ctl + Wasm_load） |
 | 2 | `AIRY_SYS_ROVOL_CTL` | 549 | 控制原语 | MemoryRovol 记忆卷载控制 |
 | 3 | `AIRY_SYS_SCHED_CTL` | 550 | 控制原语 | 调度策略配置 |
-| 4 | `AIRY_SYS_CLT_NOTIFY` | 551 | 控制原语 | CoreLoopThree 通知 + kthread 注册 |
+| 4 | `AIRY_SYS_CLT_NOTIFY` | 551 | 控制原语 | CoreLoopThree 认知阶段记录 |
 | 5-24 | 预留 | 552-571 | 预留 | 20 个预留槽位（未来扩展） |
 
 **废弃 syscall 清单**（v1.0 → v1.0.1 移除）：

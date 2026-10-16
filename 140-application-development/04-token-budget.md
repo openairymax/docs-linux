@@ -209,7 +209,7 @@ struct airy_token_usage {
     uint32_t task_id;
     uint32_t tokens_used;
     uint64_t timestamp;
-    uint8_t  phase;          /* CLT_PHASE_* */
+    uint8_t  phase;          /* AIRY_COG_*（enum airy_cog_phase） */
     uint8_t  model;          /* LLM 模型 ID */
     uint16_t reserved;
     uint64_t latency_ns;
@@ -491,7 +491,7 @@ int airy_budget_borrow(struct airy_token_budget *child,
 
 Token 预算通过 v1.0.1 Capability Folding 架构的 `airy_sys_sched_ctl` (550) op-dispatch 管理（编号定义见 [07-syscall-registry.md](07-syscall-registry.md)）：
 
-> **唯一入口声明**：Token 预算管理的唯一系统调用入口为 `airy_sys_sched_ctl` (550)。`airy_sys_clt_notify` (551) 的 `SET_MODE` 仅承载 Thinkdual 认知模式，不承载 Token 预算（见 07-syscall-registry.md §4.5 与 §5.2 映射表）。
+> **唯一入口声明**：Token 预算管理的唯一系统调用入口为 `airy_sys_sched_ctl` (550)。`airy_sys_clt_notify` (551) 仅承载 CoreLoopThree 认知阶段记录（phase 统一操作码），不承载 Token 预算（见 07-syscall-registry.md §4.5 与 §5.2 映射表）。
 
 | 编号 | 系统调用 | op | 功能 |
 |------|---------|-----|------|

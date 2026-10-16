@@ -105,7 +105,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 548    | `airy_sys_call`       | Capability Invocation | sec_d 专属管理入口（Badge 编译/撤销 + LSM_ctl + Wasm_load） |
 | 549    | `airy_sys_rovol_ctl`  | 控制原语   | 记忆卷载控制                                            |
 | 550    | `airy_sys_sched_ctl`  | 控制原语   | 调度策略配置                                            |
-| 551    | `airy_sys_clt_notify` | 控制原语   | CoreLoopThree 通知 + kthread 注册                     |
+| 551    | `airy_sys_clt_notify` | 控制原语   | CoreLoopThree 认知阶段记录（`phase` 统一操作码）              |
 | 552-571 | 预留                  | —      | 未来扩展（20 槽位，绝对编号对齐 `syscalls.h` SSoT）         |
 
 **数据面 I/O 完全由 io\_uring 处理（零 syscall）**。v1.0.1 Capability Folding 后，8 个 seL4 风格 IPC 原语（send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify）全部移除，IPC 数据传递完全由 io\_uring `IORING_OP_URING_CMD` 承载。`airy_sys_call` 语义收窄为 sec_d 专属管理入口（Badge 编译/撤销/LSM_ctl/Wasm_load）。详见 [01-syscalls.md](../30-interfaces/01-syscalls.md) §2.2。
@@ -618,7 +618,7 @@ agent-linux 的 IPC 采用 **数据面/控制面分离** 架构：
 
 **设计原理**：
 
-- 控制面用于低频、需同步语义的操作（capability invocation、调度策略设置、认知阶段通知），走 syscall。
+- 控制面用于低频、需同步语义的操作（capability invocation、调度策略设置、认知阶段记录），走 syscall。
 - 数据面用于高频、可异步、需零拷贝的操作（IPC 消息收发、记忆迁移），走 io\_uring。
 - 二者配合实现"机制在内核、策略在用户态"的微内核目标。
 
@@ -698,7 +698,7 @@ agent-linux 的 IPC 采用 **数据面/控制面分离** 架构：
 | 0  | `airy_sys_call`       | `seL4_Call`      | 统一 capability invocation（sec_d Badge 编译/撤销 + LSM_ctl + Wasm_load） |
 | 1  | `airy_sys_rovol_ctl`  | —                | 记忆卷载控制（agent 领域最小需求） |
 | 2  | `airy_sys_sched_ctl`  | —                | 调度策略配置（agent 领域最小需求） |
-| 3  | `airy_sys_clt_notify` | `seL4_Notification` | CoreLoopThree 通知 + kthread 注册 |
+| 3  | `airy_sys_clt_notify` | `seL4_Notification` | CoreLoopThree 认知阶段记录（`phase` 统一操作码） |
 
 > **v1.0.1 Capability Folding 说明**：原 8 个 seL4 风格 IPC 原语 syscall（`airy_sys_send`/`recv`/`nbsend`/`nbrecv`/`reply_recv`/`yield`/`reply`/`notify`）在 v1.0.1 全部移除，IPC 数据传递完全由 io\_uring `IORING_OP_URING_CMD` 承载（见下方数据面表）。能力校验折叠到数据面 fastpath C-S9 内联 Badge 校验，`airy_sys_call` 语义收窄为 sec_d 专属管理入口。seL4 借鉴映射保留作设计溯源参考。
 
@@ -1110,7 +1110,7 @@ AirymaxOS 用户态 **12 daemon** 在内核侧的切入点（daemon 命名后缀
 | Daemon | 职责 | 内核切入点 | syscall / 通道 |
 | --- | --- | --- | --- |
 | `sec_d` | capability 编译/撤销 + Badge 生命周期 + LSM_ctl + Wasm_load | `security/airy/airy_lsm.c` + `agent_caps[1024]` 静态数组写者 | `airy_sys_call`（编号 548）+ airy_lsm LSM 钩子 |
-| `cogn_d` | 认知循环调度（CoreLoopThree：PERCEPT/THINK/ACT） | kthread 注册 + CoreLoopThree 阶段通知 | `airy_sys_clt_notify`（编号 551）|
+| `cogn_d` | 认知循环调度（CoreLoopThree：PERCEPT/THINK/ACT） | per-agent 认知阶段记录（`phase` 统一操作码） | `airy_sys_clt_notify`（编号 551）|
 | `mem_d` | 记忆卷载管理（MemoryRovol L1-L4 快照/恢复/迁移） | userfaultfd + MGLRU + CXL bus | `airy_sys_rovol_ctl`（编号 549）|
 | `sched_d` | sched_tac 策略守护（stc_realtime/interactive/agent/batch） | sched_tac 策略框架 + cgroup cpuset | `airy_sys_sched_ctl`（编号 550）|
 | `logger_d` | 统一日志（128B 记录 + 5 级枚举） | printk bridge + char dev `/dev/airy_log` | char dev + \[SC] `log_types.h` |
@@ -1127,7 +1127,7 @@ AirymaxOS 用户态 **12 daemon** 在内核侧的切入点（daemon 命名后缀
 - 编号 548 `airy_sys_call` → sec_d 独占（Badge 编译/撤销 + LSM_ctl + Wasm_load）
 - 编号 549 `airy_sys_rovol_ctl` → mem_d 独占（记忆卷载控制）
 - 编号 550 `airy_sys_sched_ctl` → sched_d 独占（调度策略配置）
-- 编号 551 `airy_sys_clt_notify` → cogn_d 独占（CoreLoopThree 通知 + kthread 注册）
+- 编号 551 `airy_sys_clt_notify` → cogn_d 独占（CoreLoopThree 认知阶段记录）
 - 编号 552-571 预留（未来 daemon 扩展）
 
 **说明**：

@@ -133,7 +133,7 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
     <category>control_primitive</category>
     <since>1.0.1</since>
     <stability>stable</stability>
-    <doc>Cross-layer task notification control.</doc>
+    <doc>CoreLoopThree cognitive phase record.</doc>
   </syscall>
 
   <!-- 4-23: 预留槽位，不生成实现，仅占用编号 -->

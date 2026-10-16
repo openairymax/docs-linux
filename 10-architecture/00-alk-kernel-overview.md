@@ -289,11 +289,11 @@ v1.0.1 采用 **Capability Folding 单平面架构**——控制面仅保留 4 �
 │       └─ YIELD                       │    0 = 可用                                 │
 │                                      │    1 = 仅 CAP_SYS_ADMIN                     │
 │  551  AIRY_SYS_CLT_NOTIFY            │    2 = 完全禁用                              │
-│       CoreLoopThree 阶段通知+kthread  │                                             │
-│       ├─ PHASE_NOTIFY                │  消息载体：128B 定长消息头                     │
-│       ├─ REGISTER/UNREGISTER_KTHREAD │    Layout C v4（magic 0x41524531）          │
-│       ├─ SET_MODE / GET_METRICS      │    capability_badge @ offset 40-47          │
-│       └─ WASM_LOAD/UNLOAD/INVOKE     │  ipc ring：SQ/CQ 异步消息队列                 │
+│       CoreLoopThree 认知阶段记录       │                                             │
+│       ├─ phase 0 PERCEPT             │  消息载体：128B 定长消息头                     │
+│       ├─ phase 1 THINK               │    Layout C v4（magic 0x41524531）          │
+│       ├─ phase 2 ACT                 │    capability_badge @ offset 40-47          │
+│       └─ phase >=MAX reserved        │  ipc ring：SQ/CQ 异步消息队列                 │
 │                                      │  快/慢路径单快照语义（禁重复校验）               │
 │  op-dispatch 分派                     │                                            │
 │  慢路径 slowpath：LSM 策略裁决          │                                            │
@@ -310,7 +310,7 @@ v1.0.1 采用 **Capability Folding 单平面架构**——控制面仅保留 4 �
 | 548     | `AIRY_SYS_CALL`       | Capability Invocation | sec\_d 专属管理入口                | COMPILE\_BADGE / REVOKE\_BADGE / LSM\_CTL / WASM\_LOAD / LSM\_AUDIT\_QUERY / CAP\_INSPECT / CAP\_TRANSFER                                     |
 | 549     | `AIRY_SYS_ROVOL_CTL`  | 控制原语                  | MemoryRovol L1-L4 控制         | SNAPSHOT / RESTORE / MIGRATE / TIER\_SET / TIER\_GET / MGLRU\_CONFIG / LIST / DELETE / DEMOTE / PROMOTE                                       |
 | 550     | `AIRY_SYS_SCHED_CTL`  | 控制原语                  | sched\_tac 调度策略配置            | SET\_POLICY / GET\_POLICY / REGISTER\_BPF / GET\_LATENCY / SET\_PRIORITY / GET\_VTIME / YIELD                                                 |
-| 551     | `AIRY_SYS_CLT_NOTIFY` | 控制原语                  | CoreLoopThree 阶段通知 + kthread | PHASE\_NOTIFY / REGISTER\_KTHREAD / UNREGISTER\_KTHREAD / SET\_MODE / GET\_METRICS / WASM\_LOAD\_MODULE / WASM\_UNLOAD\_MODULE / WASM\_INVOKE |
+| 551     | `AIRY_SYS_CLT_NOTIFY` | 控制原语                  | CoreLoopThree 认知阶段记录        | phase 统一操作码：0/1/2 = PERCEPT/THINK/ACT；≥ AIRY\_COG\_PHASE\_MAX 保留（模块 F，fail-closed）                                                      |
 | 552-571 | 预留                    | —                     | 未来扩展                         | —                                                                                                                                             |
 
 > **编号权威**：[07-syscall-registry.md](../140-application-development/07-syscall-registry.md) 是 syscall 编号的唯一 SSoT。编号 548 起始，避开 x86\_64 x32 历史遗留区域 512-547。

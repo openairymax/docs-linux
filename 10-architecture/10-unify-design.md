@@ -411,7 +411,7 @@ A-IPC 的物理载体是 [SC] `ipc.h` Layout C v4 128B 定长消息头（2 cache
 │    airy_sys_call        — 仅 sec_d 调用，编译/撤销 Badge（H4）                │
 │    airy_sys_rovol_ctl   — MemoryRovol 控制                                   │
 │    airy_sys_sched_ctl   — sched_tac 调度策略控制                              │
-│    airy_sys_clt_notify  — 客户端事件通知                                      │
+│    airy_sys_clt_notify  — 认知阶段记录                                        │
 │                                                                              │
 │  关键不变量:                                                                  │
 │    - 控制面不传递 IPC 数据 → 不存在控制面死锁                                 │
@@ -429,7 +429,7 @@ v1.0 的 12 核心 syscall 精简为 v1.0.1 的 4 核心 syscall。8 个 seL4 �
 | `airy_sys_call` | 548 | Capability Invocation（sec_d 编译/撤销 Badge + LSM_ctl + Wasm_load） |
 | `airy_sys_rovol_ctl` | 549 | MemoryRovol 控制 |
 | `airy_sys_sched_ctl` | 550 | sched_tac 调度策略控制 |
-| `airy_sys_clt_notify` | 551 | 客户端事件通知 |
+| `airy_sys_clt_notify` | 551 | CoreLoopThree 认知阶段记录 |
 
 ### 8.6 fastpath C-S9 Badge 校验（H4, H5）
 

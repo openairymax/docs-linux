@@ -27,7 +27,7 @@ agent-linux 在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent
 | 1 | Capability Invocation | `airy_sys_call` | sec_d 编译/撤销 Badge、LSM 策略加载、Wasm 模块加载（cap-type dispatch） | seL4 Call + Capability 模型 |
 | 2 | 控制原语 | `airy_sys_rovol_ctl` | MemoryRovol L1-L4 控制（snapshot/restore/migrate/tier） | agent 领域最小需求 |
 | 3 | 控制原语 | `airy_sys_sched_ctl` | sched_tac 调度策略配置（set/get） | agent 领域最小需求 |
-| 4 | 控制原语 | `airy_sys_clt_notify` | CoreLoopThree 阶段通知 + kthread 注册 | agent 领域最小需求 |
+| 4 | 控制原语 | `airy_sys_clt_notify` | CoreLoopThree 认知阶段记录（`phase` 统一操作码） | agent 领域最小需求 |
 
 > **设计说明**：v1.0.1 相对 0.1.1 的根本变化——8 个 seL4 风格 IPC 原语（send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify）全部移除，IPC 数据传递完全由 io_uring `IORING_OP_URING_CMD` 承载（见 §1.3）；能力校验折叠到数据面 fastpath C-S9（见 [07-ipc-fastpath.md §3.1.1](07-ipc-fastpath.md)）；原 `airy_sys_call` 的 IPC rendezvous 语义被 Capability Folding 取代，仅保留 Badge 编译/撤销/LSM_ctl/Wasm_load 等 sec_d 专属管理操作。详细 12→4 映射见 §2.2。
 
@@ -40,7 +40,7 @@ agent-linux 在 Linux 6.6 内核基线的标准系统调用之上，新增 Agent
 | 数据面（kfifo） | 内核 kthread A → per-cpu kfifo → kthread B | ~80ns（per-cpu 无锁） | kthread 间消息传递 |
 
 - **IPC 数据面**：高频消息传递走 io_uring 零拷贝通道，fastpath 内联 C-S9 Capability Folding Badge 校验，IPC 数据传递即能力校验。
-- **控制面**：低频、需同步语义的管理操作（sec_d Badge 编译、调度策略设置、认知阶段通知、MemoryRovol 控制）走 syscall，不接触 IPC 数据路径。
+- **控制面**：低频、需同步语义的管理操作（sec_d Badge 编译、调度策略设置、认知阶段记录、MemoryRovol 控制）走 syscall，不接触 IPC 数据路径。
 
 **设计原则**:
 
@@ -261,7 +261,7 @@ static int airy_decode_and_invoke(cap_t cap,
 | `AIRY_SYS_CALL` | Capability Invocation（sec_d 专属管理入口） | `airy_sys_call` |
 | `AIRY_SYS_ROVOL_CTL` | 记忆卷载控制 | `airy_sys_rovol_ctl` |
 | `AIRY_SYS_SCHED_CTL` | 调度策略控制 | `airy_sys_sched_ctl` |
-| `AIRY_SYS_CLT_NOTIFY` | CoreLoopThree 通知 | `airy_sys_clt_notify` |
+| `AIRY_SYS_CLT_NOTIFY` | CoreLoopThree 认知阶段记录 | `airy_sys_clt_notify` |
 
 ### 2.2 编号分配（v1.0.1：4 核心 + 20 预留 = 24 槽位）
 
@@ -272,7 +272,7 @@ agent-linux 专用系统调用采用 **4 核心 + 20 预留 = 24 槽位** 方案
 | 548 | `AIRY_SYS_CALL` | Capability Invocation | sec_d 专属管理入口（Badge 编译/撤销 + LSM_ctl + Wasm_load） |
 | 549 | `AIRY_SYS_ROVOL_CTL` | 控制原语 | 记忆卷载控制（snapshot/restore/migrate/tier） |
 | 550 | `AIRY_SYS_SCHED_CTL` | 控制原语 | 调度策略配置（set/get） |
-| 551 | `AIRY_SYS_CLT_NOTIFY` | 控制原语 | CoreLoopThree 阶段通知 + kthread 注册 |
+| 551 | `AIRY_SYS_CLT_NOTIFY` | 控制原语 | CoreLoopThree 认知阶段记录（phase 统一操作码） |
 | 552-571 | 预留 | — | 未来扩展 |
 
 **内部编号 → Linux syscall_64.tbl 注册号映射**：
@@ -428,12 +428,16 @@ AIRY_API int airy_sys_sched_ctl(__u32 op,
                                       const char *policy);
 
 /**
- * airy_sys_clt_notify - CoreLoopThree phase notification + kthread control
- * @task_id: Agent task ID (0 for kthread register).
- * @phase: Phase (0=perception, 1=thinking, 2=action) or kthread op.
+ * airy_sys_clt_notify - CoreLoopThree cognitive phase notification
+ * @task_id: Agent task ID.
+ * @phase: Unified opcode bound to [SC] enum airy_cog_phase
+ *         (0=PERCEPT, 1=THINK, 2=ACT); values >= AIRY_COG_PHASE_MAX are
+ *         reserved for module F kthread ops (unimplemented, fail-closed
+ *         with -AIRY_ECOG_PHASE).
  *
- * Notifies the kernel of CoreLoopThree phase transitions and
- * manages kthread registration for the cognition data flow.
+ * Records the CoreLoopThree cognitive phase for an agent. The kernel only
+ * records the phase; phase-to-priority effects are applied in user space
+ * by sched_tac via airy_sys_sched_ctl (551 does not modify the scheduler).
  *
  * Return: 0 on success, negative errno on failure.
  *
@@ -453,7 +457,7 @@ AIRY_API int airy_sys_clt_notify(int task_id, __u32 phase);
 | 548 | `airy_sys_call` | Capability Invocation | kernel / security / cognition | sec_d 专属管理入口（COMPILE_BADGE/REVOKE_BADGE/LSM_CTL/WASM_LOAD） |
 | 549 | `airy_sys_rovol_ctl` | 控制原语 | memory | 统一记忆卷载控制（snapshot/restore/migrate/tier） |
 | 550 | `airy_sys_sched_ctl` | 控制原语 | kernel | 统一调度策略配置（set/get） |
-| 551 | `airy_sys_clt_notify` | 控制原语 | cognition | CoreLoopThree 阶段通知 + kthread 注册 |
+| 551 | `airy_sys_clt_notify` | 控制原语 | cognition | CoreLoopThree 认知阶段记录（`phase` 统一操作码） |
 
 **数据面**：IPC 高频收发、能力校验、记忆迁移、流式数据全部走 io_uring `IORING_OP_URING_CMD`（零 syscall），不占用 syscall 槽位。详见 [02-ipc-protocol.md §4.4](02-ipc-protocol.md)。
 
@@ -476,7 +480,7 @@ AIRY_API int airy_sys_clt_notify(int task_id, __u32 phase);
 
 - **sched_tac 调度**：通过用户态调度器（sched_tac：SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射）实现 Agent 调度策略，零内核调度器修改。
 - **EEVDF 调度器**：Linux 6.6 原生 EEVDF 调度器提供混合抢占模式，兼顾吞吐与响应。
-- **CoreLoopThree 阶段感知**：`airy_sys_clt_notify` 在思考阶段提升优先级，行动阶段恢复正常，减少关键路径抢占。
+- **CoreLoopThree 阶段感知**：`airy_sys_clt_notify` 仅按 per-agent 记录认知阶段（内核不决策）；阶段到优先级的效果由用户态 sched_tac 经 `airy_sys_sched_ctl`（550）施加，符合"零内核调度器修改"。
 - **v1.0.1 新增：io_uring fastpath CPU 亲和性**：fastpath C-S5 要求 src 与 dst 同 CPU，避免 CFS 迁移导致的 SLOW_PATH 降级（详见 [07-ipc-fastpath.md §3.1](07-ipc-fastpath.md)）。
 
 ### 5.3 性能回归保护
@@ -687,7 +691,7 @@ if (ret < 0) {
 | `airy_sys_call()` | `SYSCALL_DEFINE2(airy_sys_call, ...)` | `(cap_t, const struct airy_ipc_msg_hdr *) -> int` | 用户态 libc syscall() vs 内核 capability dispatch；v1.0.1：agentrt 用户态 `capability_badge=0`，agent-linux 内核由 sec_d 编译 Badge（H3/H4） |
 | `airy_sys_rovol_ctl()` | `SYSCALL_DEFINE3(airy_sys_rovol_ctl, ...)` | `(__u32, __u32, __u64) -> int` | 用户态 mmap+msync vs 内核 PMEM |
 | `airy_sys_sched_ctl()` | `SYSCALL_DEFINE3(airy_sys_sched_ctl, ...)` | `(__u32, const char *, const char *) -> int` | 用户态 cgroup fs vs 内核 sched_tac 策略 |
-| `airy_sys_clt_notify()` | `SYSCALL_DEFINE2(airy_sys_clt_notify, ...)` | `(int, __u32) -> int` | 用户态 event loop vs 内核 kthread |
+| `airy_sys_clt_notify()` | `SYSCALL_DEFINE2(airy_sys_clt_notify, ...)` | `(int, __u32) -> int` | 用户态 CoreLoopThree 事件循环 vs 内核 per-agent 认知阶段记录（内核不决策） |
 
 > **v1.0.1 移除的 [SS] 映射**：`airy_sys_send/recv/nbsend/nbrecv/reply_recv/yield/reply/notify` 共 8 个 IPC 原语在 agentrt 用户态仍保留为 libc 包装函数（内部调用 io_uring `IORING_OP_URING_CMD`），但在 agent-linux 内核侧不再注册为独立 syscall。这种"用户态包装存在、内核 syscall 不存在"的不对称是 IRON-9 v3 [IND] 完全独立层的合法形态。
 

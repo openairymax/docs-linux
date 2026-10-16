@@ -89,7 +89,7 @@ agent-linux v1.0.1 在内核调度、IPC 传输、安全钩子、内存分配与
 #define AIRY_SYS_CALL          548  /* Capability Invocation（sec_d 专属管理入口） */
 #define AIRY_SYS_ROVOL_CTL     549  /* MemoryRovol 记忆卷载控制（op-dispatch） */
 #define AIRY_SYS_SCHED_CTL     550  /* sched_tac 调度策略配置（op-dispatch） */
-#define AIRY_SYS_CLT_NOTIFY    551  /* CoreLoopThree 阶段通知 + kthread（op-dispatch） */
+#define AIRY_SYS_CLT_NOTIFY    551  /* CoreLoopThree 认知阶段记录（op-dispatch） */
 /* Reserved 552-571 for future expansion */
 ```
 
@@ -102,7 +102,7 @@ Airymax Unify Design 五模块（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）在 Agent 应�
 | Unify 模块 | 全称 | 在本目录的体现 | 对应 API/SDK |
 |-----------|------|--------------|------------|
 | **A-IPC** | Unified Airymax IPC Fabric | **核心**：SDK IPC 接口封装、Agent 间 128B 消息头通信、IORING_OP_URING_CMD 零拷贝 fastpath | `airy_ipc_send()` / AgentsIPC SDK 客户端 |
-| **A-UEF** | Unified Error and Fault Framework | **核心**：错误码 API（`AIRY_E*` 负数空间 + `AIRY_FAULT_*` 正数空间）、认知 API（CoreLoopThree 三阶段） | `airy_strerror()` / CognitionClient / `AIRY_SYS_CLT_NOTIFY`（551，阶段通知 op） |
+| **A-UEF** | Unified Error and Fault Framework | **核心**：错误码 API（`AIRY_E*` 负数空间 + `AIRY_FAULT_*` 正数空间）、认知 API（CoreLoopThree 三阶段） | `airy_strerror()` / CognitionClient / `AIRY_SYS_CLT_NOTIFY`（551，认知阶段记录） |
 | **A-UCS** | Unified Configuration Subsystem | 配置 API：sysctl/JSON 双向同步、agent.yaml 清单、Token 预算配置热重载 | `airy_config_get()` / agent.yaml Schema |
 | **A-ULS** | Unified Lifecycle Supervision Framework | Agent 8 态生命周期 API、Capability 申请/撤销、四重沙箱（cgroup v2 + Landlock + seccomp + capability） | `AIRY_SYS_CALL`（548，AIRY_OP_COMPILE_BADGE/REVOKE_BADGE op-dispatch）/ SafetyClient |
 | **A-ULP** | Unified Logging and Printk Subsystem | Agent 日志 API、MemoryRovol 记忆卷载持久化 API（`airy_sys_rovol_ctl` 549 op-dispatch） | `airy_log_emit()` / MemoryRovol API（549） |

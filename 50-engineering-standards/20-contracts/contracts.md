@@ -209,7 +209,7 @@ IPC 消息优先级与 sched_tac 调度策略优先级对齐（0-139），按任
 |-----------|------|---------|---------|---------|
 | 0-49 | 实时控制 | < 1 ms | stc_realtime | 具身智能运动控制指令 |
 | 50-99 | 交互响应 | < 10 ms | stc_interactive | 用户对话请求/响应 |
-| 100-119 | Agent 认知 | < 100 ms | stc_agent | CoreLoopThree 阶段通知 |
+| 100-119 | Agent 认知 | < 100 ms | stc_agent | CoreLoopThree 认知阶段记录 |
 | 120-139 | 批处理 | < 1 s | stc_batch | 日志传输、记忆迁移 |
 
 #### 4.2 QoS 保证
@@ -428,7 +428,7 @@ agent-linux（AirymaxOS）在 Linux 6.6 内核基线的标准系统调用之上�
 | 1 | `airy_sys_call` | 548 | COMPILE_BADGE / REVOKE_BADGE / LSM_CTL | Agent 任务提交、capability 编译/撤销、LSM 策略加载 | kernel / cognition / security | MicroCoreRT 调度 / Cupolas 权限 |
 | 2 | `airy_sys_rovol_ctl` | 549 | AIRY_ROVOL_SNAPSHOT / RESTORE / MIGRATE / LIST / DELETE / DEMOTE / PROMOTE | 记忆卷载快照/恢复/迁移/列表/删除/降级/升级 | kernel / memory | MemoryRovol |
 | 3 | `airy_sys_sched_ctl` | 550 | SET_POLICY | sched_tac 策略设置 | kernel | MicroCoreRT sub-scheduler |
-| 4 | `airy_sys_clt_notify` | 551 | PHASE_NOTIFY | CoreLoopThree 阶段通知 | kernel / cognition | CoreLoopThree |
+| 4 | `airy_sys_clt_notify` | 551 | `phase`（PERCEPT/THINK/ACT） | CoreLoopThree 认知阶段记录 | kernel / cognition | CoreLoopThree |
 | - | 预留 | 552-571 | - | 20 个预留槽位，供未来扩展 | - | - |
 | - | IPC 数据面 | io_uring | IORING_OP_URING_CMD / CQE | 进程间消息传递、零拷贝通道（零 syscall） | kernel / services | AgentsIPC |
 
@@ -465,7 +465,7 @@ graph TD
             K1[airy_sys_call 548<br/>COMPILE_BADGE / REVOKE_BADGE / LSM_CTL]
             K2[airy_sys_rovol_ctl 549<br/>SNAPSHOT / RESTORE / MIGRATE / ...]
             K3[airy_sys_sched_ctl 550<br/>SET_POLICY]
-            K4[airy_sys_clt_notify 551<br/>PHASE_NOTIFY]
+            K4[airy_sys_clt_notify 551<br/>phase: PERCEPT/THINK/ACT]
         end
         subgraph "预留 552-571"
             K5[20 个预留槽位]
@@ -524,7 +524,7 @@ agent-linux 专用系统调用编号从 `548` 起始分配，避开 Linux 6.6 �
 | `AIRY_SYS_CALL` | `airy_sys_call` | 通用 op-dispatch（任务/capability/LSM） | `airy_sys_call(COMPILE_BADGE)` |
 | `AIRY_SYS_ROVOL_CTL` | `airy_sys_rovol_ctl` | MemoryRovol 记忆卷载 | `airy_sys_rovol_ctl(AIRY_ROVOL_SNAPSHOT)` |
 | `AIRY_SYS_SCHED_CTL` | `airy_sys_sched_ctl` | sched_tac 调度策略 | `airy_sys_sched_ctl(SET_POLICY)` |
-| `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | CoreLoopThree 认知 | `airy_sys_clt_notify(PHASE_NOTIFY)` |
+| `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | CoreLoopThree 认知 | `airy_sys_clt_notify(task_id, AIRY_COG_THINK)` |
 
 命名遵循五维正交 24 原则中的 E-5（命名语义化）：`<namespace>_sys_<category>_<action>`。
 
@@ -733,13 +733,13 @@ MemoryRovol 是 agent-linux 的记忆管理子系统，实现 L1-L4 四层记忆
 
 #### 8.1 认知系统调用概述
 
-CoreLoopThree 是 agent-linux 的认知运行时，实现"感知-思考-行动"三阶段认知循环。核心系统调用：
+CoreLoopThree 是 agent-linux 的认知运行时，实现"感知-思考-行动"三阶段认知循环。其核心系统调用为 `airy_sys_clt_notify`（编号 551），以 `phase` 统一操作码记录认知阶段（签名以 [01-syscalls.md §3.3](../../30-interfaces/01-syscalls.md) 为 SSoT）：
 
-| 编号 | 调用名 | 功能 | 对应认知阶段 |
-|------|--------|------|-------------|
-| 551 | `airy_sys_clt_notify`（PHASE_NOTIFY） | CoreLoopThree 阶段通知 | 全部三阶段 |
-| 551 | `airy_sys_clt_notify`（REGISTER_KTHREAD） | 注册 CoreLoopThree kthread | 内核线程注册 |
-| 551 | `airy_sys_clt_notify`（WASM_LOAD_MODULE） | 加载 Wasm 3.0 安全模块 | 行动阶段沙箱 |
+| 编号 | 调用名 | 功能 | phase 取值 |
+|------|--------|------|-----------|
+| 551 | `airy_sys_clt_notify(task_id, phase)` | 记录 CoreLoopThree 认知阶段（内核仅记录，不做调度决策） | 0/1/2 = `AIRY_COG_PERCEPT` / `AIRY_COG_THINK` / `AIRY_COG_ACT`；≥ `AIRY_COG_PHASE_MAX`（3）为模块 F kthread 类 op 保留区，本版本 fail-closed 返回 `-AIRY_ECOG_PHASE` |
+
+> CoreLoopThree kthread 的注册/注销位于 `phase ≥ AIRY_COG_PHASE_MAX` 保留区（模块 F，本版本未实现）；Wasm 3.0 安全模块加载归入 `airy_sys_call`（548）的 capability invocation 职责。二者均不经 551。
 
 #### 8.2 认知阶段枚举
 
@@ -773,7 +773,7 @@ agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享（1
 | `airy_sys_call` | MicroCoreRT 用户态调度 / Cupolas 应用权限模型 | `AIRY_SYS_CALL` 内核 op-dispatch | 任务提交、capability 编译/撤销、LSM 策略加载语义一致 |
 | `airy_sys_rovol_ctl` | MemoryRovol 用户态 API | `AIRY_SYS_ROVOL_CTL` 内核态 | 四层卷载、存用分离语义一致 |
 | `airy_sys_sched_ctl` | MicroCoreRT 用户态调度 | `AIRY_SYS_SCHED_CTL` 内核态 | sched_tac 策略语义一致 |
-| `airy_sys_clt_notify` | CoreLoopThree 用户态 | `AIRY_SYS_CLT_NOTIFY` kthread | 三阶段循环语义一致 |
+| `airy_sys_clt_notify` | CoreLoopThree 用户态 | `AIRY_SYS_CLT_NOTIFY` 认知阶段记录 | 三阶段循环语义一致 |
 | IPC 数据面 | AgentsIPC 用户态消息队列 | io_uring IORING_OP_URING_CMD 零拷贝 | 128B 消息头布局兼容 |
 
 #### 9.3 [IND] 层完全独立

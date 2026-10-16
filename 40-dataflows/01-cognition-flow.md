@@ -363,7 +363,7 @@ agentrt 与 agent-linux 完全共享的契约定义：
 | API | agentrt（用户态） | agent-linux（内核态） | 同源语义 |
 |-----|------------------|---------------------|---------|
 | `airy_clt_run()` | 用户态事件循环 | 内核 kthread 主循环 | 三阶段循环 |
-| `airy_clt_notify_phase()` | 同步通知 | 内核 `wake_up_process()` | 阶段切换通知 |
+| `airy_clt_notify_phase()` | 同步通知 | 内核记录认知阶段（551，不决策） | 阶段切换通知 |
 | `airy_thinkdual_switch()` | 协程切换 | kthread 优先级切换 | System 1/2 切换 |
 | `airy_llm_scheduler_submit()` | 用户态队列 | io_uring 提交 | LLM 推理提交 |
 | `airy_clt_query_phase()` | atomic 读取 | 内核 `atomic64_read()` | 当前阶段查询 |
@@ -409,8 +409,8 @@ agentrt 一致性检查遵循"全面推理 → 系统验证 → 确认不合理�
 
 | # | 检查项 | agentrt（用户态） | agent-linux（内核态） | 一致性结论 |
 |---|--------|------------------|---------------------|-----------|
-| 1 | [SC] 阶段枚举 | `AIRY_COG_PERCEPT/THINK/ACT` | 同源 `CLT_PHASE_*` | PASS 完全共享 |
-| 2 | [SC] 模式枚举 | `AIRY_THINK_FAST/AIRY_THINK_SLOW` | 同源 `THINKDUAL_*` | PASS 完全共享 |
+| 1 | [SC] 阶段枚举 | `AIRY_COG_PERCEPT/THINK/ACT` | 同源 `enum airy_cog_phase` | PASS 完全共享 |
+| 2 | [SC] 模式枚举 | `AIRY_THINK_FAST/AIRY_THINK_SLOW` | 同源 `enum airy_think_mode` | PASS 完全共享 |
 | 3 | [SC] 上下文结构 | `airy_clt_ctx_t` | 同源 `airy_clt_ctx_t` | PASS 完全共享 |
 | 4 | [SC] 能效指标结构 | `airy_token_efficiency_t` | 同源结构 | PASS 完全共享 |
 | 5 | [SC] GPU/NPU 描述符 | `airy_accel_capabilities_t` | 同源结构 | PASS 完全共享 |

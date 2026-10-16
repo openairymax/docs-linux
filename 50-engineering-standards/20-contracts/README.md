@@ -158,7 +158,7 @@ graph TB
 | services | 通过 syscall 调用 | 128B 消息头用户态 | 用户态驱动框架 | 结构化日志 |
 | security | `AIRY_SYS_CAP_*` / `LSM_*` | capability 携带 | 不适用 | 审计日志 |
 | memory | `AIRY_SYS_ROVOL_*` / `CXL_*` | MemoryRovol 迁移 | 不适用 | 结构化日志 |
-| cognition | `AIRY_SYS_CLT_*` / `WASM_*` | CoreLoopThree 通知 | 不适用 | 结构化日志 |
+| cognition | `AIRY_SYS_CLT_NOTIFY` | CoreLoopThree 认知阶段记录 | 不适用 | 结构化日志 |
 | cloudnative | 不直接暴露 | gRPC + CRD | 不适用 | 结构化日志 |
 | system | sysctl / procfs | 不直接暴露 | 不适用 | 结构化日志 |
 | tests-linux | 不直接暴露 | 测试协议 | 不适用 | 结构化日志 |

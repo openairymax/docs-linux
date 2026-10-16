@@ -1062,9 +1062,9 @@ int airy_vault_seal_tpm(uint32_t cap_id, uint32_t tpm_handle);
 | `airy_sys_call` | 548 | `REVOKE_BADGE` | 撤销 Badge（沿 MDB 派生树递归级联，`airy_cap_revoke_subtree`，O(N)）| 仅 sec_d |
 | `airy_sys_call` | 548 | `LSM_CTL` | 加载 LSM 策略 | 仅 sec_d |
 | `airy_sys_call` | 548 | `WASM_LOAD` | 加载 Wasm 模块 | 仅 sec_d |
-| `airy_sys_rovol_ctl` | 549 | — | MemoryRovol 控制 | rovol_d |
+| `airy_sys_rovol_ctl` | 549 | — | MemoryRovol 控制 | mem_d |
 | `airy_sys_sched_ctl` | 550 | — | sched_tac 调度控制 | sched_d |
-| `airy_sys_clt_notify` | 551 | — | 客户端通知 | clt_d |
+| `airy_sys_clt_notify` | 551 | — | CoreLoopThree 认知阶段记录 | cogn_d |
 
 **Capability 申请路径**（CAP_REQUEST opcode 自举，无 syscall）：
 

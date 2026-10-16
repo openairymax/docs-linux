@@ -83,7 +83,7 @@ agent-linux 全部公共符号使用统一命名空间前缀，与 agentrt 同�
 | `airy_ipc_recv` | agentrt | recv | ipc |
 | `airy_rovol_snapshot` | agentrt | snapshot | rovol（记忆卷载） |
 | `airy_capability_request` | agentrt | request | capability |
-| `airy_clt_phase_notify` | agentrt | notify | clt（CoreLoopThree）阶段 |
+| `airy_clt_notify_phase` | agentrt | notify | clt（CoreLoopThree）阶段 |
 
 ### 2.4 文件命名
 

@@ -203,7 +203,7 @@ resource airy_cap_fd[int32]
 airy_sys_call(cap fd, msg ptr[in airy_ipc_msg_hdr]) int32
 airy_sys_rovol_ctl(op int32[AIRY_ROVOL_SNAPSHOT:AIRY_ROVOL_TIER_GET], pid int32, arg int64) int32
 airy_sys_sched_ctl(op int32[AIRY_SCHED_SET_POLICY:AIRY_SCHED_YIELD], agent_id int32, arg int64) int32
-airy_sys_clt_notify(task_id int32, op int32[AIRY_CLT_PHASE_NOTIFY:AIRY_CLT_WASM_INVOKE]) int32
+airy_sys_clt_notify(task_id int32, phase int32[0:AIRY_COG_PHASE_MAX]) int32
 
 # io_uring IORING_OP_URING_CMD 数据面模糊（零 syscall）
 # cmd_op 全集变异、SQE 参数模糊
@@ -223,8 +223,10 @@ AIRY_ROVOL_SNAPSHOT     = 0
 AIRY_ROVOL_TIER_GET     = 3
 AIRY_SCHED_SET_POLICY   = 0
 AIRY_SCHED_YIELD        = 2
-AIRY_CLT_PHASE_NOTIFY   = 0
-AIRY_CLT_WASM_INVOKE    = 1
+AIRY_COG_PERCEPT        = 0
+AIRY_COG_THINK          = 1
+AIRY_COG_ACT            = 2
+AIRY_COG_PHASE_MAX      = 3
 AIRY_URING_CMD_MIN      = 0
 AIRY_URING_CMD_MAX      = 63
 ```
@@ -238,7 +240,7 @@ syzkaller 基于 `airy_syscall.txt` 生成随机 syscall 序列，例如：
 airy_sys_call(3, {magic=0x41524531, type=42, seq=1, payload="..."}) = 0
 airy_sys_rovol_ctl(AIRY_ROVOL_TIER_GET, 1234, 0)            # 查询 pid 1234 的 ROVOL tier
 airy_sys_sched_ctl(AIRY_SCHED_SET_POLICY, 7, 0x100000002)   # 设置 agent 7 调度策略
-airy_sys_clt_notify(99, AIRY_CLT_PHASE_NOTIFY)              # 通知 task 99 进入新阶段
+airy_sys_clt_notify(99, AIRY_COG_THINK)                    # 记录 task 99 进入思考阶段
 ```
 
 **OS-TEST-101**：syzkaller 必须覆盖全部 4 核心 Agent syscall + io_uring cmd_op 全集；CI PR 阶段运行 10 分钟后，通过 `syzkaller/workdir/corpus.db` 验证覆盖率，至少 80% 的 Agent syscall 被至少一次调用。

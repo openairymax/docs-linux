@@ -549,7 +549,7 @@ extern "C" {
  *     AIRY_SYS_CALL       — Capability invocation (sec_d compiles Badge)
  *     AIRY_SYS_ROVOL_CTL  — MemoryRovol snapshot/restore/tier
  *     AIRY_SYS_SCHED_CTL  — sched_tac scheduling policy config
- *     AIRY_SYS_CLT_NOTIFY — CoreLoopThree phase + kthread notify
+ *     AIRY_SYS_CLT_NOTIFY — CoreLoopThree cognitive phase record
  *
  *   Data plane (io_uring, zero syscall):
  *     IORING_OP_URING_CMD → airy_uring_cmd()
@@ -576,7 +576,7 @@ extern "C" {
 #define AIRY_SYS_CALL		548	/* Capability Invocation (sec_d compiles Badge) */
 #define AIRY_SYS_ROVOL_CTL	549	/* MemoryRovol control */
 #define AIRY_SYS_SCHED_CTL	550	/* sched_tac scheduling policy control */
-#define AIRY_SYS_CLT_NOTIFY	551	/* Client event notification */
+#define AIRY_SYS_CLT_NOTIFY	551	/* CoreLoopThree cognitive phase record */
 /* Reserved slots 552-571 for future expansion */
 
 #ifdef __cplusplus

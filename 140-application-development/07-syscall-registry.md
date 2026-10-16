@@ -64,7 +64,7 @@ v1.0.1 Capability Folding 架构下，控制面精简为 4 核心 syscall，其�
 | 548 | `AIRY_SYS_CALL` | Capability Invocation | sec_d 专属管理入口 | COMPILE_BADGE / REVOKE_BADGE / LSM_CTL / WASM_LOAD |
 | 549 | `AIRY_SYS_ROVOL_CTL` | 控制原语 | MemoryRovol L1-L4 控制 | SNAPSHOT / RESTORE / MIGRATE / TIER_SET / TIER_GET / MGLRU_CONFIG / LIST / DELETE / DEMOTE / PROMOTE |
 | 550 | `AIRY_SYS_SCHED_CTL` | 控制原语 | sched_tac 调度策略配置 | SET_POLICY / GET_POLICY / SET_BUDGET / GET_LATENCY / SET_PRIORITY / GET_VTIME / YIELD |
-| 551 | `AIRY_SYS_CLT_NOTIFY` | 控制原语 | CoreLoopThree 阶段通知 + kthread | PHASE_NOTIFY / REGISTER_KTHREAD / UNREGISTER_KTHREAD / SET_MODE / GET_METRICS / WASM_LOAD_MODULE / WASM_UNLOAD_MODULE / WASM_INVOKE |
+| 551 | `AIRY_SYS_CLT_NOTIFY` | 控制原语 | CoreLoopThree 认知阶段记录 | `phase`：0/1/2 = PERCEPT/THINK/ACT；≥3 保留区（模块 F，本版本 fail-closed） |
 | 552-571 | 预留 | — | 未来扩展 | — |
 
 **设计决策理由**：v1.0.1 Capability Folding 将 0.1.1 的 31 个独立 syscall 精简为 4 核心 syscall + op-dispatch。IPC 数据传递完全由 io_uring `IORING_OP_URING_CMD` 承载（零 syscall）；Agent 生命周期管理由 sec_d 通过 `airy_sys_call(COMPILE_BADGE/REVOKE_BADGE)` + io_uring 组合实现。此设计消除了 0.1.1 的控制面/数据面双平面死锁风险（详见 [01-syscalls.md](../30-interfaces/01-syscalls.md) §1.3）。
@@ -87,7 +87,7 @@ v1.0.1 Capability Folding 架构下，控制面精简为 4 核心 syscall，其�
 | `AIRY_SYS_CALL` | `airy_sys_call` | 548 | Capability Invocation | sec_d 专属管理入口（cap-type dispatch） |
 | `AIRY_SYS_ROVOL_CTL` | `airy_sys_rovol_ctl` | 549 | 控制原语 | MemoryRovol 记忆卷载控制（op dispatch） |
 | `AIRY_SYS_SCHED_CTL` | `airy_sys_sched_ctl` | 550 | 控制原语 | sched_tac 调度策略配置（op dispatch） |
-| `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | 551 | 控制原语 | CoreLoopThree 阶段通知 + kthread（op dispatch） |
+| `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | 551 | 控制原语 | CoreLoopThree 认知阶段记录（`phase` 统一操作码） |
 
 **命名结构**：`airy_sys_<category>_<action>`
 
@@ -108,7 +108,7 @@ v1.0.1 Capability Folding 架构下，控制面精简为 4 核心 syscall，其�
 | 548 | `AIRY_SYS_CALL` | `airy_sys_call` | Capability Invocation（sec_d 专属管理：COMPILE_BADGE / REVOKE_BADGE / LSM_CTL / WASM_LOAD） | 2 | 0.1.1（v1.0.1 语义收窄） | 已分配 |
 | 549 | `AIRY_SYS_ROVOL_CTL` | `airy_sys_rovol_ctl` | MemoryRovol 记忆卷载控制（op-dispatch：SNAPSHOT / RESTORE / MIGRATE / TIER_SET / TIER_GET / MGLRU_CONFIG / LIST / DELETE / DEMOTE / PROMOTE） | 3 | 0.1.1 | 已分配 |
 | 550 | `AIRY_SYS_SCHED_CTL` | `airy_sys_sched_ctl` | sched_tac 调度策略配置（op-dispatch：SET_POLICY / GET_POLICY / SET_BUDGET / GET_LATENCY / SET_PRIORITY / GET_VTIME / YIELD） | 3 | 0.1.1 | 已分配 |
-| 551 | `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | CoreLoopThree 阶段通知 + kthread（op-dispatch：PHASE_NOTIFY / REGISTER_KTHREAD / UNREGISTER_KTHREAD / SET_MODE / GET_METRICS / WASM_LOAD_MODULE / WASM_UNLOAD_MODULE / WASM_INVOKE） | 2 | 0.1.1 | 已分配 |
+| 551 | `AIRY_SYS_CLT_NOTIFY` | `airy_sys_clt_notify` | CoreLoopThree 认知阶段记录（`phase` 统一操作码：0/1/2 = PERCEPT/THINK/ACT；≥3 保留区，模块 F） | 2 | 0.1.1 | 已分配 |
 
 **参数数说明**：指系统调用本身的参数数量（不含系统调用编号）。超过 6 个参数时使用结构体指针封装（遵循 Linux x86_64 System V AMD64 ABI 约束，详见 [contracts.md](../50-engineering-standards/20-contracts/contracts.md) 第 3 章）。
 
@@ -140,7 +140,7 @@ IPC 数据传递完全由 io_uring `IORING_OP_URING_CMD` + `cmd_op` 区分操作
 
 ### 4.1 设计原则
 
-v1.0.1 的 4 核心 syscall 通过 **op-dispatch**（操作码分派）承载 0.1.1 阶段的 31 个独立 syscall 的全部功能。每个核心 syscall 的第一个参数为 `op`（操作码），内核根据 `op` 值分派到具体处理函数。此设计是 Capability Folding 的直接结果——控制面 syscall 仅提供机制入口，具体操作由 op 码区分。
+v1.0.1 的 4 核心 syscall 通过 **op-dispatch**（操作码分派）承载 0.1.1 阶段的 31 个独立 syscall 的全部功能。548/549/550 的第一个参数为 `op`（操作码），内核根据 `op` 值分派到具体处理函数；551 的第一参数为 `task_id`，其操作码由第二参数 `phase` 承载（见 §4.5）。此设计是 Capability Folding 的直接结果——控制面 syscall 仅提供机制入口，具体操作由 op 码区分。
 
 ### 4.2 airy_sys_call op-dispatch（Capability Invocation）
 
@@ -189,21 +189,20 @@ v1.0.1 的 4 核心 syscall 通过 **op-dispatch**（操作码分派）承载 0.
 | `AIRY_SCHED_GET_VTIME` | 查询虚拟时间 | 查询 Agent 虚拟时间 | `airy_sys_sched_get_vtime`（0.1.1 编号 577） |
 | `AIRY_SCHED_YIELD` | 主动让出 | Agent 主动让出 CPU | `airy_sys_sched_yield`（0.1.1 编号 578） |
 
-### 4.5 airy_sys_clt_notify op-dispatch（认知循环控制）
+### 4.5 airy_sys_clt_notify phase 语义（认知阶段记录）
 
-`airy_sys_clt_notify(int task_id, __u32 phase)` 通过 `op` 分派：
+`airy_sys_clt_notify(int task_id, __u32 phase)` 的 `phase` 是**统一操作码**，取值域绑定 [SC] `cognition_types.h` 的 `enum airy_cog_phase`：
 
-| op 码 | 操作名 | 功能 | 0.1.1 对应 syscall |
-|-------|--------|------|-------------------|
-| `AIRY_CLT_PHASE_NOTIFY` | 阶段通知 | CoreLoopThree 阶段通知 | `airy_sys_clt_phase_notify`（0.1.1 编号 612） |
-| `AIRY_CLT_REGISTER_KTHREAD` | 注册 kthread | 注册 CoreLoopThree kthread | `airy_sys_clt_register_kthread`（0.1.1 编号 613） |
-| `AIRY_CLT_UNREGISTER_KTHREAD` | 注销 kthread | 注销 CoreLoopThree kthread | `airy_sys_clt_unregister_kthread`（0.1.1 编号 615） |
-| `AIRY_CLT_SET_MODE` | 设置模式 | 设置 Thinkdual 模式（System1/System2） | `airy_sys_clt_set_mode`（0.1.1 编号 616） |
-| `AIRY_CLT_GET_METRICS` | 查询指标 | 查询 Token 能效指标 | `airy_sys_clt_get_metrics`（0.1.1 编号 617） |
-| `AIRY_CLT_WASM_UNLOAD_MODULE` | 卸载 Wasm | 卸载 Wasm 模块 | `airy_sys_wasm_unload_module`（0.1.1 编号 618） |
-| `AIRY_CLT_WASM_INVOKE` | 调用 Wasm | 调用 Wasm 函数 | `airy_sys_wasm_invoke`（0.1.1 编号 619） |
+| phase 值 | 宏 | 语义 |
+|---------|----|------|
+| 0 | `AIRY_COG_PERCEPT` | 感知阶段 |
+| 1 | `AIRY_COG_THINK` | 思考阶段 |
+| 2 | `AIRY_COG_ACT` | 行动阶段 |
+| ≥ `AIRY_COG_PHASE_MAX`（3） | —（保留区） | 预留给模块 F 的 kthread 类操作；本版本未实现，fail-closed 返回 `-AIRY_ECOG_PHASE` |
 
-> **Wasm 模块加载**：`WASM_LOAD_MODULE`（0.1.1 编号 614）在 v1.0.1 中通过 `airy_sys_call(AIRY_OP_WASM_LOAD)` 实现，因为 Wasm 模块加载属于 sec_d 的 capability invocation 职责。
+内核侧按 per-agent 记录当前阶段（仅记录，不做调度决策）；阶段到优先级的效果由用户态 sched_tac 经 `airy_sys_sched_ctl`（编号 550）施加（见 [01-syscalls.md](../30-interfaces/01-syscalls.md) §5.2）。
+
+> **编号沿革**：0.1.1 的 CLT 段独立 syscall 612-619（`airy_sys_clt_phase_notify` / `airy_sys_clt_register_kthread` / `airy_sys_clt_set_mode` / `airy_sys_wasm_*` 等）已在 v1.0.1 废弃：阶段通知折叠为 551 的 `phase` 统一操作码，Wasm 模块加载归入 `airy_sys_call(AIRY_OP_WASM_LOAD)`（见 §4.2），Thinkdual 模式与推理阶段标记由用户态 cogn_d 维护（不经 syscall 传递）。历史编号见 [附录 A](#附录-a-011-历史-syscall-模型已废弃)。
 
 ---
 
@@ -229,7 +228,7 @@ v1.0.1 的 4 核心 syscall 通过 **op-dispatch**（操作码分派）承载 0.
 | `airy_agent_get_token_budget()` | `airy_sys_sched_ctl(AIRY_SCHED_GET_POLICY)`（policy 回读预算状态） | 查询 Token 预算 |
 | `airy_cap_derive(AIRY_CAP_OP_REVOKE)` | `airy_sys_call(AIRY_OP_REVOKE_BADGE)` | 终止时递归撤销 capability |
 
-> **Token 预算入口统一**：Token 预算的**唯一系统调用入口为 `airy_sys_sched_ctl` (550)**（SET_POLICY/GET_POLICY，见 04-token-budget.md §8.1）；`airy_sys_clt_notify` 的 `AIRY_CLT_SET_MODE` 仅承载 Thinkdual 认知模式（见 §4.5），不承载 Token 预算。
+> **Token 预算入口统一**：Token 预算的**唯一系统调用入口为 `airy_sys_sched_ctl` (550)**（SET_POLICY/GET_POLICY，见 04-token-budget.md §8.1）；`airy_sys_clt_notify`（551）仅承载 CoreLoopThree 认知阶段记录（`phase` 统一操作码，见 §4.5），不承载 Token 预算。
 
 **映射设计决策理由**：
 1. **前缀分离**：`airy_agent_*` 是 SDK 应用层 API（用户友好），4 核心 syscall 是内核系统调用（机制层）。分离前缀遵循 K-1（机制在内核，策略在用户态）——SDK 层封装策略（重试、错误转换、日志），系统调用层仅提供机制。
@@ -333,7 +332,7 @@ extern "C" {
 #define AIRY_SYS_CALL            548  /* Capability Invocation（sec_d 专属管理） */
 #define AIRY_SYS_ROVOL_CTL       549  /* MemoryRovol 记忆卷载控制 */
 #define AIRY_SYS_SCHED_CTL       550  /* sched_tac 调度策略配置 */
-#define AIRY_SYS_CLT_NOTIFY      551  /* CoreLoopThree 阶段通知 + kthread */
+#define AIRY_SYS_CLT_NOTIFY      551  /* CoreLoopThree 认知阶段记录 */
 
 /* 预留段（552-571，20 槽位）—— 宏名以 [SC] syscalls.h 为唯一权威 */
 #define AIRY_SYS_RESERVED_BASE   552
@@ -382,14 +381,10 @@ extern "C" {
 #define AIRY_SCHED_GET_VTIME     0x06
 #define AIRY_SCHED_YIELD         0x07
 
-/* airy_sys_clt_notify op 码 */
-#define AIRY_CLT_PHASE_NOTIFY         0x01
-#define AIRY_CLT_REGISTER_KTHREAD     0x02
-#define AIRY_CLT_UNREGISTER_KTHREAD   0x03
-#define AIRY_CLT_SET_MODE             0x04
-#define AIRY_CLT_GET_METRICS          0x05
-#define AIRY_CLT_WASM_UNLOAD_MODULE   0x06
-#define AIRY_CLT_WASM_INVOKE          0x07
+/* airy_sys_clt_notify phase 值 —— 绑定 [SC] cognition_types.h 的 enum airy_cog_phase：
+ * AIRY_COG_PERCEPT=0 / AIRY_COG_THINK=1 / AIRY_COG_ACT=2 / AIRY_COG_PHASE_MAX=3；
+ * ≥ AIRY_COG_PHASE_MAX 为模块 F 保留区（本版本 fail-closed -AIRY_ECOG_PHASE）；
+ * 551 不定义本地 op 宏，phase 取值以 [SC] cognition_types.h 为唯一权威（见 §4.5）。 */
 
 #ifdef __cplusplus
 }
@@ -568,7 +563,7 @@ agent-linux 与 agentrt 在以下 12 个头文件中实现代码字面共享，�
 | `airy_sys_call` | Cupolas 应用权限模型（用户态 Badge=0，H3） | sec_d 编译/撤销 Badge（H4） | Capability Invocation 语义一致 |
 | `airy_sys_rovol_ctl` | MemoryRovol 用户态 API | `AIRY_ROVOL_*` op-dispatch | 四层卷载、存用分离语义一致 |
 | `airy_sys_sched_ctl` | MicroCoreRT sub-scheduler 用户态 | `AIRY_SCHED_*` op-dispatch | 优先级范围 0-139、vtime 衰减一致 |
-| `airy_sys_clt_notify` | CoreLoopThree 用户态 | `AIRY_CLT_*` op-dispatch | 三阶段循环语义一致 |
+| `airy_sys_clt_notify` | CoreLoopThree 用户态 | `phase` 统一操作码（认知阶段记录） | 三阶段循环语义一致 |
 
 ### 10.3 [IND] 层完全独立
 
@@ -801,7 +796,11 @@ static void test_syscall_number_stability(struct kunit *test)
     KUNIT_EXPECT_EQ(test, AIRY_OP_COMPILE_BADGE, 0x01);
     KUNIT_EXPECT_EQ(test, AIRY_ROVOL_SNAPSHOT, 0x01);
     KUNIT_EXPECT_EQ(test, AIRY_SCHED_SET_POLICY, 0x01);
-    KUNIT_EXPECT_EQ(test, AIRY_CLT_PHASE_NOTIFY, 0x01);
+
+    /* 551 phase 取值不可变性（[SC] cognition_types.h） */
+    KUNIT_EXPECT_EQ(test, AIRY_COG_PERCEPT, 0);
+    KUNIT_EXPECT_EQ(test, AIRY_COG_ACT, 2);
+    KUNIT_EXPECT_EQ(test, AIRY_COG_PHASE_MAX, 3);
 }
 ```
 
@@ -900,10 +899,10 @@ static void test_syscall_number_stability(struct kunit *test)
 | `airy_sys_capability_request` | 592 | `airy_sys_call(COMPILE_BADGE)` | 548 |
 | `airy_sys_capability_revoke` | 593 | `airy_sys_call(REVOKE_BADGE)` | 548 |
 | `airy_sys_lsm_load_policy` | 594 | `airy_sys_call(LSM_CTL)` | 548 |
-| `airy_sys_clt_phase_notify` | 612 | `airy_sys_clt_notify(PHASE_NOTIFY)` | 551 |
+| `airy_sys_clt_phase_notify` | 612 | `airy_sys_clt_notify(phase=PERCEPT/THINK/ACT)` | 551 |
 | `airy_sys_wasm_load_module` | 614 | `airy_sys_call(WASM_LOAD)` | 548 |
 
-> **编号重复修正说明**：A.2 前 6 行的 0.1.1 编号取自 0.1.1 §2.2 早期连续编号（512 起），与 A.3 的 6 段划分存在历史偏差；其中与后 15 行重复的编号（512/521）已修正——`airy_sys_call` 在 0.1.1 无同名 syscall（标注"—"，v1.0.1 收窄合并 TASK 段入口）、`airy_sys_clt_notify` 对应 CLT 段 612（与 §4.5 `AIRY_CLT_PHASE_NOTIFY=612` 一致）；513/514/519/520 等早期编号保留历史原貌，不再追溯。
+> **编号重复修正说明**：A.2 前 6 行的 0.1.1 编号取自 0.1.1 §2.2 早期连续编号（512 起），与 A.3 的 6 段划分存在历史偏差；其中与后 15 行重复的编号（512/521）已修正——`airy_sys_call` 在 0.1.1 无同名 syscall（标注"—"，v1.0.1 收窄合并 TASK 段入口）、`airy_sys_clt_notify` 对应 CLT 段 612（与 §4.5 `phase` 统一操作码的 0.1.1 沿革一致）；513/514/519/520 等早期编号保留历史原貌，不再追溯。
 >
 > 完整迁移映射见 [01-syscalls.md §2.2.1](../30-interfaces/01-syscalls.md) 的 12→4 精确映射表与本注册表 §4 的 op-dispatch 操作映射表。
 

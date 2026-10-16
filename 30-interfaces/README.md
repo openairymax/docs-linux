@@ -34,7 +34,7 @@ agent-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS
 | 系统调用 | capability 调用（sec_d 专属） | kernel / security / cognition | `AIRY_SYS_CALL`（COMPILE_BADGE/REVOKE_BADGE/LSM_CTL/WASM_LOAD op-dispatch） | [01-syscalls.md](01-syscalls.md) |
 | 系统调用 | 记忆卷载控制 | kernel / memory | `AIRY_SYS_ROVOL_CTL`（snapshot/restore/migrate/tier op-dispatch） | 01-syscalls.md |
 | 系统调用 | 调度策略控制 | kernel | `AIRY_SYS_SCHED_CTL`（set/get op） | 01-syscalls.md |
-| 系统调用 | CoreLoopThree 通知 | kernel / cognition | `AIRY_SYS_CLT_NOTIFY`（阶段通知 + kthread 注册） | 01-syscalls.md |
+| 系统调用 | CoreLoopThree 认知阶段记录 | kernel / cognition | `AIRY_SYS_CLT_NOTIFY`（phase 统一操作码） | 01-syscalls.md |
 | IPC 协议 | 消息头 | 全部子仓 | 128B 定长 + 5 种 payload | [02-ipc-protocol.md](02-ipc-protocol.md) |
 | IPC 协议 | 通信原语 | services | Channel / Socket / FIFO / Eventpair | 02-ipc-protocol.md |
 | IPC 协议 | 零拷贝 | kernel / services | io_uring + IORING_OP_URING_CMD + registered buffer + mmap（不使用 page flipping） | 02-ipc-protocol.md |
@@ -59,7 +59,7 @@ agent-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS
 | services | 通过系统调用 + IPC | 128B 消息头用户态 + 4 通信原语 | daemon 客户端 | C 风格 + 日志 | `#include <airymax/*.h>` 引用 |
 | security | `AIRY_SYS_CALL`（capability op-dispatch） / `LSM_*` | capability 携带 | SafetyClient | C 风格 + 安全编码 | `lsm_types.h` / `security_types.h` |
 | memory | `AIRY_SYS_ROVOL_CTL` / `CXL_*` / `MGLRU_*` | MemoryRovol 迁移消息 | MemoryClient（嵌套） | C 风格 + 内存安全 | `memory_types.h` |
-| cognition | `AIRY_SYS_CLT_NOTIFY` / `WASM_*` | CoreLoopThree 阶段通知 | CognitionClient + ChatClient | Rust 风格 | `cognition_types.h` |
+| cognition | `AIRY_SYS_CLT_NOTIFY` | CoreLoopThree 认知阶段记录 | CognitionClient + ChatClient | Rust 风格 | `cognition_types.h` |
 | cloudnative | 不直接暴露 | gRPC + CRD | agentctl + SDK | Go 风格 | 不直接涉及 |
 | system | sysctl / procfs | 不直接暴露 | DevStation CLI | 多语言 | 不直接涉及 |
 | tests-linux | 不直接暴露 | 测试协议 | 测试框架 API | 各语言规范 | 验证 [SC] 双端一致 |

@@ -163,7 +163,7 @@ agent-linux 的 12 daemon 完整名单（与 [10-user-supervisor-daemon.md](10-u
 | # | Daemon | 所需 Perms 位 | 校验失败返回 | 特殊权限 |
 |---|--------|-------------|------------|---------|
 | 1 | `sec_d` | `AIRY_CAP_PERM_SUPERVISE`(0x0040) | `AIRY_ECAP_PERM`(-81) | 唯一 Badge 写者；令牌桶限流 100 req/s，超限返回 `AIRY_ESEC_D_THROTTLED`(-83) |
-| 2 | `cogn_d` | `AIRY_CAP_PERM_SEND`(0x0001) + `AIRY_CAP_PERM_RECV`(0x0002) | `AIRY_ECAP_PERM`(-81) | CoreLoopThree kthread 注册需 `AIRY_CAP_PERM_DERIVE`(0x0004) |
+| 2 | `cogn_d` | `AIRY_CAP_PERM_SEND`(0x0001) + `AIRY_CAP_PERM_RECV`(0x0002) | `AIRY_ECAP_PERM`(-81) | CoreLoopThree kthread 注册（551 保留区）需 `AIRY_CAP_PERM_DERIVE`(0x0004) |
 | 3 | `mem_d` | `AIRY_CAP_PERM_SEND`(0x0001) + `AIRY_CAP_PERM_RECV`(0x0002) | `AIRY_ECAP_PERM`(-81) | 快照/恢复操作需 `AIRY_CAP_PERM_FILE_OPEN`(0x0010) |
 | 4 | `gateway_d` | `AIRY_CAP_PERM_SEND`(0x0001) + `AIRY_CAP_PERM_RECV`(0x0002) + `AIRY_CAP_PERM_DERIVE`(0x0004) | `AIRY_ECAP_PERM`(-81) | 入站消息重新编译 Badge；跨节点 mTLS 双向认证 |
 | 5 | `logger_d` | `AIRY_CAP_PERM_SEND`(0x0001) | `AIRY_ECAP_PERM`(-81) | Ring Buffer 消费端只读；审计哈希链追加需 `sec_d` Ed25519 签名 |
@@ -192,7 +192,7 @@ agent-linux 的 12 daemon 完整名单（与 [10-user-supervisor-daemon.md](10-u
 | `airy_sys_call` | 548 | `sec_d` 专属管理入口（Badge 编译/撤销/查询） |
 | `airy_sys_rovol_ctl` | 549 | 记忆卷载控制（mem_d） |
 | `airy_sys_sched_ctl` | 550 | 调度策略配置（sched_d） |
-| `airy_sys_clt_notify` | 551 | CoreLoopThree 通知 + kthread 注册（cogn_d） |
+| `airy_sys_clt_notify` | 551 | CoreLoopThree 认知阶段记录（`phase` 统一操作码，cogn_d） |
 | 预留 | 552-571 | 20 个预留槽位（v2.x 扩展用） |
 
 ### 9.2 agent_caps[1024] 静态数组
@@ -397,7 +397,7 @@ agent-linux 的 8 子仓与 Unify Design 五模块通过以下 6 条关键协作
 
 | 协作路径 | 参与模块 | 数据流 | 关键机制 |
 |---------|---------|--------|---------|
-| **Agent 启动** | kernel + services + security | macro_d 拉起 daemon → sec_d 编译 Badge → agent_caps[] 写入 → cogn_d 注册 kthread | systemd unit 依赖顺序 + `AIRY_IPC_OP_CAP_REQUEST` + `airy_sys_clt_notify` |
+| **Agent 启动** | kernel + services + security | macro_d 拉起 daemon → sec_d 编译 Badge → agent_caps[] 写入 → cogn_d 记录认知阶段（kthread 注册见 551 保留区） | systemd unit 依赖顺序 + `AIRY_IPC_OP_CAP_REQUEST` + `airy_sys_clt_notify` |
 | **IPC 消息传递** | kernel + services + security | 发送方 IORING_OP_URING_CMD → fastpath C-S0~C-S12 校验链 → kfifo 投递 → 接收方 CQE | agent_caps[1024] 静态数组 + C-S9 Badge 内联校验（~10ns）+ io_uring 零拷贝 |
 | **故障检测与恢复** | kernel + services + security | Micro-Supervisor 检测异常 → 冻结 Ring → eventfd 通知 macro_d → macro_d 裁决（警告/降级/暂停/终止） | 双 Supervisor 模型（内核冷酷执法 + 用户温情裁决）+ sec_d 5 阶段恢复流程 |
 | **审计日志** | kernel + services + security | printk → printk-bridge → Ring Buffer → logger_d 消费 → SHA-256 哈希链 → sec_d Ed25519 签名 → TPM 2.0 度量 | 三层审计保护（哈希链 + 签名 + TPM）+ audit_d 完整性校验 |
