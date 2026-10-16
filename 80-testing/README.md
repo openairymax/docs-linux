@@ -295,7 +295,7 @@ fi
 
 `airy_regression_baseline.json` 记录已知通过的用例集，作为回归对比基线：
 
-> **规划扩展标注**：下列基线为回归测试设计目标（总用例 1247，含上游 KUnit 全量与 daemon 恢复用例）。Airymax 自有 KUnit 当前实际为 **5 套件 31 用例 + 1 bench**：`airy_lsm_test`（9）/ `airy_cap_derive_test`（4）/ `airy_ipc_ring_test`（5）/ `stc_dispatch_test`（10）/ `airy_ipc_capability_test`（3）+ `airy_fastpath_bench`（bench，不计用例数）。OS-TEST-012 单调递增断言以当前实际 31 用例为基线。
+> **规划扩展标注**：下列基线为回归测试设计目标（总用例 1247，含上游 KUnit 全量与 daemon 恢复用例）。Airymax 自有 KUnit 的权威口径以棘轮基线 `tools/kunit-tap-baseline.tap`（OS-TEST-012 门禁输入）为准，当前为 **12 套件 107 叶子用例**：`airy_invoke_syscall_548`（19）/ `airy_clt_syscall_551`（11，syscall 551 认知阶段记录）/ `stc_dispatch_p1_1`（10）/ `airy_ipc_ring`（17）/ `airy_ipc_crc32_c_s12`（9）/ `airy_fastpath_bench`（7，bench）/ `airy_ipc_capability_p1_5`（3）/ `airy_lsm_p1_4`（9）/ `airy_cap_derive_p1_10`（4）/ `airy_contract_snapshot`（5）/ `airy_eventfd_fault_ring`（8）/ `airy_eventfd_register`（5）。OS-TEST-012 单调递增断言以当前基线 107 叶子用例为准。
 
 ```json
 {
