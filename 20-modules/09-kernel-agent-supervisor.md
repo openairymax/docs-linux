@@ -144,7 +144,7 @@ agent-linux 的事件通知机制（eventfd）借鉴 seL4 Notification 的位图
 | `receiveSignal()` | `eventfd_ctx_get()` + `wait_event` | 异步信号接收 |
 | NtfnState_Idle/Waiting/Active | eventfd 计数器状态 | 3 态语义 |
 
-**位图聚合借鉴**：seL4 Notification 使用 `word_t` 位图（每 bit 代表一个事件），agent-linux 在 eventfd 之上实现多事件聚合——`eventfd_signal(ctx, 1ULL << fault_type)` 按位编码 Fault 类型，Macro-Supervisor 通过 `eventfd_ctx_get()` 读取后解码。
+**聚合编码借鉴**：seL4 Notification 用 `word_t` 位图把多个事件聚合进一次信号；agent-linux 借鉴"单次 signal 承载聚合语义"这一思路，但不采用位图——eventfd 计数器装载打包后的 `(agent_id, fault_code)` 对（低 32 位 `fault_code`、高 32 位 `agent_id`，见 §5.1），Macro-Supervisor 通过 `eventfd_ctx_get()` 读出后解包。按 bit 编码 Fault 类型不适用：Fault 码是稀疏的 `0x100x` 编号，且一次通知还须携带触发它的 `agent_id`。
 
 ---
 
@@ -470,10 +470,12 @@ static int __init airy_die_notifier_init(void)
 
 ### 5.1 eventfd 通知机制
 
-Micro-Supervisor 通过 eventfd 向 Macro-Supervisor 发送故障通知。eventfd_signal 是非阻塞的，仅设置信号计数，不触发上下文切换：
+Micro-Supervisor 通过 eventfd 向 Macro-Supervisor 发送故障通知。`eventfd_signal()` 是非阻塞的，仅递增计数器，不触发上下文切换，因此可从 die-notifier 与 NMI 路径安全调用。
+
+eventfd 计数器最多承载一个打包值，容不下完整故障详情，因此每次信号同时把详情写入一个有界环 `airy_fev_*`（容量 `AIRY_FEV_RING_NR` = 64 项），由 Macro-Supervisor 被唤醒后按需排空：
 
 ```c
-/* kernel/kernel/superv/airy_eventfd.c —— eventfd 故障通知 */
+/* security/airy/airy_eventfd.c —— eventfd 故障通知 */
 struct airy_fault_event {
     __u32 ring_id;
     __u32 fault_code;
@@ -482,36 +484,46 @@ struct airy_fault_event {
     __u32 pad;
 };
 
-static struct eventfd_ctx *airy_fault_efd;
+static struct eventfd_ctx *fault_eventfd_ctx;
+static DEFINE_SPINLOCK(fault_eventfd_lock);
 
-int airy_eventfd_signal_fault(__u32 ring_id, __u32 fault_code)
+void airy_eventfd_signal_fault(__u32 fault_code, __u32 agent_id,
+                               __u64 timestamp)
 {
     struct airy_fault_event ev = {
-        .ring_id = ring_id,
+        .ring_id = AIRY_FEV_RING_ID_NONE,
         .fault_code = fault_code,
-        .timestamp_ns = ktime_get_real_ns(),
-        .agent_id = current->pid,
+        .timestamp_ns = timestamp,
+        .agent_id = agent_id,
     };
+    unsigned long flags;
+    __u64 event_val;
 
-    /* 1. 将故障事件写入 eventfd 关联的环形队列（best-effort） */
-    if (airy_fault_event_enqueue(&ev) < 0) {
-        /* 队列满：仅 signal 计数，丢失事件详情 */
-        pr_warn("airy: fault event queue full, detail lost\n");
-    }
+    /* 1. best-effort 记录详情；仅环满时限速告警 */
+    if (airy_fev_post(&ev) == -AIRY_ENOMEM)
+        pr_warn_ratelimited("airy: fault event queue full, "
+                            "detail lost\n");
 
-    /* 2. eventfd_signal 通知 Macro-Supervisor（非阻塞） */
-    eventfd_signal(airy_fault_efd, 1);
+    /* 2. 低 32 位 fault_code、高 32 位 agent_id 打包进计数器 */
+    event_val = ((__u64)agent_id << 32) | (__u64)fault_code;
 
-    return 0;
+    /* 3. eventfd_signal 通知 Macro-Supervisor（非阻塞） */
+    spin_lock_irqsave(&fault_eventfd_lock, flags);
+    if (fault_eventfd_ctx)
+        eventfd_signal(fault_eventfd_ctx, event_val);
+    spin_unlock_irqrestore(&fault_eventfd_lock, flags);
 }
 
-/* Macro-Supervisor 注册 eventfd */
-int airy_eventfd_register(int efd)
-{
-    airy_fault_efd = eventfd_ctx_fdget(efd);
-    return 0;
-}
+/* Macro-Supervisor 注册 / 注销 eventfd */
+int airy_eventfd_register(int efd);   /* 接管引用，替换旧目标 */
+void airy_eventfd_unregister(void);   /* 幂等；无目标时为空操作 */
 ```
+
+计数器值为 `((__u64)agent_id << 32) | (__u64)fault_code`：`fault_code` 占低 32 位、`agent_id` 占高 32 位；`timestamp` 不进计数器，Macro-Supervisor 从详情环取回完整事件。
+
+`airy_eventfd_register()` 在锁内替换目标、锁外释放被替换的旧引用，故监督进程重启时可直接接管，无需先注销；`airy_eventfd_unregister()` 幂等，注销后故障只写入详情环。
+
+详情环 `airy_fev_*` 有四个入口：`airy_fev_post()` 记录一条详情（仅 `trylock`，不阻塞，环满返回 `-AIRY_ENOMEM`、锁竞争返回 `-AIRY_EBUSY`）、`airy_fev_fetch()` 单消费者无锁排空、`airy_fev_reset()` 清空（仅初始化与测试拆卸可用）、`airy_fev_lost()` 返回被丢弃的详情数。
 
 ### 5.2 通知可靠性
 
@@ -519,8 +531,8 @@ int airy_eventfd_register(int efd)
 |------|------|------|
 | 阻塞 | 非阻塞 | eventfd_signal 仅设置计数 |
 | 上下文切换 | 无 | Macro-Supervisor 由 io_uring poll 唤醒 |
-| 丢失 | best-effort | 队列满时仅 signal 计数 |
-| NMI 安全 | 是 | eventfd_signal 在 NMI 上下文安全 |
+| 丢失 | best-effort | 详情环满（`-AIRY_ENOMEM`）或锁竞争（`-AIRY_EBUSY`）时只丢详情并累加 `airy_fev_lost()`，signal 本身始终投递 |
+| NMI 安全 | 是 | `airy_fev_post()` 仅 `trylock`、`eventfd_signal()` 不睡眠，二者均可运行于 NMI 上下文 |
 
 ### 5.3 Macro-Supervisor 接收
 
