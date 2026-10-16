@@ -146,7 +146,7 @@ v1.0.1 的 4 核心 syscall 通过 **op-dispatch**（操作码分派）承载 0.
 
 `airy_sys_call(cap_t cap, const struct airy_ipc_msg_hdr *msg)` 通过 `msg->opcode` 分派：
 
-> **分派语义（以内核实现为权威）**：`kernel/kernel/syscalls/airy_syscalls.c`（SYSCALL 548）实际按 [SC] `ipc.h` 的 `AIRY_IPC_OP_*` 值分派（`AIRY_IPC_OP_SEND=0x0001` / `RECV=0x0002` / `SEND_BATCH=0x0003` / `CANCEL=0x0004` / `FREEZE=0x0005` / `CAP_REQUEST=0x0010` / `CAP_RESPONSE=0x0011`，未知 opcode 返回 `-EINVAL`）。下表 `AIRY_OP_*`（`COMPILE_BADGE` 等）为 **0.1.1 历史命名**（sec_d 管理操作的概念层标识），其数值（0x01-0x07）与 `AIRY_IPC_OP_*` 存在数值重叠（如 `AIRY_OP_COMPILE_BADGE=0x01` 与 `AIRY_IPC_OP_SEND=0x0001` 数值相同）——两者为不同命名空间，v1.0.1 实际分派以 `msg->opcode` + [SC] `ipc.h` 的 `AIRY_IPC_OP_*` 为权威；sec_d 管理操作（Badge 编译/撤销、LSM 策略、Wasm 加载）的最终 opcode 编号由本注册表统一（见 §6.2 模板标注）。
+> **分派语义（以内核实现为权威）**：`kernel/kernel/syscalls/airy_syscalls.c`（SYSCALL 548）实际按 [SC] `ipc.h` 的 `AIRY_IPC_OP_*` 值分派（`AIRY_IPC_OP_SEND=0x0001` / `RECV=0x0002` / `SEND_BATCH=0x0003` / `CANCEL=0x0004` / `FREEZE=0x0005` / `CAP_REQUEST=0x0010` / `CAP_RESPONSE=0x0011`，未知 opcode 返回 `-AIRY_EIPC_OPCODE`（C-S2，-42），合法但不属本入口所辖的 opcode 返回 `-AIRY_ENOTSUP`）。下表 `AIRY_OP_*`（`COMPILE_BADGE` 等）为 **0.1.1 历史命名**（sec_d 管理操作的概念层标识），其数值（0x01-0x07）与 `AIRY_IPC_OP_*` 存在数值重叠（如 `AIRY_OP_COMPILE_BADGE=0x01` 与 `AIRY_IPC_OP_SEND=0x0001` 数值相同）——两者为不同命名空间，v1.0.1 实际分派以 `msg->opcode` + [SC] `ipc.h` 的 `AIRY_IPC_OP_*` 为权威；sec_d 管理操作（Badge 编译/撤销、LSM 策略、Wasm 加载）的最终 opcode 编号由本注册表统一（见 §6.2 模板标注）。
 
 | op 码（0.1.1 历史命名） | 操作名 | 功能 | 0.1.1 对应 syscall | 说明 |
 |-------|--------|------|-------------------|------|
