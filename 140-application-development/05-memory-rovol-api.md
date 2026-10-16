@@ -103,7 +103,7 @@ AIRY_API int airy_sys_rovol_ctl(__u32 op,
 | 0x09 | `AIRY_ROVOL_PROMOTE` | L4→L3→L2→L1 层级晋升 | `airy_rovol_tier_op_t *op` | v1.0.1 |
 | 0x0A | `AIRY_ROVOL_TIER_GET` | 获取 CXL 内存分层策略 | `airy_cxl_tier_policy_t *policy_out` | v1.0.1 |
 
-> **op 码编号权威源**：op 码数值（0x01-0x0A）以 [07-syscall-registry.md §4.3/§6.2](07-syscall-registry.md) 为唯一权威。注意 [SC] `memory_types.h` 当前**尚未落地** `AIRY_ROVOL_OP_*` 枚举（10 op 待 [SC] 补齐），落地时须保持"注册表 ↔ UAPI 头文件 ↔ 内核实现"三方一致。
+> **op 码编号权威源**：op 码数值（0x01-0x0A）以 [07-syscall-registry.md §4.3/§6.2](07-syscall-registry.md) 为唯一权威。[SC] `memory_types.h` 已落地 `enum airy_rovol_op`（`AIRY_ROVOL_*`，10 op + 独占上界 `AIRY_ROVOL_OP_MAX`），须保持"注册表 ↔ UAPI 头文件 ↔ 内核实现"三方一致。
 
 **0.1.1 → v1.0.1 迁移映射表**：
 
@@ -113,12 +113,12 @@ AIRY_API int airy_sys_rovol_ctl(__u32 op,
 | `airy_sys_rovol_restore` | 553 | `airy_sys_rovol_ctl(AIRY_ROVOL_RESTORE, ...)` | 549, op=0x02 |
 | `airy_sys_rovol_migrate` | 554 | `airy_sys_rovol_ctl(AIRY_ROVOL_MIGRATE, ...)` | 549, op=0x03 |
 | `airy_sys_cxl_tier_set` | 555 | `airy_sys_rovol_ctl(AIRY_ROVOL_TIER_SET, ...)` | 549, op=0x04 |
-| `airy_sys_cxl_tier_get` | 556 | `airy_sys_rovol_ctl(AIRY_ROVOL_TIER_GET, ...)` | 549, op=0x05 |
-| `airy_sys_mglru_config` | 557 | `airy_sys_rovol_ctl(AIRY_ROVOL_MGLRU_CONFIG, ...)` | 549, op=0x06 |
-| `airy_sys_rovol_list` | 558 | `airy_sys_rovol_ctl(AIRY_ROVOL_LIST, ...)` | 549, op=0x07 |
-| `airy_sys_rovol_delete` | 559 | `airy_sys_rovol_ctl(AIRY_ROVOL_DELETE, ...)` | 549, op=0x08 |
-| `airy_sys_rovol_demote` | 560 | `airy_sys_rovol_ctl(AIRY_ROVOL_DEMOTE, ...)` | 549, op=0x09 |
-| `airy_sys_rovol_promote` | 561 | `airy_sys_rovol_ctl(AIRY_ROVOL_PROMOTE, ...)` | 549, op=0x0A |
+| `airy_sys_mglru_config` | 556 | `airy_sys_rovol_ctl(AIRY_ROVOL_MGLRU_CONFIG, ...)` | 549, op=0x05 |
+| `airy_sys_rovol_list` | 557 | `airy_sys_rovol_ctl(AIRY_ROVOL_LIST, ...)` | 549, op=0x06 |
+| `airy_sys_rovol_delete` | 558 | `airy_sys_rovol_ctl(AIRY_ROVOL_DELETE, ...)` | 549, op=0x07 |
+| `airy_sys_rovol_demote` | 559 | `airy_sys_rovol_ctl(AIRY_ROVOL_DEMOTE, ...)` | 549, op=0x08 |
+| `airy_sys_rovol_promote` | 560 | `airy_sys_rovol_ctl(AIRY_ROVOL_PROMOTE, ...)` | 549, op=0x09 |
+| `airy_sys_cxl_tier_get` | 561 | `airy_sys_rovol_ctl(AIRY_ROVOL_TIER_GET, ...)` | 549, op=0x0A |
 
 > **v1.0.1 变更说明**：原 0.1.1 的 10 个独立 MemoryRovol syscall（552-561）已合并为单一 `airy_sys_rovol_ctl` (549) + op-dispatch 模型，详见 [07-syscall-registry.md](07-syscall-registry.md) §4.3。原编号段 552-561 在 v1.0.1 中已废弃保留。
 

@@ -423,25 +423,27 @@ echo madvise > /sys/kernel/mm/transparent_hugepage/shmem_enabled
 **`airy_sys_rovol_ctl`（编号 549）控制接口**：
 
 ```c
-/* mem_d 通过 airy_sys_rovol_ctl 控制记忆卷载——4 核心 syscall 之一 */
-enum airy_rovol_opcode {
-    AIRY_ROVOL_SNAPSHOT    = 1,  /* 创建记忆快照 [SS] */
-    AIRY_ROVOL_RESTORE     = 2,  /* 从快照恢复 [SS] */
-    AIRY_ROVOL_MIGRATE     = 3,  /* 跨节点/跨 tier 迁移 [SS] */
-    AIRY_ROVOL_TIER_SET    = 4,  /* 配置页面所在 tier [IND] */
-    AIRY_ROVOL_TIER_GET    = 5,  /* 查询页面所在 tier [IND] */
-    AIRY_ROVOL_MGLRU_CONFIG = 6, /* 配置 MGLRU 多代 LRU [IND] */
-    AIRY_ROVOL_LIST        = 7,  /* 列举卷/快照 [IND] */
-    AIRY_ROVOL_DELETE      = 8,  /* 删除卷/快照 [IND] */
-    AIRY_ROVOL_DEMOTE      = 9,  /* 页面降级（热→冷 tier）[SS] */
-    AIRY_ROVOL_PROMOTE     = 10, /* 页面升级（冷→热 tier）[SS] */
+/* mem_d 通过 airy_sys_rovol_ctl 控制记忆卷载——4 核心 syscall 之一。
+ * op 码数值（0x01-0x0A）以 07-syscall-registry.md §4.3/§6.2 为唯一权威，
+ * 与 [SC] memory_types.h 的 enum airy_rovol_op 逐值一致。 */
+enum airy_rovol_op {
+    AIRY_ROVOL_SNAPSHOT     = 0x01, /* 创建记忆快照 [SS] */
+    AIRY_ROVOL_RESTORE      = 0x02, /* 从快照恢复 [SS] */
+    AIRY_ROVOL_MIGRATE      = 0x03, /* 跨节点/跨 tier 迁移 [SS] */
+    AIRY_ROVOL_TIER_SET     = 0x04, /* 配置页面所在 tier [IND] */
+    AIRY_ROVOL_MGLRU_CONFIG = 0x05, /* 配置 MGLRU 多代 LRU [IND] */
+    AIRY_ROVOL_LIST         = 0x06, /* 列举卷/快照 [IND] */
+    AIRY_ROVOL_DELETE       = 0x07, /* 删除卷/快照 [IND] */
+    AIRY_ROVOL_DEMOTE       = 0x08, /* 页面降级（热→冷 tier）[SS] */
+    AIRY_ROVOL_PROMOTE      = 0x09, /* 页面升级（冷→热 tier）[SS] */
+    AIRY_ROVOL_TIER_GET     = 0x0A, /* 查询页面所在 tier [IND] */
+    AIRY_ROVOL_OP_MAX              /* 独占上界（= 0x0B），非法 op 由入口拒绝 */
 };
 
-int airy_sys_rovol_ctl(enum airy_rovol_opcode op,
-                       struct airy_rovol_args __user *args);
+int airy_sys_rovol_ctl(__u32 op, __u32 pid, __u64 arg);
 ```
 
-> **opcode 集对齐**：10 op（SNAPSHOT/RESTORE/MIGRATE/TIER_SET/TIER_GET/MGLRU_CONFIG/LIST/DELETE/DEMOTE/PROMOTE）与 [00-alk-kernel-overview.md §4.2](../10-architecture/00-alk-kernel-overview.md) 保持一致，**内核实现待 M5 里程碑**（M0-M1 仅 [SC] 契约占位）。
+> **opcode 集对齐**：10 op（SNAPSHOT/RESTORE/MIGRATE/TIER_SET/MGLRU_CONFIG/LIST/DELETE/DEMOTE/PROMOTE/TIER_GET）与 [00-alk-kernel-overview.md §4.2](../10-architecture/00-alk-kernel-overview.md) 保持一致。op 枚举已落地 [SC] `memory_types.h`；本版本（0.0.3）实现入口的 op 契约校验与显式降级（未知 op 拒绝、后端未就绪返回 `-AIRY_ENOTSUP`），完整快照/恢复/迁移引擎后端属 M5 里程碑。
 
 > **mem_d 与 sec_d 协作**：mem_d 的所有记忆卷载操作受 `sec_d` 颁发的 Badge 权限控制（详见 §4.10）。`airy_sys_rovol_ctl` 入口校验调用方 Badge 的 Perms 位段是否含 `AIRY_CAP_PERM_ROVOL_*` 权限位。
 

@@ -195,7 +195,10 @@ include <uapi/linux/airymax/syscall_gen.h>
 include <uapi/linux/airymax/syscalls.h>
 include <uapi/linux/airymax/sched.h>
 include <uapi/linux/airymax/ipc.h>
-# 注：早期设计中的 rovol.h/clt.h/uring_cmd.h 已并入实际 [SC] 头文件，不再单独存在
+include <uapi/linux/airymax/memory_types.h>
+include <uapi/linux/airymax/cognition_types.h>
+# 注：早期设计中的 rovol.h/clt.h/uring_cmd.h 已分别并入 [SC] memory_types.h（AIRY_ROVOL_*）、
+# cognition_types.h（AIRY_COG_*）与 io_uring UAPI，不再单独存在
 
 # 4 核心 syscall（v1.0.1 Capability Folding）
 resource airy_cap_fd[int32]
@@ -219,10 +222,10 @@ airy_ipc_msg_hdr {
 }
 
 # op-dispatch 操作码范围（节选，完整定义见 uapi/linux/airymax/*.h）
-AIRY_ROVOL_SNAPSHOT     = 0
-AIRY_ROVOL_TIER_GET     = 3
-AIRY_SCHED_SET_POLICY   = 0
-AIRY_SCHED_YIELD        = 2
+AIRY_ROVOL_SNAPSHOT     = 0x01
+AIRY_ROVOL_TIER_GET     = 0x0A
+AIRY_SCHED_SET_POLICY   = 0x01
+AIRY_SCHED_YIELD        = 0x07
 AIRY_COG_PERCEPT        = 0
 AIRY_COG_THINK          = 1
 AIRY_COG_ACT            = 2

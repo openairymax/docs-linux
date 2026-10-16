@@ -360,7 +360,8 @@ extern "C" {
 #define AIRY_OP_CAP_TRANSFER     0x07
 
 /* airy_sys_rovol_ctl op 码 —— 编号权威源：本节（0x01-0x0A）与 §4.3 为唯一权威；
- * [SC] memory_types.h 尚未落地 AIRY_ROVOL_OP_* 枚举（10 op 待 [SC] 补齐），落地时须保持注册表 ↔ UAPI ↔ 内核三方一致 */
+ * 已落地 [SC] memory_types.h 的 enum airy_rovol_op（AIRY_ROVOL_*，10 op +
+ * 独占上界 AIRY_ROVOL_OP_MAX），须保持注册表 ↔ UAPI ↔ 内核三方一致 */
 #define AIRY_ROVOL_SNAPSHOT      0x01
 #define AIRY_ROVOL_RESTORE       0x02
 #define AIRY_ROVOL_MIGRATE       0x03
