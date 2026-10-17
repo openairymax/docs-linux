@@ -568,6 +568,10 @@ TRACE_EVENT(airy_ipc_send,
 );
 ```
 
+`src_agent` 取执行调用的任务身份（内核确认值），`dst_agent` 取消息头 `dst_task`（限于 `[0, AIRY_CAP_MAX_AGENTS)`，域外记为 0），`op` 取消息头 `opcode`，`latency_ns` 为 ring 接收该消息头的实测开销。仅发送成功时发射。
+
+对应的 `airy_ipc_recv` 在消费者取出消息头时发射：`dst_agent` 为消费任务身份，`src_agent` 取消息头 `src_task`（消息头是接收侧唯一可得的来源身份），`latency_ns` 为出队开销（含被取消槽位的跳过扫描）。
+
 ### 7.3 airy_agent_state_change 事件
 
 Agent 8 态生命周期迁移事件：

@@ -569,12 +569,12 @@ Agent 42 State Duration Analysis:
 
 ### 8.1 IPC 交互事件
 
-Agent 间的 IPC 交互通过 `airy_ipc_send` 与 `airy_ipc_recv` tracepoint 记录（**规划**：内核当前无这两个 tracepoint）：
+Agent 间的 IPC 交互通过 `airy_ipc_send` 与 `airy_ipc_recv` tracepoint 记录：发送事件在 ring 接收消息头后发射，接收事件在消费者取出消息头后发射。
 
 ```bash
 $ cat /sys/kernel/tracing/trace | grep airy_ipc
-  gateway_d-1236 [002] d... 1784328868.912345: airy_ipc_send: src=42 dst=43 op=SEARCH fastpath=1 latency=1234ns
-  gateway_d-1236 [002] d... 1784328868.913456: airy_ipc_recv: src=43 dst=42 op=SEARCH_RESULT fastpath=1 latency=2345ns
+  gateway_d-1236 [002] d... 1784328868.912345: airy_ipc_send: src=42 dst=43 op=1 fastpath=1 latency=1234ns
+  worker_d-1240 [003] d... 1784328868.913456: airy_ipc_recv: src=42 dst=43 op=1 latency=2345ns
 ```
 
 ### 8.2 IPC 交互矩阵
