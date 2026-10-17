@@ -301,11 +301,13 @@ agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.
 |------|----------|------------|----------|------|
 | x86_64 | `syscall_64.tbl` 的 548-571 段 | `arch/x86/entry/syscall_64.c`（构建期 `syscalltbl.sh` 生成 `<asm/syscalls_64.h>`） | `__x64_sys_*` | ✅ A-30 |
 | arm64 | `asm-generic/unistd.h` | `arch/arm64/kernel/sys.c`（由 `__SYSCALL` 展开） | `__arm64_sys_*` | ✅ A-31 |
-| riscv | `asm-generic/unistd.h` | `arch/riscv/kernel/syscall_table.c` | `__riscv_sys_*` | 随 A-36 |
-| loongarch | `asm-generic/unistd.h` | `arch/loongarch/kernel/syscall.c` | 裸 `sys_airy_sys_*` | 随 A-36 |
+| riscv | `asm-generic/unistd.h` | `arch/riscv/kernel/syscall_table.c` | `__riscv_sys_*` | ✅ A-36 |
+| loongarch | `asm-generic/unistd.h` | `arch/loongarch/kernel/syscall.c` | 裸 `sys_airy_sys_*` | ✅ A-36 |
 | sw_64 | 自有 `syscall.tbl` 的 548-571 段 | `arch/sw_64/kernel/systbls.S`（构建期 `syscalltbl.sh` 生成 `<asm/syscall_table.h>`，按 `.quad` 顺序展开） | 裸 `sys_airy_sys_*` | ✅ A-32 |
 
 arm64 与 riscv 定义了 `CONFIG_ARCH_HAS_SYSCALL_WRAPPER`，表项指向架构前缀的包装函数，由 `SYSCALL_DEFINEx()` 一并生成；loongarch 的 C 表直接引用裸符号，因此 `include/linux/syscalls.h` 为它补了 `sys_airy_sys_*` 声明。sw_64 的表是 `systbls.S` 中的汇编 `.quad` 序列，符号由汇编器解析，不需要 C 原型。
+
+riscv 与 loongarch 的表项不逐条书写 Airymax 名字，而是由 `arch/*/include/uapi/asm/unistd.h` 包含 `asm-generic/unistd.h` 后按 `__SYSCALL` 宏展开，因此 548-571 的接线正确性取决于三处形态：uapi 头的 include 链、表的展开式（riscv 为 `[nr] = __riscv_##call`，loongarch 为 `[nr] = (call)`）、以及 loongarch 依赖的裸符号原型。`tools/abi-check/abi_check.py` 的「riscv/loongarch 通用表接线」检查固定这三处，任一形态回退即门禁失败；`CONFIG_AIRY_SYSCALL=n` 时四条 `COND_SYSCALL()` 弱桩继续提供同名符号，表结构不受影响。
 
 > sw_64 的 `syscall.tbl` 允许缺号（519-547 即空缺）：`syscalltbl.sh` 为每个空号补 `__SYSCALL(<nr>, sys_ni_syscall)`，生成的表仍从 0 连续到 `__NR_syscalls - 1`，后续条目不会错位；乱序或重号则直接构建失败。
 
