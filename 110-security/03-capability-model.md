@@ -314,11 +314,10 @@ Perms (16 bits):       权限位图，7 个权限位对应 7 个 LSM 检查点
 #define AIRY_CAP_PERM_ROTATE     0x0020
 #define AIRY_CAP_PERM_SUPERVISE  0x0040
 
-/* 权限检查宏——fastpath C-S9 内联使用 */
-static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
-{
-    return (perms & (1u << (opcode & 0x000F))) != 0;
-}
+/* 权限包含检查——fastpath C-S9.3，严格包含语义 */
+required = airy_op_required_perms(opcode);
+if (unlikely(required == 0xFFFF || (perms & required) != required))
+    return -AIRY_ECAP_PERM;
 ```
 
 **安全性分析**：
@@ -335,14 +334,14 @@ static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
 
 ### 2.6 Badge 编译与校验完整实现（v1.0.1 新增）
 
-本节是 Badge 校验与权限检查的实现说明 + opcode→required_perms 权限契约：`airy_cap_badge_ok()` 内联（`security/airy/airy_cap.h`，fastpath C-S9 使用）、`airy_cap_has_perm()`（`kernel/superv/airy_cap_check_superv.c`）。**v3.7 核实**：早期设计稿声称的 `kernel/security/airy/capability.c` 物理文件与 `airy_cap_badge_compile()`/`airy_op_required_perms()` 函数**不存在**（见 §2.6.3 与 §2.6.1 实现状态）。
+本节是 Badge 校验与权限检查的实现说明 + opcode→required_perms 权限契约：`airy_cap_badge_ok()` 内联（`security/airy/airy_cap.h`，fastpath C-S9 使用）、`airy_cap_has_perm()`（`kernel/superv/airy_cap_check_superv.c`）、`airy_op_required_perms()` 内联（`kernel/corekern/ipc/airy_ipc_op.h`）。**v3.7 核实**：早期设计稿声称的 `kernel/security/airy/capability.c` 物理文件与 `airy_cap_badge_compile()` 函数**不存在**；`airy_op_required_perms()` 已随 fastpath 校验链落地（见 §2.6.1 实现状态）。
 
 #### 2.6.1 opcode → required_perms 映射表（SSoT）
 
-**实现状态（v3.7 核实）**：下表的 opcode→required_perms 映射是**设计契约**（权限语义 SSoT），但 `airy_op_required_perms()` 当前**无内核实现**——fastpath C-S9.3 的 `required_perms` 由 io_uring_cmd 调用方显式传入 `airy_cap_badge_ok(badge, agent_id, required_perms)`（`security/airy/airy_cap.h`），映射函数待 M2 io_uring 分发落地后实现。物理文件 `kernel/security/airy/capability.c` 不存在。
+**实现状态（v3.7 核实）**：下表的 opcode→required_perms 映射是**权限语义 SSoT**，并由 `airy_op_required_perms()` 内联实现于 `kernel/corekern/ipc/airy_ipc_op.h`。fastpath C-S9.3 在 `airy_ipc_check.c` 的 `cap_badge_ok()` 中按 `airy_op_required_perms(hdr->opcode)` 取掩码后调用 `airy_cap_badge_ok(badge, agent_id, required_perms)`（`security/airy/airy_cap.h`），调用方无需再显式传入。早期设计稿声称的物理文件 `kernel/security/airy/capability.c` 不存在。
 
 ```c
-/* [权限契约，无独立物理文件] opcode → required_perms 映射（设计，M2+ 实现）
+/* [权限契约] opcode → required_perms 映射（已实现：kernel/corekern/ipc/airy_ipc_op.h）
  *
  * 设计原则：1 opcode → 1 required_perms 位掩码（IPC 类 opcode 复用 SEND/RECV
  *           两个数据面权限位；特权 opcode FREEZE 复用 SUPERVISE 权限位）
@@ -393,39 +392,24 @@ static inline uint16_t airy_op_required_perms(uint16_t opcode)
 }
 ```
 
-#### 2.6.2 airy_cap_has_perm() 完整实现
+#### 2.6.2 C-S9.3 权限包含检查（实际实现）
+
+C-S9.3 不做"单 bit 测试"，而是**严格包含**：Badge 的 Perms 必须覆盖 opcode 所需的全部权限位，允许超集（mint 派生后可能富余）。该逻辑内联在 `security/airy/airy_cap.h` 的 `airy_cap_badge_ok()` 中：
 
 ```c
-/**
- * airy_cap_has_perm - 检查 Badge 的 Perms 位是否满足 opcode 所需权限
- * @perms:  Badge 的 Perms 字段（16-bit）
- * @opcode: IPC 操作码（AIRY_IPC_OP_*）
- *
- * C-S9.PERMS 检查点调用此函数。设计原则：
- *   - 严格 "包含" 语义：(perms & required) == required
- *   - 超集允许：Badge 可携带比所需更多的权限（mint 派生后可能富余）
- *   - 非法 opcode → 拒绝（required = 0xFFFF，任何 perms 都不满足）
- *
- * 返回: true 权限满足；false 权限不足或 opcode 非法。
- *
- * 性能：1 次表查找 + 1 次位运算 + 1 次比较，~2ns（热缓存）。
- */
-static inline bool airy_cap_has_perm(uint16_t perms, uint16_t opcode)
-{
-    uint16_t required = airy_op_required_perms(opcode);
+/* security/airy/airy_cap.h —— airy_cap_badge_ok() 的 C-S9.3 */
+required = airy_op_required_perms(opcode);
 
-    /* 非法 opcode（required == 0xFFFF）→ 任何 perms 都不满足 */
-    if (unlikely(required == 0xFFFF))
-        return false;
+/* 非法 opcode（required == 0xFFFF）→ 任何 perms 都不满足 */
+if (unlikely(required == 0xFFFF))
+        return -AIRY_ECAP_PERM;  /* -81 */
 
-    /* 自举 opcode（required == 0）→ 总是满足（C-S9 入口已处理 CAP_REQUEST）*/
-    if (likely(required == 0))
-        return true;
-
-    /* 严格包含语义：perms 必须包含 required 的所有位 */
-    return (perms & required) == required;
-}
+/* 严格包含语义：perms 必须包含 required 的所有位 */
+if (unlikely((perms & required) != required))
+        return -AIRY_ECAP_PERM;  /* -81 */
 ```
+
+> **同名辨析**：`kernel/superv/airy_cap_check_superv.c` 导出的 `int airy_cap_has_perm(__u64 badge, __u16 required_perm)` 只做单 bit 测试（`(perms & required_perm) != 0`），不校验 Epoch/RandomTag，供微监督者 slowpath 使用；C-S9.3 的包含检查以上述内联逻辑为准，二者不可互换。
 
 #### 2.6.3 Badge 编译与注册（实际实现映射，v3.7 修正）
 
@@ -703,7 +687,7 @@ static inline int airy_cap_badge_ok(u64 src_task, u64 badge, u16 opcode)
     /* H3/H6: badge=0 路径（agentrt 用户态 或 [DSL] 降级模式）*/
     if (badge == 0) {
         /* CAP_CARRY 标志下不允许 badge=0（防绕过）*/
-        if (unlikely(airy_ipc_hdr_flags_cap_carry()))  /* 内联读取消息头 flags */
+        if (unlikely(hdr->flags & AIRY_IPC_FLAG_CAP_CARRY))
             return -AIRY_ECAP_BADGE;  /* -78 */
         goto cap_pass;  /* H3: agentrt 用户态 badge=0 跳过；H6: [DSL] 降级跳过 */
     }
@@ -725,7 +709,8 @@ static inline int airy_cap_badge_ok(u64 src_task, u64 badge, u16 opcode)
 
     /* #3: 权限校验（1 次 READ_ONCE + 位运算，~1ns）*/
     badge_perms = AIRY_BADGE_PERMS(badge);
-    if (unlikely(!airy_cap_has_perm(badge_perms, opcode)))
+    required = airy_op_required_perms(opcode);
+    if (unlikely((badge_perms & required) != required))
         return -AIRY_ECAP_PERM;  /* -81 */
 
 cap_pass:
@@ -1886,7 +1871,7 @@ static int airy_ipc_validate(struct airy_ipc_cmd *cmd)
     prefetch(&agent_caps[hdr->src_task]);
 
     /* C-S2: opcode 合法性检查 */
-    if (unlikely(!airy_ipc_opcode_valid(hdr->opcode)))
+    if (unlikely(airy_op_plane(hdr->opcode) == AIRY_PLANE_INVALID))
         return -AIRY_EIPC_OPCODE;
 
     /* C-S3~C-S8: 其他校验（~20ns 期间，prefetch 异步加载 cache line） */

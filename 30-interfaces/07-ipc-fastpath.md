@@ -202,7 +202,7 @@ v1.0.1 起，fastpath 校验链为 **C-S0~C-S12 共 13 项**（含 Capability Fo
 |---|------|---------|---------|--------|
 | C-S0 | `ring->frozen == false`（ring 未冻结） | 内联 `READ_ONCE` | → ERROR | `AIRY_EIPC_FROZEN`(-53) |
 | C-S1 | `magic == 0x41524531`（'ARE1'） | 内联比较 | → ERROR | `AIRY_EIPC_MAGIC`(-41) |
-| C-S2 | `opcode` 合法（见 §1.3 7 种 opcode） | 内联 `airy_ipc_opcode_valid()` | → ERROR | `AIRY_EIPC_OPCODE`(-42) |
+| C-S2 | `opcode` 合法（见 §1.3 7 种 opcode） | 内联 `airy_op_plane() != AIRY_PLANE_INVALID` | → ERROR | `AIRY_EIPC_OPCODE`(-42) |
 | C-S3 | `payload_len <= AIRY_IPC_MAX_PAYLOAD` | 内联比较 | → ERROR | `AIRY_EIPC_PAYLOAD`(-43) |
 | C-S4 | `hdr_size == 128` 且 `reserved[72]` 全零 | 内联 + 循环检查 | → ERROR | `AIRY_EIPC_HDRSIZE`(-44) / `AIRY_EIPC_RESERVED`(-45) |
 | C-S5 | src 与 dst 在同一 CPU（per-cpu fastpath 无锁） | `smp_processor_id() == dst_cpu` | → SLOW_SEND | — |
@@ -226,7 +226,7 @@ C-S9 是 Capability Folding 的核心执行点，内联在 fastpath 校验链中
 > |---------|------|------------|---------|
 > | Epoch 校验 | `C-S9.EPOCH` | capability generation check | `badge_epoch == slot_epoch`（per-agent） |
 > | Random Tag 校验 | `C-S9.RANDTAG` | capability authenticity check | `badge_randtag == agent_caps[src].randtag` |
-> | 权限校验 | `C-S9.PERMS` | capability permission check | `airy_cap_has_perm(badge_perms, opcode)` |
+> | 权限校验 | `C-S9.PERMS` | capability permission check | `(badge_perms & required) == required`，`required = airy_op_required_perms(opcode)` |
 >
 > **v1.0.1 术语统一**：早期文档使用的 `C-S9a`/`C-S9b`/`C-S9c` 子状态命名已废弃，统一替换为 `C-S9.EPOCH`/`C-S9.RANDTAG`/`C-S9.PERMS`。本文档为该命名的唯一权威源（SSoT）。
 >
@@ -282,7 +282,8 @@ if (unlikely(badge_randtag != agent_randtag)) {
 }
 
 /* (3c) C-S9.PERMS: 权限校验——badge_perms 必须包含 opcode 所需权限 */
-if (unlikely(!airy_cap_has_perm(badge_perms, hdr->opcode)))
+required = airy_op_required_perms(hdr->opcode);
+if (unlikely((badge_perms & required) != required))
     return -AIRY_ECAP_PERM;  /* -81 */
 
 cap_request_pass:
@@ -379,13 +380,14 @@ io_uring 承担用户态 ↔ 内核态的 IPC 数据面（OS-ARCH-006）。v1.0.
 
 ### 5.2 fastpath 完整实现（v1.0.1 新增，Capability Folding C-S9 内联）
 
-> **⚠️ 设计稿标注（v1.0.1-fix）**：本节代码（`airy_uring_cmd` / `airy_ipc_validate` / `airy_ipc_can_fast_deliver` / `airy_ipc_deliver_fast` / `airy_ipc_deliver_full`、C-S0~C-S12 校验链、kfifo/io_uring 集成）为**设计稿（超前于实现）**。物理宿主 `kernel/corekern/ipc/airy_ipc_fastpath.c` 当前（v1.0.1）实际实现仅 **91 行**：入口 `airy_ipc_fastpath_send()` 只做 frozen 门检查（`unlikely(READ_ONCE(ring->frozen))` → 返回 `-AIRY_EIPC_FROZEN`）+ 委托 `airy_ipc_ring_post()`（corekern/ipc/airy_ipc_ring.c）；Badge 校验（C-S9）由调用方（LSM hook 路径）在进入本函数前完成。本节为状态机设计参考，实际代码以物理宿主文件为准。
+> **⚠️ 设计稿标注（v1.0.1-fix）**：本节代码（`airy_uring_cmd` / `airy_ipc_validate` / `airy_ipc_can_fast_deliver` / `airy_ipc_deliver_fast` / `airy_ipc_deliver_full`、kfifo/io_uring 集成）为**设计稿（超前于实现）**。物理宿主 `kernel/corekern/ipc/` 已落地全部 header 可判定项：`airy_ipc_fastpath_send()`（`airy_ipc_fastpath.c`）依次执行 C-S0、`airy_ipc_validate()`（`airy_ipc_check.c`，含 C-S1..C-S4、C-S8..C-S10）与 C-S12，C-S12 失配时上报 `AIRY_FAULT_RING_CORRUPT` 并丢弃消息，全部通过后委托 `airy_ipc_ring_post()`。实际签名为 `int airy_ipc_validate(const struct airy_ipc_msg_hdr *hdr)`：C-S9 Badge 校验已内置（`cap_badge_ok()` → `airy_cap_badge_ok()`），C-S8 以 `in_task()` 就地判定，无需调用方预检。ring 绑定项 C-S5..C-S7 与 C-S11 属 per-cpu ring 层（TA-06），本节代码以物理宿主文件为准。
 
 以下代码是 A-IPC fastpath 的设计参考（超前于实现，见上），其设想入口 `airy_uring_cmd()` 在 io_uring 持有 `ctx->uring_lock` 时被调用，锁内仅做校验 + 快速投递（无 `wake_up`），需要唤醒时返回 `-EAGAIN`，io-wq 接管（锁外）。
 
 ```c
 /* 设计稿（超前于实现）：kernel/corekern/ipc/airy_ipc_fastpath.c
- * 实际实现（v1.0.1）仅 91 行：airy_ipc_fastpath_send() = frozen 门 + ring_post 委托 */
+ * 已落地：airy_ipc_fastpath_send() = C-S0 + airy_ipc_validate() + C-S12
+ *         + ring_post 委托；C-S5..C-S7、C-S11 属 ring 层 */
 
 #include <linux/io_uring.h>
 #include <linux/io_uring_types.h>
@@ -472,7 +474,7 @@ static int airy_ipc_validate(struct airy_ipc_cmd *cmd)
         return -AIRY_EIPC_MAGIC;  /* -41 */
 
     /* C-S2: opcode 合法性检查 */
-    if (unlikely(!airy_ipc_opcode_valid(hdr->opcode)))
+    if (unlikely(airy_op_plane(hdr->opcode) == AIRY_PLANE_INVALID))
         return -AIRY_EIPC_OPCODE;  /* -42 */
 
     /* C-S3: payload_len 合法性检查 */
@@ -542,7 +544,8 @@ static int airy_ipc_validate(struct airy_ipc_cmd *cmd)
     }
 
     /* (3c) 权限校验 */
-    if (unlikely(!airy_cap_has_perm(badge_perms, hdr->opcode)))
+    required = airy_op_required_perms(hdr->opcode);
+    if (unlikely((badge_perms & required) != required))
         return -AIRY_ECAP_PERM;  /* -81 */
 
 cap_request_pass:
@@ -935,6 +938,7 @@ if (likely(hdr.magic == AIRY_IPC_MAGIC) &&
 - 每次 PR 在 `tests-linux` 子仓运行错误注入测试套件 `ipc_fastpath_fault_inject`。
 - 矩阵：8 状态 × 4 opcode × 6 注入点 = 192 用例，全量需通过。
 - 覆盖率门槛：状态机分支覆盖 ≥ 95%（含 slowpath 与 ERROR 边）。
+- 内核侧 KUnit 回归：`CONFIG_AIRY_KUNIT=y` 时编译 `kernel/corekern/ipc/airy_ipc_fastpath_test.c`（套件 `airy_ipc_fastpath`，5 例），覆盖成功入环、C-S0 优先、参数守卫、C-S1 先于 C-S12、C-S12 拒绝且不占用 ring 槽；与 `airy_ipc_check`（22 例）、`airy_ipc_ring`（17 例）、`airy_ipc_crc32_c_s12`（9 例）共同作为 fastpath 校验链的提交门禁。
 
 ---
 
@@ -1057,9 +1061,9 @@ CBMC（C Bounded Model Checker）是对 fastpath **100 行代码**做全函数�
 | 验证对象 | 物理宿主（规划） | 行数 | 验证工具 | 验证目标 |
 |---------|---------|------|---------|---------|
 | `airy_cap_badge_ok()` | 规划：`kernel/security/airy/capability.c`（当前实际实现：`security/airy/airy_cap.h` 内联） | ~30 行 | CBMC | 内存安全 + Badge 校验逻辑不变量 |
-| `airy_ipc_validate()` | 规划：`kernel/corekern/ipc/airy_ipc_fastpath.c`（当前实际仅有 `airy_ipc_fastpath_send()`，见 §5.2 设计稿标注） | ~40 行 | CBMC | C-S0~C-S11 校验链完备性 |
-| `airy_ipc_deliver_fast()` | 规划：`kernel/corekern/ipc/airy_ipc_fastpath.c`（同上级，设计稿） | ~20 行 | CBMC | kfifo_in 边界 + preempt 平衡 |
-| `airy_ipc_crc32_ok()` | 规划：`kernel/corekern/ipc/airy_ipc_fastpath.c`（同上级，设计稿） | ~10 行 | CBMC | CRC32 计算无越界 |
+| `airy_ipc_validate()` | 已落地：`kernel/corekern/ipc/airy_ipc_check.c`（C-S1..C-S4、C-S8..C-S10） | ~40 行 | CBMC | C-S1~C-S4、C-S8~C-S10 校验链完备性 |
+| `airy_ipc_deliver_fast()` | 规划：`kernel/corekern/ipc/airy_ipc_fastpath.c`（设计稿） | ~20 行 | CBMC | kfifo_in 边界 + preempt 平衡 |
+| `airy_ipc_crc32_ok()` | 规划：`kernel/corekern/ipc/airy_ipc_crc32.c`（已落地，C-S12） | ~10 行 | CBMC | CRC32 计算无越界 |
 | **合计** | — | **~100 行** | CBMC | 全函数验证（H4 硬约束） |
 
 #### 10.6.2 CBMC 属性规约（Property Specifications）
@@ -1280,13 +1284,13 @@ verification_targets:
     property_file: tests-linux/formal/cbmc/properties/fastpath.prp
 
   - name: airy_op_required_perms
-    source: kernel/security/airy/capability.c
+    source: kernel/corekern/ipc/airy_ipc_op.h
     function: airy_op_required_perms
     unwind: 5
     object_bits: 4
 
   - name: airy_ipc_crc32_ok
-    source: kernel/corekern/ipc/airy_ipc_fastpath.c
+    source: kernel/corekern/ipc/airy_ipc_crc32.c
     function: airy_ipc_crc32_ok
     unwind: 32                    # CRC32 表查找循环最多 256 次
     object_bits: 16              # 覆盖最大 payload
@@ -1412,10 +1416,10 @@ verify_target() {
 # 全量验证（5 个目标）
 TARGETS=(
     "airy_cap_badge_ok|kernel/security/airy/capability.c|airy_cap_badge_ok|10|8"
-    "airy_op_required_perms|kernel/security/airy/capability.c|airy_op_required_perms|5|4"
-    "airy_ipc_crc32_ok|kernel/corekern/ipc/airy_ipc_fastpath.c|airy_ipc_crc32_ok|32|16"
+    "airy_op_required_perms|kernel/corekern/ipc/airy_ipc_op.h|airy_op_required_perms|5|4"
+    "airy_ipc_crc32_ok|kernel/corekern/ipc/airy_ipc_crc32.c|airy_ipc_crc32_ok|32|16"
     "airy_ipc_deliver_fast|kernel/corekern/ipc/airy_ipc_fastpath.c|airy_ipc_deliver_fast|10|16"
-    "airy_ipc_validate|kernel/corekern/ipc/airy_ipc_fastpath.c|airy_ipc_validate|20|16"
+    "airy_ipc_validate|kernel/corekern/ipc/airy_ipc_check.c|airy_ipc_validate|20|16"
 )
 
 FAILED=0

@@ -669,7 +669,7 @@ int airy_ipc_validate_hdr(const struct airy_ipc_msg_hdr *h)
 		return -AIRY_EIPC_MAGIC;      /* -41 */
 
 	/* C-S2: opcode 校验 */
-	if (unlikely(!airy_ipc_opcode_valid(h->opcode)))
+	if (unlikely(airy_op_plane(h->opcode) == AIRY_PLANE_INVALID))
 		return -AIRY_EIPC_OPCODE;     /* -42 */
 
 	/* C-S3: 载荷长度校验 */

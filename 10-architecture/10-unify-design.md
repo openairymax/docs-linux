@@ -462,7 +462,7 @@ badge_randtag = AIRY_BADGE_RANDTAG(badge);
 badge_perms   = AIRY_BADGE_PERMS(badge);
 
 /* 1. Epoch 校验（1 次 READ_ONCE，K9-1 per-agent）——撤销立即生效 */
-slot_epoch    = airy_cap_epoch_get(hdr->src_task);
+slot_epoch    = READ_ONCE(agent_caps[hdr->src_task].epoch);
 if (unlikely(badge_epoch != slot_epoch))
     return -AIRY_ECAP_EPOCH;  /* -79 */
 
@@ -474,7 +474,8 @@ if (unlikely(badge_randtag != agent_randtag)) {
 }
 
 /* 3. 权限校验（1 次 READ_ONCE + 位运算）——opcode 权限位 */
-if (unlikely(!airy_cap_has_perm(badge_perms, hdr->opcode)))
+required      = airy_op_required_perms(hdr->opcode);
+if (unlikely((badge_perms & required) != required))
     return -AIRY_ECAP_PERM;  /* -81 */
 ```
 

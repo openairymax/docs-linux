@@ -320,12 +320,12 @@ _Static_assert(sizeof(struct airy_ipc_msg_hdr_min) == 128,
 
 ```c
 /* [DSL] 模式下 fastpath C-S9 Badge 校验逻辑 */
-static inline int airy_cap_badge_ok_dsl(u64 badge, u16 opcode)
+static inline int airy_cap_badge_ok_dsl(u64 badge, u16 opcode, u16 flags)
 {
     /* H6: [DSL] 降级模式，capability_badge=0，直接跳过 Badge 校验 */
     if (badge == 0) {
         /* CAP_CARRY 标志下不允许 badge=0（防绕过，与正常模式一致）*/
-        if (unlikely(airy_ipc_hdr_flags_cap_carry()))
+        if (unlikely(flags & AIRY_IPC_FLAG_CAP_CARRY))
             return -AIRY_ECAP_BADGE;  /* -78 */
         goto cap_pass;  /* 跳过 Epoch/RandomTag/Perms 校验 */
     }
