@@ -462,7 +462,7 @@ jobs:
 #ifdef AIRY_SC_FALLBACK
 	/*
 	 * When [SC] headers are unavailable (boot/rescue mode),
-	 * fallback to 5 core POSIX codes mapped from 38 POSIX codes.
+	 * map 38 POSIX codes onto 7 core codes.
 	 */
 	#define AIRY_DSL_E2BIG        AIRY_EINVAL
 	#define AIRY_DSL_ECHILD       AIRY_EINVAL
@@ -525,6 +525,16 @@ jobs:
 ### 5.4 降级块的独立性
 
 降级块设计为**自包含**——不依赖 `error.h` 主体的任何符号。即使 `error.h` 主体损坏，只要降级块本身完整（通过 `.fallback_hashes` 校验），系统仍可降级启动。
+
+### 5.5 降级错误码表的可执行校验
+
+降级块是**编译期**契约（见 [11-degraded-survival-layer.md §1.1](../10-architecture/11-degraded-survival-layer.md)），因此其正确性必须由编译期门禁而非运行时逻辑保证。OS-CHK-DOC-04 执行器 `tools/sc-tri-compile/sc_tri_compile.py` 内置 `[DSL] 降级错误码表` 检查，分三个层次：
+
+1. **源级集合校验**：在 `error.h` 的 `#ifdef AIRY_SC_FALLBACK` … `#endif /* AIRY_SC_FALLBACK */` 区间内提取全部 `#define AIRY_DSL_E* <核心码>`，要求别名集合与规范表**严格相等**（缺失与多出均失败），且每个别名的目标核心码名一致。该区间外的同名宏不参与校验。
+2. **数值级一致性校验**：探针分别在 `dsl-kernel-space` 与 `dsl-linux-user-space` 两路编译并打印 7 个核心码与 38 个别名的实际数值，逐一比对规范化幅值（`2/5/9/11/16/19/35`），防止映射漂移悄悄改变 errno 语义。
+3. **隔离级校验**：常规三路（`kernel-space`/`linux-user-space`/`third-party`）必须不激活降级块，防止 `AIRY_DSL_*` 别名泄漏进正常构建。
+
+门禁规则表的唯一数据源为本文件 §5.1/§5.2 与 SSoT `error.h`；修改任一处必须同步另一处，否则门禁失败。
 
 ---
 
