@@ -905,7 +905,7 @@ static void test_syscall_number_stability(struct kunit *test)
 
 > **编号重复修正说明**：A.2 前 6 行的 0.1.1 编号取自 0.1.1 §2.2 早期连续编号（512 起），与 A.3 的 6 段划分存在历史偏差；其中与后 15 行重复的编号（512/521）已修正——`airy_sys_call` 在 0.1.1 无同名 syscall（标注"—"，v1.0.1 收窄合并 TASK 段入口）、`airy_sys_clt_notify` 对应 CLT 段 612（与 §4.5 `phase` 统一操作码的 0.1.1 沿革一致）；513/514/519/520 等早期编号保留历史原貌，不再追溯。
 >
-> 完整迁移映射见 [01-syscalls.md §2.2.1](../30-interfaces/01-syscalls.md) 的 12→4 精确映射表与本注册表 §4 的 op-dispatch 操作映射表。
+> 完整迁移映射见 [01-syscalls.md §2.2.2](../30-interfaces/01-syscalls.md) 的 12→4 精确映射表与本注册表 §4 的 op-dispatch 操作映射表。
 
 ### A.3 0.1.1 6 类编号段（历史参考）
 

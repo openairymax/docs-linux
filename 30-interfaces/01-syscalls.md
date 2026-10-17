@@ -293,7 +293,23 @@ agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.
 
 > **映射原则**：`AIRY_SYS_*` 编号宏直接等于 Linux 注册号（548-551，无偏移），由 codegen 流水线生成 `__NR_airy_sys_call 548` 等宏，产物位于 [SC] 头文件 `syscalls.h`（见 [06-codegen-pipeline.md](06-codegen-pipeline.md)），用户态与内核态共用同一份编号定义，禁止在两侧引入映射转换层。
 
-#### 2.2.1 0.1.1 → v1.0.1：syscall 12 → 4 精确映射
+#### 2.2.1 架构接线路径
+
+同一份编号定义由各架构以不同方式接入 `sys_call_table`。接线方式决定新增架构时要改哪个文件，也决定符号包装形态：
+
+| 架构 | 编号来源 | 表生成位置 | 条目符号 | 状态 |
+|------|----------|------------|----------|------|
+| x86_64 | `syscall_64.tbl` 的 548-571 段 | `arch/x86/entry/syscall_64.c`（构建期 `syscalltbl.sh` 生成 `<asm/syscalls_64.h>`） | `__x64_sys_*` | ✅ A-30 |
+| arm64 | `asm-generic/unistd.h` | `arch/arm64/kernel/sys.c`（由 `__SYSCALL` 展开） | `__arm64_sys_*` | ✅ A-31 |
+| riscv | `asm-generic/unistd.h` | `arch/riscv/kernel/syscall_table.c` | `__riscv_sys_*` | 随 A-36 |
+| loongarch | `asm-generic/unistd.h` | `arch/loongarch/kernel/syscall.c` | 裸 `sys_airy_sys_*` | 随 A-36 |
+| sw_64 | `asm-generic/unistd.h` | `arch/sw_64/kernel/sys_sw64.c` | 裸 `sys_airy_sys_*` | 随 A-32 |
+
+arm64 与 riscv 定义了 `CONFIG_ARCH_HAS_SYSCALL_WRAPPER`，表项指向架构前缀的包装函数，由 `SYSCALL_DEFINEx()` 一并生成；loongarch 与 sw_64 的表项直接引用裸符号，因此 `include/linux/syscalls.h` 为它们补了 `sys_airy_sys_*` 声明。
+
+> arm64 的 32 位 compat 表（`arch/arm64/include/asm/unistd32.h`）是独立编号空间，不承载 548-571，32 位用户态经 `compat_sys_call_table` 走自己的编号，不属于本编号块。
+
+#### 2.2.2 0.1.1 → v1.0.1：syscall 12 → 4 精确映射
 
 Capability Folding 决策将 0.1.1 的 12 核心 syscall 精简为 v1.0.1 的 4 核心 syscall。下表为完整映射，所有 IPC 数据传递语义全部迁移至 io_uring 数据面 `IORING_OP_URING_CMD`：
 

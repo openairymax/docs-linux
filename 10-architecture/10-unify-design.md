@@ -422,7 +422,7 @@ A-IPC 的物理载体是 [SC] `ipc.h` Layout C v4 128B 定长消息头（2 cache
 
 ### 8.5 syscall 12 → 4 精确映射
 
-v1.0 的 12 核心 syscall 精简为 v1.0.1 的 4 核心 syscall。8 个 seL4 风格 IPC 原语全部移除，IPC 数据传递完全由 io_uring 数据面 `IORING_OP_URING_CMD + cmd_op` 承载。完整映射表见 [01-syscalls.md §2.2.1](../30-interfaces/01-syscalls.md)。
+v1.0 的 12 核心 syscall 精简为 v1.0.1 的 4 核心 syscall。8 个 seL4 风格 IPC 原语全部移除，IPC 数据传递完全由 io_uring 数据面 `IORING_OP_URING_CMD + cmd_op` 承载。完整映射表见 [01-syscalls.md §2.2.2](../30-interfaces/01-syscalls.md)。
 
 | 保留的 4 个 syscall | Linux 注册号 | 职责 |
 |---|---|---|
@@ -611,7 +611,7 @@ v1.0.1 Capability Folding 决策为 [SC] `ipc.h` 新增 [DSL] 降级块。当 `A
 > **v1.0.1 Capability Folding 决策权威声明**（A-IPC 第一块基石）：
 > - 6 条硬约束 H1-H6 不可妥协（详见 §8.2）
 > - Layout C v4 128B 消息头一经发布即冻结（magic 0x41524531 'ARE1'）
-> - syscall 12→4 精确映射（详见 §8.5 + [01-syscalls.md §2.2.1](../30-interfaces/01-syscalls.md)）
+> - syscall 12→4 精确映射（详见 §8.5 + [01-syscalls.md §2.2.2](../30-interfaces/01-syscalls.md)）
 > - fastpath C-S9 Badge 校验是唯一能力校验路径（~10ns 内联，3 个 READ_ONCE + 位运算）
 > - sec_d 是唯一 Badge 编译者（H4），撤销通过 1 行 atomic_inc 立即生效
 > - [DSL] 降级模式下 `capability_badge=0`，跳过 C-S9（H6）
