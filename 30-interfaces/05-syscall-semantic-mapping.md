@@ -325,6 +325,16 @@ static int detect_kernel_accel(void)
 
 当检测到 agent-linux 时，`airy_syscall_invoke()` 内部可选地将 JSON-RPC 请求解码后，直接调用编号 syscall 548-571，绕过用户态纯软件实现，获得内核加速。这一选择对应用层完全透明。
 
+标记本身由内核 `security/airy/airy_probe.c` 发布，其语义是本决策的唯一依据：
+
+| 属性 | 取值 | 契约含义 |
+|------|------|---------|
+| 路径 | `/proc/sys/agentrt/present` | 固定路径，权限 0444，不接受写入 |
+| 内容 | `1` | Airy 全链初始化成功，编号 syscall 548-571 可用 |
+| 不存在 | — | 非 agent-linux，或 Airy 初始化失败；必须走用户态路径 |
+
+标记在 `airy_init()` 成功路径的最后一步注册，因此"文件存在"等价于"能力表、LSM 钩子、die notifier、tracing 均已就绪"；任一步失败则不注册，文件不出现。运行时只判断 `open()` 是否成功，不解析内容，并在单次启动内缓存检测结果。
+
 ---
 
 ## 8. IRON-9 v3 四层共享模型
