@@ -1516,7 +1516,7 @@ jobs:
 
 ### 13.7 诚实声明
 
-1. **当前全部为文档承诺，源码零落地**。03-microkernel-strategy.md §1.3（L103-104）宣称"1.0.1 阶段引入（决策项）"验证注解，但源码中无 MODIFIES/FNSPEC 落地；09-known-caveats §1.1 宣称"编译期断言已落地（OS-KER-229）"，但 fastpath/badge 路径源码零命中编译期断言。v3.6c 三轮审查（23-improvement-closure-v3.6c 报告）将"可验证性预留"评为 68 分（D+），且明确——**"文档不能替代实现"**（报告 L192）。
+1. **形式化证明部分全部为文档承诺，源码零落地**。03-microkernel-strategy.md §1.3（L103-104）宣称"1.0.1 阶段引入（决策项）"验证注解，但源码中无 MODIFIES/FNSPEC 落地；Isabelle/HOL 骨架尚无编译产物。编译期断言自 A-11（0.0.3）起部分落地：`include/airymax/airy_contract.h` 钉死 IPC 头、badge 掩码、能力槽/blob、日志记录、任务描述符、调度参数域、agent 状态空间与内存分层等跨边界不变式，`airy_contract_check()` 在启动期复核并由 KUnit `airy_contract_snapshot` 覆盖；全量内核 C 代码铺开仍在进行中。v3.6c 三轮审查（23-improvement-closure-v3.6c 报告）将"可验证性预留"评为 68 分（D+），且明确——**"文档不能替代实现"**（报告 L192）。
 2. **本文件是路线图，不是已完成证明**。任何将本节内容引用为"IPC Fastpath 已形式化验证"的做法均不成立；在 Phase 2 定理实际编译通过之前，本节仅表达证明意图与范围。
 3. **全部 Isabelle/HOL 骨架未经 Isabelle 编译验证**。word 位运算细节、record 字段命名、locale 公理实例化、`consume` 良基参数化与 `oops` 挂起引理均需 Phase 2 落地时校正；骨架中的 `by simp`/`by blast` 仅示意证明方向。
 4. **范围限制重申**：即使 Phase 4 完成，也不覆盖机器码/编译器/缓存/TLB/boot/SMP/MCS（§13.1 Out-of-Scope），不构成二进制级无缺陷保证；IPC fastpath 性能为设计估算，本路径证明正确性而非性能。

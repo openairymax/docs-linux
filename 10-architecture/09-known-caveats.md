@@ -38,7 +38,7 @@ agent-linux 1.0.1 阶段的形式化验证路径如下：
 | ---------------- | -------------------------------- | ----------------------------- | ------ | --------------- |
 | IPC Fastpath 不变量 | Isabelle/HOL (l4v)               | `airy_ipc_fastpath()` 关键路径    | 1.0.1+ | 设计中             |
 | Rust 子仓          | Rust Kani                        | cognition/cloudnative Rust 代码 | 1.0.1+ | 设计中             |
-| 编译期断言            | `BUILD_BUG_ON` / `static_assert` | 全量内核 C 代码                     | 0.1.1  | 已落地（OS-KER-229） |
+| 编译期断言            | `BUILD_BUG_ON` / `static_assert` | 全量内核 C 代码                     | 0.1.1  | 部分落地（契约头 + 启动自检 + KUnit） |
 | 运行时断言            | `WARN_ON_ONCE` + 恢复代码            | 关键路径                          | 1.0.1+ | 设计中             |
 
 ### 1.2 不使用的验证路径

@@ -387,7 +387,7 @@ include 顺序固定：系统头 → 架构头 → 本地头 → `#define CREATE
 
 > **OS-KER-229**：agent-linux 内核态代码必须充分利用编译期断言（`BUILD_BUG_ON()` / `static_assert` / `_Static_assert`）将不变式检测前移到编译阶段；对不会返回的函数（`halt`、`panic` 等致命路径）必须标注 `__noreturn` 属性，使编译器能进行更激进的优化与控制流分析。此规则源于 agent-linux 内核工程对"编译期可检测的缺陷不应延迟到运行期"原则的落实。
 >
-> **落地状态（诚实声明）**：本条为**文档承诺**，当前源码零落地（[SC] 头文件 `_Static_assert` 属 OS-IRON-016 既有实践，非本规则实施成果）；列为 E1 改进项，计划 M2 阶段实施（内核态代码编译期断言全面铺开 + `__noreturn` 审计）。
+> **落地状态（诚实声明）**：自 A-11（0.0.3）起部分落地。`include/airymax/airy_contract.h` 在编译期钉死 IPC 消息头、badge 掩码、能力槽与安全 blob、日志记录、任务描述符、调度参数域、agent 状态空间、内存分层与 GFP/页面分类/rovol 操作码等跨边界不变式；`airy_contract_check()` 在启动期按同一份快照实测复核，失败即让 Airy LSM 保持 fail-closed；KUnit 套件 `airy_contract_snapshot`（8 例）覆盖该自检路径。`__noreturn` 审计结论：当前 airy 源码无自定义 panic/halt/do_exit 包装，暂无标注对象，新增致命路径时按本条执行。全量内核 C 代码铺开仍在进行中（A-11 后续切片）。
 
 **编译期断言使用场景**：
 
