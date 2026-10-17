@@ -178,6 +178,8 @@ Airymax Unify Design 的 [SC] 共享契约层（物理宿主 `kernel/include/uap
 - `security_types.h` 降级块新增 `AIRY_BADGE_EPOCH/RANDTAG/PERMS` 三个访问宏，保证 [DSL] 模式下 Badge 字段提取编译通过（但运行时跳过校验）
 - `syscalls.h` 降级块从 12 编号缩减为 4 编号（Capability Folding syscall 12→4 精确映射）
 
+> **`uapi_compat.h` 两路契约的可证明形式**：降级块不重复 typedef（主桥接三分支已各自置位 `_AIRY_UAPI_COMPAT_TYPES_SET`），而是断言该不变量并导出 `AIRY_DSL_UAPI_BRANCHES = 2`。`sc_tri_compile.py` 的 `dsl-*` 路径读取该常量，常规路径必须报告降级层未激活；两路一致才放行。降级路径编译使用 `-Werror -Wno-error=cpp`——仅将 §2.1 要求的 `#warning` 从错误降级，其余告警仍按错误处理。详见 `50-engineering-standards/11-sc-header-type-bridging.md` §2.5 / §5.1。
+
 ### 2.3 构建系统自动注入
 
 构建系统在以下情况自动注入 `AIRY_SC_FALLBACK`：
