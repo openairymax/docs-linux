@@ -299,69 +299,19 @@ late_initcall(airy_trace_selftest_cprime);
 
 ### 6.2 IPC fastpath 追踪
 
-`airy_trace_selftest_ipc` 验证 IPC fastpath 的 ftrace 钩子（`airy_ipc_fastpath_entry` / `airy_ipc_fastpath_exit` tracepoint）正确触发（**规划，未实现**：内核当前无 `airy_ipc_fastpath_*` tracepoint，无 `kernel/airymaxos/trace/` 目录）：
+IPC 快慢路径共用 `airy_ipc_send` / `airy_ipc_recv` 两个 tracepoint（定义见 `kernel/include/trace/events/airy.h`，字段顺序即 tracing ABI，OS-KER-143）。快路径由 `airy_ipc_send` 的 `fastpath` 字段标识，收发配对由同一 `op` 的 send/recv 事件构成，不再单独引入 `airy_ipc_fastpath_entry/exit`。
 
-```c
-static int __init airy_trace_selftest_ipc(void)
-{
-    /* 1. 启用 airy_ipc_fastpath tracepoint */
-    /* 伪代码标注：trace_array_set_event() 非 6.6 API；真实 API 为
-     * trace_array_set_clr_event(tr, system, event, enable)（EXPORT_SYMBOL_GPL） */
-    /* 规划，未实现：airy_ipc_fastpath_* tracepoint 当前不存在 */
-    trace_array_set_event("airy_ipc_fastpath_entry", true);
-    trace_array_set_event("airy_ipc_fastpath_exit",  true);
+自检以 KUnit 套件 `airy_ipc_trace`（`kernel/corekern/ipc/airy_ipc_trace_test.c`）落地：注册真实探针后调用 `airy_send_emit()` / `airy_recv_emit()`，断言事件字段逐项等于入参；同时验证 `airy_send_on()` / `airy_recv_on()` 随探针注册、注销精确翻转，未知 agent id 归一化为 0。
 
-    /* 2. 触发 IPC fastpath 调用 */
-    int ret = airy_ipc_fastpath_selftest_invoke();
-    if (ret) {
-        pr_err("tracer_selftest: airy_ipc: fastpath invoke failed: %d\n", ret);
-        return ret;
-    }
-
-    /* 3. 检查 ring buffer 中的 entry/exit 条目配对 */
-    /* ... */
-
-    return 0;
-}
-late_initcall(airy_trace_selftest_ipc);
-```
-
-**OS-TEST-085**：IPC fastpath ftrace 自检必须验证 `airy_ipc_fastpath_entry` 与 `airy_ipc_fastpath_exit` tracepoint 配对触发；配对失败即视为 ftrace 钩子缺失。（**规划，未实现**：上述 tracepoint 当前不存在，待内核实现后启用）
+**OS-TEST-085**：IPC 追踪自检必须验证 send/recv 事件成对产生且字段与调用参数一致，并对未知 agent id 归零；任一字段不符或配对缺失即视为追踪 ABI 破损。（已实现：KUnit `airy_ipc_trace`，6 用例）
 
 ### 6.3 Agent 状态转换追踪
 
-`airy_trace_selftest_agent` 验证 Agent 8 态生命周期状态转换的 ftrace 钩子（`airy_agent_state_change` tracepoint）正确触发（**规划，未实现**：内核当前无 `airy_agent_state_change` tracepoint）：
+`airy_agent_state_change(agent_id, prev_state, next_state, reason)` 在 `airy_task_state_transition()` 每次合法迁移后发射一次，非法迁移返回 `-EINVAL` 且不发射。
 
-```c
-static int __init airy_trace_selftest_agent(void)
-{
-    /* 1. 启用 airy_agent_state_change tracepoint */
-    /* 伪代码标注：trace_array_set_event() 非 6.6 API；真实 API 为
-     * trace_array_set_clr_event(tr, system, event, enable)（EXPORT_SYMBOL_GPL） */
-    /* 规划，未实现：airy_agent_state_change tracepoint 当前不存在 */
-    trace_array_set_event("airy_agent_state_change", true);
+自检以 KUnit 套件 `airy_task_lifecycle`（`kernel/corekern/taskflow/airy_task_lifecycle_test.c`）落地：注册真实探针后驱动 INACTIVE → SPAWNING → READY → RUNNING → STOPPING → STOPPED → DEAD 六条边，逐条断言 `agent_id` / `prev` / `next` / `reason`；另覆盖 RUNNING ↔ BLOCKED 往返、非法边静默拒绝、DEAD 终止性、`reason` 上界与状态名表。
 
-    /* 2. 触发 Agent spawn → ready → running → stop → dead 路径 */
-    int agent_id = airy_spawn_agent_selftest();
-    /* ... agent 执行 ... */
-    airy_stop_agent_selftest(agent_id);
-
-    /* 3. 检查 ring buffer 中的状态转换条目 */
-    /* 伪代码标注：trace_array_entries_current() 非 6.6 导出 API；
-     * 实际条目数经 tracefs 或内部 trace_buffer 统计获取（规划） */
-    int entries = trace_array_entries_current();
-    if (entries < 5) {
-        pr_err("tracer_selftest: airy_agent: only %d state_change entries\n", entries);
-        return -EIO;
-    }
-
-    pr_info("tracer_selftest: airy_agent: %d state_change entries OK\n", entries);
-    return 0;
-}
-late_initcall(airy_trace_selftest_agent);
-```
-
-**OS-TEST-086**：Agent 状态转换 ftrace 自检必须验证 5 次状态转换（SPAWNING → READY → RUNNING → STOPPING → STOPPED → DEAD）均触发 `airy_agent_state_change` tracepoint；任一状态转换未触发即视为自检失败。（**规划，未实现**：`airy_agent_state_change` tracepoint 当前不存在，待内核实现后启用）
+**OS-TEST-086**：Agent 状态转换自检必须验证合法迁移逐边产生且仅产生一个 `airy_agent_state_change` 事件，非法迁移不产生事件；任一偏差即视为自检失败。（已实现：KUnit `airy_task_lifecycle`，8 用例）
 
 ---
 
