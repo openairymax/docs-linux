@@ -303,9 +303,11 @@ agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.
 | arm64 | `asm-generic/unistd.h` | `arch/arm64/kernel/sys.c`（由 `__SYSCALL` 展开） | `__arm64_sys_*` | ✅ A-31 |
 | riscv | `asm-generic/unistd.h` | `arch/riscv/kernel/syscall_table.c` | `__riscv_sys_*` | 随 A-36 |
 | loongarch | `asm-generic/unistd.h` | `arch/loongarch/kernel/syscall.c` | 裸 `sys_airy_sys_*` | 随 A-36 |
-| sw_64 | `asm-generic/unistd.h` | `arch/sw_64/kernel/sys_sw64.c` | 裸 `sys_airy_sys_*` | 随 A-32 |
+| sw_64 | 自有 `syscall.tbl` 的 548-571 段 | `arch/sw_64/kernel/systbls.S`（构建期 `syscalltbl.sh` 生成 `<asm/syscall_table.h>`，按 `.quad` 顺序展开） | 裸 `sys_airy_sys_*` | ✅ A-32 |
 
-arm64 与 riscv 定义了 `CONFIG_ARCH_HAS_SYSCALL_WRAPPER`，表项指向架构前缀的包装函数，由 `SYSCALL_DEFINEx()` 一并生成；loongarch 与 sw_64 的表项直接引用裸符号，因此 `include/linux/syscalls.h` 为它们补了 `sys_airy_sys_*` 声明。
+arm64 与 riscv 定义了 `CONFIG_ARCH_HAS_SYSCALL_WRAPPER`，表项指向架构前缀的包装函数，由 `SYSCALL_DEFINEx()` 一并生成；loongarch 的 C 表直接引用裸符号，因此 `include/linux/syscalls.h` 为它补了 `sys_airy_sys_*` 声明。sw_64 的表是 `systbls.S` 中的汇编 `.quad` 序列，符号由汇编器解析，不需要 C 原型。
+
+> sw_64 的 `syscall.tbl` 允许缺号（519-547 即空缺）：`syscalltbl.sh` 为每个空号补 `__SYSCALL(<nr>, sys_ni_syscall)`，生成的表仍从 0 连续到 `__NR_syscalls - 1`，后续条目不会错位；乱序或重号则直接构建失败。
 
 > arm64 的 32 位 compat 表（`arch/arm64/include/asm/unistd32.h`）是独立编号空间，不承载 548-571，32 位用户态经 `compat_sys_call_table` 走自己的编号，不属于本编号块。
 
