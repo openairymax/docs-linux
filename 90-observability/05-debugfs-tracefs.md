@@ -500,17 +500,19 @@ print fmt: "agent=%u prev=%u next=%u class=%u latency=%lluns",
     REC->sched_class, REC->latency_ns
 ```
 
-**OS-KER-143: 内建 Airy LSM 规划通过 `TRACE_EVENT` 宏定义所有 airy 子系统事件（当前 kernel 源码中 `include/trace/events/airy.h` **尚未实现**，见第 7 章"规划"标注）；事件格式必须稳定，不得在 patch 版本间变更字段顺序。**
+**OS-KER-143: 内建 Airy LSM 通过 `TRACE_EVENT` 宏在 `include/trace/events/airy.h` 定义所有内核侧 airy 事件（`kernel/corekern/airy/airy_trace.c` 以 `CREATE_TRACE_POINTS` 单点实例化）；事件格式必须稳定，不得在 patch 版本间变更字段顺序。**
 
 ---
 
 ## 第 7 章 agent-linux 事件追踪
 
-> **⚠️ 规划标注**：本章 6 个 `TRACE_EVENT`（airy_sched_switch / airy_ipc_send / airy_agent_state_change / airy_cognition_enter / airy_cognition_exit / airy_memory_access）在**当前 kernel 源码中均不存在**（`include/trace/events/airy.h` 未创建），属**规划设计**。落地时需新增 `include/trace/events/airy.h` 并注册到 `kernel/trace/Makefile` 的 `TRACE_EVENT` 编译列表。Agent 生命周期事件字段应对齐 [SC] `sched.h` `enum airy_agent_state` 8 态。
+> **落地状态**：本章的 7 个内核事件（`airy_agent_state_change` / `airy_sched_switch` / `airy_sched_latency` / `airy_ipc_send` / `airy_ipc_recv` / `airy_superv_enforce` / `airy_ring_buffer_write`）已实现于 `include/trace/events/airy.h`。`airy_cognition_*` / `airy_memory_access` / `airy_token_consume` 属用户态 `user_events`，不在内核头中定义。Agent 生命周期事件字段对齐 [SC] `sched.h` `enum airy_agent_state` 8 态。
 
-### 7.1 airy_sched_switch 事件（规划）
+### 7.1 airy_sched_switch 事件
 
-Agent 调度切换事件，记录sched_tac 三层调度类切换：
+Agent 调度切换事件，记录 sched_tac 三层调度类的切换。`prev_state` / `next_state` 承载的是切换前后任务的原生 `SCHED_*` 类编号（dispatch 实际写入的调度类），不是生命周期 8 态；`sched_class` 是 [SC] `sched.h` 的 `AIRY_SCHED_POLICY_*` 编号（1=DEADLINE、2=FIFO、3=EEVDF、4=BEST_EFFORT）；`latency_ns` 是 `sched_setattr()` 包裹测量的切换开销（OS-STD-023）。仅切换成功时发射。
+
+> 唤醒到运行（wakeup-to-run）延迟由原生 sched tracer 提供，不属本事件语义，也不得从 dispatch 推断。
 
 ```c
 /* include/trace/events/airy.h */
@@ -621,10 +623,9 @@ $ cat /sys/kernel/tracing/trace | tail -10
 #                              ||| /     delay
 #           TASK-PID     CPU#  ||||    TIMESTAMP  FUNCTION
 #              | |        |   ||||       |         |
-  cogn_d-1234  [000] d... 1784328868.912345: airy_cognition_enter: agent=42 input_tokens=234
-  sched_d-1235 [001] d... 1784328868.912346: airy_sched_switch: agent=42 prev=RUNNING next=BLOCKED class=DL latency=1234ns
+  sched_d-1235 [001] d... 1784328868.912346: airy_sched_switch: agent=42 prev=0 next=6 class=1 latency=843ns
+  sched_d-1235 [001] d... 1784328868.912346: airy_sched_latency: agent=42 class=1 latency=843ns
   gateway_d-1236 [002] d... 1784328868.912347: airy_ipc_send: src=42 dst=43 op=SEARCH fastpath=1 latency=1234ns
-  cogn_d-1234  [000] d... 1784328868.912348: airy_cognition_exit: agent=42 output_tokens=456 latency=1500000ns
 ```
 
 ---

@@ -100,7 +100,7 @@ agent-linux 定义 Agent 行为追踪的五大维度：
 |--------|------|--------|------|
 | `airy_agent_state_change` | 状态转换 | 状态机迁移 | ftrace |
 | `airy_sched_switch` | 调度延迟 | 调度类切换 | ftrace |
-| `airy_sched_latency` | 调度延迟 | 唤醒到运行延迟 | ftrace |
+| `airy_sched_latency` | 调度延迟 | 调度类切换耗时（dispatch 实测） | ftrace |
 | `airy_ipc_send` | IPC 交互 | 消息发送 | ftrace |
 | `airy_ipc_recv` | IPC 交互 | 消息接收 | ftrace |
 | `airy_memory_access` | 记忆访问 | L1-L4 访问 | user_events |
