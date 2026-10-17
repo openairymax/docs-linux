@@ -279,7 +279,7 @@ agent-linux 专用系统调用采用 **4 核心 + 20 预留 = 24 槽位** 方案
 
 agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.tbl` 中注册于 548 起始的预留区间，`AIRY_SYS_*` 编号宏直接等于 Linux 注册号（不再使用 0-3 内部编号）。
 
-> **编号起点选择理由（v1.0.1 修正）**：x86_64 架构的 512-547 是 x32 历史遗留区域（`syscall_64.tbl` L384-388 明确标注 "Do not add new syscalls to this range. Numbers 548 and above are available for non-x32 use"）。因此 agent-linux 统一使用 548 起始，确保在 x86_64/arm64/riscv 所有架构上编号一致，实现跨架构二进制兼容。原 0.1.1 阶段设计的 512 起始方案在 x86_64 上不可用，v1.0.1 修正为 548 起始。
+> **编号起点选择理由（v1.0.1 修正）**：x86_64 架构的 512-547 是 x32 历史遗留区域（`syscall_64.tbl` 中 x32 段末尾的注释明确标注 "Do not add new syscalls to this range. Numbers 548 and above are available for non-x32 use"）。因此 agent-linux 统一使用 548 起始，确保在 x86_64/arm64/riscv 所有架构上编号一致，实现跨架构二进制兼容。原 0.1.1 阶段设计的 512 起始方案在 x86_64 上不可用，v1.0.1 修正为 548 起始。
 
 下表为编号与 Linux 注册号的完整映射：
 
@@ -289,7 +289,7 @@ agent-linux 新增 syscall 在 Linux 内核 `arch/x86/entry/syscalls/syscall_64.
 | 549 | `AIRY_SYS_ROVOL_CTL` | 549 | `549  common  airy_sys_rovol_ctl sys_airy_sys_rovol_ctl` |
 | 550 | `AIRY_SYS_SCHED_CTL` | 550 | `550  common  airy_sys_sched_ctl sys_airy_sys_sched_ctl` |
 | 551 | `AIRY_SYS_CLT_NOTIFY` | 551 | `551  common  airy_sys_clt_notify sys_airy_sys_clt_notify` |
-| 552-571 | 预留 | 552-571 | 预留槽已在 `syscall_64.tbl` L395-414 逐行登记为 `airy_reserved_4`..`airy_reserved_23` → `sys_ni_syscall`（返回 `-ENOSYS`），v1.0.1 已修复（原 P0-1，见 [09-known-caveats.md §8.4](../10-architecture/09-known-caveats.md)） |
+| 552-571 | 预留 | 552-571 | 预留槽已在 `syscall_64.tbl` 的 Airymax 段内逐行登记为 `airy_reserved_4`..`airy_reserved_23` → `sys_ni_syscall`（返回 `-ENOSYS`），v1.0.1 已修复（原 P0-1，见 [09-known-caveats.md §8.4](../10-architecture/09-known-caveats.md)） |
 
 > **映射原则**：`AIRY_SYS_*` 编号宏直接等于 Linux 注册号（548-551，无偏移），由 codegen 流水线生成 `__NR_airy_sys_call 548` 等宏，产物位于 [SC] 头文件 `syscalls.h`（见 [06-codegen-pipeline.md](06-codegen-pipeline.md)），用户态与内核态共用同一份编号定义，禁止在两侧引入映射转换层。
 
