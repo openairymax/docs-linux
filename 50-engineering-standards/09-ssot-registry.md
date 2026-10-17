@@ -1112,8 +1112,8 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | C-S2    | opcode 合法性校验（在 7 种 opcode 内）                                     | 07-ipc-fastpath §3.1      |
 | C-S3    | payload 大小校验（`payload_len <= AIRY_IPC_MAX_PAYLOAD`）                 | 07-ipc-fastpath §3.1      |
 | C-S4    | 消息头大小 + reserved 零值校验（`hdr_size == 128` 且 `reserved[72]` 全零） | 07-ipc-fastpath §3.1      |
-| C-S5    | src\_task / dst\_task 合法性校验                                          | 07-ipc-fastpath §3.1      |
-| C-S6    | kfifo 可用空间校验（`kfifo_avail` 足够）                                  | 07-ipc-fastpath §3.1 L213 |
+| C-S5    | src 与 dst 同 CPU（`home_cpu == AIRY_IPC_CPU_ANY` 或 `smp_processor_id() == home_cpu`） | 07-ipc-fastpath §3.1      |
+| C-S6    | kfifo 未满（单条头记录占一槽；达 HI 水位闩锁背压）                         | 07-ipc-fastpath §3.1 L213 |
 | C-S7    | reclaim flag 校验                                                        | 07-ipc-fastpath §3.1      |
 | C-S8    | 上下文校验（`in_task()` 为真）                                            | 07-ipc-fastpath §3.1      |
 | C-S9    | **Capability Folding Badge 校验**（Epoch + RandomTag + Perms 三重校验，~10ns 内联）—— H6: [DSL] 降级模式 `capability_badge=0` 跳过此校验 | 07-ipc-fastpath §3.1 L217 |

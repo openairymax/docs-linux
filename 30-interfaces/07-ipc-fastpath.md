@@ -205,8 +205,8 @@ v1.0.1 起，fastpath 校验链为 **C-S0~C-S12 共 13 项**（含 Capability Fo
 | C-S2 | `opcode` 合法（见 §1.3 7 种 opcode） | 内联 `airy_op_plane() != AIRY_PLANE_INVALID` | → ERROR | `AIRY_EIPC_OPCODE`(-42) |
 | C-S3 | `payload_len <= AIRY_IPC_MAX_PAYLOAD` | 内联比较 | → ERROR | `AIRY_EIPC_PAYLOAD`(-43) |
 | C-S4 | `hdr_size == 128` 且 `reserved[72]` 全零 | 内联 + 循环检查 | → ERROR | `AIRY_EIPC_HDRSIZE`(-44) / `AIRY_EIPC_RESERVED`(-45) |
-| C-S5 | src 与 dst 在同一 CPU（per-cpu fastpath 无锁） | `smp_processor_id() == dst_cpu` | → SLOW_SEND | — |
-| C-S6 | per-cpu kfifo 未满（`kfifo_avail() >= hdr_size + payload_len`） | 内联 | → SLOW_SEND（背压） | `AIRY_EIPC_KFIFO`(-48) |
+| C-S5 | src 与 dst 在同一 CPU（per-cpu fastpath 无锁） | 内联：`home_cpu == AIRY_IPC_CPU_ANY` 或 `smp_processor_id() == home_cpu` | → SLOW_SEND（`-EAGAIN`） | — |
+| C-S6 | per-cpu kfifo 未满（单条头记录占一个槽） | 内联 `kfifo_is_full()`；达 HI 水位后闩锁背压 | → SLOW_SEND（背压） | `AIRY_EIPC_KFIFO`(-48) |
 | C-S7 | `cmd->reclaim == false`（无 reclaim flag） | 内联 | → ERROR | `AIRY_EIPC_RECLAIM`(-49) |
 | C-S8 | `in_task()`（per-cpu 上下文，非中断） | 内联 | → SLOW_SEND | `AIRY_EIPC_CONTEXT`(-50) |
 | **C-S9** | **Capability Folding Badge 校验**（见 §3.1.1 详解） | 内联 `airy_cap_badge_ok()`，~10ns | → ERROR 或 cap_pass | `AIRY_ECAP_BADGE`(-78) / `AIRY_ECAP_EPOCH`(-79) / `AIRY_ECAP_FORGED`(-80) / `AIRY_ECAP_PERM`(-81) |
@@ -380,14 +380,20 @@ io_uring 承担用户态 ↔ 内核态的 IPC 数据面（OS-ARCH-006）。v1.0.
 
 ### 5.2 fastpath 完整实现（v1.0.1 新增，Capability Folding C-S9 内联）
 
-> **⚠️ 设计稿标注（v1.0.1-fix）**：本节代码（`airy_uring_cmd` / `airy_ipc_validate` / `airy_ipc_can_fast_deliver` / `airy_ipc_deliver_fast` / `airy_ipc_deliver_full`、kfifo/io_uring 集成）为**设计稿（超前于实现）**。物理宿主 `kernel/corekern/ipc/` 已落地全部 header 可判定项：`airy_ipc_fastpath_send()`（`airy_ipc_fastpath.c`）依次执行 C-S0、`airy_ipc_validate()`（`airy_ipc_check.c`，含 C-S1..C-S4、C-S8..C-S10）与 C-S12，C-S12 失配时上报 `AIRY_FAULT_RING_CORRUPT` 并丢弃消息，全部通过后委托 `airy_ipc_ring_post()`。实际签名为 `int airy_ipc_validate(const struct airy_ipc_msg_hdr *hdr)`：C-S9 Badge 校验已内置（`cap_badge_ok()` → `airy_cap_badge_ok()`），C-S8 以 `in_task()` 就地判定，无需调用方预检。ring 绑定项 C-S5..C-S7 与 C-S11 属 per-cpu ring 层（TA-06），本节代码以物理宿主文件为准。
+> **落地状态（v1.0.2）**：本节代码是 A-IPC fastpath 在 io_uring 侧的整体设计参考，**仅 `airy_uring_cmd()` 入口仍为设计稿**。物理宿主 `kernel/corekern/ipc/` 已落地两条数据面路径：
+>
+> - `airy_ipc_fastpath_send(ring, hdr)`（`airy_ipc_fastpath.c`）：C-S0 → 共享头链 `airy_ipc_validate()`（`airy_ipc_check.c`，含 C-S1..C-S4、C-S8..C-S10）→ C-S12；C-S12 失配时上报 `AIRY_FAULT_RING_CORRUPT` 并丢弃消息，全部通过后委托 `airy_ipc_ring_post()`（后者持有 C-S5/C-S6/C-S11）。
+> - `airy_ipc_fast_send_kfifo(kf, hdr)`（`airy_ipc_fastpath.c`）：共享头链 → `airy_ipc_kfifo_send()`（后者持有 C-S5/C-S6/C-S11，并维护背压闩锁与水位）。
+>
+> 实际签名为 `int airy_ipc_validate(const struct airy_ipc_msg_hdr *hdr)`：C-S9 Badge 校验已内置（`cap_badge_ok()` → `airy_cap_badge_ok()`），C-S8 以 `in_task()` 就地判定，无需调用方预检。ring 绑定项 C-S5..C-S7 属 per-cpu ring 层（TA-06），以物理宿主文件为准。
 
-以下代码是 A-IPC fastpath 的设计参考（超前于实现，见上），其设想入口 `airy_uring_cmd()` 在 io_uring 持有 `ctx->uring_lock` 时被调用，锁内仅做校验 + 快速投递（无 `wake_up`），需要唤醒时返回 `-EAGAIN`，io-wq 接管（锁外）。
+以下代码是 A-IPC fastpath 的设计参考（入口未落地，见上），其设想入口 `airy_uring_cmd()` 在 io_uring 持有 `ctx->uring_lock` 时被调用，锁内仅做校验 + 快速投递（无 `wake_up`），需要唤醒时返回 `-EAGAIN`，io-wq 接管（锁外）。
 
 ```c
-/* 设计稿（超前于实现）：kernel/corekern/ipc/airy_ipc_fastpath.c
+/* 设计稿（io_uring 入口未落地）：kernel/corekern/ipc/airy_ipc_fastpath.c
  * 已落地：airy_ipc_fastpath_send() = C-S0 + airy_ipc_validate() + C-S12
- *         + ring_post 委托；C-S5..C-S7、C-S11 属 ring 层 */
+ *         + ring_post 委托；airy_ipc_fast_send_kfifo() = 共享头链 + kfifo_send
+ *         C-S5..C-S7、C-S11 属 ring/kfifo 层 */
 
 #include <linux/io_uring.h>
 #include <linux/io_uring_types.h>
@@ -658,7 +664,7 @@ static int airy_ipc_deliver_full(struct airy_ipc_cmd *cmd)
 
 ### 5.3 fastpath 延迟分解
 
-> **⚠️ 设计估算标注（v1.0.1-fix）**：下表各项（~68ns/~90ns/~158ns 等）为**设计估算**，对应 §5.2 设计稿代码路径。实测数据（`airy_fastpath_bench` KUnit，UML x86_64，调用真实生产函数 `airy_cap_badge_ok()` / `airy_ipc_fastpath_send()` / `airy_ipc_ring_post()`，见 `kernel/corekern/ipc/airy_fastpath_bench.c`）：fastpath 全路径（frozen 门 + ring_post）实测 **~46ns**，C-S9 Badge 校验实测 **2-10ns**。设计稿实现的额外校验链（C-S0~C-S12/kfifo）尚未落地，落地后需复测刷新本节数字。
+> **⚠️ 设计估算标注（v1.0.2）**：下表各项（~68ns/~90ns/~158ns 等）为**设计估算**，对应 §5.2 设计稿中的 io_uring 入口路径（含 CQE 填充与 `preempt_disable`）。已落地的两条内核数据面路径有实测数据（`airy_fastpath_bench` KUnit，UML x86_64，调用真实生产函数 `airy_cap_badge_ok()` / `airy_ipc_fastpath_send()` / `airy_ipc_ring_post()`，见 `kernel/corekern/ipc/airy_fastpath_bench.c`）：ring fastpath 全路径（frozen 门 + ring_post）实测 **~46ns**，C-S9 Badge 校验实测 **2-10ns**。kfifo 邮箱路径与 io_uring 入口尚无实测，落地后需复测刷新本节数字。
 
 ```
 FAST_SEND 路径（SQPOLL + 同 CPU + kfifo 有空位 + 接收方轮询）:
@@ -771,15 +777,18 @@ BUILD_BUG_ON(sizeof(struct airy_ipc_cmd) > 80);
 struct airy_ipc_kfifo {
     DECLARE_KFIFO_PTR(fifo, struct airy_ipc_msg_hdr) ____cacheline_aligned_in_smp;
     wait_queue_head_t          recv_wq;
-    unsigned long              water_mark;   /* 当前水位 */
-    struct airy_ipc_stats __percpu *stats;   /* per-cpu 统计 */
-} __attribute__((aligned(SMP_CACHE_BYTES)));
+    unsigned long              water_mark;   /* 最近一次采样的水位（条） */
+    int                        home_cpu;     /* C-S5 属主 CPU，或 AIRY_IPC_CPU_ANY */
+    bool                       backpressure; /* 达 HI 置位，跌破 LO 清除 */
+    struct airy_ipc_stats __percpu *stats;   /* 指向全局 per-cpu 统计块 */
+};
 
 static DEFINE_PER_CPU(struct airy_ipc_kfifo, airy_ipc_kfifo);
 ```
 
-- 每个 CPU 独立 kfifo，容量 `AIRY_IPC_KFIFO_SIZE`（默认 4096 项 × 128B = 512 KiB）。
+- 每个 CPU 独立 kfifo，容量 `CONFIG_AIRY_IPC_KFIFO_SIZE`（默认 4096 项 × 128B = 512 KiB），启动期由 `subsys_initcall` 逐 CPU 分配；`airy_ipc_kfifo_cpu()` 解析属主邮箱，未初始化或越界返回 `NULL`。
 - `____cacheline_aligned_in_smp` 保证 SMP 下 kfifo 结构体不跨 cache line 共享。
+- `stats` 指向全局 `airy_ipc_stats_cpu` 块而非每邮箱独立分配：统计按 CPU 汇总，读出口 `airy_ipc_stats_read()` 遍历所有 possible CPU 求和。
 - 同 CPU 内发送 kthread → 接收 kthread 为单生产者单消费者（SPSC）。
 
 ### 6.2 无锁单生产者单消费者模型
@@ -938,7 +947,14 @@ if (likely(hdr.magic == AIRY_IPC_MAGIC) &&
 - 每次 PR 在 `tests-linux` 子仓运行错误注入测试套件 `ipc_fastpath_fault_inject`。
 - 矩阵：8 状态 × 4 opcode × 6 注入点 = 192 用例，全量需通过。
 - 覆盖率门槛：状态机分支覆盖 ≥ 95%（含 slowpath 与 ERROR 边）。
-- 内核侧 KUnit 回归：`CONFIG_AIRY_KUNIT=y` 时编译 `kernel/corekern/ipc/airy_ipc_fastpath_test.c`（套件 `airy_ipc_fastpath`，5 例），覆盖成功入环、C-S0 优先、参数守卫、C-S1 先于 C-S12、C-S12 拒绝且不占用 ring 槽；与 `airy_ipc_check`（22 例）、`airy_ipc_ring`（17 例）、`airy_ipc_crc32_c_s12`（9 例）共同作为 fastpath 校验链的提交门禁。
+- 内核侧 KUnit 回归：`CONFIG_AIRY_KUNIT=y` 时编译 `kernel/corekern/ipc/` 下五个测试目标，加上 `kernel/ipc/airy_ipc_capability_test.c`，共同构成 fastpath 校验链的提交门禁（UML x86_64 实测 6 套件 80/80 全绿）：
+  - `airy_ipc_check_test.c`（套件 `airy_ipc_check`，22 例）：C-S1..C-S4、C-S8..C-S10 与参数守卫。
+  - `airy_ipc_ring_test.c`（套件 `airy_ipc_ring`，22 例）：ring 生命周期、SPSC wrap、深度统计、C-S5 绑定、坏包取消。
+  - `airy_ipc_kfifo_test.c`（套件 `airy_ipc_kfifo`，13 例）：mailbox 入队/出队、C-S5/C-S6、背压闩锁、水位与统计。
+  - `airy_ipc_crc32_test.c`（套件 `airy_ipc_crc32_c_s12`，9 例）：CRC32 计算与 C-S12 比对。
+  - `airy_ipc_fastpath_test.c`（套件 `airy_ipc_fastpath`，11 例）：ring 入口与邮箱入口的成功路径、C-S0 优先、参数守卫、C-S1 先于 C-S12、C-S12 拒绝且不占用槽位。
+  - `airy_ipc_capability_test.c`（套件 `airy_ipc_capability_p1_5`，3 例）：Badge/能力折叠的 C-S9 判定边界。
+- 条件编入的补充套件：`CONFIG_AIRY_AGENT_TRACING=y` 时增编 `airy_ipc_trace_test.c`（套件 `airy_ipc_trace`，6 例，字段保真与 `*_on()` 谓词）；`airy_fastpath_bench.c`（7 例）只做微基准采样并输出 `KUNIT_INFO`，不作为门禁。
 
 ---
 
@@ -1052,19 +1068,20 @@ struct airy_ipc_stats {
 
 ### 10.6 CBMC 形式化验证属性规约（v1.0.1 新增）
 
-CBMC（C Bounded Model Checker）是对 fastpath **100 行代码**做全函数验证的工业级工具，与 §10.1 Isabelle/HOL（定理证明）形成互补——Isabelle 证明状态机层语义性质，CBMC 验证 C 代码层内存安全与逻辑不变量。CBMC 验证范围限定在 **fastpath C-S9 Badge 校验 + C-S12 CRC32 校验 + kfifo_in 投递**共 ~100 行 C 代码（H4 硬约束要求）。
+CBMC（C Bounded Model Checker）是对 fastpath **~180 行代码**做全函数验证的工业级工具，与 §10.1 Isabelle/HOL（定理证明）形成互补——Isabelle 证明状态机层语义性质，CBMC 验证 C 代码层内存安全与逻辑不变量。CBMC 验证范围限定在 **fastpath C-S9 Badge 校验 + C-S12 CRC32 校验 + ring/kfifo 投递**（H4 硬约束要求）。
 
 #### 10.6.1 验证范围与目标
 
-> **⚠️ 规划标注（v1.0.1-fix）**：本小节及 §10.6.2-§10.6.5 的 CBMC 验证对象、物理宿主与属性规约为**规划稿（超前于实现）**。其中声称的物理宿主 `kernel/security/airy/capability.c` **当前不存在**（`airy_cap_badge_ok()` 实际以内联函数形式定义于 `security/airy/airy_cap.h`）；CBMC 属性规约代码（§10.6.2）为设计态，尚未落盘为 `#ifdef CBMC_VERIFICATION` 验证块。以下表格保留设计意图，实际验证以落地后的物理文件为准。
+> **⚠️ 规划标注（v1.0.2）**：本小节及 §10.6.2-§10.6.5 的 CBMC 验证对象、物理宿主与属性规约为**规划稿**。其中 `kernel/security/airy/capability.c` **当前不存在**（`airy_cap_badge_ok()` 实际以内联函数形式定义于 `security/airy/airy_cap.h`）；CBMC 属性规约代码（§10.6.2）为设计态，尚未落盘为 `#ifdef CBMC_VERIFICATION` 验证块。设计稿中的 `struct airy_ipc_cmd`、`airy_ipc_can_fast_deliver()`、`airy_ipc_deliver_fast()`、`airy_ipc_deliver_full()` 属于 §5.2 未落地的 io_uring 入口；已落地的对应验证目标是 `airy_ipc_fastpath_send()`（`airy_ipc_fastpath.c`）、`airy_ipc_ring_post()`（`airy_ipc_ring.c`）与 `airy_ipc_kfifo_send()`（`airy_ipc_kfifo.c`），入参均为 `struct airy_ipc_msg_hdr`。CBMC harness 落地时须先按这三个函数重塑形参模型。
 
 | 验证对象 | 物理宿主（规划） | 行数 | 验证工具 | 验证目标 |
 |---------|---------|------|---------|---------|
 | `airy_cap_badge_ok()` | 规划：`kernel/security/airy/capability.c`（当前实际实现：`security/airy/airy_cap.h` 内联） | ~30 行 | CBMC | 内存安全 + Badge 校验逻辑不变量 |
 | `airy_ipc_validate()` | 已落地：`kernel/corekern/ipc/airy_ipc_check.c`（C-S1..C-S4、C-S8..C-S10） | ~40 行 | CBMC | C-S1~C-S4、C-S8~C-S10 校验链完备性 |
-| `airy_ipc_deliver_fast()` | 规划：`kernel/corekern/ipc/airy_ipc_fastpath.c`（设计稿） | ~20 行 | CBMC | kfifo_in 边界 + preempt 平衡 |
-| `airy_ipc_crc32_ok()` | 规划：`kernel/corekern/ipc/airy_ipc_crc32.c`（已落地，C-S12） | ~10 行 | CBMC | CRC32 计算无越界 |
-| **合计** | — | **~100 行** | CBMC | 全函数验证（H4 硬约束） |
+| `airy_ipc_ring_post()` | 已落地：`kernel/corekern/ipc/airy_ipc_ring.c`（C-S5/C-S6/C-S11，承载设计稿 `airy_ipc_deliver_fast()` 的语义） | ~40 行 | CBMC | 入环边界 + preempt 平衡 |
+| `airy_ipc_kfifo_send()` | 已落地：`kernel/corekern/ipc/airy_ipc_kfifo.c`（C-S5/C-S6/C-S11 + 背压闩锁） | ~60 行 | CBMC | kfifo_in 边界 + 水位一致性 |
+| `airy_ipc_crc32_ok()` | 已落地：`kernel/corekern/ipc/airy_ipc_crc32.c`（C-S12） | ~10 行 | CBMC | CRC32 计算无越界 |
+| **合计** | — | **~180 行** | CBMC | 全函数验证（H4 硬约束，范围随落地实现重基） |
 
 #### 10.6.2 CBMC 属性规约（Property Specifications）
 
@@ -1262,11 +1279,11 @@ int airy_ipc_validate(struct airy_ipc_cmd *cmd)
 | P1.3 | `badge_randtag` 提取无溢出 | `airy_cap_badge_ok` | 整数溢出，CWE-190 |
 | P2.1 | `airy_op_required_perms_table[]` 索引边界 | `airy_op_required_perms` | 数组越界，CWE-125 |
 | P3.1 | CRC32 计算范围不越界 | `airy_ipc_crc32_ok` | 缓冲区过读，CWE-125 |
-| P4.1 | `kfifo_in` 写入大小不越界 | `airy_ipc_deliver_fast` | 缓冲区过写，CWE-787 |
-| P4.2 | `preempt_disable` 后抢占计数 > 0 | `airy_ipc_deliver_fast` | 调度语义违反 |
-| P4.3 | CRC32 失败路径抢占重新启用 | `airy_ipc_deliver_fast` | 调度语义违反 |
-| P4.4 | `kfifo_in` 返回 0 或 total（SPSC） | `airy_ipc_deliver_fast` | SPSC 不变量违反 |
-| P4.5 | 成功路径抢占重新启用 | `airy_ipc_deliver_fast` | 调度语义违反 |
+| P4.1 | `kfifo_in` 写入大小不越界 | `airy_ipc_kfifo_send` | 缓冲区过写，CWE-787 |
+| P4.2 | `preempt_disable` 后抢占计数 > 0 | `airy_ipc_kfifo_send` / `airy_ipc_ring_post` | 调度语义违反 |
+| P4.3 | CRC32 失败路径抢占重新启用 | `airy_ipc_fastpath_send` | 调度语义违反 |
+| P4.4 | `kfifo_in` 返回 0 或 total（SPSC） | `airy_ipc_kfifo_send` | SPSC 不变量违反 |
+| P4.5 | 成功路径抢占重新启用 | `airy_ipc_kfifo_send` / `airy_ipc_ring_post` | 调度语义违反 |
 | P5.1 | `airy_ipc_validate` 返回值属于预定义集合 | `airy_ipc_validate` | 未定义错误码，CWE-754 |
 
 #### 10.6.4 CBMC 配置（CBMC.yml）
@@ -1295,14 +1312,20 @@ verification_targets:
     unwind: 32                    # CRC32 表查找循环最多 256 次
     object_bits: 16              # 覆盖最大 payload
 
-  - name: airy_ipc_deliver_fast
-    source: kernel/corekern/ipc/airy_ipc_fastpath.c
-    function: airy_ipc_deliver_fast
+  - name: airy_ipc_kfifo_send
+    source: kernel/corekern/ipc/airy_ipc_kfifo.c
+    function: airy_ipc_kfifo_send
+    unwind: 10
+    object_bits: 16
+
+  - name: airy_ipc_ring_post
+    source: kernel/corekern/ipc/airy_ipc_ring.c
+    function: airy_ipc_ring_post
     unwind: 10
     object_bits: 16
 
   - name: airy_ipc_validate
-    source: kernel/corekern/ipc/airy_ipc_fastpath.c
+    source: kernel/corekern/ipc/airy_ipc_check.c
     function: airy_ipc_validate
     unwind: 20
     object_bits: 16
@@ -1333,7 +1356,9 @@ ci_integration:
       timeout: 60s
     - target: airy_ipc_crc32_ok
       timeout: 600s
-    - target: airy_ipc_deliver_fast
+    - target: airy_ipc_kfifo_send
+      timeout: 300s
+    - target: airy_ipc_ring_post
       timeout: 300s
     - target: airy_ipc_validate
       timeout: 600s
