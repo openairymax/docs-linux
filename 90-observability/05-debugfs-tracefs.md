@@ -611,6 +611,8 @@ TRACE_EVENT(airy_agent_state_change,
 
 `airy_superv_enforce` 在 Micro-Supervisor 实际施加执法动作时发射：`agent_id` 为触发故障的任务所属 Agent，`action` 为执法动作编号（1 = 冻结 IPC ring），`reason` 为触发执法的 `AIRY_FAULT_*` 故障码。故障任务未关联 ring 时冻结无从施加，本事件不发射——此时故障仍经 eventfd 上报 Macro-Supervisor，但系统里没有发生可观测的执法动作。
 
+`airy_ring_buffer_write` 在 A-ULP ring 的记录提交后发射：`level` 为记录的 A-ULP 级别（`AIRY_LOG_FATAL`..`AIRY_LOG_DEBUG`），`size` 为实际写入 payload 的字节数（已按记录体容量裁剪），`overrun` 为 1 表示本次预留因 ring 满而覆盖了最旧记录、0 表示未丢弃数据。冻结的 ring 拒绝预留、写入返回 `-AIRY_ELOG_FULL`，此时不发射——没有记录落地就没有可观测的写入。
+
 ### 7.5 事件追踪输出
 
 启用事件后，通过 `trace` 文件查看输出：
