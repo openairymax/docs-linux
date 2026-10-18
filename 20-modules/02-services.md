@@ -196,13 +196,18 @@ services/
   （`AIRY_DMN_INIT/RUNNING/STOPPING/STOPPED`）、fd 事件源
   （`AIRY_DMN_IN/OUT/ERR/HUP`）、`struct airy_dmn_cfg`、`struct airy_dmn_ops`、
   `struct airy_dmn_src` 与 13 个 `airy_dmn_*()` 原型。
-- `daemon/`：主循环、fd 事件源、IPC 通道注册、周期 tick、信号收口
-  （signalfd：SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
+- `daemon/dmn_int.h`：内部契约——统一事件源表（`enum airy_dmn_kind` +
+  回调联合体）、`struct airy_dmn` 上下文与槽位上限；仅供实现分片包含，
+  不对外安装。
+- `daemon/dmn_core.c`：对象生命周期——`airy_dmn_new/free/reg` 与
+  `state/name/now` 查询，入参校验、name/config 按值复制、自持描述符关闭。
+- `daemon/` 其余分片：主循环、fd 事件源、IPC 通道注册、周期 tick、
+  信号收口（signalfd：SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
 - IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
   传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
   字符设备就绪后接入同一分派抽象。
-- 构建目标 `airy_daemon` 为 INTERFACE 库：仅导出头文件与 [SC] 头搜索路径，
-  不产生空静态库。
+- 构建目标 `airy_daemon` 为 STATIC 库：导出头文件与 [SC] 头搜索路径，
+  实现分片随各任务逐步并入。
 - [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
   `<linux/*>`。
 
