@@ -201,6 +201,11 @@ services/
   不对外安装。
 - `daemon/dmn_core.c`：对象生命周期——`airy_dmn_new/free/reg` 与
   `state/name/now` 查询，入参校验、name/config 按值复制、自持描述符关闭。
+- `daemon/dmn_event.c`：fd 事件源表与 epoll 注册——`airy_dmn_add/del`、
+  事件掩码映射（`AIRY_DMN_IN/OUT/ERR/HUP` → `EPOLLIN/OUT/ERR/RDHUP`）、
+  惰性 `epoll_create1(EPOLL_CLOEXEC)` 与 `errno → -AIRY_E*` 收敛；槽位
+  下标即 epoll `data.u32`，外部已关闭描述符按已注销处理。内部
+  `airy_dmn_mask/attach/detach` 供 IPC 通道注册分片复用。
 - `daemon/` 其余分片：主循环、fd 事件源、IPC 通道注册、周期 tick、
   信号收口（signalfd：SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
 - IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
