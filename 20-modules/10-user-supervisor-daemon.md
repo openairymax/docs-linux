@@ -13,7 +13,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 > **单一权威源声明**：本文件是 **Macro-Supervisor 用户态守护进程** 的唯一权威源。systemd unit 管理 12 个 daemon、心跳检查、**v1.0.1 Badge 请求与撤销**（通过 `AIRY_IPC_OP_CAP_REQUEST` opcode 请求 sec_d 编译 Badge，通过 `airy_cap_epoch_bump(agent_id)` 撤销单 Agent Badge（K9-1 主要机制），通过 `airy_cap_epoch_bump_all()` 撤销所有 Badge（UNFREEZE，触发补充性 `airy_cap_global_epoch` 自增））、故障裁决（警告/降级/暂停/终止）、"用户温情裁决"策略、单点故障 fallback（内核 watchdog 直接重启 + per-agent epoch 撤销）、io_uring_cmd 执行裁决均以本文件为唯一权威定义。其余文档只能引用本文件，禁止重新定义 Macro-Supervisor 职责与裁决流程。
 >
-> **v1.0.1 Capability Folding 集成声明**（A-IPC 第一块基石）：自 v1.0.1 起，Macro-Supervisor 不再直接注入 CNode 到 radix tree——而是通过 `AIRY_IPC_OP_CAP_REQUEST` opcode 向 sec_d 请求 Badge，sec_d 编译 Badge 64-bit Native Word（`Epoch<<48 | RandomTag<<16 | Perms`）并写入 `agent_caps[agent_id]` 静态数组（详见 [07-airy-lsm-design.md §3.5](../110-security/07-airy-lsm-design.md)）。Macro-Supervisor 通过 io_uring_cmd 执行裁决（不新增 syscall），所有裁决指令通过 `AIRY_IPC_OP_ADJUDICATE` opcode 传递到内核 Micro-Supervisor。Badge 撤销通过 `airy_cap_epoch_bump(agent_id)` 递增 per-agent epoch（K9-1 主要撤销机制）O(1) 立即失效该 Agent 已发出 Badge（无 drain、无 bitmap、无 IPI）；UNFREEZE 全局撤销通过 `airy_cap_epoch_bump_all()` 触发补充性 `airy_cap_global_epoch` 自增，详见 [09-kernel-agent-supervisor.md §6.4](09-kernel-agent-supervisor.md)。
+> **v1.0.1 Capability Folding 集成声明**（A-IPC 第一块基石）：自 v1.0.1 起，Macro-Supervisor 不再直接注入 CNode 到 radix tree——而是通过 `AIRY_IPC_OP_CAP_REQUEST` opcode 向 sec_d 请求 Badge，sec_d 编译 Badge 64-bit Native Word（`Epoch<<48 | RandomTag<<16 | Perms`）并写入 `agent_caps[agent_id]` 静态数组（详见 [07-airy-lsm-design.md §3.5](../110-security/07-airy-lsm-design.md)）。Macro-Supervisor 通过 io_uring_cmd 执行裁决（不新增 syscall），所有裁决指令通过 `AIRY_IPC_OP_ADJUDICATE` opcode（[IND] 层，0x0020，契约见 [09-kernel-agent-supervisor.md §3.6](09-kernel-agent-supervisor.md)）传递到内核 Micro-Supervisor。Badge 撤销通过 `airy_cap_epoch_bump(agent_id)` 递增 per-agent epoch（K9-1 主要撤销机制）O(1) 立即失效该 Agent 已发出 Badge（无 drain、无 bitmap、无 IPI）；UNFREEZE 全局撤销通过 `airy_cap_epoch_bump_all()` 触发补充性 `airy_cap_global_epoch` 自增，详见 [09-kernel-agent-supervisor.md §6.4](09-kernel-agent-supervisor.md)。
 >
 > 技术选型声明：IPC 采用 **IORING_OP_URING_CMD + registered buffer + mmap**（**不使用 page flipping**）。整体遵循 Unify Design：sched_tac（SCHED_DEADLINE/SCHED_FIFO/EEVDF + seL4 MCS 映射，不使用 sched_ext）+ 纯 C LSM（不使用 BPF LSM）+ alloc_pages + mmap（不使用 DMA 一致性内存）。[SC] 共享契约头文件的物理宿主为 `kernel/include/uapi/linux/airymax/`。
 >
@@ -1239,7 +1239,7 @@ struct agent_violation_history {
 static int macro_d_adjudicate(struct airy_fault_event *ev)
 {
     struct agent_violation_history *hist = get_history(ev->agent_id);
-    enum airy_adjudication action;
+    enum airy_adjud action;	/* include/uapi/linux/airymax/superv.h */
 
     /* 1. 查询 Agent 当前状态 */
     enum airy_agent_state state = agent_state_get(ev->agent_id);
@@ -1304,10 +1304,10 @@ static int macro_d_adjudicate(struct airy_fault_event *ev)
 
 | 裁决选项 | 适用场景 | 执行方式 | 可恢复 |
 |---------|---------|---------|--------|
-| 警告 | 首次轻微违规 | 记录日志，不中断 Agent | — |
-| 降级 | Capability 边界模糊 | 降低优先级、缩减预算 | 是（恢复优先级） |
-| 暂停 | 多次违规 | `kill(SIGSTOP)`，进入 STOPPED 态 | 是（`kill(SIGCONT)`） |
-| 终止 | 严重违规 | `kill(SIGKILL)`，进入 DEAD 态 | 否（需重启） |
+| 警告 | 首次轻微违规 | 限频日志 + tracepoint，不中断 Agent | — |
+| 降级 | Capability 边界模糊 | `set_user_nice(MAX_NICE)`，进入降级调度类 | 是（`nice` 还原为 0） |
+| 暂停 | 多次违规 | `agent_state = STOPPED` + `SIGSTOP`，进入 STOPPED 态 | 是（`SIGCONT`） |
+| 终止 | 严重违规 | 撤销 Badge + 冻结 Ring，再 `SIGKILL`，进入 DEAD 态 | 否（需重启） |
 
 ---
 
@@ -1377,75 +1377,88 @@ Macro-Supervisor 重新注册 eventfd 并执行 Reconciliation
 
 ---
 
-## §8 io_uring_cmd 执行：通过 IORING_OP_URING_CMD 执行裁决
+## §8 裁决执行：[IND] 监管命令入口
 
-### 8.1 io_uring_cmd 裁决执行
+### 8.1 用户态提交：16 字节监管命令
 
-Macro-Supervisor 通过 IORING_OP_URING_CMD 执行裁决，避免新增 syscall。裁决指令通过 io_uring_cmd 回调传递到内核 Micro-Supervisor：
+Macro-Supervisor 不直接改写 Ring 或任务状态，只提交一条固定 16 字节的监管命令（`struct airy_superv_cmd`，定义于 `include/uapi/linux/airymax/superv.h`）。opcode 取自 [IND] 命名空间（0x0020-0x0022），与 Agent 可见的 [SC] 织体（0x0001-0x0011）物理隔离：
 
 ```c
-/* services/daemons/macro_d/main.c —— io_uring_cmd 裁决执行 */
-static int macro_d_execute_adjudication(pid_t pid,
-                                              enum airy_adjudication action)
-{
-    struct airy_ipc_cmd cmd = {
-        .op = AIRY_IPC_OP_ADJUDICATE,  /* [IND] 层 opcode：裁决下发 */
-        .agent_id = pid,
-        .adjudication = action,
-    };
+/* services/daemons/macro_d/adjudicate.c —— 裁决命令提交 */
+#include <linux/airymax/superv.h>
 
-    /* 通过 IORING_OP_URING_CMD 执行裁决（不新增 syscall） */
-    int ret = airy_uring_cmd_exec(&cmd, sizeof(cmd));
-    if (ret < 0) {
-        syslog(LOG_ERR, "airy: adjudication exec failed: %d", ret);
-        return ret;
-    }
-    return 0;
+int macro_d_verdict(__u32 agent_id, __u32 adjud, __u32 reason)
+{
+	struct airy_superv_cmd cmd = {
+		.opcode		= AIRY_IPC_OP_ADJUDICATE,
+		.agent_id	= agent_id,
+		.adjud		= adjud,
+		.reason		= reason,
+	};
+
+	return macro_d_submit(&cmd, sizeof(cmd));
 }
 ```
 
-### 8.2 内核侧裁决执行
+`macro_d_submit()` 把命令拷入 `IORING_OP_URING_CMD` 的 `cmd` 区并提交，内核侧的 io_uring_cmd 回调再把它交给 `airy_sv_exec()`。命令不经过 `airy_op_plane()`——后者只分类 [SC] 命名空间，0x0020-0x0022 在其中一律落为 `AIRY_PLANE_INVALID`，这正是 [IND] 命令必须走专用入口的原因（[09-kernel-agent-supervisor.md §3.6](09-kernel-agent-supervisor.md)）。
+
+### 8.2 内核侧执行：单一入口 airy_sv_exec()
 
 ```c
-/* kernel/kernel/superv/airy_superv_init.c —— 内核侧初始化入口 */
-static int airy_adjudicate_execute(struct airy_ipc_cmd *cmd)
+/* kernel/kernel/superv/airy_superv_exec.c */
+int airy_sv_exec(airy_cap_t cap, struct airy_sv_ctx *ctx,
+		 const struct airy_superv_cmd *cmd)
 {
-    pid_t pid = cmd->agent_id;
-    switch (cmd->adjudication) {
-    case AIRY_ADJUD_WARN:
-        /* 警告：仅记录，不执行 */
-        break;
-    case AIRY_ADJUD_DEGRADE:
-        /* 降级：调整调度参数（缩减预算） */
-        airy_sched_degrade(pid);
-        break;
-    case AIRY_ADJUD_PAUSE:
-        /* 暂停：发送 SIGSTOP */
-        kill_pid(find_vpid(pid), SIGSTOP, 1);
-        agent_state_set(pid, AIRY_AGENT_STOPPED);
-        break;
-    case AIRY_ADJUD_TERMINATE:
-        /* 终止：发送 SIGKILL */
-        kill_pid(find_vpid(pid), SIGKILL, 1);
-        agent_state_set(pid, AIRY_AGENT_DEAD);
-        break;
-    }
-    return 0;
+	int ret;
+
+	ret = airy_sv_cmd_chk(cmd);
+	if (unlikely(ret))
+		return ret;
+
+	if (unlikely(!airy_sv_ready(ctx)))
+		return -EAGAIN;
+
+	ret = airy_cap_badge_ok(cap, airy_agent_id(current),
+				AIRY_CAP_PERM_SUPERVISE);
+	if (unlikely(ret))
+		return ret;
+
+	switch (cmd->opcode) {
+	case AIRY_IPC_OP_ADJUDICATE:
+		return airy_sv_adjud(ctx, cmd->agent_id, cmd->adjud,
+				     cmd->reason);
+	case AIRY_IPC_OP_UNFREEZE:
+		return airy_sv_thaw(ctx, cmd->agent_id);
+	case AIRY_IPC_OP_HEARTBEAT:
+		airy_wdog_beat();
+		return 0;
+	default:
+		return -AIRY_EIPC_OPCODE;
+	}
 }
 ```
+
+四步顺序（形状 → 就绪 → 授权 → 分发）与完整错误映射由 [09-kernel-agent-supervisor.md §3.6](09-kernel-agent-supervisor.md) 唯一定义，本节不重复。要点：
+
+- 调用者身份只取自 `current`，绝不采信命令里的 `agent_id`；
+- 目标 Agent 的合法性由 `airy_sv_cmd_chk()` 在触碰任何 Ring 或任务之前判定；
+- SUPERVISE 权限位（0x0040）只授予 sec_d 与 Macro-Supervisor。
 
 ### 8.3 裁决指令清单
 
-| 裁决指令 | io_uring_cmd op | 内核执行 | Agent 态迁移 |
-|---------|----------------|---------|------------|
-| 警告 | `AIRY_ADJUD_WARN` | 记录日志 | 无迁移 |
-| 降级 | `AIRY_ADJUD_DEGRADE` | 缩减调度预算 | RUNNING → RUNNING（降级） |
-| 暂停 | `AIRY_ADJUD_PAUSE` | `kill(SIGSTOP)` | RUNNING → STOPPED |
-| 终止 | `AIRY_ADJUD_TERMINATE` | `kill(SIGKILL)` | RUNNING → DEAD |
-| 恢复 | `AIRY_ADJUD_RESUME` | `kill(SIGCONT)` + 恢复预算 | STOPPED → READY |
-| 解冻 Ring | `AIRY_IPC_OP_UNFREEZE`（[IND] 层 opcode） | `ring->frozen = false` | — |
+| 裁决指令 | 命令 | 内核执行 | Agent 态迁移 |
+|---------|------|---------|------------|
+| 警告 | `ADJUDICATE` + `AIRY_ADJUD_WARN` | 限频日志 + tracepoint | 不变 |
+| 降级 | `ADJUDICATE` + `AIRY_ADJUD_DEGRADE` | `set_user_nice(task, MAX_NICE)`，遍历 Agent 全部任务 | RUNNING → RUNNING（降级） |
+| 暂停 | `ADJUDICATE` + `AIRY_ADJUD_PAUSE` | `agent_state = STOPPED` + `SIGSTOP`，遍历 Agent 全部任务 | RUNNING → STOPPED |
+| 终止 | `ADJUDICATE` + `AIRY_ADJUD_TERMINATE` | 先 `airy_cap_unreg()` + 冻结 Ring，再 `agent_state = DEAD` + `SIGKILL` | RUNNING → DEAD |
+| 恢复 | `ADJUDICATE` + `AIRY_ADJUD_RESUME` | `nice` 还原为 0；`agent_state = READY` + `SIGCONT` | STOPPED → READY |
+| 心跳 | `HEARTBEAT` | `airy_wdog_beat()` 刷新 macro_d 存活时间戳 | — |
+| 解冻 Ring | `UNFREEZE` | `airy_sv_thaw()`：有冻结 Ring 时先 `airy_cap_epoch_bump_all()` 再解冻；全 live 不动 epoch | — |
 
-> **解冻协议（v1.0.1 统一：与 [09-kernel-agent-supervisor.md §3.5](09-kernel-agent-supervisor.md) 严格一致）**：上表中"解冻 Ring"的简化执行步骤仅作概要示意，完整解冻流程为：① Macro-Supervisor 通过 `AIRY_IPC_OP_UNFREEZE` opcode 向 **sec_d** 请求解冻（**禁止 Macro-Supervisor 直接设置 `ring->frozen = false`**——绕过 sec_d 串行化会破坏 Badge 一致性）；② **sec_d 串行化解冻**（避免并发解冻导致状态不一致，sec_d 内部持锁串行处理）；③ 解冻时执行 `airy_cap_epoch_bump_all()`（UNFREEZE 语义，触发补充性 `airy_cap_global_epoch` 自增使旧 Badge 失效，强制 Agent 重新申请 Badge）；④ 最后通过 `ring->frozen = false` 解冻 Ring。sec_d 解冻全过程由 systemd watchdog 监控（`WatchdogSec=3`，超时触发 sec_d 重启 + 两阶段恢复，详见 §4.7）。
+> **解冻协议**：Macro-Supervisor 只能通过 `AIRY_IPC_OP_UNFREEZE` 请求解冻，**禁止**直接设置 `ring->frozen = false`——绕过 `sv_ring_lock`（`kernel/superv/airy_superv_ring.c`）的串行化会让 epoch 自增与 Ring 重开失序，旧 Badge 复活。内核侧不变量（先 probe 计数、无 Ring 返回 `-AIRY_EIPC_CONTEXT` 且不 bump epoch、全 live 不 bump epoch）见 [09-kernel-agent-supervisor.md §3.6](09-kernel-agent-supervisor.md)。sec_d 的解冻过程由 systemd watchdog 监控（`WatchdogSec=3`，超时触发 sec_d 重启 + 两阶段恢复，详见 §4.7）。
+
+> **承载状态（0.0.3）**：内核协议层（`airy_sv_exec()` 与 `airy_sv_proto` / `airy_sv_exec` / `airy_sv_ring` / `airy_sv_adjud` 四个 KUnit 套件）已完成；用户态 `macro_d_submit()` 与 io_uring_cmd 回调随 TK-01 daemon 框架接入，在此之前不得以桩实现替代。
 
 ---
 
@@ -1502,6 +1515,7 @@ static int airy_adjudicate_execute(struct airy_ipc_cmd *cmd)
 | **v1.1** | **2026-07-18** | **Capability Folding 集成版**：(1) §4 重构为 Badge 请求机制（`AIRY_IPC_OP_CAP_REQUEST` opcode 向 sec_d 请求 Badge 编译，替代 v1.0 CNode 注入 radix tree）；(2) §4.3 Capability 类型改为 Badge Perms 16-bit 位掩码（8 种 Perms）；(3) §4.4 新增 Badge 撤销（`atomic_inc(&airy_cap_global_epoch)` 一行代码 O(1)）；(4) §5.2 裁决策略矩阵对齐 v1.1 Fault 码 0x1001~0x1006（`AIRY_FAULT_CAP_FORGED` 首次即终止）；(5) §7.2 watchdog fallback 新增 Badge 全局撤销；(6) §9.1 性能 SLO 新增 Badge 请求/撤销延迟；(7) §10 相关文档新增 6 份 v1.1 引用，清除内部审查路径引用 |
 | **v1.1.1** | **2026-07-19** | **落后内容修复版**：① §1.3 修复 12 daemon 命名（原 logger/cognition/memory/security daemon 后缀统一为 `_d`，删除原独立 ipc daemon——IPC 由 io_uring 承载、Badge 编译由 sec_d 承担）；② §2.2/§2.3 daemon 拉起代码与依赖顺序对齐 12 daemon 命名；③ §4.3 Perms 表格完全重写——原 BADGE_PERM 前缀统一为 `AIRY_CAP_PERM_*`（对齐 03-capability-model.md SSoT），FREEZE 位编号修正为 bit 5 (0x0020)，移除 SSoT 不存在的 4 项非 SSoT opcode（CANCEL/CAP_REQUEST/CAP_REVOKE/RING_CREATE）；④ §4.5.4 修复原 packed 属性 → `__aligned(64)`（OLK 6.6 工程规范）；⑤ §7.2 watchdog fallback 修复原 force 系列 API → `orderly_poweroff(true)`（OLK 6.6 标准 API）+ 操作顺序调整（先冻结 Ring → 再撤销 Badge → 再降级 → 再重启，防止无监管期间数据损坏最优先）；⑥ §4.6 修复原限流机制表述——改为"多阶段限流机制"避免与 IRON-9 v3 四层模型语义冲突；⑦ §8.3 补充解冻协议完整流程说明（与 09-kernel-agent-supervisor.md §3.5 严格一致：sec_d 串行化 + Epoch 自增 + systemd watchdog 监控）；⑧ SSoT 声明新增 ADR-014 引用 + IRON-9 v3 四层模型引用 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.1 | 2026-10-18 | TC-03-09 执行面收口：§8 改写为真实 [IND] 入口（`struct airy_superv_cmd` + `airy_sv_exec()`），删除 `struct airy_ipc_cmd` / `airy_sched_degrade()` / `kill_pid(find_vpid())` 等过时伪代码；§5.3、§6.3、§8.3 将降级/暂停/终止/恢复对齐内核实际动作（`set_user_nice(MAX_NICE)`、`SIGSTOP`、先撤销 Badge + 冻结 Ring 再 `SIGKILL`、`nice` 还原 + `SIGCONT`）；解冻协议改引 09 §3.6 |
 
 ---
 

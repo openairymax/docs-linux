@@ -11,7 +11,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## SSoT 声明
 
-> **单一权威源声明**：本文件是 **Micro-Supervisor 内核模块** 的唯一权威源。纯 C LSM 非法 Capability 检测（对齐 openEuler 纯 C LSM 模式，**不使用 BPF LSM**）、IPC 队列冻结机制（`ring->frozen = true` + `unlikely(ring->frozen)` 零开销检查）、die_notifier 内核崩溃通知链、eventfd 故障通知、"内核冷酷执法"流程（检测 → 冻结 → 返回 `AIRY_FAULT_ABNORMAL_CAP`）、借鉴 seL4 `handleFault()` 模式、**FREEZE opcode（0x0005）ring 冻结语义**、**Badge 撤销解耦 per-agent epoch bump 机制**（K9-1 主要撤销机制：`airy_cap_epoch_bump(agent_id)` 递增 `agent_caps[agent_id].epoch` 立即失效该 Agent 已发出 Badge，无 drain、无 bitmap；`airy_cap_global_epoch` 作为补充性全局计数器仅用于 UNFREEZE `airy_cap_epoch_bump_all()`）均以本文件为唯一权威定义。其余文档只能引用本文件，禁止重新定义 Micro-Supervisor 职责与执法流程。
+> **单一权威源声明**：本文件是 **Micro-Supervisor 内核模块** 的唯一权威源。纯 C LSM 非法 Capability 检测（对齐 openEuler 纯 C LSM 模式，**不使用 BPF LSM**）、IPC 队列冻结机制（`ring->frozen = true` + `unlikely(ring->frozen)` 零开销检查）、die_notifier 内核崩溃通知链、eventfd 故障通知、"内核冷酷执法"流程（检测 → 冻结 → 返回 `AIRY_FAULT_ABNORMAL_CAP`）、借鉴 seL4 `handleFault()` 模式、**FREEZE opcode（0x0005）ring 冻结语义**、**[IND] 监管命令协议（0x0020-0x0022）**、**Badge 撤销解耦 per-agent epoch bump 机制**（K9-1 主要撤销机制：`airy_cap_epoch_bump(agent_id)` 递增 `agent_caps[agent_id].epoch` 立即失效该 Agent 已发出 Badge，无 drain、无 bitmap；`airy_cap_global_epoch` 作为补充性全局计数器仅用于 UNFREEZE `airy_cap_epoch_bump_all()`）均以本文件为唯一权威定义。其余文档只能引用本文件，禁止重新定义 Micro-Supervisor 职责与执法流程。
 >
 > **v1.0.1 Capability Folding 集成声明**（A-IPC 第一块基石）：自 v1.0.1 起，Micro-Supervisor 的 capability 校验路径从"独立前置 `airy_cap_check()` + radix tree 查找"重构为 **fastpath C-S9 内联 Badge 校验**（`airy_cap_badge_ok()`，~10ns）。Micro-Supervisor 不再在 `security_uring_cmd` 钩子中独立执行 capability 校验——fastpath C-S9 已在 io_uring 数据面完成 Badge 校验，LSM 钩子仅在 slowpath（异常路径）做策略裁决。Badge 撤销通过 `airy_cap_epoch_bump(agent_id)` 递增 per-agent epoch（`agent_caps[agent_id].epoch`，K9-1 主要撤销机制）立即失效该 Agent 已发出 Badge，与 IPC fastpath 完全解耦（无 drain、无 bitmap、无 IPI）；`airy_cap_global_epoch` 作为补充性全局计数器仅用于 UNFREEZE（`airy_cap_epoch_bump_all()`）。详见 §3.5 FREEZE opcode 与 §6.4 Badge 撤销解耦。
 >
@@ -361,48 +361,104 @@ int airy_ipc_send_fastpath(struct airy_ipc_ring *ring, const void *payload,
 
 > **v1.0.1 区分 Error 与 Fault**：Ring 冻结是 Error（-53，可恢复），不是 Fault（不可恢复）。fastpath C-S0 返回 Error 让调用方决定重试或退出；Micro-Supervisor 的"冷酷执法"（Fault）仅在 Badge 伪造等不可恢复异常时触发。
 
-### 3.5 FREEZE opcode（0x0005）ring 冻结语义（v1.0.1 新增）
+### 3.5 FREEZE opcode（0x0005）与 Ring 冻结原语（v1.0.1 新增）
 
-**v1.0.1 新增**：A-IPC Capability Folding 引入 `FREEZE` opcode（0x0005），允许 Micro-Supervisor 或 Macro-Supervisor 通过 IPC 消息主动冻结目标 Ring，无需独立 syscall。这是 Capability Folding 单平面架构的体现——Ring 冻结也通过 io_uring 数据面完成，不引入额外控制面 syscall。
+`AIRY_IPC_OP_FREEZE`（0x0005）是 [SC] opcode，但它的两条语义分属不同承载面：
 
-**FREEZE opcode 定义**（详见 [02-ipc-protocol.md §3](../30-interfaces/02-ipc-protocol.md) opcode 表）：
+| 承载面 | 语义 | 实现入口 |
+|--------|------|---------|
+| io_uring 数据面 | 冻结 / 解冻目标 Ring | `airy_ipc_freeze_ring()` / `airy_ipc_thaw_ring()`（`security/airy/airy_ipc_freeze.c`） |
+| syscall 548 控制面 | sec_d REVOKE_BADGE：撤销目标及其派生子树 | `airy_badge_revoke()`（`kernel/syscalls/airy_syscalls.c`） |
 
-| opcode | 值 | 名称 | 用途 | 是否需要 Badge |
-|--------|---|------|------|:---:|
-| FREEZE | 0x0005 | 冻结 ring | `ring->frozen = true` | ✓（需 SUPERVISE 权限位） |
-
-**FREEZE 权限位**：Badge Perms 字段的 bit 6（`AIRY_CAP_PERM_SUPERVISE` = 0x0040，详见 [03-capability-model.md §2.5](../110-security/03-capability-model.md)）。仅 sec_d 和 Macro-Supervisor 持有此权限位。Perms 16-bit 位掩码对齐 SSoT：`SEND=0x0001` / `RECV=0x0002` / `DERIVE=0x0004` / `KILL=0x0008` / `FILE_OPEN=0x0010` / `ROTATE=0x0020` / `SUPERVISE=0x0040`。
-
-**FREEZE 执行流程**：
+Ring 冻结不是独立的 syscall，而是 Superv 遍历目标 Agent 的 Ring 时调用的原语：
 
 ```c
-/* kernel/corekern/ipc/airy_ipc_fastpath.c —— FREEZE opcode 处理（v1.0.1） */
-static int airy_ipc_handle_freeze(struct airy_ipc_cmd *cmd)
+/* security/airy/airy_ipc_freeze.c —— Ring 冻结原语 */
+void airy_ipc_freeze_ring(struct airy_ipc_ring_freeze_state *ring, __u32 reason)
 {
-    struct airy_ipc_ring *ring;
+	if (!ring)
+		return;
 
-    /* 1. C-S9 Badge 校验已通过（SUPERVISE 权限位已检查） */
-    /* 2. 查找目标 Ring */
-    ring = airy_ipc_ring_find(cmd->dst_task);
-    if (!ring)
-        return -AIRY_EIPC_CONTEXT;  /* -50 */
+	ring->freeze_reason = reason;
+	ring->freeze_timestamp = (__u64)ktime_get_mono_fast_ns();
 
-    /* 3. 原子设置 frozen 标志 */
-    smp_store_release(&ring->frozen, true);
-    ring->freeze_reason = AIRY_FAULT_ABNORMAL_CAP;  /* 0x1005 */
-    ring->freeze_timestamp = ktime_get_real_ns();
-
-    /* 4. eventfd 通知 Macro-Supervisor（非阻塞） */
-    airy_eventfd_signal_fault(ring->ring_id, AIRY_FAULT_ABNORMAL_CAP);
-
-    return 0;
+	/* C-S6.1: 先发布元数据，再发布 frozen 标志 */
+	smp_store_release(&ring->frozen, true);
 }
 ```
 
+解冻 `airy_ipc_thaw_ring()` 反向执行：清零 `freeze_reason` 与 `freeze_timestamp`，再 `smp_store_release(&ring->frozen, false)`（C-S6.2）。冻结与解冻共用 `sv_ring_lock`（`kernel/superv/airy_superv_ring.c`），避免一次解冻抹掉已经上报成功的冻结。
+
+**冻结调用链**：`airy_sv_freeze()` → `airy_sv_frz()` → `sv_ring_run()` → `airy_ipc_freeze_ring()`；成功后 `airy_eventfd_signal_fault(reason, agent_id, ktime_get_mono_fast_ns())` 通知 Macro-Supervisor。`airy_sv_frz_all()` 是同一机制的全局形态，仅供 Double Fault 兜底（§7.5）使用。
+
+**FREEZE 权限位**：Badge Perms 字段的 bit 6（`AIRY_CAP_PERM_SUPERVISE` = 0x0040，详见 [03-capability-model.md §2.5](../110-security/03-capability-model.md)）。仅 sec_d 和 Macro-Supervisor 持有此权限位。Perms 16-bit 位掩码对齐 SSoT：`SEND=0x0001` / `RECV=0x0002` / `DERIVE=0x0004` / `KILL=0x0008` / `FILE_OPEN=0x0010` / `ROTATE=0x0020` / `SUPERVISE=0x0040`。
+
 **FREEZE 与冷酷执法的关系**：
-- **冷酷执法**（§6）：fastpath C-S9 检测到 Badge 异常 → Micro-Supervisor 主动 FREEZE
-- **策略冻结**：Macro-Supervisor 通过发送 FREEZE opcode 主动冻结 Ring（如维护、升级）
-- **解冻协议**（v1.0.1 统一：与 [10-user-supervisor-daemon.md §8.3](10-user-supervisor-daemon.md) 严格一致）：Macro-Supervisor 通过 `AIRY_IPC_OP_UNFREEZE`（[IND] 层 opcode，不在 [SC] ipc.h 7 核心 opcode 命名空间内，由 `services/daemons/macro_d/` 实现层独立定义）opcode 向 sec_d 请求解冻，**sec_d 串行化解冻**（避免并发解冻导致状态不一致），解冻时执行 `airy_cap_epoch_bump_all()`（触发补充性全局计数器 `airy_cap_global_epoch` 自增，UNFREEZE 语义，使旧 Badge 失效，强制 Agent 重新申请 Badge），最后通过 `ring->frozen = false` 解冻 Ring。sec_d 解冻全过程由 systemd watchdog 监控（`WatchdogSec=3`，超时触发 sec_d 重启 + 两阶段恢复，详见 [10-user-supervisor-daemon.md §4.7](10-user-supervisor-daemon.md)）。**禁止 Macro-Supervisor 直接设置 `ring->frozen = false`**（绕过 sec_d 串行化会破坏 Badge 一致性）。
+- **冷酷执法**（§6）：fastpath C-S9 检测到 Badge 异常 → Micro-Supervisor 主动冻结 Ring
+- **策略冻结**：Macro-Supervisor 通过 [IND] `AIRY_IPC_OP_ADJUDICATE`（0x0020，§3.6）下发裁决，由内核执行冻结
+- **解冻协议**（v1.0.1 统一：与 [10-user-supervisor-daemon.md §8.3](10-user-supervisor-daemon.md) 严格一致）：Macro-Supervisor 通过 `AIRY_IPC_OP_UNFREEZE`（[IND] 层 opcode，0x0021，§3.6）向 sec_d 请求解冻，**sec_d 串行化解冻**（避免并发解冻导致状态不一致），内核在解冻 Ring 之前先执行 `airy_cap_epoch_bump_all()`，使旧 Badge 失效、强制 Agent 重新申请。sec_d 解冻全过程由 systemd watchdog 监控（`WatchdogSec=3`，超时触发 sec_d 重启 + 两阶段恢复，详见 [10-user-supervisor-daemon.md §4.7](10-user-supervisor-daemon.md)）。**禁止 Macro-Supervisor 直接设置 `ring->frozen = false`**（绕过 sec_d 串行化会破坏 Badge 一致性）。
+
+### 3.6 [IND] 监管命令协议（0x0020-0x0022）
+
+`0x0001-0x0005`（SEND/RECV/SEND_BATCH/CANCEL/FREEZE）与 `0x0010-0x0011`（CAP_REQUEST/CAP_RESPONSE）构成 [SC] 面向 Agent 的 IPC 织体；监管命令使用独立命名空间（物理宿主 `include/uapi/linux/airymax/superv.h`），任何 Agent Badge 都不得触达。三个 opcode 与线上结构即本节契约，`_Static_assert` 与 KUnit `airy_sv_proto` 套件共同固定其数值与布局。
+
+**命令集**：
+
+| opcode | 名称 | 目标 | 形状约束 | 内核动作 |
+|--------|------|------|---------|---------|
+| 0x0020 | `AIRY_IPC_OP_ADJUDICATE` | 单个 Agent | `agent_id < 1024`；`adjud < AIRY_ADJUD_NR` | `airy_sv_adjud()` 执行裁决 |
+| 0x0021 | `AIRY_IPC_OP_UNFREEZE` | 单个 Agent | `agent_id < 1024`；`adjud == 0` | `airy_sv_thaw()` 撤销旧 Badge 后解冻 Ring |
+| 0x0022 | `AIRY_IPC_OP_HEARTBEAT` | 无 | `agent_id == 0` 且 `adjud == 0` | `airy_wdog_beat()` 刷新 macro_d 存活时间戳 |
+
+**线上格式**（固定 16 字节，无 compat 转换层）：
+
+| 偏移 | 字段 | 类型 | 含义 |
+|------|------|------|------|
+| 0 | `opcode` | `__u32` | 上表三个 opcode 之一 |
+| 4 | `agent_id` | `__u32` | 目标 Agent 槽位；HEARTBEAT 必须为 0 |
+| 8 | `adjud` | `__u32` | `enum airy_adjud` 值；UNFREEZE 与 HEARTBEAT 必须为 0 |
+| 12 | `reason` | `__u32` | 触发命令的 `AIRY_FAULT_*` 码，可为 0 |
+
+**校验顺序**（`airy_sv_exec()`，`kernel/kernel/superv/airy_superv_exec.c`）：
+
+1. 形状：`airy_sv_cmd_chk()` 先校验 NULL、`agent_id` 上界与 opcode 专属约束，均为纯函数，不触碰任何 Ring 或任务；
+2. 就绪：Supervisor 上下文未处于 `AIRY_SV_RUNNING` 时返回 `-EAGAIN`，避免早期启动阶段执行命令；
+3. 授权：`airy_cap_badge_ok(cap, airy_agent_id(current), AIRY_CAP_PERM_SUPERVISE)` 校验调用者自身 Badge，`agent_id` 一律取自 `current`，绝不采信命令字段；
+4. 分发：按 opcode 交给 `airy_sv_adjud()` / `airy_sv_thaw()` / `airy_wdog_beat()`。
+
+**裁决 → 动作**（`airy_sv_adjud()`，`kernel/kernel/superv/airy_superv_adjud.c`）：
+
+| 裁决 | 值 | 内核动作 | Agent 态迁移 |
+|------|----|---------|-------------|
+| `AIRY_ADJUD_WARN` | 0 | 限频 `pr_info` + tracepoint | 不变 |
+| `AIRY_ADJUD_DEGRADE` | 1 | `set_user_nice(task, MAX_NICE)` | RUNNING → RUNNING（降级） |
+| `AIRY_ADJUD_PAUSE` | 2 | `agent_state = STOPPED` + `SIGSTOP` | RUNNING → STOPPED |
+| `AIRY_ADJUD_TERMINATE` | 3 | 先 `airy_cap_unreg()` + 冻结 Ring，再 `agent_state = DEAD` + `SIGKILL` | RUNNING → DEAD |
+| `AIRY_ADJUD_RESUME` | 4 | 恢复 nice，`agent_state = READY` + `SIGCONT` | STOPPED → READY |
+
+裁决以 Agent 为单位遍历其全部任务，单个多线程 Agent 不会出现部分线程仍在运行的中间态。TERMINATE 的收容顺序固定为“撤销授权 → 冻结 Ring → 杀进程”，任务绝不会带着已撤销的 Badge 继续执行。目标 Agent 没有任何任务时返回 `-AIRY_EIPC_CONTEXT`。
+
+**冻结 / 解冻不变量**（`airy_sv_thaw()`，`kernel/kernel/superv/airy_superv_ring.c`）：
+
+- 先 probe 一次目标 Ring 计数：一个 Ring 都没有时返回 `-AIRY_EIPC_CONTEXT`，且**不**递增 epoch；
+- 存在冻结 Ring 时，先 `airy_cap_epoch_bump_all()` 再解冻，防止已恢复的 Ring 接受本应失效的 Badge；
+- 目标 Ring 全部处于 live 状态时不解冻、也不递增 epoch——没有需要重开的数据面，不为一条冗余命令撤销全系统 Badge。
+
+**错误映射**：
+
+| 返回码 | 触发条件 |
+|--------|---------|
+| `-EINVAL` | 命令为 NULL；裁决值越界；UNFREEZE/HEARTBEAT 携带非零 `adjud`；HEARTBEAT 携带非零 `agent_id` |
+| `-AIRY_ECAP_OVERFLOW`（-84） | `agent_id >= AIRY_CAP_MAX_AGENTS` |
+| `-AIRY_EIPC_OPCODE`（-42） | opcode 不属于 0x0020-0x0022 |
+| `-AIRY_EIPC_CONTEXT`（-50） | 目标 Agent 没有任务或 Ring |
+| `-EAGAIN`（-35） | Supervisor 上下文尚未 RUNNING |
+| `-AIRY_ECAP_MISSING`（-71） | 调用者 `agent_id` 超出 Capability 槽位 |
+| `-AIRY_ECAP_EPOCH`（-79） | 调用者 Badge epoch 已失效 |
+| `-AIRY_ECAP_FORGED`（-80） | 调用者 Badge RandomTag 不匹配 |
+| `-AIRY_ECAP_PERM`（-81） | 调用者 Badge 缺少 SUPERVISE 权限位 |
+
+**承载状态（0.0.3）**：内核侧协议层已完整实现，并由 `airy_sv_proto` / `airy_sv_exec` / `airy_sv_ring` / `airy_sv_adjud` 四个 KUnit 套件固定。`airy_op_plane()` 只分类 [SC] 命名空间，因此 0x0020-0x0022 不会被 io_uring 数据面或 syscall 548 误接收（前者返回 `-AIRY_EIPC_OPCODE`，后者返回 `-AIRY_EIPC_OPCODE`）；[IND] 命令必须经专用入口进入 `airy_sv_exec()`，不得复用 [SC] 分发路径。用户态生产者（macro_d）随 TK-01 daemon 框架接入，心跳超时后的兜底见 §7.5。
 
 ---
 
@@ -781,6 +837,7 @@ Micro-Supervisor 的正常故障处理路径（Agent 故障 → 冷酷执法 →
 - [11-unified-config.md](11-unified-config.md) §7 —— A-IPC Capability Folding 配置项（agent_caps 容量、Epoch 位宽等）
 - [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md) —— [DSL] 降级（Macro-Supervisor 故障 fallback，v1.0.1 Badge=0 跳过 C-S9）
 - [03-ipc-performance.md](../170-performance/03-ipc-performance.md) —— A-IPC 性能 SLO（FAST_SEND ~158ns / SLOW_SEND ~600ns-5.5μs）
+- `kernel/include/uapi/linux/airymax/superv.h` —— [IND] 监管命令线上格式（0x0020-0x0022，§3.6 的物理宿主）
 
 ---
 
@@ -793,6 +850,7 @@ Micro-Supervisor 的正常故障处理路径（Agent 故障 → 冷酷执法 →
 | v1.1.1 | 2026-07-19 | **落后内容修复版**：① §2.3 修复 LSM 钩子重复校验——禁止 slowpath LSM 再次调用 `airy_cap_badge_ok()`，改为读取 `cmd->fastpath_ret` 执行冷酷执法（fastpath/slowpath 严格分工）；② §2.4 修复 MDB 残留——"MDB 派生链校验失败" 替换为 v1.1 `agent_caps[1024]` 静态数组 + Badge 64-bit 编码三段校验；③ §3.5 修复 FREEZE 权限位 bit 编号——`AIRY_BADGE_PERM_FREEZE` bit 4 → `AIRY_CAP_PERM_FREEZE` bit 5 (0x0020)，对齐 03-capability-model.md SSoT；④ §3.5 统一解冻协议——sec_d 串行化解冻 + Epoch 自增 + systemd watchdog（与 10-user-supervisor-daemon.md 严格一致）；⑤ §1.4 新增 12 daemon 完整协作关系；⑥ §1.5 新增 sched_tac 协作章节（sched_d + `airy_sys_sched_ctl` 编号 2 + Agent 8 态生命周期集成）；⑦ SSoT 声明新增 ADR-014 引用 + IRON-9 v3 四层模型引用；⑧ §2.3 新增 `AIRY_ESEC_D_THROTTLED` (-83) sec_d 限流错误码处理 + §2.4 异常类型表扩展两行上游检测路径（`AIRY_FAULT_URING_MALFORMED` 0x100A io_uring SQE 畸变 + `AIRY_ESEC_D_THROTTLED` -83 sec_d 限流），完整覆盖 Micro-Supervisor 可能涉及的异常类型 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-07-31 | **v3.6 Perms 位名 SSoT 二轮对齐**：[SC] `security_types.h` 已删除旧名 `CALL/GRANT/REVOKE/FREEZE/BATCH`，统一为 `SEND/RECV/DERIVE/KILL/FILE_OPEN/ROTATE/SUPERVISE`。同步 §1.4 macro_d 持有权限位 FREEZE→SUPERVISE；§3.5 FREEZE opcode 表"需 SUPERVISE 权限位"、FREEZE 权限位段位号 bit 5→bit 6（0x0040）、Perms 位掩码列表 7 项；§3.5 伪代码注释 FREEZE→SUPERVISE。 |
+| v1.0.1 | 2026-10-18 | **TC-03-09 协议契约收口**：① §3.5 改写为真实 Ring 冻结原语，删除不存在的 `airy_ipc_handle_freeze()` 伪代码，区分 io_uring 数据面（`airy_ipc_freeze_ring()`）与 syscall 548 控制面（`airy_badge_revoke()`）两条 FREEZE 语义；② 新增 §3.6 [IND] 监管命令协议（0x0020-0x0022）：命令集、16 字节线上格式、四步校验顺序、裁决→动作表、冻结/解冻不变量、错误映射与 0.0.3 承载状态。 |
 
 ---
 
