@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）安装器设计
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、cloud-init 云定制、安装测试与错误处理\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-10-18\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -100,7 +100,7 @@ agent-linux（AirymaxOS）作为智能体操作系统发行版，其安装器是
 
 ```
 完整安装额外包组：
-  - @desktop                      # 桌面环境（GNOME）
+  - @airymax-desktop              # 桌面环境（UKUI 4.x）
   - @development-tools            # 开发工具
   - airymaxos-cognition           # CoreLoopThree 认知运行时
   - airymaxos-memory              # MemoryRovol 记忆卷载
@@ -344,6 +344,14 @@ tpm2_pcrread -L sha256:0,1,2,3,4,5,6,7
 
 ## 5. kickstart 自动安装配置
 
+> **0.0.3 交付态（2026-10-18）**：本章 §5.1/§5.2 保留 1.0 目标形态（`cdrom` 源、
+> Btrfs/LVM 布局）；0.0.3 实际交付的配方为
+> `distro/kickstart/airymaxos-minimal.ks` 与 `airymaxos-workstation.ks`，两者以
+> openEuler 24.03 LTS-SP2 官方 `url` 仓库在线组装、`autopart --type=plain
+> --fstype=ext4` 收敛首版装机面。口径收敛决策见《0.0.3 极境OS任务方案》
+> M-03 实施注记；Btrfs/LVM 随 0.1.x 的 M-14/M-15 再评估。以下示例中的账户、
+> 服务与包名以交付配方为准（见 §5.4~§5.6）。
+
 ### 5.1 最小安装 kickstart（Btrfs 子卷方案）
 
 ```kickstart
@@ -358,11 +366,11 @@ keyboard us
 timezone Asia/Shanghai --isUtc
 
 network --bootproto=dhcp --device=eth0 --activate
-network --hostname=agentrt-server
+network --hostname=airymaxos-min
 
 rootpw --iscrypted $6$rounds=5000$saltsalt$hashhashhash
-user --name=agentrt --password=$6$rounds=5000$saltsalt$hashhashhash \
-    --groups=wheel --shell=/bin/bash
+user --name=airymax --groups=wheel --shell=/bin/bash \
+    --iscrypted --password=$6$rounds=5000$saltsalt$hashhashhash
 
 # 分区方案：Btrfs 子卷
 clearpart --all --initlabel --disklabel=gpt
@@ -383,13 +391,16 @@ bootloader --location=mbr --boot-drive=sda \
 %packages --nobase
 @core
 @base
-airymaxos-kernel-core
-airymaxos-kernel-modules
-airymaxos-system-init
+airymaxos-kernel
+airymaxos-system
 %end
 
-%post --log=/var/log/agentrt-install.log
-systemctl enable agentrt-kernel-load-bpf.service
+%post --log=/root/airymax-post.log
+set -eu
+systemctl set-default multi-user.target
+# 无可登录账户的介质不具备「OS 能运行」的前提：自检失败即中止安装
+[ "$(passwd -S root | awk '{print $2}')" = "P" ]
+chage -d 0 root
 btrfs subvolume snapshot / /.snapshots/post-install/$(date +%Y%m%d)
 %end
 
@@ -410,10 +421,11 @@ keyboard us
 timezone Asia/Shanghai --isUtc
 
 network --bootproto=dhcp --device=eth0 --activate
-network --hostname=agentrt-workstation
+network --hostname=airymaxos
 
 rootpw --iscrypted $6$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-user --name=airymax --password=$6$yyyyyyyyyyyy --groups=wheel,airymaxos
+user --name=airymax --groups=wheel,airymaxos --iscrypted \
+    --password=$6$yyyyyyyyyyyy
 
 # 分区方案：LVM + PMEM 预留
 clearpart --all --initlabel --disklabel=gpt
@@ -457,15 +469,14 @@ ibus-libpinyin
 -kernel-debug
 %end
 
-%post --log=/var/log/agentrt-install.log
+%post --log=/root/airymax-post.log
+set -eu
 
-# 启用 sched_tac 用户态调度器
-systemctl enable agentrt-sched-agent.service
-
-# 启用 12 个 daemon
-for svc in gateway_d cogn_d dev_d gateway_d sched_d audit_d \
-           net_d logger_d sec_d mem_d vfs_d config_d; do
-    systemctl enable "agentrt-${svc%_d}.service"
+# 启用 12 个 daemon。0.0.3 不执行此段：二进制随 airymaxos-services 交付，
+# 提前启用会让冷启动进入 degraded（见 §5.6 与 M-17）。
+for svc in gateway cogn dev sched audit net logger sec mem vfs config \
+           macro-superv; do
+    systemctl enable "agentrt-${svc}.service"
 done
 
 # 配置默认 locale 与时区
@@ -514,6 +525,69 @@ if [ -n "$PMEM_DEV" ]; then
 fi
 %end
 ```
+
+### 5.4 账户与初始凭据（SSoT）
+
+0.0.3 的无人值守安装没有交互建号环节，账户必须在安装结束后立即可用，否则
+控制台与 UKUI 桌面都没有入口。账户契约的唯一来源是
+`distro/kickstart/airymaxos-minimal.ks` 与 `airymaxos-workstation.ks`，两剖面
+保持一致：
+
+| 项目 | 取值 | 约束 |
+|------|------|------|
+| root 口令 | SHA-512 crypt 哈希 + `--iscrypted` | 禁止明文；哈希常量后缀 `0x01` 标识初始代次 |
+| root 首次登录 | `chage -d 0 root` | 安装后强制改密，仅用于首次控制台接管 |
+| 初始用户 | `airymax`，`wheel` 组 | lightdm/UKUI 的登录主体，口令同样以哈希落盘 |
+| 账户自检 | `%post` 中 `passwd -S <user>` 必须为 `P` | 失败即 `exit 1`，让无人值守安装可判定失败 |
+
+初始口令哈希是仓库内的唯一凭据载体，明文不入库、不入文档。轮换初始凭据时
+同时改写两份配方并递增哈希盐后缀，避免两剖面漂移。生产环境应在首次登录后
+立即改密；root 的过期策略由 `chage -d 0` 强制。
+
+### 5.5 工作站图形会话（lightdm + UKUI）
+
+工作站剖面的验收判据是「lightdm / greeter / 会话」三级登录成功。交付链路：
+
+1. `%post` 执行 `systemctl set-default graphical.target`，默认进入图形目标；
+2. kickstart `services --enabled=lightdm airymax-desktop-ready` 显式启用显示
+   管理器与就绪探针，包自身 `%post` 不做启用（OS-OPS-010 的同一条原则）；
+3. `airymaxos-release` 安装 `/etc/lightdm/lightdm.conf.d/50-airymax.conf`，以
+   `[Seat:*] user-session=ukui` 指定会话；`ukui-greeter` 自带
+   `95-ukui-greeter.conf` 接入 lightdm；
+4. `airymax-desktop-ready.service`（`Type=oneshot`，
+   `ConditionFileIsExecutable=/usr/sbin/lightdm`，`After=`/`Wants=lightdm.service`，
+   `TimeoutStartSec=180`，`WantedBy=graphical.target`）运行 `desktop_ready.sh`：
+   90 秒内每 2 秒轮询，要求 `lightdm` 处于 active 且存在
+   `Service=lightdm, Class=greeter, Type=x11, State=active|online` 的 logind
+   会话，成功打印 `AIRYMAX-DESKTOP-READY`，超时打印
+   `AIRYMAX-DESKTOP-FAIL`；
+5. 桌面自带 AI 控制面（`kylin-ai*`）在 `%packages` 中通配排除，agent 控制面
+   唯一入口保持为 Gateway（R1-06 口径）。
+
+该探针失败会让单元进入 failed，从而使镜像 CI 阻断——这是有意的验收语义，
+不是可忽略的告警。桌面资产的安装归属、六条集成铁律与冻结点核对表见
+`distro/desktop/README.md`。
+
+### 5.6 0.0.3 的启用边界（M-17）
+
+`agentrt.target` 通过 `Requires=` 聚合 12 个 daemon 与 `agentrt-firstboot.service`。
+0.0.3 只交付 systemd 单元与运行时脚本，12 个 `/usr/sbin/*_d` 随 0.1.x 的
+`airymaxos-services` 交付，首启依赖的 LSM 就绪探针同样尚未闭环。此时若启用
+任一单元，冷启动会因 `ExecStart` 缺失或探针未就绪进入 degraded，违背
+「OS 能正常运行」的验收口径。
+
+因此：
+
+- `distro/presets/90-airymax.preset` 以 `disable` 钉住 `agentrt.target`、
+  `agentrt-dsl.target` 与 `agentrt-*.service`，堵住 `systemctl preset-all`
+  对含 `[Install]` 单元的默认 enable 语义（共 16 个单元；
+  `airy-incident@.service` 无 `[Install]`，不列入）；
+- `airymaxos-system` 的 `%post` 不调用 `systemctl preset`，安装器与管理员是
+  唯一的显式启用入口；
+- 工作站 kickstart 的 `%post` 只做 `systemctl daemon-reload`，不启用
+  `agentrt.target`；OS-OPS-010 的启用动作随 `airymaxos-services` 同版本落地；
+- 启用边界由 `distro/tools/preset_lint.py`（P001~P006）静态校验，并纳入
+  `distro/ci/run-lint.sh` 统一门禁。
 
 ---
 

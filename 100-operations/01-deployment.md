@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）部署体系
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）运维体系第 1 卷——部署工程。本文档规定从裸机到可用 Agent 工作负载的完整交付链路：RPM 包格式、dnf 包管理器、ISO 镜像制作、Kickstart 自动化安装、PXE 网络安装、系统初始化、12 daemons 部署、DevStation 部署、版本升级路径与回滚机制。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-10-18\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt daemons（12 个用户态服务）+ Linux 6.6 systemd 集成 + MicroCoreRT 极简内核契约\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 五维正交 24 原则 + S-1 反馈闭环\
@@ -199,6 +199,16 @@ sysctl --system
 **OS-OPS-009**：Kickstart `rootpw` 必须使用 `--iscrypted` SHA-512 哈希，禁止明文；生产 Kickstart 模板禁止包含任何明文密钥。
 
 **OS-OPS-010**：Kickstart 必须显式 `systemctl enable agentrt.target`，该 target 是 12 daemons 的聚合启动单元；缺失该启用项视为部署不完整。
+
+> **0.0.3 适用性注记（2026-10-18）**：0.0.3 只交付 systemd 单元与运行时脚本，
+> 12 个 `/usr/sbin/*_d` 随 0.1.x 的 `airymaxos-services` 交付，首启依赖的 LSM
+> 就绪探针同样未闭环。此时启用 `agentrt.target` 会因 `ExecStart` 缺失与探针
+> 未就绪使每次冷启动进入 degraded，违背「OS 能正常运行」的验收口径。因此
+> 0.0.3 的 kickstart 不启用该 target，并由 `airymaxos-system` 安装的
+> `/usr/lib/systemd/system-preset/90-airymax.preset` 将整栈钉在 disabled，
+> 防止 `systemctl preset-all` 误启用。本条规则自 `airymaxos-services` 交付
+> 版本起恢复强制，届时安装器在 `%post` 中显式启用。边界校验由
+> `distro/tools/preset_lint.py` 承担，纳入 `distro/ci/run-lint.sh`。
 
 ### 5.2 分区约定
 
