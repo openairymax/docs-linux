@@ -195,7 +195,8 @@ services/
 - `include/airy/daemon.h`：公共契约唯一权威源——daemon 生命周期状态机
   （`AIRY_DMN_INIT/RUNNING/STOPPING/STOPPED`）、fd 事件源
   （`AIRY_DMN_IN/OUT/ERR/HUP`）、`struct airy_dmn_cfg`、`struct airy_dmn_ops`、
-  `struct airy_dmn_src` 与 14 个 `airy_dmn_*()` 原型。
+  `struct airy_dmn_src`、`struct airy_dmn_frame` 与 15 个 `airy_dmn_*()`
+  原型。
 - `daemon/dmn_int.h`：内部契约——统一事件源表（`enum airy_dmn_kind` +
   回调联合体）、`struct airy_dmn` 上下文与槽位上限；仅供实现分片包含，
   不对外安装。
@@ -235,7 +236,13 @@ services/
   非阻塞描述符无帧可读时按成功返回并等待下一次唤醒；帧过短、头部字段
   或摘要不符、对端关闭均以负值终止主循环（`-AIRY_EIPC_*` 定位到具体
   契约项），不做字节流重同步；一条消息须由单次 send 写入同一条记录或
-  数据报。io_uring_cmd 提交路径随内核字符设备就绪后接入同一分派抽象。
+  数据报。`airy_dmn_batch()` 承载 `AIRY_IPC_OP_SEND_BATCH` 批量发送：
+  先校验全部帧再写出，任一帧非法时零发送、不留半批；opcode 统一盖写为
+  批量值，仅全局末帧置 `AIRY_IPC_FLAG_BATCH_TAIL`、其余帧清除该位，
+  每帧按 C-S12 独立计算摘要；按固定上限分块 `sendmmsg()`，栈占用有界
+  且不分配堆内存；`*done` 报告已完整写出的帧数，部分写出返回
+  `-AIRY_EAGAIN`，调用方只能从该位置续发，重发整批会产生重复消息。
+  io_uring_cmd 提交路径随内核字符设备就绪后接入同一分派抽象。
 - 构建目标 `airy_daemon` 为 STATIC 库并链接 zlib：导出头文件与 [SC]
   头搜索路径，实现分片随各任务逐步并入。
 - [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
