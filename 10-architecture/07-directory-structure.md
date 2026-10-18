@@ -629,6 +629,11 @@ services/
 │   └── userland.md                  # 用户态子系统
 ├── CMakeLists.txt                    # services 构建入口
 │
+├── common/                           # daemon 框架（主循环 / fd 事件源 / IPC 注册 / 心跳）[IND]
+│   ├── CMakeLists.txt                # INTERFACE 目标 airy_daemon（0.0.3 仅契约头）
+│   ├── include/airy/daemon.h         # 公共契约：类型 / 原型 / 常量 / 契约快照
+│   └── daemon/                       # 实现分片（TK-01-02 ~ TK-01-13）
+│
 ├── daemons/                          # ★ 12 daemon（统一 _d 后缀，决策 C1）
 │   ├── macro_d/                     # Macro-Supervisor 用户态裁决（[IND]）
 │   │   ├── CMakeLists.txt

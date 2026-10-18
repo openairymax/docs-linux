@@ -97,6 +97,7 @@ services/
 ├── vfs/                   # 用户态 VFS [IND]
 ├── net/                   # 用户态网络栈（DPDK/AF_XDP）[IND]
 ├── drivers/               # 用户态驱动框架（VFIO/libvfio）[IND]
+├── common/                # daemon 框架（主循环 / fd 事件源 / IPC 注册 / 心跳）[IND]
 ├── daemons/               # 12 daemons 集成（A-ULS 统一生命周期）[SS]
 │   ├── macro_d/        # A-ULS：Macro-Supervisor
 │   ├── logger_d/       # A-ULP：Logger Daemon
@@ -186,6 +187,24 @@ services/
 - `socket`：面向连接的 socket 抽象（参考 seL4 Endpoint）\[SS]。
 - `fifo`：单向 FIFO 抽象（参考 seL4 Notification）\[SS]。
 - `eventpair`：事件同步原语（参考 seL4 Notification）\[SS]。
+
+### 3.7 common/（daemon 框架）\[IND]
+
+12 个 daemon 共用的事件驱动框架，只提供机制，不承载业务：
+
+- `include/airy/daemon.h`：公共契约唯一权威源——daemon 生命周期状态机
+  （`AIRY_DMN_INIT/RUNNING/STOPPING/STOPPED`）、fd 事件源
+  （`AIRY_DMN_IN/OUT/ERR/HUP`）、`struct airy_dmn_cfg`、`struct airy_dmn_ops`、
+  `struct airy_dmn_src` 与 13 个 `airy_dmn_*()` 原型。
+- `daemon/`：主循环、fd 事件源、IPC 通道注册、周期 tick、信号收口
+  （signalfd：SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
+- IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
+  传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
+  字符设备就绪后接入同一分派抽象。
+- 构建目标 `airy_daemon` 为 INTERFACE 库：仅导出头文件与 [SC] 头搜索路径，
+  不产生空静态库。
+- [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
+  `<linux/*>`。
 
 ***
 
