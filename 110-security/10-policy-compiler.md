@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Airymax 安全策略编译器与决策表运行时设计
 > **文档定位**：AirymaxOS 声明式安全策略（`.adl` → 纯 C 决策表）的唯一权威详细设计，定义编译期与运行时的职责边界、决策表数据模型、钩子字段契约、四值裁决语义、注册校验、可观测性与测试矩阵\
-> **文档版本**：v1.0.1\
+> **文档版本**：v1.0.2\
 > **最后更新**： 2026-10-18\
 > **上级文档**：[AirymaxOS 总览](../README.md) + [110-security/README.md](README.md)\
 > **设计依据**：本文件为 SSoT（Single Source of Truth），`tools/dsl/` 的生成契约、`security/airy/airy_policy.c` 的注册与裁决语义、`security/airy/airy_lsm.c` 的字段采集、`securityfs` 的 `policy` 接口均以本文件为唯一权威定义
@@ -322,7 +322,7 @@ uring_guard uring_cmd 2 1024 1021 2 1 0 0
 - 注册只在启动期（LSM `init`）发生；`airy_policy_check()` 用 `smp_load_acquire()` 读取槽位数，注册用 `smp_store_release()` 发布，保证读者看到完整槽位。
 - 槽位数组是静态存储，不分配、不释放，不存在 use-after-free 与内存压力路径。
 - 求值路径无锁、无睡眠、无分配；最坏情况是 `MAX_TABLES × row_count × cond_count` 次比较，全部为常量上界。
-- KUnit 通过 `airy_policy_reset()`（仅 `CONFIG_AIRY_KUNIT`）清空注册表，生产路径不存在该符号。
+- KUnit 通过 `airy_policy_reset()` 与 `airy_pol_stat()`（仅 `CONFIG_AIRY_KUNIT`）清空注册表并读取单表计数快照，生产路径不存在这两个符号。`airy_pol_stat()` 的计数字段与 §8.1 的 securityfs 行一一对应，测试因此可以在不读取 `seq_file` 的前提下断言裁决分类与 fault 归属。
 
 ---
 
@@ -382,3 +382,4 @@ uring_guard uring_cmd 2 1024 1021 2 1 0 0
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0.1 | 2026-10-18 | 初始版本：确立 L-03 编译期 / B-06 运行期边界、决策表数据模型、七钩子字段契约、四值裁决合并规则、注册校验、securityfs 与 trace |
+| v1.0.2 | 2026-10-18 | B-06 收口：七钩子接入策略求值、生成头复用机制头、补充 `airy_pol_stat()` 测试接口说明与 KUnit 16 用例矩阵 |
