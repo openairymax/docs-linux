@@ -458,7 +458,7 @@ return 0;
 
 #### 2.6.4 Badge 写并发机制（实际实现）
 
-实际实现使用 **per-bucket 散列锁**（128 桶），而非早期设计稿的全局 mutex：
+实际实现使用 **per-bucket 散列锁**（`AIRY_CAP_BUCKET_NR` = 64 桶），而非早期设计稿的全局 mutex：
 
 ```c
 /* security/airy/airy_cap_array.c —— 实际并发机制 */
@@ -468,7 +468,7 @@ spinlock_t airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR] = {
 ```
 
 - **register/derive 同锁**（P2 TOCTOU 修复）：`airy_cap_register()` 与 `airy_cap_derive()` 使用**同一把** per-bucket 锁，消除"badge==NULL 检查后双写"竞态窗口。
-- **REVOKE 全锁**：级联撤销需遍历 MDB 子树（可能跨桶），`airy_cap_derive(REVOKE)` 获取全部 128 桶锁（`cap_derive_lock_all()`）。
+- **REVOKE / MOVE / DELETE 全锁**：REVOKE 需遍历 MDB 子树，MOVE 需改写父链与子节点的 `parent_agent`，DELETE 需把子节点提升为根；三者都可能跨任意桶，因此统一获取全部 64 桶锁（`cap_derive_lock_all()`）。均为低频控制面操作，代价可接受。
 - **fastpath 无锁读**：C-S9 校验仅 `READ_ONCE`（多读者安全），写路径全部持锁。
 
 #### 2.6.5 批量编译（M2+ 规划，当前未实现）
@@ -500,10 +500,10 @@ agent-linux 借鉴 seL4 的 7 种核心 CNode 派生操作（`src/object/cnode.c
 |-----------|-------------------|------|------|
 | **Copy** | `airy_cap_derive(...,AIRY_CAP_OP_COPY,new_perms)` | v1.0.1 | 复制 capability；`new_perms==0` 原样克隆，`new_perms!=0` 权限降级（`perms = new_perms & src.perms`，对齐 seL4 `maskCapRights`） |
 | **Mint** | `airy_cap_derive(...,AIRY_CAP_OP_MINT,new_perms)` | v1.0.1 | 铸造 capability（始终降级 `perms = new_perms & src.perms`） |
-| **Move** | `airy_cap_derive(...,AIRY_CAP_OP_MOVE,0)` | v1.0.1 | 移动 capability（改变 CNode 位置，badge 不变，先 unlink 再 link 维护 MDB 树） |
+| **Move** | `airy_cap_derive(...,AIRY_CAP_OP_MOVE,0)` | v1.0.1 | 移动 capability（改变 CNode 位置，badge 与 MDB 位置不变；派生子树随迁，`generation`/`revocable` 保留） |
 | **Mutate** | `airy_cap_derive(...,AIRY_CAP_OP_MUTATE,new_perms)` | v1.0.1 | 变异 capability（修改权限位，不重新生成 RandomTag） |
 | **Revoke** | `airy_cap_derive(src,0,AIRY_CAP_OP_REVOKE,0)` | v1.0.1 | **递归级联撤销**：沿 MDB 派生树递归失效所有 `revocable` 后代（epoch bump + randtag 清零，对齐 seL4 `cteRevoke`），O(N) 子树规模 |
-| **Delete** | `airy_cap_derive(...,AIRY_CAP_OP_DELETE,0)` | v1.0.1 | 删除单个 capability（unlink 出 MDB 树，不级联） |
+| **Delete** | `airy_cap_derive(...,AIRY_CAP_OP_DELETE,0)` | v1.0.1 | 删除单个 capability（子节点提升为根后摘除自身，不级联） |
 | **Rotate** | `airy_cap_rotate()` | v1.0.1 | 轮换 Badge（重新生成 RandomTag，保留 Epoch 和 Perms） |
 
 **Revoke vs Rotate 区别**：
@@ -527,7 +527,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
  */
 ```
 
-- 派生入口通过 64-bucket 哈希自旋锁数组（`airy_cap_bucket_locks[]`）串行化：非 REVOKE 操作按规范升序获取 1–3 个桶锁，REVOKE 获取全部 64 桶（级联子树可能跨任意桶），关闭 register/derive 边界 TOCTOU（P1-11 fix）。
+- 派生入口通过 64-bucket 哈希自旋锁数组（`airy_cap_bucket_locks[]`）串行化：COPY/MINT 按规范升序获取 src 与 dst 两把桶锁；MUTATE/ROTATE 仅取源桶一把；REVOKE/MOVE/DELETE 获取全部 64 桶（子树与父/子链可能跨任意桶），关闭 register/derive 边界 TOCTOU（P1-11 fix）。
 - ROTATE 另有薄包装 `airy_cap_rotate(agent_id)`（`security/airy/airy_cap_rotate.c`），内部委托 `airy_cap_derive(..., AIRY_CAP_OP_ROTATE, 0)` 复用同一锁。
 
 ### 3.3 权限降级语义（COPY / MINT / MUTATE）
@@ -540,8 +540,8 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
 
 ### 3.4 MDB 派生树维护（MOVE / DELETE / ROTATE）
 
-- **MOVE**：`dst` 接管 badge（badge 不变），源槽位清零；先 `airy_cap_mdb_unlink_child()` 摘除源，再经 `airy_cap_mdb_link_child()` 链接到父的 child 链。
-- **DELETE**：`airy_cap_mdb_unlink_child()` + 槽位清零，不级联。
+- **MOVE**：`dst` 接管 badge 与 MDB 位置（`badge`/`perms`/`epoch`/`randtag` 原样迁移），源槽位全部清零。实现先快照源的 `parent_agent`/`first_child`/`generation`/`revocable`，再摘除源、把 `dst` 挂到原父的 child 链并恢复 `generation`/`revocable`；源的派生子树随之迁移（`dst->first_child = src->first_child`，并逐个改写子节点的 `parent_agent` 为 `dst`），`generation` 不变——MOVE 不产生新的派生深度。根节点的 MOVE 使 `dst` 仍为根。
+- **DELETE**：`airy_cap_mdb_unlink_child()` 摘除源后，先把其子节点提升为根（`parent_agent=0`、`next_sibling=0`、`generation=0`，badge 保留），再清零源槽位。DELETE 不级联；提升为根可避免子节点 `parent_agent` 悬挂指向被复用的槽位，防止后续注册者"继承"旧子树并被 REVOKE。
 - **ROTATE**：`get_random_u32()` 生成新 RandomTag，`smp_store_release` 先写 randtag 再写 badge（写入顺序依据见 `airy_cap_rotate.c` C-S5.5）。
 
 ### 3.5 Revoke 操作（递归级联撤销）
@@ -588,7 +588,7 @@ static void airy_cap_revoke_subtree(__u32 agent_id, __u16 new_epoch)
 }
 ```
 
-**MDB 派生树表示（左孩子右兄弟）**：`airy_cap_slot` 含 `parent_agent` / `first_child` / `next_sibling` / `generation` / `revocable` 五字段（定义于 [SC] `lsm_types.h`）。COPY/MINT 派生时由 `airy_cap_mdb_link_child()` 链接；DELETE/MOVE 时由 `airy_cap_mdb_unlink_child()` 摘除。`revocable` 字段控制 REVOKE 是否级联到该节点（默认 1，可由 MINT 时置 0 实现不可撤销派生）。
+**MDB 派生树表示（左孩子右兄弟）**：`airy_cap_slot` 含 `parent_agent` / `first_child` / `next_sibling` / `generation` / `revocable` 五字段（定义于 [SC] `lsm_types.h`）。COPY/MINT 派生时由 `airy_cap_mdb_link_child()` 链接，`generation` 递增；MOVE 迁移整棵子树且深度不变；DELETE 把子节点提升为根后摘除自身。`revocable` 字段控制 REVOKE 是否级联到该节点（默认 1，可由 MINT 时置 0 实现不可撤销派生）。
 
 **与早期设计差异（一致性修正）**：早期文档描述 Revoke 为"per-agent epoch bump，O(1) 定向撤销，爆炸半径收窄到单个 Agent"——此为 P1-2 重构前的旧实现。P1-2 起改为 seL4 `cteRevoke` 对齐的 MDB 递归级联，撤销影响整棵派生子树（语义正确：Agent 终止时其派生出的所有子 Agent capability 应一并失效）。
 
