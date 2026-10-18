@@ -217,7 +217,11 @@ services/
   SIGTERM/SIGINT 置停止请求、SIGHUP 调用 `ops.reload` 热加载；
   信号以描述符事件分派，不使用异步处理函数。主循环退出后恢复
   运行前的线程信号掩码，多线程 daemon 须在创建线程前自行阻塞。
-- `daemon/` 其余分片：IPC 通道注册与心跳记账。
+- `daemon/dmn_beat.c`：心跳记账——`airy_dmn_beat()` 以 C11 原子量
+  刷新 `last_beat`，`airy_dmn_live()` 按 `beat_ms * miss_max` 容忍
+  窗口判断新鲜度；两者可在不同线程并发调用，时钟取单调毫秒，只做
+  相对比较。
+- `daemon/` 其余分片：IPC 通道注册。
 - IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
   传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
   字符设备就绪后接入同一分派抽象。
