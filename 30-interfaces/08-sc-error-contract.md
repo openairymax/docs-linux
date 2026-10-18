@@ -3,7 +3,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 # [SC] error.h 二进制契约
 > **文档定位**：A-UEF（统一错误码与故障定义体系）模块的 [SC] 共享契约权威定义\
 > **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **最后更新**： 2026-10-18\
 > **上级文档**：[Airymax Unify Design 总纲](../10-architecture/10-unify-design.md) §4\
 > **设计依据**：本契约为 SSoT（Single Source of Truth），错误码值域、命名风格、[DSL] 降级块均以本文件为唯一权威定义
 
@@ -79,9 +79,9 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 
 ## §2 Error 码空间分配
 
-Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.h` 文件头注释 L9-11："`AIRY_E*` constants are positive magnitudes (like POSIX errno); callers return `-AIRY_E*` to produce the negative error value"），调用方通过 `return -AIRY_E*` 得到负值 Error。返回值占据负数空间 `[-300, -1]`，按来源分 **10 个子空间**（对齐 `error.h` SSoT，P0-I2 修复：原 5 子空间划分遗漏了 Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall 7 个子空间），每个子空间有明确的值域、来源与语义。
+Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.h` 文件头注释 L9-11："`AIRY_E*` constants are positive magnitudes (like POSIX errno); callers return `-AIRY_E*` to produce the negative error value"），调用方通过 `return -AIRY_E*` 得到负值 Error。返回值占据负数空间 `[-300, -1]`，按来源分 **11 个子空间**（对齐 `error.h` SSoT；P0-I2 修复补齐 Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall 7 个子空间，P-01 新增 Encoding 子空间）。
 
-### 2.1 Error 码空间总表（10 子空间，对齐 SSoT error.h）
+### 2.1 Error 码空间总表（11 子空间，对齐 SSoT error.h）
 
 | 子空间 | 值域（负返回空间） | 来源 | 已定义数 | 命名风格 |
 |--------|------|------|---------|---------|
@@ -95,9 +95,10 @@ Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.
 | Log 码 | `[-181, -200]` | A-ULP 日志子系统 | 6 | `AIRY_ELOG_*` |
 | Object 码 | `[-201, -220]` | Airymax Object 系统 | 4 | `AIRY_EOBJ_*` |
 | Syscall 码 | `[-221, -240]` | Airymax syscall 表面 | 4 | `AIRY_ESYS_*` |
-| 预留 | `[-241, -300]` | 未来扩展 | 0 | — |
+| Encoding 码 | `[-241, -246]` | 跨内核边界的严格 UTF-8 校验（P-01） | 6 | `AIRY_EENC_*` |
+| 预留 | `[-247, -300]` | 未来扩展 | 0 | — |
 
-> **⚠️ P0-I2 修复说明**（v1.0.1-fix）：原文档声明 5 子空间（POSIX/IPC/Capability/[SC]/[DSL]），与 `error.h` SSoT 实际 10 子空间严重不符。修复后对齐 SSoT 实际定义：移除虚构的 `[SC]` 与 `[DSL]` 错误码子空间（这两个概念属于 [DSL] 降级块机制，不是独立错误码子空间），新增 7 个实际存在的子空间（Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall）。
+> **⚠️ P0-I2 修复说明**（v1.0.1-fix）：原文档声明 5 子空间（POSIX/IPC/Capability/[SC]/[DSL]），与 `error.h` SSoT 严重不符。修复后对齐 SSoT 实际定义：移除虚构的 `[SC]` 与 `[DSL]` 错误码子空间（这两个概念属于 [DSL] 降级块机制，不是独立错误码子空间），补齐 7 个实际存在的子空间（Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall）。P-01 落地后新增 Encoding 子空间，总数 11。
 
 ### 2.2 POSIX 码 `[-1, -40]`（对齐 SSoT error.h L30-45）
 
@@ -318,7 +319,34 @@ Airymax syscall 表面错误码，覆盖编号/参数/DSL 禁用/ABI 不匹配�
 /* [225, 240] 预留 */
 ```
 
-### 2.12 预留码 `[-241, -300]`
+### 2.12 Encoding 码 `[-241, -246]`（对齐 SSoT error.h L158-169）
+
+跨内核边界的文本（syscall 参数、配置路径、策略标识）在进入内核数据结构前按 RFC 3629 逐序列判定。错误码命名的是**首个非法序列**，使调用方能区分结构错误与策略拒绝，无需重扫输入：
+
+```c
+/* SSoT: kernel/include/uapi/linux/airymax/error.h L158-169 —— Encoding 错误码 */
+/* 宏为正数幅值 241-246，调用方返回 -AIRY_EENC_* 得到负值 Error */
+#define AIRY_EENC_INVALID     241   /* Malformed UTF-8 sequence */
+#define AIRY_EENC_OVERLONG    242   /* Overlong encoding */
+#define AIRY_EENC_SURROGATE   243   /* UTF-16 surrogate code point */
+#define AIRY_EENC_NONCHAR     244   /* Unicode noncharacter */
+#define AIRY_EENC_RANGE       245   /* Code point beyond U+10FFFF */
+#define AIRY_EENC_BOM         246   /* U+FEFF byte order mark */
+/* [247, 260] 预留 */
+```
+
+| 错误码 | 触发条件 | 产生路径 |
+|--------|---------|---------|
+| `AIRY_EENC_INVALID` | 非法首字节、续字节缺失或掩码不符、序列被截断 | `airy_u8_dec()` |
+| `AIRY_EENC_OVERLONG` | 非最短编码（含以 0xC0/0xC1 为首字节的 2 字节形式） | `airy_u8_dec()` |
+| `AIRY_EENC_SURROGATE` | U+D800~U+DFFF | `airy_u8_dec()` |
+| `AIRY_EENC_NONCHAR` | U+FDD0~U+FDEF、每平面末尾 U+nFFFE/U+nFFFF | `airy_u8_dec()` |
+| `AIRY_EENC_RANGE` | 码点超出 U+10FFFF | `airy_u8_dec()` |
+| `AIRY_EENC_BOM` | U+FEFF，任意位置 | `airy_u8_dec()` |
+
+`airy_u8_scan()` 对整串逐序列调用上述判定并返回首个错误；syscall 550（`airy_sys_sched_ctl`）经 `airy_sched_arg()` 把该错误码直接上抛给用户态。实现与边界矩阵见 `180-i18n/02-encoding-spec.md` §2.3、§7。
+
+### 2.13 预留码 `[-247, -300]`
 
 预留用于未来 Airymax 子系统扩展。分配前必须更新本契约文档与 SSoT `error.h`。
 
@@ -568,12 +596,13 @@ jobs:
 12. Cognition 码（幅值 161-166，返回负空间 `[-161, -180]`）（L128-133，6 个定义）
 13. Log 码（幅值 181-186，返回负空间 `[-181, -200]`）（L138-143，6 个定义）
 14. Object 码（幅值 201-204，返回负空间 `[-201, -220]`）（L148-151，4 个定义）
-15. Syscall 码（幅值 221-224，返回负空间 `[-221, -240]`）（L156-159，4 个定义）
-16. 预留码（负空间 `[-241, -300]`）（L161-164）
-17. Fault 码 `[0x1000, 0x1FFF]`（L167-172，6 个定义）
-18. 辅助宏 `AIRY_ERR_OK` / `AIRY_ERR_FAIL`（L175-176）
-19. `#ifdef AIRY_SC_FALLBACK` 降级块（L179-222，38 个 `AIRY_DSL_*` 映射）
-20. 头文件守卫结束 `#endif`（L224）
+15. Syscall 码（幅值 221-224，返回负空间 `[-221, -240]`）（L150-156，4 个定义）
+16. Encoding 码（幅值 241-246，返回负空间 `[-241, -246]`）（L158-169，6 个定义）
+17. 预留子空间注释块（L171-174，幅值 261-300）
+18. Fault 码 `[0x1000, 0x1FFF]`（L176-182，6 个定义）
+19. 辅助宏 `AIRY_ERR_OK` / `AIRY_ERR_FAIL`（L184-186）
+20. `#ifdef AIRY_SC_FALLBACK` 降级块（L188-232，38 个 `AIRY_DSL_*` 映射）
+21. 头文件守卫结束 `#endif`
 
 ### 6.3 变更流程
 
@@ -609,6 +638,7 @@ jobs:
 | v1.0 | 2026-07-17 | 初始版本：A-UEF [SC] error.h 二进制契约；Error 码 5 子空间分配（POSIX/IPC/Capability/[SC]/[DSL]）；Fault 码 0x1000+ 分配；CI 逐字节校验；[DSL] 降级块；物理宿主 `kernel/include/uapi/linux/airymax/error.h` |
 | v1.1 | 2026-07-18 | Capability Folding 同步：IPC 码空间 -41~-52 重定义（与 fastpath C-S 检查链对齐）；新增 Capability 码 -78~-82（Badge 校验：BADGE/EPOCH/FORGED/PERM/FROZEN）；Fault 码 0x1001-0x1003 重定义（CAP_FORGED/CAP_LEAK/RING_CORRUPT）；`AIRY_FAULT_VM_FAULT` 迁移至 0x1006；新增 [DSL] 码 -207（CAP_BADGE_SKIP）；新增 §1.4 Capability Folding 错误码的 [SC]/[SS] 边界；新增 §5.3 [DSL] 模式 Badge 降级语义；新增 §3.3 Error/Fault 协同说明 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.1 | 2026-10-18 | P-01 落地：新增 Encoding 子空间 241-246（`AIRY_EENC_*`，6 个定义），预留空间改为 247-300；§2.1 子空间总数 10 → 11；§2.12 新增触发条件与产生路径表；§6.2 文件结构同步到 error.h 实际行号 |
 
 ---
 

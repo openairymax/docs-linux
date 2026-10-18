@@ -16,15 +16,15 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 agent-linux（AirymaxOS）编码规范旨在为内核态与用户态代码统一字符编码处理标准。本设计聚焦三大目标：
 
-1. **内核态 UTF-8 一等公民支持**：内核态禁用 `wchar_t`，所有字符串以 UTF-8 字节序列表达，提供 UTF-8 校验、长度、子串、迭代原语
+1. **内核态 UTF-8 一等公民支持**：内核态禁用 `wchar_t`，所有字符串以 UTF-8 字节序列表达，提供 UTF-8 序列判定、解码与整串校验原语（落地位于 `kernel/corekern/charset/`）
 2. **用户态 Unicode 规范一致性**：12 daemon 与 9 协议适配层统一使用 UTF-8 编码，禁止 GB2312/GBK/Shift-JIS 等非 Unicode 编码流入系统
 3. **Agent 多语言 prompt 编码契约**：Agent 提示词与 LLM 推理输入/输出严格 UTF-8，Token 计数按 Unicode 码点（而非字节）计算
 
 ### 1.2 适用范围
 
-- Linux 6.6 内核基线内核态 UTF-8 字符串处理（`lib/charset.c`、`lib/string.c` 扩展）
+- Linux 6.6 内核基线内核态 UTF-8 字符串处理（`include/airymax/airy_utf8.h`、`kernel/corekern/charset/airy_utf8.c`）
 - 用户态 glibc / musl 的 UTF-8 处理（iconv / mbsrtowcs 等）
-- AgentsIPC 消息头的字符串字段编码（128B 消息头内 TraceID 字符串）
+- AgentsIPC 消息体的字符串负载编码（消息头 `trace_id` 为 `__u64` 数值，见 §5.1）
 - Agent 系统提示词、用户输入、LLM 输出的统一 UTF-8 处理
 - 文档源码注释编码规范（所有 .md / .c / .h / .py 文件 UTF-8）
 
@@ -72,199 +72,47 @@ UTF-8 编码规则（RFC 3629）：
 
 特殊范围禁止：
 - U+D800 ~ U+DFFF：UTF-16 代理对，UTF-8 中非法
-- U+FFFE / U+FFFF：非字符，禁止
 - U+FDD0 ~ U+FDEF：非字符，禁止
+- U+nFFFE / U+nFFFF（n 为 0-16，即每个平面末尾两个码点）：非字符，禁止
+- U+FEFF：BOM，任意位置禁止（不限于串首）
+- 过长编码：同一码点的最短编码之外的形式一律拒绝（含以 0xC0/0xC1 为首字节的 2 字节形式）
 
 ### 2.3 内核 UTF-8 原语库
 
-> **规划态声明**：`include/linux/airy_utf8.h` **不存在**（Linux 6.6 基线无此头文件，agent-linux 内核侧亦未提供）。以下为设计草案；实际实现时可复用 Linux 6.6 内核既有 UTF-8 设施（`fs/unicode/` 的 `utf8_*` 或 `lib/utf8.c`），或在 [IND] 层新建同名头文件后回填引用。
+内核侧原语已落地，SSoT 为以下三处：
+
+| 文件 | 角色 |
+|------|------|
+| `kernel/include/airymax/airy_utf8.h` | 公共头，仅暴露三个原语 |
+| `kernel/kernel/corekern/charset/airy_utf8.c` | 判定实现 |
+| `kernel/kernel/corekern/charset/airy_utf8_test.c` | KUnit 边界矩阵 |
+
+编译由 `CONFIG_AIRY_COREKERN` 门控（`kernel/kernel/corekern/Kbuild` 挂载 `charset/`），不为此新增 Kconfig。API 只保留消费者真实需要的三个原语：
+
+| 原语 | 形态 | 职责 |
+|------|------|------|
+| `airy_u8_len()` | `static inline unsigned int` | 由首字节判定序列长度，非法首字节返回 0 |
+| `airy_u8_dec()` | `int` | 解码并判定单个序列，返回消耗字节数或负 `AIRY_EENC_*` |
+| `airy_u8_scan()` | `int` | 扫描整串并以码点计数，空串合法 |
 
 ```c
-/* include/linux/airy_utf8.h —— 规划态：内核态 UTF-8 原语（设计草案） */
-#ifndef AIRY_UTF8_H
-#define AIRY_UTF8_H
+/* kernel/include/airymax/airy_utf8.h —— 已落地 */
+#define AIRY_U8_MAX	4
+#define AIRY_U8_MAXCP	0x10ffffU
 
-#include <linux/types.h>
-#include <linux/string.h>
+typedef u32 airy_ucp_t;
 
-/* UTF-8 字符最大字节数 */
-#define AIRY_UTF8_MAX_BYTES  4
+static inline unsigned int airy_u8_len(u8 lead);
 
-/* UTF-8 码点类型 */
-typedef u32 airy_unicode_t;
-
-/* UTF-8 字符迭代器 */
-struct airy_utf8_iter {
-	const u8 *p;        /* 当前字节指针 */
-	const u8 *end;      /* 末尾指针 */
-};
-
-/* 初始化迭代器 */
-static inline void airy_utf8_iter_init(struct airy_utf8_iter *it,
-					 const char *s, size_t len)
-{
-	it->p = (const u8 *)s;
-	it->end = (const u8 *)s + len;
-}
-
-/* 校验单个 UTF-8 字符的首字节，返回该字符的字节数（1-4），0 表示非法 */
-static inline int airy_utf8_seq_len(u8 c)
-{
-	if (c < 0x80)
-		return 1;                          /* 0xxxxxxx */
-	if ((c & 0xE0) == 0xC0)
-		return 2;                          /* 110xxxxx */
-	if ((c & 0xF0) == 0xE0)
-		return 3;                          /* 1110xxxx */
-	if ((c & 0xF8) == 0xF0)
-		return 4;                          /* 11110xxx */
-	return 0;                              /* 非法首字节 */
-}
-
-/* 解码一个 UTF-8 字符，返回字节数（>0）或错误码（<0） */
-static inline int airy_utf8_decode(const u8 *s, size_t len,
-				     airy_unicode_t *cp)
-{
-	int n;
-	airy_unicode_t u;
-
-	if (!s || len == 0)
-		return -EINVAL;
-
-	n = airy_utf8_seq_len(s[0]);
-	if (n == 0 || (size_t)n > len)
-		return -EILSEQ;
-
-	switch (n) {
-	case 1:
-		u = s[0];
-		break;
-	case 2:
-		if ((s[1] & 0xC0) != 0x80)
-			return -EILSEQ;
-		u = ((airy_unicode_t)(s[0] & 0x1F) << 6) |
-		    (s[1] & 0x3F);
-		if (u < 0x80)
-			return -EILSEQ;        /* 过长编码 */
-		break;
-	case 3:
-		if ((s[1] & 0xC0) != 0x80 || (s[2] & 0xC0) != 0x80)
-			return -EILSEQ;
-		u = ((airy_unicode_t)(s[0] & 0x0F) << 12) |
-		    ((airy_unicode_t)(s[1] & 0x3F) << 6) |
-		    (s[2] & 0x3F);
-		if (u < 0x800)
-			return -EILSEQ;
-		if (u >= 0xD800 && u <= 0xDFFF)
-			return -EILSEQ;        /* 代理对非法 */
-		break;
-	case 4:
-		if ((s[1] & 0xC0) != 0x80 || (s[2] & 0xC0) != 0x80 ||
-		    (s[3] & 0xC0) != 0x80)
-			return -EILSEQ;
-		u = ((airy_unicode_t)(s[0] & 0x07) << 18) |
-		    ((airy_unicode_t)(s[1] & 0x3F) << 12) |
-		    ((airy_unicode_t)(s[2] & 0x3F) << 6) |
-		    (s[3] & 0x3F);
-		if (u < 0x10000 || u > 0x10FFFF)
-			return -EILSEQ;
-		break;
-	default:
-		return -EILSEQ;
-	}
-
-	*cp = u;
-	return n;
-}
-
-/* 编码一个 Unicode 码点到 UTF-8，返回字节数 */
-static inline int airy_utf8_encode(u8 *out, size_t out_len,
-				     airy_unicode_t cp)
-{
-	if (!out || out_len == 0)
-		return -EINVAL;
-
-	if (cp <= 0x7F) {
-		if (out_len < 1)
-			return -E2BIG;
-		out[0] = (u8)cp;
-		return 1;
-	} else if (cp <= 0x7FF) {
-		if (out_len < 2)
-			return -E2BIG;
-		out[0] = 0xC0 | (u8)(cp >> 6);
-		out[1] = 0x80 | (u8)(cp & 0x3F);
-		return 2;
-	} else if (cp <= 0xFFFF) {
-		if (cp >= 0xD800 && cp <= 0xDFFF)
-			return -EILSEQ;
-		if (out_len < 3)
-			return -E2BIG;
-		out[0] = 0xE0 | (u8)(cp >> 12);
-		out[1] = 0x80 | (u8)((cp >> 6) & 0x3F);
-		out[2] = 0x80 | (u8)(cp & 0x3F);
-		return 3;
-	} else if (cp <= 0x10FFFF) {
-		if (out_len < 4)
-			return -E2BIG;
-		out[0] = 0xF0 | (u8)(cp >> 18);
-		out[1] = 0x80 | (u8)((cp >> 12) & 0x3F);
-		out[2] = 0x80 | (u8)((cp >> 6) & 0x3F);
-		out[3] = 0x80 | (u8)(cp & 0x3F);
-		return 4;
-	}
-	return -EILSEQ;
-}
-
-/* 计算 UTF-8 字符串的码点数（非字节数） */
-static inline size_t airy_utf8_strlen(const char *s, size_t byte_len)
-{
-	size_t count = 0;
-	size_t i = 0;
-
-	while (i < byte_len) {
-		int n = airy_utf8_seq_len((u8)s[i]);
-		if (n == 0 || i + (size_t)n > byte_len)
-			return (size_t)-1;
-		i += n;
-		count++;
-	}
-	return count;
-}
-
-/* 校验 UTF-8 字符串合法性，返回 0 合法或 -EILSEQ 非法 */
-static inline int airy_utf8_validate(const char *s, size_t len)
-{
-	size_t i = 0;
-	airy_unicode_t cp;
-
-	while (i < len) {
-		int n = airy_utf8_decode((const u8 *)s + i, len - i, &cp);
-		if (n < 0)
-			return n;
-		i += n;
-	}
-	return 0;
-}
-
-/* 取下一个 UTF-8 字符，更新迭代器，返回字节数 */
-static inline int airy_utf8_next(struct airy_utf8_iter *it,
-				   airy_unicode_t *cp)
-{
-	int n;
-
-	if (it->p >= it->end)
-		return 0;     /* EOF */
-
-	n = airy_utf8_decode(it->p, it->end - it->p, cp);
-	if (n < 0)
-		return n;
-	it->p += n;
-	return n;
-}
-
-#endif /* AIRY_UTF8_H */
+__must_check int airy_u8_dec(const u8 *s, size_t len, airy_ucp_t *cp);
+__must_check int airy_u8_scan(const u8 *s, size_t len);
 ```
+
+判定顺序固定：首字节结构 → 续字节数量 → 续字节掩码 → 过长编码 → 代理对 → 码点上界 → 非字符 → BOM。`airy_u8_dec()` 返回负值时**不写** `*cp`，调用方无需预置输出参数；`airy_u8_len()` 只做结构判定、不校验续字节，纯内联且无符号。
+
+不提供编码方向与子串截取原语：内核侧当前没有生成或裁剪 UTF-8 的调用点，凭空实现只会成为无消费者死代码。后续若出现真实调用点，按本文件 §7 的错误码契约新增原语，不在调用点就地展开判定。
+
+当前唯一消费者是 syscall 550（`airy_sys_sched_ctl`）。`kernel/kernel/syscalls/airy_sched.c` 中 `airy_sched_arg()` 的处理链为：`strndup_user()` 有界复制（上限 `AIRY_SCHED_ARG_MAX`）→ `airy_sched_chk()` 校验 → `kfree()`。校验策略与复制分离，使策略本身可在不持有用户指针的情况下被 KUnit 覆盖。
 
 ### 2.4 安全字符串操作规范
 
@@ -289,45 +137,6 @@ int good_example(char *dst, size_t dst_size)
 		return -E2BIG;
 	return 0;
 }
-
-/* UTF-8 安全的子串截取（按字节边界但保证 UTF-8 完整性） */
-int airy_utf8_substring(const char *src, size_t src_len,
-			   size_t start_byte, size_t end_byte,
-			   char *out, size_t out_size)
-{
-	size_t i, valid_end;
-	int ret;
-
-	if (start_byte >= src_len || end_byte > src_len ||
-	    start_byte >= end_byte) {
-		ret = -EINVAL;
-		goto out_err;
-	}
-
-	/* 调整 end_byte 向前回退到 UTF-8 字符边界 */
-	valid_end = end_byte;
-	for (i = end_byte; i > start_byte; i--) {
-		int n = airy_utf8_seq_len((u8)src[i - 1]);
-		if (n == 1 || n == 0) {
-			valid_end = i;
-			break;
-		}
-	}
-	if (i == start_byte)
-		valid_end = end_byte;
-
-	if (out_size < (valid_end - start_byte) + 1) {
-		ret = -E2BIG;
-		goto out_err;
-	}
-
-	memcpy(out, src + start_byte, valid_end - start_byte);
-	out[valid_end - start_byte] = '\0';
-	return 0;
-
-out_err:
-	return ret;
-}
 ```
 
 ---
@@ -347,7 +156,6 @@ out_err:
 #include <wchar.h>
 #include <locale.h>
 #include <iconv.h>
-#include <airymax/airy_utf8.h>
 
 /* 校验输入字符串为合法 UTF-8（用户态版本） */
 int airy_user_utf8_validate(const char *s, size_t len)
@@ -421,7 +229,7 @@ int airy_user_convert_to_utf8(const char *from_codec,
 ```c
 /* JSON-RPC 响应构造（确保 UTF-8） */
 #include <jansson.h>
-#include <airymax/airy_utf8.h>
+#include <string.h>
 
 int airy_jsonrpc_build_response(int code, const char *message,
 				   const char *locale, char *out, size_t out_size)
@@ -504,20 +312,12 @@ agent-linux 的 Token 计数遵循"按 Unicode 码点计数"原则：
 | Emoji（😀） | 4 | 1 | 1 |
 
 ```c
-/* Token 计数按码点（C SDK 示例） */
+/* Token 计数按码点：校验与计数复用 airy_u8_scan() 的同一次扫描 */
 #include <airymax/airy_utf8.h>
 
-size_t airy_token_count(const char *prompt, size_t byte_len)
+int airy_token_count(const char *prompt, size_t byte_len)
 {
-	struct airy_utf8_iter it;
-	airy_unicode_t cp;
-	size_t count = 0;
-	int n;
-
-	airy_utf8_iter_init(&it, prompt, byte_len);
-	while ((n = airy_utf8_next(&it, &cp)) > 0)
-		count++;
-	return count;
+	return airy_u8_scan((const u8 *)prompt, byte_len);
 }
 ```
 
@@ -551,43 +351,26 @@ static inline __u64 airy_ipc_get_trace_id(const struct airy_ipc_msg_hdr *hdr)
 
 ### 5.2 printk 多语言消息的 UTF-8 安全长度限制
 
-Linux 6.6 内核 printk 单行最大 1024 字节（`PRINTK_SAFE_LOG_BUF_LEN`），多语言消息需保证 UTF-8 完整性：
+printk 单条记录上限为 1024 字节（`PRINTK_SAFE_LOG_BUF_LEN`）。多语言消息在进入 printk 之前必须先通过 `airy_u8_scan()` 校验，否则截断位置可能落在多字节序列中间，日志里出现半个字符：
 
 ```c
-/* 多语言 printk 长度限制（保证 UTF-8 字符完整性） */
-#define AIRY_PRINTK_MAX_BYTES  1024
+/* 先校验后输出：截断只允许发生在已校验的序列边界 */
+#include <airymax/airy_utf8.h>
 
-int airy_printk_utf8_safe(const char *level, const char *msg, size_t msg_len)
+int airy_log_msg(const char *level, const char *msg, size_t len)
 {
-	size_t valid_len;
-	int ret;
+	int ncp;
 
-	if (!msg || msg_len == 0)
-		return -EINVAL;
+	ncp = airy_u8_scan(msg, len);
+	if (ncp < 0)
+		return ncp;
 
-	/* 校验 UTF-8 */
-	ret = airy_utf8_validate(msg, msg_len);
-	if (ret < 0)
-		return ret;
-
-	/* 截断到 PRINTK_MAX_BYTES，回退到字符边界 */
-	valid_len = msg_len;
-	if (valid_len > AIRY_PRINTK_MAX_BYTES - 1) {
-		size_t i;
-		valid_len = AIRY_PRINTK_MAX_BYTES - 1;
-		for (i = valid_len; i > 0; i--) {
-			int n = airy_utf8_seq_len((u8)msg[i - 1]);
-			if (n == 1 || n == 0) {
-				valid_len = i;
-				break;
-			}
-		}
-	}
-
-	printk("%s%.*s\n", level, (int)valid_len, msg);
-	return 0;
+	printk("%s%.*s\n", level, (int)len, msg);
+	return ncp;
 }
 ```
+
+内核侧不提供截断封装：printk 调用点均使用常量格式串，超长记录由 printk 自身截断；需要控制长度时应在构造消息阶段按码点预算，而不是在输出路径反向裁剪半条序列。校验与码点计数由 `airy_u8_scan()` 一次扫描完成，不需要额外的 `strlen` 预扫描。
 
 ---
 
@@ -597,10 +380,8 @@ int airy_printk_utf8_safe(const char *level, const char *msg, size_t msg_len)
 
 | 操作 | 开销（ns） | 备注 |
 |------|-----------|------|
-| UTF-8 校验（1KB 字符串） | 200-500 | 线性扫描 |
-| UTF-8 长度计算（1KB） | 100-300 | 线性扫描 |
-| UTF-8 解码（单字符） | 5-15 | 分支判断 |
-| UTF-8 编码（单字符） | 5-20 | 位运算 |
+| `airy_u8_scan()` 校验并计数（1KB） | 200-500 | 线性扫描，一次完成 |
+| `airy_u8_dec()` 解码（单序列） | 5-15 | 分支判断 |
 | iconv 转换（GB18030→UTF-8，1KB） | 5,000-10,000 | 库调用 |
 
 ### 6.2 优化策略
@@ -613,39 +394,37 @@ int airy_printk_utf8_safe(const char *level, const char *msg, size_t msg_len)
 
 ## 7. 错误码体系对接
 
-> **规划态声明**：`AIRY_E_ENCODING_*`（下表 -904~-910）**未在 [SC] error.h 注册**（[SC] 中不存在 `AIRY_E_ENCODING_*` 段，也未占用 -900 段），以下数值均为**规划值**；落地时须向 error.h 保留段 241-300 申请注册，并同步更新 `30-interfaces/08-sc-error-contract.md`。
+编码错误码已在 SSoT `error.h` 的 Encoding 子空间注册，幅值 241-246（返回负空间 `[-241, -246]`）：
 
-编码错误码规划纳入 agent-linux 统一错误码体系：
+| 错误码 | 幅值 | 触发条件 |
+|--------|------|---------|
+| `AIRY_EENC_INVALID` | 241 | 非法首字节、续字节缺失或掩码不符、序列被截断 |
+| `AIRY_EENC_OVERLONG` | 242 | 过长编码（含以 0xC0/0xC1 为首字节的 2 字节形式） |
+| `AIRY_EENC_SURROGATE` | 243 | UTF-16 代理对 U+D800~U+DFFF |
+| `AIRY_EENC_NONCHAR` | 244 | Unicode 非字符：U+FDD0~U+FDEF、每平面末尾 U+nFFFE/U+nFFFF |
+| `AIRY_EENC_RANGE` | 245 | 码点超出 U+10FFFF |
+| `AIRY_EENC_BOM` | 246 | U+FEFF，任意位置（不限于串首） |
 
-| 错误码 | 数值 | 含义 |
-|--------|------|------|
-| AIRY_E_ENCODING_INVALID_UTF8 | -904 | 无效 UTF-8 序列 |
-| AIRY_E_ENCODING_OVERLONG | -906 | 过长编码（如 ASCII 用 2 字节） |
-| AIRY_E_ENCODING_SURROGATE | -907 | UTF-16 代理对（UTF-8 中非法） |
-| AIRY_E_ENCODING_NONCHAR | -908 | 非字符码点（U+FFFE 等） |
-| AIRY_E_ENCODING_OUT_OF_RANGE | -909 | 码点超出 U+10FFFF |
-| AIRY_E_ENCODING_BOM | -910 | 出现 BOM（禁止） |
+宏为正数幅值，调用方返回 `-AIRY_EENC_*`。子空间 `[247, 260]` 保留给编码相关扩展，`[261, 300]` 为跨子系统预留；再次分配前必须同步更新 `30-interfaces/08-sc-error-contract.md` 与物理头文件。
 
-集中错误处理示例：
+集中错误处理示例（与 `kernel/kernel/syscalls/airy_sched.c` 的实际形态一致）：
 
 ```c
-int airy_validate_input(const char *input, size_t len)
+#include <airymax/airy_utf8.h>
+#include <linux/airymax/error.h>
+
+__must_check int airy_sched_chk(const char *s)
 {
 	int ret;
 
-	if (!input)
-		return -EINVAL;
+	if (!s)
+		return -AIRY_EINVAL;
 
-	/* 检查 BOM */
-	if (len >= 3 && (u8)input[0] == 0xEF && (u8)input[1] == 0xBB &&
-	    (u8)input[2] == 0xBF)
-		return -AIRY_E_ENCODING_BOM;
+	ret = airy_u8_scan(s, strlen(s));
+	if (ret < 0)
+		return ret;
 
-	/* 校验 UTF-8 */
-	ret = airy_utf8_validate(input, len);
-	if (ret == -EILSEQ)
-		return -AIRY_E_ENCODING_INVALID_UTF8;
-	return ret;
+	return AIRY_EOK;
 }
 ```
 
@@ -658,8 +437,8 @@ int airy_validate_input(const char *input, size_t len)
 | **K-2 接口契约化** | UTF-8 编码作为 [SC] 共享契约 |
 | **E-1 安全内生** | 禁止 strcpy/wchar_t，从源头消除安全风险 |
 | **E-4 跨平台一致性** | UTF-8 跨架构一致，无字节序问题 |
-| **E-5 命名语义化** | airy_utf8_* 函数名即语义 |
-| **E-6 错误可追溯** | 详细错误码（-904 ~ -910 为规划值，未在 [SC] 注册）覆盖所有编码错误 |
+| **E-5 命名语义化** | `airy_u8_*` 函数名即语义（len/dec/scan） |
+| **E-6 错误可追溯** | `AIRY_EENC_*`（241-246，已注册于 SSoT error.h）区分结构错误与策略拒绝 |
 | **A-3 人文关怀** | CJK 用户与英文用户公平的 Token 计数 |
 
 ---
@@ -668,8 +447,8 @@ int airy_validate_input(const char *input, size_t len)
 
 | 组件 | agent-linux（[SC]） | agentrt（[SC]） | 共享 |
 |------|------------------------|------------------|------|
-| UTF-8 头文件 | `airy_utf8.h` | `airy_utf8.h` | 完全共享 |
-| 错误码（规划态） | AIRY_E_ENCODING_*（未在 [SC] 注册，待 error.h 保留段 241-300 申请） | 同左 | 规划中（error.h 保留段 241-300） |
+| UTF-8 头文件 | `include/airymax/airy_utf8.h` | 同源镜像 | [SC] 定义，SSoT 在 agent-linux 内核树 |
+| 错误码 | `AIRY_EENC_*` 241-246 | 同左 | 已注册于 SSoT `error.h` |
 | Token 计数规则 | 按码点 | 按码点 | 共享契约 |
 | 编码规范文档 | 本文件 | 同源镜像 | [SC] |
 
@@ -691,7 +470,7 @@ int airy_validate_input(const char *input, size_t len)
 - RFC 8259（JSON 规范，强制 UTF-8）
 - Linux 6.6 `lib/charset.c`
 - Linux 6.6 `include/linux/string.h`
-- Unicode 标准（Unicode 15.0）
+- Unicode 标准（Unicode 15.1）
 - POSIX locale 与 iconv 规范
 
 ---
