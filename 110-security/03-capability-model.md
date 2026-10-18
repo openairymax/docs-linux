@@ -419,26 +419,29 @@ if (unlikely((perms & required) != required))
 | 步骤 | 实际实现 | 位置 |
 |------|---------|------|
 | Badge 组合 | `AIRY_BADGE_COMPILE(epoch, randtag, perms)` 宏（仅位运算） | [SC] `security_types.h` |
-| Badge 注册写入 | `airy_cap_register(agent_id, badge)`（校验 slot 空 + per-bucket 锁 + 写入 badge/agent_id/perms/randtag/epoch） | `security/airy/airy_cap_array.c` |
+| Badge 注册写入 | `airy_cap_register(agent_id, badge)`（拒绝 agent 0 与越界 + 校验 slot 空 + per-bucket 锁 + 写入 badge/agent_id/perms/randtag/epoch） | `security/airy/airy_cap_array.c` |
 | 引导注册路径 | CAP_REQUEST 引导 → `airy_cap_check()` Phase 2 → `airy_cap_register()` | `security/airy/airy_cap_check.c` |
 | O(1) 定向撤销 | `airy_cap_epoch_bump(agent_id)`（per-agent epoch 递增，K9-1 主要机制） | `kernel/ipc/airy_ipc_capability.c` |
-| 级联撤销 | `airy_cap_revoke_subtree(agent_id, new_epoch)`（沿 MDB 派生树递归） | `security/airy/airy_cap_derive.c` |
+| 级联撤销 | `airy_cap_revoke_subtree(agent_id, new_epoch)`（沿 MDB 派生树迭代，显式栈） | `security/airy/airy_cap_derive.c` |
 | Badge 轮换 | `airy_cap_rotate(agent_id)`（`get_random_u32` 新 tag + `smp_store_release` 顺序） | `security/airy/airy_cap_rotate.c` |
 
 ```c
 /* security/airy/airy_cap_array.c —— Badge 注册（实际实现，SSoT）
  * 调用者: CAP_REQUEST 引导路径（airy_cap_check Phase 2）与 sec_d 管理路径
- * 同步:   per-bucket 散列锁（128 桶，P2 TOCTOU fix：register/derive 同锁）*/
+ * 同步:   per-bucket 散列锁（64 桶，P2 TOCTOU fix：register/derive 同锁）*/
 int airy_cap_register(__u32 agent_id, __u64 badge)
 {
 unsigned long flags;
 spinlock_t *lock;
 
 if (agent_id >= AIRY_CAP_MAX_AGENTS) {
-pr_debug_ratelimited("airy_cap_register: agent=%u out of range (MAX=%u)\n",
-agent_id, AIRY_CAP_MAX_AGENTS);
+pr_debug_ratelimited("%s: agent=%u out of range (MAX=%u)\n",
+__func__, agent_id, AIRY_CAP_MAX_AGENTS);
 return -AIRY_ECAP_OVERFLOW;
 }
+/* agent 0 是 MDB unbound 哨兵，永不拥有 capability */
+if (agent_id == 0)
+return -AIRY_EINVAL;
 lock = &airy_cap_bucket_locks[airy_cap_bucket(agent_id)];
 spin_lock_irqsave(lock, flags);
 if (agent_caps[agent_id].badge != AIRY_CAP_NULL) {
@@ -1745,18 +1748,16 @@ struct airy_cap_slot *agent_caps __ro_after_init = __airymax_cap_table;
 /* 全局 Epoch（权威定义）——补充性计数器 */
 atomic_t airy_cap_global_epoch;
 
-/* 初始化：清零 + per-agent epoch 置 1（非 0，确保空 badge 无法通过 C-S9.EPOCH） */
+/* 初始化：整槽清零 + per-agent epoch 置 1（非 0，确保空 badge 无法通过
+ * C-S9.EPOCH）。整槽 memset 同时清掉 MDB 链接字段，避免重复初始化后
+ * 残留的 parent/child 边把新注册的 agent 挂进旧派生树。 */
 void airy_cap_agent_caps_init(void)
 {
 	int i;
 
 	for (i = 0; i < AIRY_CAP_MAX_AGENTS; i++) {
-		agent_caps[i].badge    = 0;
-		agent_caps[i].agent_id = 0;
-		agent_caps[i].flags    = 0;
-		agent_caps[i].randtag  = 0;
-		agent_caps[i].perms    = 0;
-		agent_caps[i].epoch    = 1;
+		memset(&agent_caps[i], 0, sizeof(agent_caps[i]));
+		agent_caps[i].epoch = 1;
 	}
 	atomic_set(&airy_cap_global_epoch, 1);
 }

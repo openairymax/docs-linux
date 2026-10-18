@@ -91,7 +91,7 @@ agent-linux 1.0.1 阶段的形式化验证路径如下：
 | 并发机制 | SMP 验证状态 | 说明 |
 |---------|------------|------|
 | fastpath lock-free ring（`airy_ipc_ring_post` / C-S0~C-S12） | ⚠️ 单核验证 + CBMC 模型检验；**SMP 多核并发验证待 M2** | 无锁环形缓冲，依赖内存屏障；SMP 验证纳入 M2 收敛项 N10（IPC 并发扩展） |
-| per-bucket 散列锁（`airy_cap_bucket_locks`，P2 TOCTOU fix） | ⚠️ 逻辑验证通过（register/derive 同锁）；**SMP 压力测试待 M2** | 128 桶散列 spinlock，消除 register+derive 双写竞态；多核并发用例待补 |
+| per-bucket 散列锁（`airy_cap_bucket_locks`，P2 TOCTOU fix） | ⚠️ 逻辑验证通过（register/derive 同锁）；**SMP 压力测试待 M2** | 64 桶散列 spinlock，消除 register+derive 双写竞态；多核并发用例待补 |
 | 全局原子量（`airy_cap_global_epoch` / per-agent `epoch`） | ✅ 原子语义 + KUnit | `READ_ONCE`/`WRITE_ONCE` 无锁多读者，fastpath 单写者（sec_d） |
 
 > **SMP 部署前置条件**：上表 ⚠️ 项（多核 lock-free ring、per-bucket 锁）在生产部署到 SMP 多核平台前，必须完成并发压力验证（详见 [80-testing/README.md](../../80-testing/README.md) 与 KUnit 回归矩阵）。
@@ -306,7 +306,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch，在 7 �
 | 编号 | 观察 | 影响 | 处置建议 |
 |------|------|------|---------|
 | OBS-01 | ✅ 已修复：双锁不一致已消除，register 与 derive 共享 per-bucket 锁数组 | 原register 与 derive 间存在微小 TOCTOU 窗口 | **已修复**（v1.0.1 P1-11 fix）：commits `92026271464a` + `a417b129fdc8` 引入 `airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR]` per-bucket hashed lock array，register（[airy_cap_array.c:85](../../agent-linux/kernel/security/airy/airy_cap_array.c#L85)）与 derive（[airy_cap_derive.c:77](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L77)）共享同一锁数组，TOCTOU 窗口已关闭。详见 §8.4 P1-11 |
-| OBS-02 | ✅ 已修复：REVOKE 现沿 MDB 派生树递归级联撤销 | 原与 seL4 `cteRevoke` 递归撤销语义不同 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_revoke_subtree()` 沿左孩子右兄弟树递归撤销，O(N) 复杂度，典型深度 ≤3。详见 [airy_cap_derive.c:92-117](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L92-L117) |
+| OBS-02 | ✅ 已修复：REVOKE 现沿 MDB 派生树迭代级联撤销 | 原与 seL4 `cteRevoke` 递归撤销语义不同 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_revoke_subtree()` 以显式栈迭代撤销左孩子右兄弟树，栈深上限 `AIRY_CAP_MAX_AGENTS`，O(N) 复杂度，典型深度 ≤3。详见 [airy_cap_derive.c:249](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L249) |
 | OBS-03 | ✅ 已修复：MDB 派生树已实现 | 原无法支持 OBS-02 的递归撤销 | **已修复**（v1.0.1 K9-1 fix）：`airy_cap_slot` 新增 `parent_agent`/`first_child`/`next_sibling`/`generation`/`revocable` 字段（[lsm_types.h:59-73](../../agent-linux/kernel/include/uapi/linux/airymax/lsm_types.h#L59-L73)），COPY/MINT/MOVE 维护派生关系 |
 | OBS-04 | freeze 状态分离：`airy_ipc_ring_freeze_state` 与 `airy_cap_slot` 分离存储 | freeze 与 cap 状态需双查询 | M1 评估是否合并到 `airy_cap_slot` |
 | OBS-05 | 零拷贝 TOCTOU：用户态 mmap ring buffer 后，badge 字段可被用户态修改 | 用户态可在 fastpath 校验后篡改 badge | M1 评估是否引入 immutable badge region 或 copy-on-validate |
