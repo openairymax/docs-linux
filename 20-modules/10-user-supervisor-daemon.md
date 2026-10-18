@@ -1311,7 +1311,7 @@ static int macro_d_adjudicate(struct airy_fault_event *ev)
 
 ---
 
-## §7 单点故障 fallback：内核 watchdog 直接重启
+## §7 单点故障 fallback：内核 watchdog 收容
 
 ### 7.1 单点故障风险
 
@@ -1323,56 +1323,33 @@ Macro-Supervisor 是用户态单点，其故障可能导致：
 | Macro-Supervisor 死锁 | 故障通知无人处理 | 需人工干预 |
 | Macro-Supervisor 被杀 | 所有 Agent 失去监管 | systemd 重启 |
 
-### 7.2 内核 watchdog fallback（v1.0.1: 含 Badge 全局撤销）
+### 7.2 内核 watchdog 收容（`kernel/superv/airy_superv_wdog.c`）
 
-为防止单点故障，Airymax 设计了**内核 watchdog 直接重启** fallback。v1.0.1 起，watchdog 接管时**立即撤销所有 Badge**（`airy_cap_epoch_bump_all()`，UNFREEZE 语义，触发补充性 `airy_cap_global_epoch` 自增），防止无监管期间恶意 Agent 利用已发出的 Badge 继续操作：
+macro_d 的存活由 [IND] `AIRY_IPC_OP_HEARTBEAT`（`0x0022`）上报。`airy_sv_cmd_chk()` 要求该命令的 `agent_id` 与 `adjud` 均为 0，`airy_sv_exec()` 校验 SUPERVISE 权限与 RUNNING 状态后调用 `airy_wdog_beat()` 刷新时间戳。
 
-```c
-/* kernel/kernel/superv/airy_watchdog.c —— v1.0.1 内核 watchdog fallback
- * 新增 Badge 全局撤销：接管时立即失效所有 Badge
- */
-static struct timer_list airy_superv_watchdog;
-static __u64 last_macro_d_heartbeat;
+内核侧的收容流程：
 
-/* watchdog 超时检查（每 10 秒执行一次） */
-static void airy_superv_watchdog_fn(struct timer_list *t)
-{
-    __u64 now = ktime_get_real_ns();
-    /* Macro-Supervisor 心跳超时 30 秒 */
-    if (now - last_macro_d_heartbeat > 30ULL * 1000000000ULL) {
-        pr_emerg("airy: Macro-Supervisor heartbeat lost, watchdog takeover\n");
+1. `airy_wdog_init()` 在协议 gate 打开后启动周期 timer，每 `AIRY_WDOG_POLL_SEC`（10s）检查一次距上次心跳的时间。
+2. 超过 `AIRY_WDOG_TIMEOUT_SEC`（30s）时，timer 只调度工作项；冻结 Ring 需要持有 mutex，不能在软中断上下文执行。
+3. 工作项调用 `airy_wdog_fire()`，用 `atomic_cmpxchg()` 保证同一轮失联只收容一次：
+   - `airy_sv_frz_all(AIRY_FAULT_DOUBLE_FAULT)` 冻结全部受管 Agent 的 IPC Ring，并记录冻结原因；
+   - `airy_cap_epoch_bump_all()` 撤销全部未完成 Badge，使所有 fastpath epoch 检查立即失败；
+   - `printk` 输出紧急日志，tracepoint `airy_superv_enforce` 与 eventfd 上报 `AIRY_FAULT_DOUBLE_FAULT`。
+4. 新的心跳会清除 latch，使下一次失联可以再次触发。
+5. 若 `airy_wdog_reset()` 解除武装（仅初始化与 KUnit teardown 使用），周期 timer 保持运行但不再收容。
 
-        /* 1. 立即冻结所有活跃 Ring（防止无监管期间数据损坏，最优先） */
-        airy_ipc_freeze_all(AIRY_FAULT_TIMEOUT);
+**两条刻意约束**：
 
-        /* 2. v1.0.1 新增：立即撤销所有 Badge（airy_cap_epoch_bump_all 一行代码 O(1)，UNFREEZE 语义）
-         * 防止无监管期间恶意 Agent 利用已发出 Badge 操作
-         * 所有 fastpath C-S9.EPOCH 检查立即失败（badge_epoch != slot_epoch，per-agent）
-         */
-        airy_cap_epoch_bump_all();
-        pr_emerg("airy: all badges revoked (epoch=%u)\n",
-                 atomic_read(&airy_cap_global_epoch));
-
-        /* 3. 进入 [DSL] 降级模式 */
-        airy_dsl_enter(AIRY_DSL_REASON_SUPERV_DEAD);
-
-        /* 4. 内核直接重启 Macro-Supervisor（通过 systemd 通知）
-         * v1.0.1: 原 force 系列 API 已废弃（OLK 6.6 中不存在），
-         * 改用标准 API orderly_poweroff(force=true)
-         */
-        orderly_poweroff(true);
-    }
-    mod_timer(&airy_superv_watchdog, jiffies + 10 * HZ);
-}
-```
+- **首次心跳前不 arm**：安装器、recovery、早期启动等从未运行 macro_d 的系统没有可失去的监管者；若启动即 arm，健康机器会在 30 秒后被误冻结。
+- **内核不主动断电**：watchdog 只做 Airy 层收容，不调用 `orderly_poweroff()`。macro_d 的生命周期由其 systemd 服务管理，重启动作留在用户态。
 
 ### 7.3 fallback 触发条件
 
 | 触发条件 | 阈值 | 处理 |
 |---------|------|------|
-| 心跳超时 | 30 秒 | watchdog 接管 + [DSL] 降级 |
-| systemd 重启失败 | 3 次 | 内核强制重启系统 |
-| Macro-Supervisor 死锁 | 60 秒无响应 | watchdog 强制 kill |
+| 心跳超时 | 30 秒（轮询 10 秒） | 冻结全部 IPC Ring + 全局 epoch 自增 + 事件上报 |
+| 收容后心跳恢复 | — | 用户态重启 macro_d，执行 Reconciliation 后解冻 |
+| 从未收到首次心跳 | — | 不 arm，不触发收容 |
 
 ### 7.4 fallback 后的恢复
 
@@ -1383,21 +1360,19 @@ Macro-Supervisor 故障
 watchdog 检测到心跳超时（30s）
     │
     ▼
-进入 [DSL] 降级模式
-    ├── Agent 降级为 3 态（RUNNING/STOPPED/DEAD）
-    ├── 调度降级为 EEVDF 默认
-    └── IPC 降级为最简消息头
+内核收容
+    ├── 冻结全部受管 Agent 的 IPC Ring
+    ├── airy_cap_epoch_bump_all() 撤销未完成 Badge
+    └── printk + tracepoint + eventfd 上报 DOUBLE_FAULT
     │
     ▼
 systemd 重启 Macro-Supervisor
     │
     ▼
-Macro-Supervisor 恢复
-    ├── 触发 Reconciliation（详见 [05-ipc-control-plane-reconciliation.md]）
-    └── 退出 [DSL] 降级
+Macro-Supervisor 重新注册 eventfd 并执行 Reconciliation
     │
     ▼
-恢复正常双面协作
+逐 Agent 解冻 Ring，恢复正常双面协作
 ```
 
 ---

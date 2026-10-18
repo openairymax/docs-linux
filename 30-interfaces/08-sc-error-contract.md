@@ -372,23 +372,24 @@ Airymax lockdown 阶梯在策略层面关闭某类接口时使用该子空间。
 
 Fault 码占据正数空间 `[0x1000, 0x1FFF]`，从 `0x1000` 起步以避免与 errno 正值（如 `EPERM=1`）冲突。每个 Fault 对应一个不可恢复的异常场景，由 Micro-Supervisor 直接接管。
 
-### 3.1 Fault 码定义（对齐 SSoT error.h L163-169，6 个 Fault 码）
+### 3.1 Fault 码定义（对齐 SSoT error.h，7 个 Fault 码）
 
-> **⚠️ P0-I3 修复说明**（v1.0.1-fix）：原文档列出 11 个 Fault 码（`0x1001-0x100B`，含虚构的 `AIRY_FAULT_MEMORY_QUOTA_EXCEEDED=0x1007`、`AIRY_FAULT_TOKEN_BUDGET_EXCEEDED=0x1008`、`AIRY_FAULT_DMA=0x1009`、`AIRY_FAULT_URING_MALFORMED=0x100A`、`AIRY_FAULT_AUDIT_TAMPER=0x100B`），与 SSoT `error.h` L163-169 实际定义的 6 个 Fault 码严重不符。修复后严格对齐 SSoT：仅保留 `0x1001-0x1006` 共 6 个 Fault 码。原虚构的 5 个 Fault 码（`0x1007-0x100B`）标注为"v1.0.1+ 计划扩展，当前 SSoT 未定义"。
+> **⚠️ P0-I3 修复说明**（v1.0.1-fix）：原文档列出 11 个 Fault 码（`0x1001-0x100B`，含虚构的 `AIRY_FAULT_MEMORY_QUOTA_EXCEEDED=0x1007`、`AIRY_FAULT_TOKEN_BUDGET_EXCEEDED=0x1008`、`AIRY_FAULT_DMA=0x1009`、`AIRY_FAULT_URING_MALFORMED=0x100A`、`AIRY_FAULT_AUDIT_TAMPER=0x100B`），与 SSoT `error.h` L163-169 实际定义的 6 个 Fault 码严重不符。修复后严格对齐 SSoT：保留 `0x1001-0x1006` 共 6 个 Fault 码；v0.0.3 的 Double Fault 兜底新增 `0x100C`，总计 7 个。原虚构的 5 个 Fault 码（`0x1007-0x100B`）标注为"v1.0.1+ 计划扩展，当前 SSoT 未定义"。
 
-SSoT `error.h` 实际定义 6 个 Fault 码（`0x1001-0x1006`），覆盖 Badge 伪造/泄漏、Ring 损坏、Agent 心跳超时、Capability 异常、VM 页错误：
+SSoT `error.h` 实际定义 7 个 Fault 码，覆盖 Badge 伪造/泄漏、Ring 损坏、Agent 心跳超时、Capability 异常、VM 页错误与宏监管者失联：
 
 ```c
-/* SSoT: kernel/include/uapi/linux/airymax/error.h L167-172 —— Fault 码（正数 0x1000+，不可恢复） */
+/* SSoT: kernel/include/uapi/linux/airymax/error.h —— Fault 码（正数 0x1000+，不可恢复） */
 #define AIRY_FAULT_CAP_FORGED        0x1001  /* Badge forgery (security breach) */
 #define AIRY_FAULT_CAP_LEAK          0x1002  /* Capability leak detected */
 #define AIRY_FAULT_RING_CORRUPT      0x1003  /* IPC ring corruption */
 #define AIRY_FAULT_TIMEOUT           0x1004  /* Agent heartbeat timeout */
 #define AIRY_FAULT_ABNORMAL_CAP      0x1005  /* Abnormal capability usage */
 #define AIRY_FAULT_VM_FAULT          0x1006  /* VM page fault in Agent */
+#define AIRY_FAULT_DOUBLE_FAULT      0x100C  /* Macro-Supervisor loss */
 ```
 
-**Fault 码值域**：`[0x1000, 0x1FFF]`，从 `0x1000` 起步以避免与 errno 正值冲突。`0x1000` 本身保留作为"未指定 Fault"哨兵值，实际定义从 `0x1001` 起。`0x1007-0x1FFF` 当前未定义，预留给 v1.1+ 子系统扩展（如 io_uring hardened 路径、审计哈希链、资源配额等场景），新增必须更新 SSoT `error.h` 与本契约文档。
+**Fault 码值域**：`[0x1000, 0x1FFF]`，从 `0x1000` 起步以避免与 errno 正值冲突。`0x1000` 本身保留作为"未指定 Fault"哨兵值，实际定义从 `0x1001` 起。`0x1007-0x100B` 与 `0x100D-0x1FFF` 当前未定义，预留给 v1.1+ 子系统扩展（如 io_uring hardened 路径、审计哈希链、资源配额等场景），新增必须更新 SSoT `error.h` 与本契约文档。
 
 **v1.0.1+ 计划扩展（当前 SSoT 未定义，标注为计划项）**：
 
@@ -400,7 +401,7 @@ SSoT `error.h` 实际定义 6 个 Fault 码（`0x1001-0x1006`），覆盖 Badge 
 | `AIRY_FAULT_URING_MALFORMED` | 0x100A | malformed SQE/CQE 输入 | v1.0.1+ 计划，SSoT 未定义 |
 | `AIRY_FAULT_AUDIT_TAMPER` | 0x100B | 审计哈希链断裂 | v1.0.1+ 计划，SSoT 未定义 |
 
-### 3.2 Fault 码触发与处置（对齐 SSoT 6 个 Fault 码）
+### 3.2 Fault 码触发与处置（对齐 SSoT 7 个 Fault 码）
 
 | Fault 码 | 值 | 触发场景 | Micro-Supervisor 处置 | 后续路径 |
 |---------|---|---------|---------------------|---------|
@@ -410,8 +411,9 @@ SSoT `error.h` 实际定义 6 个 Fault 码（`0x1001-0x1006`），覆盖 Badge 
 | `AIRY_FAULT_TIMEOUT` | 0x1004 | Agent 心跳超时且未响应冻结 | 强制 STOPPED 态 | Macro-Supervisor 裁决 |
 | `AIRY_FAULT_ABNORMAL_CAP` | 0x1005 | Capability 树完整性校验失败 | 立即终止 Agent（SIGKILL） | 进入 DEAD 态 |
 | `AIRY_FAULT_VM_FAULT` | 0x1006 | 共享页映射损坏（MemoryRovol 检测） | 立即标记 Ring 不可用 | 回退到 printk_safe |
+| `AIRY_FAULT_DOUBLE_FAULT` | 0x100C | macro_d 心跳超过 30s 未上报（首次心跳前不 arm） | 冻结全部 IPC Ring + `airy_cap_epoch_bump_all()` + 紧急日志 + tracepoint/eventfd | 用户态 systemd 重启 macro_d |
 
-> **⚠️ P0-I3 修复说明（续）**：原文档 §3.2 触发与处置表列出 11 行，含 5 行虚构 Fault 码（`AIRY_FAULT_MEMORY_QUOTA_EXCEEDED`/`TOKEN_BUDGET_EXCEEDED`/`DMA`/`URING_MALFORMED`/`AUDIT_TAMPER`）。修复后表格仅保留 SSoT 实际定义的 6 个 Fault 码。虚构 Fault 码的触发场景已移至 §3.1 "v1.0.1+ 计划扩展" 表中并标注"SSoT 未定义"。
+> **⚠️ P0-I3 修复说明（续）**：原文档 §3.2 触发与处置表列出 11 行，含 5 行虚构 Fault 码（`AIRY_FAULT_MEMORY_QUOTA_EXCEEDED`/`TOKEN_BUDGET_EXCEEDED`/`DMA`/`URING_MALFORMED`/`AUDIT_TAMPER`）。修复后表格保留 SSoT 实际定义的 Fault 码；v0.0.3 新增 `AIRY_FAULT_DOUBLE_FAULT`，当前共 7 行。虚构 Fault 码的触发场景已移至 §3.1 "v1.0.1+ 计划扩展" 表中并标注"SSoT 未定义"。
 
 ### 3.3 Error 与 Fault 的关系
 

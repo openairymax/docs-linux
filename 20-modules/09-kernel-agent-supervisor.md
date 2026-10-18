@@ -734,13 +734,12 @@ Airymax 在借鉴 seL4 时有两处适配：
 Micro-Supervisor 的正常故障处理路径（Agent 故障 → 冷酷执法 → Macro-Supervisor 裁决）依赖于 Macro-Supervisor（macro_d）的正常运行。当 Macro-Supervisor 自身故障时，需要 Double Fault 处理机制。
 
 **借鉴 seL4 Double Fault 流程**（`src/api/faulthandler.c` `handleDoubleFault()`）：
-1. **检测**：macro_d 心跳超时（systemd watchdog 30s 无响应）
-2. **兜底**：内核直接执行预定义处置策略（不依赖用户态 macro_d）
-   - 冻结所有 Agent 的 IPC Ring（`ring->frozen = true`）
-   - 降级至 [DSL] 模式（`#ifdef AIRY_SC_FALLBACK`）
-   - 通过 `printk_safe` 输出最终日志
-3. **恢复**：systemd 重启 macro_d，macro_d 从 `/var/lib/airy/sec_d_state.json` 恢复状态
-4. **审计**：Double Fault 事件写入 `AIRY_FAULT_DOUBLE_FAULT`（预留 0x100C）
+
+1. **心跳**：macro_d 通过 [IND] `AIRY_IPC_OP_HEARTBEAT`（`0x0022`，`agent_id` 与 `adjud` 必须为 0）上报存活；`airy_sv_exec()` 校验 SUPERVISE 权限与 RUNNING 状态后调用 `airy_wdog_beat()`。
+2. **检测**：`AIRY_WDOG_POLL_SEC`（10s）周期 timer 检查距上次心跳是否超过 `AIRY_WDOG_TIMEOUT_SEC`（30s）；超时后交由 workqueue 执行收容，因为冻结 Ring 需要持有 mutex，不能在软中断上下文完成。
+3. **兜底**：`airy_sv_frz_all()` 冻结全部受管 Agent 的 IPC Ring 并记录 `AIRY_FAULT_DOUBLE_FAULT`（`0x100C`）；`airy_cap_epoch_bump_all()` 撤销全部未完成 Badge；`printk` 输出紧急日志；tracepoint 与 eventfd 上报事件。
+4. **不 arm 直到首次心跳**：安装器、recovery、早期启动等从未运行 macro_d 的系统没有可失去的监管者；若启动即 arm，健康机器会在 30 秒后被误冻结。
+5. **不主动断电**：内核不调用 `orderly_poweroff()`。macro_d 的生命周期由其 systemd 服务管理，内核完成收容后由用户态重启宏监管者。
 
 ---
 
