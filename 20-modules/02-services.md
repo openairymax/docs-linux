@@ -198,8 +198,10 @@ services/
   `struct airy_dmn_src`、`struct airy_dmn_frame` 与 17 个 `airy_dmn_*()`
   原型。
 - `daemon/dmn_int.h`：内部契约——统一事件源表（`enum airy_dmn_kind` +
-  回调联合体）、`struct airy_dmn` 上下文与槽位上限；仅供实现分片包含，
-  不对外安装。
+  回调联合体）、`struct airy_dmn` 上下文与槽位上限；生命周期状态、唤醒
+  描述符、主循环线程 id 与停止请求为 C11 原子量，统一经 `dmn_state()`、
+  `dmn_state_set()`、`dmn_stopped()` 访问，避免跨线程检查-写入丢更新；
+  仅供实现分片包含，不对外安装。
 - `daemon/dmn_core.c`：对象生命周期——`airy_dmn_new/free/reg` 与
   `state/name/now` 查询，入参校验、name/config 按值复制、自持描述符关闭。
 - `daemon/dmn_event.c`：fd 事件源表与 epoll 注册——`airy_dmn_add/del/mod`、
@@ -217,6 +219,9 @@ services/
   不占事件槽位），使 `airy_dmn_stop()` 在无外部事件时立即打断
   `epoll_wait()`。signalfd 以 `AIRY_DMN_SIG` 哨兵进入同一循环。
   ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
+  `airy_dmn_stop()` 只置原子停止请求并唤醒等待，状态由主循环线程独占
+  发布；请求早于 `airy_dmn_run()` 时不调用 start/stop 回调直接返回 0，
+  位于 start 回调内则跳过事件分派并仍成对调用 stop。
 - `daemon/dmn_sig.c`：信号收口——`AIRY_DMN_F_SIG` 生效时阻塞
   SIGTERM/SIGINT/SIGHUP 并创建 `signalfd(SFD_CLOEXEC|SFD_NONBLOCK)`，
   SIGTERM/SIGINT 置停止请求、SIGHUP 调用 `ops.reload` 热加载；
