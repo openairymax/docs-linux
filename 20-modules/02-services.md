@@ -210,10 +210,14 @@ services/
   `start → epoll → stop` 生命周期、按单调时钟截止点的 tick 调度与
   回调负值传播；框架自持 `eventfd` 唤醒源（`AIRY_DMN_CTL` 哨兵，
   不占事件槽位），使 `airy_dmn_stop()` 在无外部事件时立即打断
-  `epoll_wait()`。ERR/HUP 不受注册掩码过滤，避免对端关闭后反复
-  唤醒空转。
-- `daemon/` 其余分片：IPC 通道注册、信号收口（signalfd：
-  SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
+  `epoll_wait()`。signalfd 以 `AIRY_DMN_SIG` 哨兵进入同一循环。
+  ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
+- `daemon/dmn_sig.c`：信号收口——`AIRY_DMN_F_SIG` 生效时阻塞
+  SIGTERM/SIGINT/SIGHUP 并创建 `signalfd(SFD_CLOEXEC|SFD_NONBLOCK)`，
+  SIGTERM/SIGINT 置停止请求、SIGHUP 调用 `ops.reload` 热加载；
+  信号以描述符事件分派，不使用异步处理函数。主循环退出后恢复
+  运行前的线程信号掩码，多线程 daemon 须在创建线程前自行阻塞。
+- `daemon/` 其余分片：IPC 通道注册与心跳记账。
 - IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
   传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
   字符设备就绪后接入同一分派抽象。
