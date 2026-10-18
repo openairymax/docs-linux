@@ -221,10 +221,15 @@ services/
   刷新 `last_beat`，`airy_dmn_live()` 按 `beat_ms * miss_max` 容忍
   窗口判断新鲜度；两者可在不同线程并发调用，时钟取单调毫秒，只做
   相对比较。
-- `daemon/` 其余分片：IPC 通道注册。
-- IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
-  传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
-  字符设备就绪后接入同一分派抽象。
+- `daemon/dmn_ipc.c`：IPC 通道注册与整帧分派——`airy_dmn_ipc()` 仅接受
+  `SOCK_SEQPACKET`/`SOCK_DGRAM`（`SO_TYPE` 校验），与 fd 事件源共用
+  `airy_dmn_find()` 查重，同一描述符不占两个槽位；读取先用
+  `MSG_PEEK|MSG_TRUNC` 取整帧长度，再单次读入并校验 [SC] `ipc.h` 的
+  128 字节头 magic 与 `payload_len`，回调后释放帧缓冲。非阻塞描述符
+  无帧可读时按成功返回并等待下一次唤醒；帧过短、magic 或长度不符、
+  对端关闭一律以 `-AIRY_EIO` 终止主循环，不做字节流重同步；一条
+  消息须由单次 send 写入同一条记录或数据报。io_uring_cmd 提交路径
+  随内核字符设备就绪后接入同一分派抽象。
 - 构建目标 `airy_daemon` 为 STATIC 库：导出头文件与 [SC] 头搜索路径，
   实现分片随各任务逐步并入。
 - [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
