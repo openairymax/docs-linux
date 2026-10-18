@@ -284,31 +284,31 @@ P0 阶段覆盖 M0-M6，净工期 91 天（13 周），其中多个里程碑并�
 
 > **背景**：v3.6 评审 §1.1 主要差距第 4 点指出"lockdown……均未实现（M2-M5 项）"，08 闭环 §4.3 列为 P2-4。本小节定义 AirymaxOS 在 Linux 6.6 内置 lockdown LSM 之上的分阶段锁定策略，与 [07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md) §2.2 `CONFIG_LSM` 默认值中的 `lockdown` 协同。
 
-**目标**：在系统启动、Macro-Supervisor 就绪、关键配置冻结三个时点分阶段收敛可写接口，杜绝运行时被篡改风险，对齐 Linux 6.6 `Documentation/admin-guide/lockdown.rst` 的 integrity/confidentiality 两阶段语义并扩展为 AirymaxOS 三阶段。
+**目标**：在系统启动、Macro-Supervisor 就绪、关键配置冻结三个时点分阶段收敛可写接口，杜绝运行时被篡改风险，对齐 Linux 6.6 `Documentation/admin-guide/lockdown.rst` 的 integrity/confidentiality 两阶段语义并扩展为 AirymaxOS 三阶段。实现与语义细节见 [09-lockdown.md](../110-security/09-lockdown.md)。
 
 **关键算法与数据结构**：
 
 | 维度 | 设计 |
 |------|------|
-| 阶段划分 | (1) **early lockdown**（boot 阶段）：`early_security_init()` 中由 `DEFINE_EARLY_LSM(airy_lockdown)` 注册，禁止 `/dev/mem`、`kexec_load`、`bpf()` 非特权调用、模块签名未通过的 `init_module`，对齐 Linux lockdown `integrity` 模式<br>(2) **late lockdown**（Macro-Supervisor 就绪后）：Macro-Supervisor 通过 `airy_sys_admin(AIRY_ADMIN_LOCKDOWN_LATE)` 触发，追加禁止 `ptrace` 跨 Agent 附加、`userfaultfd` 非特权注册、`/sys/kernel/debug/airy/cbs` 写入、未签名 Agent 二进制 `execve`<br>(3) **full lockdown**（配置冻结后）：`AIRY_ADMIN_LOCKDOWN_FULL` 触发，所有 `airy_sys_admin` 写接口、`sched_setattr` 跨 Agent 修改、`airy_sys_rovol_ctl` 的 TIER_SET/MGLRU_CONFIG 全部转只读 |
-| 接口收敛机制 | `airy_lockdown_state`（atomic_t，0=none/1=early/2=late/3=full），每个可写内核接口入口检查 `airy_lockdown_gate(level)`——当前 lockdown 等级 ≥ 接口要求等级时返回 `-AIRY_ELOCKDOWN`（`AIRY_ELOCKDOWN` 为**规划错误码**，[SC] error.h 当前未定义，待 lockdown 落地时新增注册） |
-| 与 airy_lsm 联动 | lockdown 检查在 [07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md) §3.3 `airy_uring_cmd_check()` 钩子中作为 Phase 0 前置：lockdown 等级不满足时直接返回 `-AIRY_ELOCKDOWN`，不进入 fastpath C-S9 Badge 校验，不触发 Fault（区分"策略拒绝"与"安全违规"） |
+| 阶段划分 | (1) **early lockdown**（boot 阶段）：`DEFINE_EARLY_LSM(airy_lockdown)` 在 `early_security_init()` 中注册并立即按 `CONFIG_AIRY_LOCKDOWN_DEFAULT_LEVEL` 置位，关闭 `MODULE_SIGNATURE`/`DEV_MEM`/`EFI_TEST`/`KEXEC`/`BPF_WRITE_USER` 五类内核设施，同时关闭 capability 授予、RoVol 写、调度改写三个 agent 扩张接口<br>(2) **late lockdown**（Macro-Supervisor 就绪后）：root 向 `/sys/kernel/security/airy/lockdown` 写入 `late` 提升，追加关闭 `MODULE_PARAMETERS`/`DEBUGFS`/`KCORE`/`KPROBES`/`BPF_READ_KERNEL`/`PERF`/`TRACEFS` 七类内核观测设施<br>(3) **full lockdown**（配置冻结后）：写入 `full` 提升，关闭其余全部 `enum lockdown_reason` 设施（MSR/IOPORT/PCI/ACPI/设备树等） |
+| 接口收敛机制 | `airy_lock_level`（atomic_t，0=none/1=early/2=late/3=full），扩张入口调用 `airy_lock_gate(iface)`——当前等级 ≥ 接口关闭等级时返回 `-AIRY_ELOCKDOWN`（261，已在 [SC] error.h 注册，见 [08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md) §2.13）；等级单调递增，降级返回 `-EPERM` |
+| 与 airy_lsm 联动 | gate 接入 [07-airy-lsm-design.md](../110-security/07-airy-lsm-design.md) §3.3 `airy_uring_cmd_check()` 的 CAP_REQUEST bootstrap 分支（`required_perms == 0`）：拒绝时直接返回 `-AIRY_ELOCKDOWN`，不进入 `phase2_cap_request()`，不走 `goto fault`，不触发 `AIRY_FAULT_*`（区分"策略拒绝"与"安全违规"） |
 | 与 Linux lockdown 的关系 | AirymaxOS lockdown 是 Linux 6.6 内置 lockdown LSM 的扩展：Linux lockdown 仅覆盖 integrity/confidentiality 两阶段内核接口，AirymaxOS lockdown 追加 Airymax 专属接口（`airy_sys_admin` / `airy_sys_rovol_ctl` / `sched_setattr` 跨 Agent）的收敛，两者并存且不冲突 |
-| 关键数据结构 | `struct airy_lockdown_rule { const char *interface; u8 required_level; u32 flags; }`——静态规则表 `airy_lockdown_rules[]`，编译期生成，运行时只读 |
-| [DSL] 降级 | `AIRY_SC_FALLBACK` 下 lockdown 退化为仅 early lockdown（Linux lockdown integrity 模式），late/full 阶段不触发，保证最小可用 |
+| 关键数据结构 | `struct airy_lock_rule { const char *name; u8 level; }`——静态规则表 `airy_lock_rules[AIRY_LOCK_IF_MAX]`；`u8 airy_lock_reason[LOCKDOWN_CONFIDENTIALITY_MAX]`——设施到等级的映射表；两者均编译期生成、运行时只读 |
+| [DSL] 降级 | `CONFIG_SECURITY_AIRY=n` 时 `airy_lock_gate()` 以内联返回 0 降级，阶梯不参与判定；`CONFIG_SECURITYFS=n` 时 securityfs 注册编译期短路，`airy.lockdown=` 与 Kconfig 初值仍生效 |
 
 **交付物**：
 
-1. `kernel/security/airy/airy_lockdown.c` + `airy_lockdown.h`——分阶段 lockdown 实现
-2. `airy_sys_admin` 扩展——新增 `AIRY_ADMIN_LOCKDOWN_LATE` / `AIRY_ADMIN_LOCKDOWN_FULL` op 码
-3. `airy_lockdown_gate()` 接入所有可写 Airymax 接口入口（`airy_sys_admin` / `airy_sys_rovol_ctl` 写操作 / `sched_setattr` 跨 Agent）
-4. KUnit 用例：阶段切换 / 接口收敛 / 与 airy_lsm 协同 / DSL 降级
-5. ftrace 事件：`airy:lockdown_early`、`airy:lockdown_late`、`airy:lockdown_full`、`airy:lockdown_reject`
+1. `kernel/security/airy/airy_lockdown.c`——分阶段 lockdown 实现（等级状态机 + 两张规则表 + `locked_down` 钩子 + `airy.lockdown=` + securityfs）
+2. `kernel/include/airymax/airy_lockdown.h`——等级/触发源/接口三枚举 + 五个函数原型 + `CONFIG_SECURITY_AIRY=n` 内联降级
+3. `airy_lock_gate()` 接入三个扩张入口（`airy_uring_cmd_check()` bootstrap 分支 / `airy_badge_install()` / `airy_rovol_serve()` 写操作 / `airy_sched_serve()` 改写操作），并以 `LSM_HOOK_INIT(locked_down)` 接入内核设施面
+4. KUnit 用例（`security/airy/airy_lockdown_test.c`，10 例）：等级提升 / 禁止降级 / 幂等 / 越界 / 名称解析 / 三接口 gate / 三档设施判定
+5. ftrace 事件：`airy:lockdown_change`、`airy:lockdown_reject`
 
 **验收标准**：
 
-- early lockdown 在 `early_security_init()` 完成前生效，`/dev/mem` 打开返回 `-EPERM`
-- late lockdown 触发后 ≤ 1ms 内所有 late 阶段接口返回 `-AIRY_ELOCKDOWN`（规划错误码，待 [SC] 新增）
+- early lockdown 在 `early_security_init()` 中随 `DEFINE_EARLY_LSM(airy_lockdown)` 生效，早于 `parse_early_param()`；默认等级为 early 时 `/dev/mem` 打开返回 `-EPERM`
+- late 等级提升后，late 阶段的内核设施立即返回 `-EPERM`（读取同一 atomic 变量，无额外同步延迟）
 - lockdown 等级单调递增（不可降级），杜绝运行时放松约束的攻击面
 - lockdown 拒绝路径不触发 `airy_fault_enforce()`（区分策略拒绝与安全违规）
 - 与既有 Linux lockdown LSM 共存，无语义冲突

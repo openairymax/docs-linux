@@ -79,9 +79,9 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 
 ## §2 Error 码空间分配
 
-Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.h` 文件头注释 L9-11："`AIRY_E*` constants are positive magnitudes (like POSIX errno); callers return `-AIRY_E*` to produce the negative error value"），调用方通过 `return -AIRY_E*` 得到负值 Error。返回值占据负数空间 `[-300, -1]`，按来源分 **11 个子空间**（对齐 `error.h` SSoT；P0-I2 修复补齐 Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall 7 个子空间，P-01 新增 Encoding 子空间）。
+Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.h` 文件头注释 L9-11："`AIRY_E*` constants are positive magnitudes (like POSIX errno); callers return `-AIRY_E*` to produce the negative error value"），调用方通过 `return -AIRY_E*` 得到负值 Error。返回值占据负数空间 `[-300, -1]`，按来源分 **12 个子空间**（对齐 `error.h` SSoT；P0-I2 修复补齐 Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall 7 个子空间，P-01 新增 Encoding 子空间）。
 
-### 2.1 Error 码空间总表（11 子空间，对齐 SSoT error.h）
+### 2.1 Error 码空间总表（12 子空间，对齐 SSoT error.h）
 
 | 子空间 | 值域（负返回空间） | 来源 | 已定义数 | 命名风格 |
 |--------|------|------|---------|---------|
@@ -96,9 +96,10 @@ Error 码宏定义为**正数幅值**（对齐 POSIX errno 风格，SSoT `error.
 | Object 码 | `[-201, -220]` | Airymax Object 系统 | 4 | `AIRY_EOBJ_*` |
 | Syscall 码 | `[-221, -240]` | Airymax syscall 表面 | 4 | `AIRY_ESYS_*` |
 | Encoding 码 | `[-241, -246]` | 跨内核边界的严格 UTF-8 校验（P-01） | 6 | `AIRY_EENC_*` |
-| 预留 | `[-247, -300]` | 未来扩展 | 0 | — |
+| Lockdown 码 | `[-261, -280]` | Airymax lockdown 阶梯的策略拒绝（B-05） | 1 | `AIRY_ELOCKDOWN` |
+| 预留 | `[-262, -300]` | 未来扩展 | 0 | — |
 
-> **⚠️ P0-I2 修复说明**（v1.0.1-fix）：原文档声明 5 子空间（POSIX/IPC/Capability/[SC]/[DSL]），与 `error.h` SSoT 严重不符。修复后对齐 SSoT 实际定义：移除虚构的 `[SC]` 与 `[DSL]` 错误码子空间（这两个概念属于 [DSL] 降级块机制，不是独立错误码子空间），补齐 7 个实际存在的子空间（Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall）。P-01 落地后新增 Encoding 子空间，总数 11。
+> **⚠️ P0-I2 修复说明**（v1.0.1-fix）：原文档声明 5 子空间（POSIX/IPC/Capability/[SC]/[DSL]），与 `error.h` SSoT 严重不符。修复后对齐 SSoT 实际定义：移除虚构的 `[SC]` 与 `[DSL]` 错误码子空间（这两个概念属于 [DSL] 降级块机制，不是独立错误码子空间），补齐 7 个实际存在的子空间（Config/A-ULS/MemoryRoVol/Cognition/Log/Object/Syscall）。P-01 落地后新增 Encoding 子空间，总数 11。B-05 落地后新增 Lockdown 子空间（261 起），总数 12。
 
 ### 2.2 POSIX 码 `[-1, -40]`（对齐 SSoT error.h L30-45）
 
@@ -346,7 +347,22 @@ Airymax syscall 表面错误码，覆盖编号/参数/DSL 禁用/ABI 不匹配�
 
 `airy_u8_scan()` 对整串逐序列调用上述判定并返回首个错误；syscall 550（`airy_sys_sched_ctl`）经 `airy_sched_arg()` 把该错误码直接上抛给用户态。实现与边界矩阵见 `180-i18n/02-encoding-spec.md` §2.3、§7。
 
-### 2.13 预留码 `[-247, -300]`
+### 2.13 Lockdown 码 `[-261, -280]`（对齐 SSoT error.h L171-176）
+
+Airymax lockdown 阶梯在策略层面关闭某类接口时使用该子空间。拒绝是**策略判定**而非安全违规：调用方必须原值上抛，不得触发 `AIRY_FAULT_*`，也不得进入 DSL 降级路径（见 [09-lockdown.md](../110-security/09-lockdown.md) §5）：
+
+```c
+/* SSoT: kernel/include/uapi/linux/airymax/error.h L171-176 —— Lockdown 错误码 */
+/* 宏为正数幅值 261，调用方返回 -AIRY_ELOCKDOWN 得到负值 Error */
+#define AIRY_ELOCKDOWN        261   /* Interface blocked at the active lockdown level */
+/* [262, 280] 预留 */
+```
+
+| 错误码 | 触发条件 | 产生路径 |
+|--------|---------|---------|
+| `AIRY_ELOCKDOWN` | 目标接口的 `required_level` 不高于当前锁定等级 | `airy_lock_gate()`（capability 授予、RoVol 写入、调度写入） |
+
+### 2.14 预留码 `[-262, -300]`
 
 预留用于未来 Airymax 子系统扩展。分配前必须更新本契约文档与 SSoT `error.h`。
 
@@ -598,11 +614,12 @@ jobs:
 14. Object 码（幅值 201-204，返回负空间 `[-201, -220]`）（L148-151，4 个定义）
 15. Syscall 码（幅值 221-224，返回负空间 `[-221, -240]`）（L150-156，4 个定义）
 16. Encoding 码（幅值 241-246，返回负空间 `[-241, -246]`）（L158-169，6 个定义）
-17. 预留子空间注释块（L171-174，幅值 261-300）
-18. Fault 码 `[0x1000, 0x1FFF]`（L176-182，6 个定义）
-19. 辅助宏 `AIRY_ERR_OK` / `AIRY_ERR_FAIL`（L184-186）
-20. `#ifdef AIRY_SC_FALLBACK` 降级块（L188-232，38 个 `AIRY_DSL_*` 映射）
-21. 头文件守卫结束 `#endif`
+17. Lockdown 码（幅值 261，返回负空间 `[-261, -280]`）（L171-176，1 个定义）
+18. 预留子空间注释块（L178-181，幅值 262-300）
+19. Fault 码 `[0x1000, 0x1FFF]`（L183-189，6 个定义）
+20. 辅助宏 `AIRY_ERR_OK` / `AIRY_ERR_FAIL`（L191-193）
+21. `#ifdef AIRY_SC_FALLBACK` 降级块（L195-239，38 个 `AIRY_DSL_*` 映射）
+22. 头文件守卫结束 `#endif`
 
 ### 6.3 变更流程
 
@@ -639,6 +656,7 @@ jobs:
 | v1.1 | 2026-07-18 | Capability Folding 同步：IPC 码空间 -41~-52 重定义（与 fastpath C-S 检查链对齐）；新增 Capability 码 -78~-82（Badge 校验：BADGE/EPOCH/FORGED/PERM/FROZEN）；Fault 码 0x1001-0x1003 重定义（CAP_FORGED/CAP_LEAK/RING_CORRUPT）；`AIRY_FAULT_VM_FAULT` 迁移至 0x1006；新增 [DSL] 码 -207（CAP_BADGE_SKIP）；新增 §1.4 Capability Folding 错误码的 [SC]/[SS] 边界；新增 §5.3 [DSL] 模式 Badge 降级语义；新增 §3.3 Error/Fault 协同说明 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-10-18 | P-01 落地：新增 Encoding 子空间 241-246（`AIRY_EENC_*`，6 个定义），预留空间改为 247-300；§2.1 子空间总数 10 → 11；§2.12 新增触发条件与产生路径表；§6.2 文件结构同步到 error.h 实际行号 |
+| v1.0.1 | 2026-10-18 | B-05 落地：新增 Lockdown 子空间 261-280（`AIRY_ELOCKDOWN`），预留空间改为 262-300；§2.1 子空间总数 11 → 12；§2.13 新增触发条件与产生路径表；§6.2 文件结构同步 |
 
 ---
 
