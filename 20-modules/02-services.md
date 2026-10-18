@@ -195,18 +195,22 @@ services/
 - `include/airy/daemon.h`：公共契约唯一权威源——daemon 生命周期状态机
   （`AIRY_DMN_INIT/RUNNING/STOPPING/STOPPED`）、fd 事件源
   （`AIRY_DMN_IN/OUT/ERR/HUP`）、`struct airy_dmn_cfg`、`struct airy_dmn_ops`、
-  `struct airy_dmn_src`、`struct airy_dmn_frame` 与 16 个 `airy_dmn_*()`
+  `struct airy_dmn_src`、`struct airy_dmn_frame` 与 17 个 `airy_dmn_*()`
   原型。
 - `daemon/dmn_int.h`：内部契约——统一事件源表（`enum airy_dmn_kind` +
   回调联合体）、`struct airy_dmn` 上下文与槽位上限；仅供实现分片包含，
   不对外安装。
 - `daemon/dmn_core.c`：对象生命周期——`airy_dmn_new/free/reg` 与
   `state/name/now` 查询，入参校验、name/config 按值复制、自持描述符关闭。
-- `daemon/dmn_event.c`：fd 事件源表与 epoll 注册——`airy_dmn_add/del`、
+- `daemon/dmn_event.c`：fd 事件源表与 epoll 注册——`airy_dmn_add/del/mod`、
   事件掩码映射（`AIRY_DMN_IN/OUT/ERR/HUP` → `EPOLLIN/OUT/ERR/RDHUP`）、
   惰性 `epoll_create1(EPOLL_CLOEXEC)` 与 `errno → -AIRY_E*` 收敛；槽位
-  下标即 epoll `data.u32`，外部已关闭描述符按已注销处理。内部
-  `airy_dmn_mask/attach/detach` 供 IPC 通道注册分片复用。
+  下标即 epoll `data.u32`，外部已关闭描述符按已注销处理。主循环运行
+  期间允许在事件回调内注册、注销与修改关注掩码（服务器形态据此接纳
+  新连接、按发送缓冲改关注可写），事件表只由循环线程修改：以
+  `loop_tid` 与调用线程比对，其他线程返回 -EBUSY；`airy_dmn_del()` 在
+  主循环退出后允许单线程清理。内部 `airy_dmn_mask/attach/detach` 与
+  写入守卫 `airy_dmn_evok/delok` 供 IPC 通道注册分片复用。
 - `daemon/dmn_loop.c`：主循环与周期 tick——`airy_dmn_run/stop`、
   `start → epoll → stop` 生命周期、按单调时钟截止点的 tick 调度与
   回调负值传播；框架自持 `eventfd` 唤醒源（`AIRY_DMN_CTL` 哨兵，
@@ -228,11 +232,13 @@ services/
   `crc32(0, buf, len)`），发送与接收共用同一实现，避免两侧摘要漂移。
 - `daemon/dmn_ipc.c`：IPC 通道注册、收发与整帧分派——`airy_dmn_ipc()`
   仅接受 `SOCK_SEQPACKET`/`SOCK_DGRAM`（`SO_TYPE` 校验），与 fd 事件源
-  共用 `airy_dmn_find()` 查重，同一描述符不占两个槽位；`airy_dmn_send()`
-  校验 magic、C-S10 保留标志位、C-S4 全零 reserved 与 payload_len 上界
-  后盖写 C-S12 摘要，以 128 字节头加消息体单次写出，调用方头副本不被
-  修改。读取先用 `MSG_PEEK|MSG_TRUNC` 取整帧长度，再单次读入并校验
-  magic、标志位、`payload_len`、reserved 与摘要，回调后释放帧缓冲。
+  共用 `airy_dmn_find()` 查重，同一描述符不占两个槽位；通道可在主循环
+  启动前或运行期由事件回调内注册，与 fd 事件源共用同一线程约束；
+  `airy_dmn_send()` 校验 magic、C-S10 保留标志位、C-S4 全零 reserved
+  与 payload_len 上界后盖写 C-S12 摘要，以 128 字节头加消息体单次
+  写出，调用方头副本不被修改。读取先用 `MSG_PEEK|MSG_TRUNC` 取整帧
+  长度，再单次读入并校验 magic、标志位、`payload_len`、reserved 与
+  摘要，回调后释放帧缓冲。
   非阻塞描述符无帧可读时按成功返回并等待下一次唤醒；帧过短、头部字段
   或摘要不符、对端关闭均以负值终止主循环（`-AIRY_EIPC_*` 定位到具体
   契约项），不做字节流重同步；一条消息须由单次 send 写入同一条记录或
