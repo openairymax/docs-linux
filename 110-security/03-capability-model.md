@@ -534,6 +534,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
 
 - 派生入口通过 64-bucket 哈希自旋锁数组（`airy_cap_bucket_locks[]`）串行化：COPY/MINT 按规范升序获取 src 与 dst 两把桶锁；MUTATE/ROTATE 仅取源桶一把；REVOKE/MOVE/DELETE 获取全部 64 桶（子树与父/子链可能跨任意桶），关闭 register/derive 边界 TOCTOU（P1-11 fix）。
 - ROTATE 另有薄包装 `airy_cap_rotate(agent_id)`（`security/airy/airy_cap_rotate.c`），内部委托 `airy_cap_derive(..., AIRY_CAP_OP_ROTATE, 0)` 复用同一锁。
+- 六条写入路径（COPY/MINT/MOVE/MUTATE/REVOKE/ROTATE）遵循同一发布序：先写 badge 内嵌字段（`epoch`/`randtag`/`perms`）与槽位身份、MDB 链，最后经 `cap_pub_badge()` 以 `smp_store_release` 发布 badge；slowpath `phase5_slowpath_enforce()` 以 `smp_load_acquire()` 读取 badge，两者配对。若先发布 badge，慢路径可能把收窄后的 badge 与旧的更宽 `perms` 配对，从而放行 badge 已不再携带的权限。DELETE 与 `airy_cap_unreg()` 的清槽路径方向相反：先写 `AIRY_CAP_NULL`，使并发读者立即按"无能力"失败关闭。
 
 ### 3.3 权限降级语义（COPY / MINT / MUTATE）
 
@@ -550,7 +551,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
 - **目标槽位约束**：COPY/MINT/MOVE 是仅有的三个向 `dst_agent` 安装 badge 的操作，安装前统一校验目标槽位：`dst_agent == 0`（MDB unbound 哨兵，所有父子链用 0 表示"无"）返回 `-AIRY_EINVAL`；`dst_agent >= AIRY_CAP_MAX_AGENTS` 返回 `-AIRY_ECAP_OVERFLOW`；槽位非空返回 `-AIRY_EEXIST`。任一校验失败时源槽与目标槽均保持不变。MUTATE/REVOKE/DELETE/ROTATE 忽略 `dst_agent`。
 - **MOVE**：`dst` 接管 badge 与 MDB 位置（`badge`/`perms`/`epoch`/`randtag` 原样迁移），源槽位全部清零。实现先快照源的 `parent_agent`/`first_child`/`generation`/`revocable`，再摘除源、把 `dst` 挂到原父的 child 链并恢复 `generation`/`revocable`；源的派生子树随之迁移（`dst->first_child = src->first_child`，并逐个改写子节点的 `parent_agent` 为 `dst`），`generation` 不变——MOVE 不产生新的派生深度。根节点的 MOVE 使 `dst` 仍为根。
 - **DELETE**：`airy_cap_mdb_unlink_child()` 摘除源后，先把其子节点提升为根（`parent_agent=0`、`next_sibling=0`、`generation=0`，badge 保留），再清零源槽位。DELETE 不级联；提升为根可避免子节点 `parent_agent` 悬挂指向被复用的槽位，防止后续注册者"继承"旧子树并被 REVOKE。
-- **ROTATE**：`get_random_u32()` 生成新 RandomTag，`smp_store_release` 先写 randtag 再写 badge（写入顺序依据见 `airy_cap_rotate.c` C-S5.5）。
+- **ROTATE**：`get_random_u32()` 生成新 RandomTag，先写 randtag，再经 `cap_pub_badge()` 发布 badge（写入顺序依据见 `airy_cap_rotate.c` C-S5.5）。
 
 ### 3.5 Revoke 操作（级联撤销）
 
