@@ -262,8 +262,9 @@ extern struct airy_cap_slot *agent_caps;   /* __ro_after_init 指针，指向静
 
 /* 全局 Epoch（补充性全局计数器，v1.0.1 K9-1 起不再是主要撤销机制；
  * per-agent epoch（agent_caps[agent_id].epoch）是主要撤销机制；
- * REVOKE 沿 MDB 派生树递归级联（airy_cap_revoke_subtree），
- * 撤销爆炸半径限定在被撤销 Agent 的整棵派生子树内。）
+ * REVOKE 沿 MDB 派生树迭代级联（airy_cap_revoke_subtree，显式栈，
+ * 栈深上限 AIRY_CAP_MAX_AGENTS），撤销爆炸半径限定在被撤销
+ * Agent 的整棵派生子树内。）
  */
 extern atomic_t airy_cap_global_epoch;
 
@@ -839,7 +840,7 @@ enum airy_cap_state {
 | 旧 syscall（v1.0） | 旧编号 | v1.0.1 处理方式 | v1.0.1 落地 |
 |-------------------|-------|--------------|----------|
 | `airy_sys_capability_request` | 592 | 移除 → CAP_REQUEST opcode 自举 | A-IPC `AIRY_IPC_OP_CAP_REQUEST`（无 syscall，无特殊 Badge，无硬编码 dst_task） |
-| `airy_sys_capability_revoke` | 593 | 移除 → `airy_sys_call` + `REVOKE_BADGE` | `airy_cap_derive` + `AIRY_CAP_OP_REVOKE`（沿 MDB 派生树递归级联，`airy_cap_revoke_subtree`，O(N)）|
+| `airy_sys_capability_revoke` | 593 | 移除 → `airy_sys_call` + `REVOKE_BADGE` | `airy_cap_derive` + `AIRY_CAP_OP_REVOKE`（沿 MDB 派生树迭代级联，`airy_cap_revoke_subtree` 显式栈，O(N)）|
 | `airy_sys_lsm_load_policy` | 594 | 移除 → `airy_sys_call` + `LSM_CTL` | sec_d 专属 |
 | `airy_sys_capability_derive` | 595 | 移除 → `airy_sys_call` + `COMPILE_BADGE` | sec_d 专属 |
 | `airy_sys_capability_mint` | 596 | 移除 → `airy_sys_call` + `COMPILE_BADGE` | sec_d 专属 |

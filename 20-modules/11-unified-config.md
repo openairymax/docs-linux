@@ -162,6 +162,7 @@ v1.0.1 Capability Folding 引入以下扩展错误码与故障码，均定义于
 | `kernel.airy.cap_max_agents` | `cap.max_agents` | v1.0.1: `agent_caps[]` 静态数组容量（H4 硬约束，只读 sysctl mode=0444，不支持热重载） | 1024 |
 | `kernel.airy.cap_epoch_bits` | `cap.epoch_bits` | v1.0.1: Badge Epoch 位宽（默认 16-bit） | 16 |
 | `kernel.airy.cap_randtag_bits` | `cap.randtag_bits` | v1.0.1: Badge Random Tag 位宽（默认 32-bit） | 32 |
+| `kernel.airy.cap_used` | —（只读观测，无 YAML 对应项） | v1.0.1: 已占用槽位数（按桶加锁统计的实时估算值，非原子快照） | 0 |
 | `kernel.airy.cap_forge_threshold` | `cap.forge_threshold` | v1.0.1: Badge 伪造检测阈值（连续失败次数，触发警报） | 100 |
 | `kernel.airy.ipc_fastpath_budget_ns` | `ipc.fastpath_budget_ns` | v1.0.1: fastpath C-S9 Badge 校验时间预算（ns） | 10 |
 
@@ -460,6 +461,7 @@ A-IPC 采用 Capability Folding 单平面架构（详见 [10-unify-design.md §8
 | `cap_max_agents` | [SS] | 1024 | 1-1024 | 否（编译时常量） | sysctl（只读 mode=0444）+ YAML/TOML | `agent_caps[]` 静态数组容量（`__aligned(64)`），H4 硬约束；变更需重新编译内核 + 重启 |
 | `cap_epoch_bits` | [SS] | 16 | 8/16/32 | 否 | sysctl + YAML/TOML | Badge Epoch 位宽（1.0.1 可扩展至 32） |
 | `cap_randtag_bits` | [SS] | 32 | 16/32 | 否 | sysctl + YAML/TOML | Random Tag 位宽（防伪造强度） |
+| `cap_used` | [SS] | 0 | 0-1024 | 否（只读派生值） | sysctl（只读 mode=0444） | 已占用槽位数，按 64 桶加锁统计的实时估算值，非原子快照；仅用于观测，不参与决策 |
 | `cap_forge_threshold` | [SS] | 100 | 10-10000 | 是 | sysctl + YAML/TOML | 连续失败次数阈值，触发警报 |
 | `ipc_fastpath_budget_ns` | [SS] | 10 | 5-50 | 是 | sysctl + YAML/TOML | C-S9 Badge 校验时间预算（ns） |
 
