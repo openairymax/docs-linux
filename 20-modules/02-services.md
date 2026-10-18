@@ -206,8 +206,14 @@ services/
   惰性 `epoll_create1(EPOLL_CLOEXEC)` 与 `errno → -AIRY_E*` 收敛；槽位
   下标即 epoll `data.u32`，外部已关闭描述符按已注销处理。内部
   `airy_dmn_mask/attach/detach` 供 IPC 通道注册分片复用。
-- `daemon/` 其余分片：主循环、fd 事件源、IPC 通道注册、周期 tick、
-  信号收口（signalfd：SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
+- `daemon/dmn_loop.c`：主循环与周期 tick——`airy_dmn_run/stop`、
+  `start → epoll → stop` 生命周期、按单调时钟截止点的 tick 调度与
+  回调负值传播；框架自持 `eventfd` 唤醒源（`AIRY_DMN_CTL` 哨兵，
+  不占事件槽位），使 `airy_dmn_stop()` 在无外部事件时立即打断
+  `epoll_wait()`。ERR/HUP 不受注册掩码过滤，避免对端关闭后反复
+  唤醒空转。
+- `daemon/` 其余分片：IPC 通道注册、信号收口（signalfd：
+  SIGTERM/SIGINT 停止、SIGHUP 热加载）与心跳记账。
 - IPC 层按 [SC] `ipc.h` 的 128 字节消息头读取并校验 magic 与长度上界，
   传输介质为 `SOCK_SEQPACKET`/`SOCK_DGRAM`；io_uring_cmd 提交路径随内核
   字符设备就绪后接入同一分派抽象。
