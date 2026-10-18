@@ -852,7 +852,7 @@ seL4 微内核采用 capability-based security——每个安全敏感操作需�
 |-----------|---------------------|------|
 | CNode（Capability Node） | `struct airy_cap_slot`（agent_caps[] 数组项） | v1.0.1: 物理存储替代 airy_cnode（逻辑概念保留，详见 03-capability-model.md §2.1） |
 | CSpace（Capability Space） | `agent_caps` 静态数组（`__airymax_cap_table[1024]`，128KB） | v1.0.1: 替代 radix tree |
-| COPY/MINT/MOVE/MUTATE/REVOKE/DELETE/ROTATE | `airy_cap_derive()`（sec_d 编译 + MDB 递归级联撤销） | v1.0.1: sec_d 唯一写者，REVOKE = 沿 MDB 派生树级联 |
+| COPY/MINT/MOVE/MUTATE/REVOKE/DELETE/ROTATE | `airy_cap_derive()`（sec_d 编译 + MDB 级联撤销） | v1.0.1: sec_d 唯一写者，REVOKE = 沿 MDB 派生树级联 |
 | badge（权限掩码） | Badge 64-bit Native Word（`Epoch<<48 \| RandomTag<<16 \| Perms`） | v1.0.1: 完整 64-bit Badge，含 Epoch + RandomTag + Perms |
 | handleFault() | `airy_fault_enforce()` | Fault 处理（冷酷执法） |
 
@@ -862,7 +862,7 @@ seL4 微内核采用 capability-based security——每个安全敏感操作需�
 |-----------|------------|------|
 | Capability 不可伪造 | sec_d 编译 Badge 时生成 32-bit 随机 Random Tag，fastpath C-S9.RANDTAG 校验 | 防伪造（~10ns 校验） |
 | 最小权限 | Perms 16-bit 位掩码，每操作校验 required perms | 最小授权 |
-| 定向撤销 | `airy_cap_derive()` + `AIRY_CAP_OP_REVOKE` 沿 MDB 派生树递归级联（`airy_cap_revoke_subtree`） | 级联撤销，O(N)，N = 子树节点数 |
+| 定向撤销 | `airy_cap_derive()` + `AIRY_CAP_OP_REVOKE` 沿 MDB 派生树级联撤销（`airy_cap_revoke_subtree` 以显式栈迭代） | 级联撤销，O(N)，N = 子树节点数 |
 | 形式化验证 | 参考验证方法（未完全形式化） | 可信基础 |
 
 ### 5.3 与 seL4 的差异（v1.0.1: agent_caps 静态数组）
@@ -872,7 +872,7 @@ seL4 微内核采用 capability-based security——每个安全敏感操作需�
 | 执行域 | 微内核（纯内核态） | Linux 6.6（LSM 钩子 slowpath + fastpath 内联） | 复用主线 LSM + io_uring 数据面 |
 | Capability 存储 | CSpace（内核对象） | `agent_caps` 静态数组（`__airymax_cap_table[1024]`，128KB） | v1.0.1: 替代 radix tree，无锁多读者 |
 | 校验方式 | 内核内联 | fastpath C-S9 内联（~10ns） + slowpath LSM | v1.0.1: fastpath/slowpath 职责分割 |
-| 撤销机制 | 递归遍历 CSpace（O(n)） | `airy_cap_derive()` + `AIRY_CAP_OP_REVOKE` 沿 MDB 派生树递归级联（O(N)） | v1.0.1 K9-1: REVOKE 级联失效子树（对齐 seL4 cteRevoke）；全局 `airy_cap_global_epoch` 仅作补充性计数器 |
+| 撤销机制 | 递归遍历 CSpace（O(n)） | `airy_cap_derive()` + `AIRY_CAP_OP_REVOKE` 沿 MDB 派生树级联撤销（O(N)，显式栈迭代） | v1.0.1 K9-1: REVOKE 级联失效子树（对齐 seL4 cteRevoke）；全局 `airy_cap_global_epoch` 仅作补充性计数器 |
 | 形式化验证 | 完全形式化 | 未形式化（CBMC 全函数验证 fastpath） | 工程权衡 |
 
 ---
