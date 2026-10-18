@@ -195,7 +195,7 @@ services/
 - `include/airy/daemon.h`：公共契约唯一权威源——daemon 生命周期状态机
   （`AIRY_DMN_INIT/RUNNING/STOPPING/STOPPED`）、fd 事件源
   （`AIRY_DMN_IN/OUT/ERR/HUP`）、`struct airy_dmn_cfg`、`struct airy_dmn_ops`、
-  `struct airy_dmn_src`、`struct airy_dmn_frame` 与 15 个 `airy_dmn_*()`
+  `struct airy_dmn_src`、`struct airy_dmn_frame` 与 16 个 `airy_dmn_*()`
   原型。
 - `daemon/dmn_int.h`：内部契约——统一事件源表（`enum airy_dmn_kind` +
   回调联合体）、`struct airy_dmn` 上下文与槽位上限；仅供实现分片包含，
@@ -243,6 +243,12 @@ services/
   且不分配堆内存；`*done` 报告已完整写出的帧数，部分写出返回
   `-AIRY_EAGAIN`，调用方只能从该位置续发，重发整批会产生重复消息。
   io_uring_cmd 提交路径随内核字符设备就绪后接入同一分派抽象。
+- `daemon/dmn_notify.c`：systemd 就绪与看门狗上报——`airy_dmn_notify()`
+  读取 `NOTIFY_SOCKET`（`@` 前缀表示抽象命名空间），以单条 Unix 数据报
+  投递调用方给定的状态串；只做传输、不解析内容，不链接 libsystemd。
+  未在 systemd 下运行时按无操作成功返回，发送失败不改变 daemon 生命
+  周期；`Type=notify` 的 `READY=1` 与 `WatchdogSec` 的周期 `WATCHDOG=1`
+  由各 daemon 经同一入口上报，语义见 07-systemd-integration.md §3.3。
 - 构建目标 `airy_daemon` 为 STATIC 库并链接 zlib：导出头文件与 [SC]
   头搜索路径，实现分片随各任务逐步并入。
 - [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
