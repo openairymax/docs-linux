@@ -331,7 +331,7 @@ if (unlikely(required == 0xFFFF || (perms & required) != required))
 | Badge 泄露 | sec_d 编译时绑定 Agent ID，跨 Agent 不可复用 | agent_caps[agent_id].randtag 比对 |
 | 暴力枚举 | 2^48（Random Tag + Epoch）组合空间，单次校验 ~10ns | 不可行（10^15 ns ≈ 31 年）|
 
-**Epoch 溢出处理**：16 位 Epoch 理论上 65535 次撤销后溢出。实际场景中，agent-linux 单节点 Agent 终止-重启频率 < 1 次/秒，溢出周期 > 18 小时。溢出时 sec_d 重新编译所有 Badge（全量刷新），不影响系统可用性。
+**Epoch 溢出处理**：16 位 Epoch 理论上 65535 次撤销后溢出。实际场景中，agent-linux 单节点 Agent 终止-重启频率 < 1 次/秒，溢出周期 > 18 小时。Epoch 0 为保留值（空槽/未初始化），所有递增统一经 `airy_epoch_next()`：`0xFFFF` 的后继为 `1` 而非 `0`。DELETE、MOVE 清源槽与 unreg 回收同样推进 epoch 而不回绕为固定值，使清槽前签发的 Badge 因 epoch 不匹配被 C-S9 #1 拒绝，避免 CAP_REQUEST 重放旧 Badge。溢出时 sec_d 重新编译所有 Badge（全量刷新），不影响系统可用性。
 
 ### 2.6 Badge 编译与校验完整实现（v1.0.1 新增）
 
