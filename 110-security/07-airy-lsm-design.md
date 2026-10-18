@@ -733,11 +733,11 @@ __u64 airy_cap_badge_compile(__u32 agent_id, __u16 perms)
 | 钩子 | 触发场景 | 校验内容 | v1.0.1 变更 |
 |------|---------|---------|----------|
 | `security_uring_cmd` | io_uring_cmd 提交 | Badge 校验（核心，IPC fastpath）+ opcode 白名单分发 | v1.0.1: 仅 slowpath，fastpath C-S9 内联；opcode 白名单改在本钩子内部分发 |
-| `security_task_kill` | kill 信号 | `AIRY_CAP_PERM_KILL` 权限 | 无变更 |
-| `security_file_open` | 文件打开 | `AIRY_CAP_PERM_FILE_OPEN` 权限 | 无变更 |
-| `security_file_ioctl` | 文件 ioctl | buffer 注册类操作校验（替代虚构的 uring_register_buffers） | v1.0.1: 替代 v1.0 误注册的 uring_register_buffers |
+| `security_task_kill` | kill 信号 | 槽位自洽性 + `AIRY_CAP_PERM_KILL` 权限（`airy_cap_check()`） | v1.0.1: slowpath 槽位校验，含撤销检测（原自引用 Badge 校验恒真） |
+| `security_file_open` | 文件打开 | 槽位自洽性 + `AIRY_CAP_PERM_FILE_OPEN` 权限（`airy_cap_check()`） | v1.0.1: slowpath 槽位校验，含撤销检测（原自引用 Badge 校验恒真） |
+| `inode_alloc_security` / `inode_free_security` | inode blob 初始化/清理 | 无 capability 校验，仅维护 inode 安全 blob | 无变更 |
 
-> **OLK 6.6 对齐说明**：v1.0 文档曾注册 `security_uring_sqe` 和 `security_uring_register_buffers` 两个虚构 LSM 钩子，但 OLK 6.6 `include/linux/lsm_hook_defs.h` 中**仅定义 3 个 io_uring 钩子**（`uring_override_creds`/`uring_sqpoll`/`uring_cmd`），不存在上述两个钩子。v1.0.1 已删除虚构钩子，opcode 白名单改在 `security_uring_cmd` 内部基于 `ioucmd->cmd_op` 分发，buffer 注册校验改由 `security_file_ioctl` 等既有钩子承担。
+> **OLK 6.6 对齐说明**：v1.0 文档曾注册 `security_uring_sqe` 和 `security_uring_register_buffers` 两个虚构 LSM 钩子，但 OLK 6.6 `include/linux/lsm_hook_defs.h` 中**仅定义 3 个 io_uring 钩子**（`uring_override_creds`/`uring_sqpoll`/`uring_cmd`），不存在上述两个钩子。v1.0.1 已删除虚构钩子，opcode 白名单改在 `security_uring_cmd` 内部基于 `ioucmd->cmd_op` 分发；buffer 注册类校验尚未注册独立钩子，待对应权限位正式立项后在 `airy_uring_cmd_check()` 的子命令分支内实现。
 
 ---
 
@@ -781,6 +781,7 @@ static int airy_uring_opcode_check(struct io_uring_cmd *ioucmd)
 static int airy_uring_buffer_register_check(struct io_uring_cmd *ioucmd)
 {
     struct airy_ipc_cmd *cmd = io_uring_cmd_to_pdu(ioucmd, struct airy_ipc_cmd);
+    struct airy_task_sec *sec = current->security + airy_blob_sizes.lbs_task;
     void __user *addr = (void __user *)cmd->addr;
     unsigned long size = cmd->size;
 
@@ -790,8 +791,8 @@ static int airy_uring_buffer_register_check(struct io_uring_cmd *ioucmd)
      * [IND] 规划码：AIRY_CAP_REGISTER_BUFFER 未注册于 [SC] security_types.h，
      *       待 buffer 注册权限位正式立项后分配（现以 AIRY_CAP_PERM_FILE_OPEN 等实有权限位替代）
      */
-    if (airy_cap_check(current_agent_id(), current_cap_id(),
-                       AIRY_CAP_PERM_FILE_OPEN) < 0)
+    if (sec->agent_id != 0 &&
+        airy_cap_check(sec->agent_id, AIRY_CAP_PERM_FILE_OPEN))
         return -AIRY_ECAP_PERM;
 
     /* 2. 地址与大小校验 */

@@ -722,33 +722,49 @@ cap_pass:
 
 ```c
 /**
- * airy_cap_check - 混合 capability 检查（slowpath，非 IPC 路径）
- * @agent_id: Agent ID
- * @cap_id:   seL4 风格 capability ID（0 = 仅检查 POSIX）
- * @posix_cap: POSIX capability 编号（0 = 仅检查 seL4 风格）
- * @resource: 资源路径（可选，用于审计）
+ * airy_cap_check - slowpath capability 检查（非 IPC 路径）
+ * @agent_id:       Agent ID
+ * @required_perms: 要求同时具备的权限位掩码（AIRY_CAP_PERM_*）
  *
- * 返回: 0 允许，-AIRY_EPERM 拒绝
+ * 返回: 0 允许，<0 AIRY_ECAP_* 错误码
+ *   -AIRY_ECAP_MISSING (-76) 槽位越界或空槽
+ *   -AIRY_ECAP_EPOCH   (-79) Epoch 不匹配（Badge 已撤销）
+ *   -AIRY_ECAP_FORGED  (-80) Random Tag/Perms 与 Badge 不一致
+ *   -AIRY_ECAP_PERM    (-81) 权限不足
  *
- * v1.0.1 起此函数仅用于非 IPC 路径（LSM 钩子：inode_permission /
- * file_open / task_create 等）。A-IPC 路径走 fastpath C-S9 内联。
+ * v1.0.1 起此函数仅用于非 IPC 路径（LSM 钩子：task_kill /
+ * file_open 等）。A-IPC 路径走 fastpath C-S9 内联。
  *
- * 检查流程:
- *   1. 若 cap_id > 0，检查 seL4 风格 capability 令牌
- *   2. 若 posix_cap >= 0，检查 POSIX capability 位图
- *   3. 两者都通过才允许
+ * 检查流程（桶锁下取一致快照，避免 ROTATE 造成撕裂读）:
+ *   1. 槽位越界或 badge == AIRY_CAP_NULL → MISSING
+ *   2. slot->epoch   != AIRY_BADGE_EPOCH(badge)  → EPOCH（已撤销）
+ *   3. slot->randtag != AIRY_BADGE_RANDTAG(badge) → FORGED
+ *      或 slot->perms != AIRY_BADGE_PERMS(badge)  → FORGED
+ *   4. (perms & required_perms) != required_perms → PERM
+ *
+ * 与快速路径的差异：调用方没有消息头里的 Badge，只能以槽位自身
+ * 四个字段的自洽性作为"能力仍然有效"的判据。airy_cap_revoke_subtree()
+ * 只递增 epoch、清零 randtag，不改 badge/perms，因此纯权限位检查
+ * 会放行已撤销的能力，必须保留 epoch/randtag 一致性校验。
  *
  * ARCH-2 形式化验证注解（seL4 l4v 风格，用于 Isabelle/HOL 证明）：
  * MODIFIES: (无全局状态修改 — 纯检查函数)
  * FNSPEC: airy_cap_check_spec:
  *   "∀s. Γ ⊢ {s}
- *        Call airy_cap_check(agent_id, cap_id, posix_cap, resource)
- *        {r. r = 0 ⟶ has_capability(agent_id, cap_id) ∧
- *                     has_posix_cap(agent_id, posix_cap)}"
+ *        Call airy_cap_check(agent_id, required_perms)
+ *        {r. r = 0 ⟶ live_capability(s, agent_id) ∧
+ *                     has_perms(s, agent_id, required_perms)}"
  */
-int airy_cap_check(uint32_t agent_id, uint32_t cap_id,
-                     int posix_cap, const char *resource);
+int airy_cap_check(__u32 agent_id, __u16 required_perms);
 ```
+
+> **[IND] 实现差异标注（v0.0.3）**：本函数早期设计为
+> `airy_cap_check(agent_id, cap_id, posix_cap, resource)` 四参数形式。
+> 其中 `cap_id` 依赖尚未实现的 B-02 CNode，`posix_cap` 依赖当前内核树
+> 中不存在的 per-agent POSIX capability 位图，`resource` 仅用于审计。
+> 在两者均无可消费实现时保留这些参数只会产生未使用参数或桩实现，
+> 违反"严禁桩函数"原则，因此 v0.0.3 收敛为实际可执行的
+> `(agent_id, required_perms)` 两参数形式；B-02 CNode 落地后再行扩展。
 
 ---
 
@@ -1216,16 +1232,16 @@ static struct security_hook_list capability_hooks[] __lsm_ro_after_init = {
 
 ### 11.1 v1.0.1 守卫模式变更
 
-**v1.0.1 起，A-IPC 路径不再使用独立 capability 守卫**——Badge 校验已"折叠"到 fastpath C-S9 内联。原 v1.0 的 `AIRY_CAP_GUARD` 宏（前置申请 + 操作 + 撤销）仅保留给非 IPC 路径（LSM 钩子）使用。
+**v1.0.1 起，A-IPC 路径不再使用独立 capability 守卫**——Badge 校验已"折叠"到 fastpath C-S9 内联。原 v1.0 的守卫配对模式仅保留概念给非 IPC 路径，实际落地为 `airy_cap_check()` 的 slowpath 槽位校验。
 
 | 路径 | v1.0 守卫模式 | v1.0.1 守卫模式 |
 |------|--------------|--------------|
 | A-IPC 消息投递 | `AIRY_CAP_GUARD` 前置申请 → `airy_sys_ipc_send` → `AIRY_CAP_GUARD_END` 撤销（3 步） | fastpath C-S9 内联 Badge 校验（1 步，~10ns） |
-| 信号发送（`task_kill` 钩子） | `AIRY_CAP_GUARD` 前置申请 → 操作 → 撤销 | **入口对称 Badge 校验**：`airy_lsm.task_kill` → `airy_cap_badge_ok(AIRY_CAP_PERM_KILL)`，对称于 uring_cmd（P0-3） |
-| 文件访问（`file_open` 钩子） | `AIRY_CAP_GUARD` 前置申请 → 操作 → 撤销 | **入口对称 Badge 校验**：`airy_lsm.file_open` → `airy_cap_badge_ok(AIRY_CAP_PERM_FILE_OPEN)`，对称于 uring_cmd（P0-3） |
+| 信号发送（`task_kill` 钩子） | `AIRY_CAP_GUARD` 前置申请 → 操作 → 撤销 | **slowpath 槽位校验**：`airy_cap_check(agent_id, AIRY_CAP_PERM_KILL)` |
+| 文件访问（`file_open` 钩子） | `AIRY_CAP_GUARD` 前置申请 → 操作 → 撤销 | **slowpath 槽位校验**：`airy_cap_check(agent_id, AIRY_CAP_PERM_FILE_OPEN)` |
 | 内存映射（LSM 钩子） | `AIRY_CAP_GUARD` 前置申请 → 操作 → 撤销 | 保留 v1.0 模式（slowpath `airy_cap_check()`） |
 
-**入口对称性（P0-3，airy_lsm 7 钩子）**：airy_lsm 注册 7 个 LSM 钩子——`uring_cmd`（IPC 数据面）、`task_alloc`/`task_free`（Agent 生命周期）、`task_kill`（信号）、`file_open`（文件）、`inode_alloc_security`/`inode_free_security`（inode blob 初始化）。其中 `uring_cmd` / `task_kill` / `file_open` 三个**安全入口**均走 `airy_cap_badge_ok()` Badge 校验，形成入口对称（语义一致：任何安全敏感操作均需 Badge 授权）。`agent_id == 0`（未注册的 init/kernel 线程）跳过 Badge 校验以保持向后兼容。实现见 `security/airy/airy_lsm.c`。
+**入口对称性（P0-3，airy_lsm 7 钩子）**：airy_lsm 注册 7 个 LSM 钩子——`uring_cmd`（IPC 数据面）、`task_alloc`/`task_free`（Agent 生命周期）、`task_kill`（信号）、`file_open`（文件）、`inode_alloc_security`/`inode_free_security`（inode blob 初始化）。其中 `uring_cmd` / `task_kill` / `file_open` 三个**安全入口**均强制 capability 授权，形成入口对称：`uring_cmd` 有调用方提供的 Badge，走 fastpath `airy_cap_badge_ok()`；`task_kill` / `file_open` 没有 Badge，走 slowpath `airy_cap_check()`，以槽位自洽性判定能力有效性。`agent_id == 0`（未注册的 init/kernel 线程）跳过能力校验以保持向后兼容。实现见 `security/airy/airy_lsm.c`。
 
 ### 11.2 A-IPC 路径的 fastpath C-S9 守卫（v1.0.1 新增）
 
@@ -1262,31 +1278,31 @@ io_uring_submit(ring);  /* fastpath: airy_ipc_validate() → airy_cap_badge_ok()
 
 ### 11.3 非 IPC 路径的 slowpath 守卫（保留 v1.0 模式）
 
-非 IPC 路径（文件访问、内存映射等 LSM 钩子）仍使用 `AIRY_CAP_GUARD` 宏：
+非 IPC 路径（文件访问、信号发送等 LSM 钩子）没有消息头 Badge 可校验，
+改由 `airy_cap_check()` 在能力槽位上做 slowpath 守卫：
 
 ```c
 /**
- * capability 守卫宏（v1.0.1: 仅用于非 IPC 路径的 LSM 钩子）
- * A-IPC 路径走 fastpath C-S9 内联，不使用此宏。
+ * 非 IPC 路径的 slowpath 守卫（实际实现见 airy_lsm.c）
+ * @agent_id:       调用方 Agent ID（0 表示未注册，跳过能力检查）
+ * @required_perms: 要求同时具备的权限位掩码
+ *
+ * 返回 0 允许；<0 为 AIRY_ECAP_* 原因码。钩子必须把它翻译成
+ * POSIX errno（-EPERM / -EACCES）后再返回给调用方。
  */
-#define AIRY_CAP_GUARD(cap_name, resource) ({            \
-    int __cap = airy_cap_check(current_agent_id(),       \
-                                 0, (cap_name), (resource)); \
-    if (__cap < 0) {                                        \
-        log_write(AIRY_LOG_ERROR, "capability denied: %d", __cap); \
-        return -AIRY_EPERM;                              \
-    }                                                       \
-    __cap;                                                  \
-})
-
-#define AIRY_CAP_GUARD_END(cap_slot)  \
-    /* v1.0.1: 非 IPC 路径无需撤销令牌（slowpath 不持有 Badge）*/
+if (sec->agent_id != 0 &&
+    airy_cap_check(sec->agent_id, AIRY_CAP_PERM_FILE_OPEN))
+	return -EACCES;
 ```
+
+slowpath 不持有 Badge，因此没有"前置申请 + 事后撤销"的配对动作；
+`airy_cap_check()` 以槽位 epoch/randtag/perms 与 Badge 内嵌副本的
+自洽性作为能力仍有效的判据（详见 §4.3.2）。
 
 ### 11.4 守卫使用示例（v1.0.1）
 
 ```c
-/* A-IPC 路径: 无需守卫宏，fastpath C-S9 内联校验 */
+/* A-IPC 路径: 无独立守卫，fastpath C-S9 内联校验 Badge */
 int airy_ipc_send(const struct airy_ipc_msg_hdr *hdr,
                    const void *payload)
 {
@@ -1294,14 +1310,21 @@ int airy_ipc_send(const struct airy_ipc_msg_hdr *hdr,
     return io_uring_submit(ring);
 }
 
-/* 非 IPC 路径: 使用 AIRY_CAP_GUARD 宏 */
-int airy_file_open(const char *path, int flags)
+/* 非 IPC 路径: LSM 钩子内调用 slowpath 守卫 */
+static int airy_file_open(struct file *file)
 {
-    /* [IND] 示例：AIRY_CAP_FILE_READ 非 [SC] 实有 cap ID，此处以 [SC] 权限位 AIRY_CAP_PERM_FILE_OPEN 示意 */
-    int cap = AIRY_CAP_GUARD(AIRY_CAP_PERM_FILE_OPEN, path);
-    int fd = __do_file_open(path, flags);
-    AIRY_CAP_GUARD_END(cap);
-    return fd;
+    struct airy_task_sec *sec = airy_tsec(current);
+
+    if (sec->agent_state == AIRY_AGENT_STOPPED ||
+        sec->agent_state == AIRY_AGENT_DEAD)
+        return -EACCES;
+
+    if (sec->agent_id != 0 &&
+        airy_cap_check(sec->agent_id, AIRY_CAP_PERM_FILE_OPEN))
+        return -EACCES;
+
+    /* 其余策略裁决交由 DSL 策略表 */
+    return airy_policy_check(AIRY_POLICY_HOOK_FILE_OPEN, fields, NULL);
 }
 ```
 

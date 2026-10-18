@@ -421,7 +421,11 @@ static int airy_uring_cmd_security_check(struct io_uring_cmd *ioucmd,
      *       （详见 07-airy-lsm-design.md §3.3）。
      */
     if (airy_op_needs_cap(cmd->op)) {
-        int ret = airy_cap_check(current_agent_id(), cmd->cap_id, cmd->required_badge);
+        struct airy_task_sec *sec =
+            current->security + airy_blob_sizes.lbs_task;
+        __u16 required = airy_op_required_perms((__u16)cmd->op);
+        int ret = airy_cap_check(sec->agent_id, required);
+
         if (ret < 0) {
             /* Capability 校验失败：冷酷执法 */
             return airy_fault_enforce(AIRY_FAULT_ABNORMAL_CAP, cmd);
@@ -497,14 +501,16 @@ static int airy_uring_register_buffer_check(struct io_ring_ctx *ctx,
                                               void __user *addr,
                                               unsigned long size)
 {
+    struct airy_task_sec *sec = current->security + airy_blob_sizes.lbs_task;
+
     /* 1. Capability 校验：必须拥有 buffer 注册权限
      * [IND] 规划码：AIRY_CAP_REGISTER_BUFFER 未注册于 [SC] security_types.h，
      *       现以实有权限位 AIRY_CAP_PERM_FILE_OPEN 替代（待正式立项后分配专用位）
      * v1.0.1: buffer 注册是 non-IPC 路径，走 slowpath airy_cap_check()
      *       （IPC fastpath 走 C-S9 Badge 内联校验，详见 03-capability-model.md §4.3.2）
      */
-    if (airy_cap_check(current_agent_id(), current_cap_id(),
-                       AIRY_CAP_PERM_FILE_OPEN) < 0) {
+    if (sec->agent_id != 0 &&
+        airy_cap_check(sec->agent_id, AIRY_CAP_PERM_FILE_OPEN)) {
         pr_warn("airy: buffer register denied (no cap) pid=%d\n",
                 current->pid);
         return -AIRY_ECAP_PERM;
