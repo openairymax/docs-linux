@@ -544,6 +544,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
 
 ### 3.4 MDB 派生树维护（MOVE / DELETE / ROTATE）
 
+- **目标槽位约束**：COPY/MINT/MOVE 是仅有的三个向 `dst_agent` 安装 badge 的操作，安装前统一校验目标槽位：`dst_agent == 0`（MDB unbound 哨兵，所有父子链用 0 表示"无"）返回 `-AIRY_EINVAL`；`dst_agent >= AIRY_CAP_MAX_AGENTS` 返回 `-AIRY_ECAP_OVERFLOW`；槽位非空返回 `-AIRY_EEXIST`。任一校验失败时源槽与目标槽均保持不变。MUTATE/REVOKE/DELETE/ROTATE 忽略 `dst_agent`。
 - **MOVE**：`dst` 接管 badge 与 MDB 位置（`badge`/`perms`/`epoch`/`randtag` 原样迁移），源槽位全部清零。实现先快照源的 `parent_agent`/`first_child`/`generation`/`revocable`，再摘除源、把 `dst` 挂到原父的 child 链并恢复 `generation`/`revocable`；源的派生子树随之迁移（`dst->first_child = src->first_child`，并逐个改写子节点的 `parent_agent` 为 `dst`），`generation` 不变——MOVE 不产生新的派生深度。根节点的 MOVE 使 `dst` 仍为根。
 - **DELETE**：`airy_cap_mdb_unlink_child()` 摘除源后，先把其子节点提升为根（`parent_agent=0`、`next_sibling=0`、`generation=0`，badge 保留），再清零源槽位。DELETE 不级联；提升为根可避免子节点 `parent_agent` 悬挂指向被复用的槽位，防止后续注册者"继承"旧子树并被 REVOKE。
 - **ROTATE**：`get_random_u32()` 生成新 RandomTag，`smp_store_release` 先写 randtag 再写 badge（写入顺序依据见 `airy_cap_rotate.c` C-S5.5）。
@@ -799,7 +800,7 @@ stateDiagram-v2
     Active --> Expired: 超时自动过期（expires_ns 到达）
 
     Derived --> Used: 派生令牌执行操作
-    Derived --> Revoked: 递归撤销（原令牌撤销时自动撤销）
+    Derived --> Revoked: 级联撤销（沿 MDB 派生树失效 revocable 后代）
 
     Transferred --> Active: 目标 Agent 接收
     Transferred --> Revoked: 传递失败或撤销
@@ -2119,55 +2120,58 @@ static int airy_epoch_gossip_merge(uint32_t agent_id, uint16_t remote_epoch)
 
 ### 14.1 单元测试（KUnit）
 
-| 测试项 | 测试方法 | 通过标准 |
-|--------|---------|---------|
-| CNode 分配 | 创建 CNode 并检查 cap_id | cap_id 唯一且 > 0 |
-| Mint 缩减 | `airy_cap_derive` + `AIRY_CAP_OP_MINT` 后子 badge ≤ 父 badge | badge = 父 & new_perms |
-| COPY/MINT 跨 Agent | COPY/MINT 到目标 Agent | 目标槽位包含新 cap（MDB 链接） |
-| Revoke 递归 | revoke 后检查所有派生 cap | 全部 REVOKED |
-| 过期检查 | 设置 expires_ns 并等待 | 自动 EXPIRED |
-| badge 越权 | 子 cap 请求超出 badge 的操作 | 返回 -EPERM |
+0.0.3 的 capability 单元测试全部为 KUnit 套件，随 `CONFIG_AIRY_KUNIT=y` 编入内核并在 UML 上运行（`kunit.py run --arch=um --kunitconfig=security/airy`，全量 291 例通过）。测试直接操作 `agent_caps[]`，每个套件的 `.init`/`.exit` 快照并恢复自身占用的槽位，不残留全局状态。
+
+| 套件 | 文件 | 用例数 | 覆盖点 | 通过标准 |
+|------|------|-------|--------|---------|
+| `airy_cap_array` | `security/airy/airy_cap_array_test.c` | 4 | `airy_cap_register()` 拒绝 agent 0 / 越界 / 已占用；badge 解码 | 分别返回 `-AIRY_EINVAL` / `-AIRY_ECAP_OVERFLOW` / `-AIRY_EEXIST`；槽位字段与 badge 位域一致 |
+| `airy_cap_derive` | `security/airy/airy_cap_derive_test.c` | 19 | COPY/MINT 权限单调性；MOVE/DELETE 的 MDB 迁移与子节点提升；ROTATE 重编译 badge；REVOKE 深链；UNREG；COPY/MINT/MOVE 拒绝 `dst_agent == 0` | 派生 badge 权限 ≤ 源权限；MDB 链接符合 §3.4；旧 badge 失效；被拒绝的派生不改动任一槽位 |
+| `airy_cap_lifecycle` | `security/airy/airy_cap_lifecycle_test.c` | 8 | `register → badge_ok/check → 派生 → 旧 badge 失效` 端到端；REVOKE / ROTATE / UNREG / DELETE / MOVE / MUTATE | fastpath 与 slowpath 结论一致；REVOKE/UNREG 返回 `-AIRY_ECAP_EPOCH`，ROTATE 返回 `-AIRY_ECAP_FORGED`，MUTATE 缩权后返回 `-AIRY_ECAP_PERM`，DELETE 后返回 `-AIRY_ECAP_MISSING` |
+| `airy_cap_sysctl` | `security/airy/airy_cap_sysctl_test.c` | 3 | `kernel.airy.cap_used` 计数与 sysctl 读写周期 | 计数随注册/清空变化，越界值被拒绝 |
 
 ### 14.2 集成测试（kselftest）
 
-| 测试场景 | 步骤 | 预期结果 |
-|---------|------|---------|
-| 完整生命周期 | request→use→revoke | 状态转换正确 |
-| IPC 传递 | Agent A 派生→IPC 传递→Agent B 接收 | B 获得派生 cap |
-| 递归撤销 | root→derive→derive→revoke root | 全部撤销 |
-| LSM 共存 | capability + Landlock + Cupolas | 短路评估正确 |
-| POSIX 混合 | seL4 cap + POSIX cap 同时检查 | 两者都通过才允许 |
+0.0.3 尚未提供 capability 的 kselftest 用例：当前能力接口仅为内核内 `airy_cap_*` API，C-03 superv IPC 协议层及用户态 `airy_sys_call` 的 `COMPILE_BADGE`/`REVOKE_BADGE` 子命令尚未落地，无法从用户态构造可验证的端到端场景。IPC 传递、LSM 共存、POSIX 混合等场景在 B-03/C-03 完成后随接口补充；在此之前 §14.1 的 KUnit 套件是 capability 语义的唯一自动化验收依据，本文档不声明未实现的测试。
 
 ### 14.3 KUnit 测试示例
 
+以下摘自 `airy_cap_lifecycle_test.c` 的级联撤销用例，使用真实 API 与真实断言：
+
 ```c
-/* KUnit 测试：递归撤销 */
-static void test_cap_revoke_recursive(struct kunit *test)
+static void revoke_kills_subtree_test(struct kunit *test)
 {
-    uint32_t root_cap, child1, child2, grandchild;
+	struct airy_cap_slot *root = &agent_caps[TEST_ROOT_AGENT];
+	struct airy_cap_slot *child = &agent_caps[TEST_CHILD_AGENT];
+	__u64 root_badge, child_badge;
 
-    /* 1. 创建根 capability */
-    KUNIT_EXPECT_EQ(test, 0,
-        airy_cap_create(AGENT_TYPE_ENDPOINT, 0xFF, &root_cap));
+	KUNIT_ASSERT_EQ(test, 0, life_register(TEST_ROOT_AGENT, TEST_PERMS));
+	KUNIT_ASSERT_EQ(test, 0,
+		airy_cap_derive(TEST_ROOT_AGENT, TEST_CHILD_AGENT,
+				AIRY_CAP_OP_COPY, 0));
+	root_badge = root->badge;
+	child_badge = child->badge;
 
-    /* 2. 派生两个子 capability（统一 airy_cap_derive 入口，MINT 降级）*/
-    KUNIT_EXPECT_EQ(test, 0,
-        airy_cap_derive(agent_a, agent_b, AIRY_CAP_OP_MINT, 0x0F));
-    KUNIT_EXPECT_EQ(test, 0,
-        airy_cap_derive(agent_a, agent_c, AIRY_CAP_OP_MINT, 0x33));
+	KUNIT_ASSERT_EQ(test, 0,
+		airy_cap_derive(TEST_ROOT_AGENT, 0,
+				AIRY_CAP_OP_REVOKE, 0));
 
-    /* 3. child1 再派生孙 capability */
-    KUNIT_EXPECT_EQ(test, 0,
-        airy_cap_derive(agent_b, agent_d, AIRY_CAP_OP_MINT, 0x03));
+	/* 级联撤销：epoch 递增并清零 randtag */
+	KUNIT_EXPECT_EQ(test, (__u16)(TEST_EPOCH + 1), root->epoch);
+	KUNIT_EXPECT_EQ(test, (__u16)(TEST_EPOCH + 1), child->epoch);
+	KUNIT_EXPECT_EQ(test, (__u32)0, root->randtag);
+	KUNIT_EXPECT_EQ(test, (__u32)0, child->randtag);
 
-    /* 4. 撤销根 capability（v1.0.1 K9-1: 通过 airy_cap_derive + AIRY_CAP_OP_REVOKE）*/
-    KUNIT_EXPECT_EQ(test, 0,
-        airy_cap_derive(agent_a, agent_a, AIRY_CAP_OP_REVOKE, 0));
-
-    /* 5. 验证所有派生 capability 已撤销 */
-    KUNIT_EXPECT_EQ(test, get_cap_state(child1), AIRY_CAP_STATE_REVOKED);
-    KUNIT_EXPECT_EQ(test, get_cap_state(child2), AIRY_CAP_STATE_REVOKED);
-    KUNIT_EXPECT_EQ(test, get_cap_state(grandchild), AIRY_CAP_STATE_REVOKED);
+	/* 旧 badge 在 fastpath 与 slowpath 上同时失效 */
+	KUNIT_EXPECT_EQ(test, -AIRY_ECAP_EPOCH,
+		airy_cap_badge_ok(root_badge, TEST_ROOT_AGENT,
+				  AIRY_CAP_PERM_SEND));
+	KUNIT_EXPECT_EQ(test, -AIRY_ECAP_EPOCH,
+		airy_cap_badge_ok(child_badge, TEST_CHILD_AGENT,
+				  AIRY_CAP_PERM_SEND));
+	KUNIT_EXPECT_EQ(test, -AIRY_ECAP_EPOCH,
+		airy_cap_check(TEST_ROOT_AGENT, AIRY_CAP_PERM_SEND));
+	KUNIT_EXPECT_EQ(test, -AIRY_ECAP_EPOCH,
+		airy_cap_check(TEST_CHILD_AGENT, AIRY_CAP_PERM_SEND));
 }
 ```
 
