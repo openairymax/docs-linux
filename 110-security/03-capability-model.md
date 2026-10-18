@@ -491,7 +491,7 @@ spinlock_t airy_cap_bucket_locks[AIRY_CAP_BUCKET_NR] = {
 | **COPY** | 复制 capability（可选权限降级） | 子 badge = 父 badge（`new_perms!=0` 时降级） | 克隆 cap 给其他 Agent |
 | **MINT** | 铸造 capability（始终降级） | 子 badge = 父 badge & new_perms | 将全权 cap 缩减为受限 cap |
 | **MOVE** | 移动 capability（转移） | badge 不变，源槽位清零 | 转移 cap 所有权 |
-| **MUTATE** | 变异权限位（不重新生成 RandomTag） | badge.perms = new_perms | 动态调整权限 |
+| **MUTATE** | 变异权限位（不重新生成 RandomTag） | badge.perms = new_perms（必须 ⊆ 源权限） | 动态收紧权限 |
 | **REVOKE** | 递归级联撤销（MDB 派生树） | 子树全部失效 | Agent 终止时清理 |
 | **DELETE** | 删除单个 capability | 槽位清零，不级联 | 释放单一 cap |
 | **ROTATE** | 轮换 Badge（重新生成 RandomTag） | RandomTag 更新，Epoch/Perms 保留 | 定期轮换降低暴力破解风险 |
@@ -527,6 +527,7 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
  *     REVOKE(4) / DELETE(5) / ROTATE(6)
  * new_perms: COPY/MINT 的降级掩码；MUTATE 的目标权限位；
  *            MOVE/REVOKE/DELETE/ROTATE 传 0
+ *            保留位（0xFF80）在所有路径上均被拒绝（-AIRY_EINVAL）
  * 返回: 0 成功，负值 airy_err_t
  */
 ```
@@ -540,7 +541,9 @@ int airy_cap_derive(__u32 src_agent, __u32 dst_agent,
 |------|---------|------|
 | **COPY** | `new_perms==0` 原样克隆；`new_perms!=0` 取交集 `new_perms & src.perms` | 对齐 seL4 `maskCapRights`（P1-10 fix）|
 | **MINT** | 始终降级 `perms = new_perms & src.perms` | 铸造受限 cap（对齐 seL4 mint）|
-| **MUTATE** | 直接写入 `new_perms` | 就地修改权限位，不重新生成 RandomTag |
+| **MUTATE** | 仅允许收紧：要求 `new_perms ⊆ src.perms`，越权返回 `-AIRY_ECAP_PERM` | 就地修改权限位，不重新生成 RandomTag |
+
+三种操作在入口统一校验 `new_perms & AIRY_CAP_PERM_RESERVED`，非零返回 `-AIRY_EINVAL`：CAP_RESPONSE 安装路径已按 C-S10 拒绝保留位，派生路径若放行就会在槽位中留下安装路径永远不会接受的 badge。MUTATE 没有 COPY/MINT 的交集步骤，因此显式执行同一权限衰减不变量——capability 只能失去权限，不能获得权限。
 
 ### 3.4 MDB 派生树维护（MOVE / DELETE / ROTATE）
 
