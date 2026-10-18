@@ -1537,19 +1537,31 @@ airy_sys_call(AIRY_OP_REVOKE_BADGE, &derived_badge);
 ### 13.3 Agent 终止时递归撤销
 
 ```c
-/* Agent 终止时清理所有 capability（对齐 01-agent-lifecycle.md 第 5.2 节）*/
+/*
+ * Agent 终止时清理所有 capability（对齐 01-agent-lifecycle.md 第 5.2 节）。
+ *
+ * airy_cap_unreg() 在一次全桶加锁内完成撤销与删除两件事。若拆成两次
+ * airy_cap_derive()，撤销与删除之间会出现窗口，濒死 Agent 的 COPY/MINT
+ * 可在此期间挂上新的子节点并逃过撤销。
+ */
 void agent_terminate_cleanup(uint32_t agent_id)
 {
-    /* 1. 递归撤销根 capability（v1.0.1 K9-1: 通过 airy_cap_derive + AIRY_CAP_OP_REVOKE，
-     *    沿 MDB 派生树级联失效所有 revocable 后代）*/
-    airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_REVOKE, 0);
-
-    /* 2. 清理槽位（删除 cap 空间）*/
-    airy_cap_derive(agent_id, 0, AIRY_CAP_OP_DELETE, 0);
+    /* 1. 递归撤销派生子树：revocable 后代 epoch+1、randtag 清零 */
+    /* 2. 子节点提升为 MDB 根，摘除自身子链，再清零源槽位 */
+    airy_cap_unreg(agent_id);
 
     log_write(AIRY_LOG_INFO, "agent %u capabilities revoked", agent_id);
 }
 ```
+
+**实现说明（0.0.3）**：`airy_cap_unreg()` 由 `airy_task_free()` 调用，
+是正常退出、异常退出与创建失败三条路径的共同收口点。`agent_id == 0`
+表示未绑定，不持有槽位；空槽直接跳过，因此同一 `agent_id` 的重复释放
+是无操作。被撤销的子节点保留自身槽位与 badge 字段，但 epoch 已递增、
+randtag 已清零，撤销前签发的所有 badge 在 `airy_badge_chk()` 处失效；
+它们随后被提升为 MDB 根（`parent_agent = 0`、`generation = 0`），不再
+引用即将被回收的槽位。`revocable == 0` 的能力不参与级联撤销，但同样
+被提升为根。
 
 ### 13.4 Random Tag 碰撞概率分析（v1.0.1 新增）
 
