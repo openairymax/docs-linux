@@ -546,7 +546,7 @@ fi
 
 ### 5.5 工作站图形会话（lightdm + UKUI）
 
-工作站剖面的验收判据是「lightdm / greeter / 会话」三级登录成功。交付链路：
+工作站剖面的验收判据是「会话定义 / lightdm 单元 / greeter 会话」三级登录链成立。交付链路：
 
 1. `%post` 执行 `systemctl set-default graphical.target`，默认进入图形目标；
 2. kickstart `services --enabled=lightdm airymax-desktop-ready` 显式启用显示
@@ -557,10 +557,13 @@ fi
 4. `airymax-desktop-ready.service`（`Type=oneshot`，
    `ConditionFileIsExecutable=/usr/sbin/lightdm`，`After=`/`Wants=lightdm.service`，
    `TimeoutStartSec=180`，`WantedBy=graphical.target`）运行 `desktop_ready.sh`：
-   90 秒内每 2 秒轮询，要求 `lightdm` 处于 active 且存在
+   先静态校验 `/usr/share/xsessions/ukui.desktop` 存在且其 `Exec` 可解析
+   可执行，随后在 90 秒内每 2 秒轮询，要求 `lightdm` 处于 active 且存在
    `Service=lightdm, Class=greeter, Type=x11, State=active|online` 的 logind
-   会话，成功打印 `AIRYMAX-DESKTOP-READY`，超时打印
-   `AIRYMAX-DESKTOP-FAIL`；
+   会话，成功打印 `AIRYMAX-DESKTOP-READY`；会话定义不成立立即打印
+   `AIRYMAX-DESKTOP-FAIL reason=session`，greeter 超时打印
+   `AIRYMAX-DESKTOP-FAIL unit=lightdm wait=<n>s`。两种失败串均由
+   `install-test.sh` 的 `BOOT_FAIL` 规则即时捕获；
 5. 桌面自带 AI 控制面（`kylin-ai*`）在 `%packages` 中通配排除，agent 控制面
    唯一入口保持为 Gateway（R1-06 口径）。
 
