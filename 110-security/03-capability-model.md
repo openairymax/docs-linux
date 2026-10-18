@@ -2361,7 +2361,7 @@ v0.1.1 §5 令牌生命周期未定义"capability 在 daemon 离线期间被撤�
 v0.1.1 §2.3 MDB 派生链仅描述 parent/children 指针关系，未定义完整性约束与不变式。v1.0 新增 **MDB 完整性约束**，对齐 seL4 `src/kernel/mdb.c` 的派生链不变式：
 
 - **约束 I1（权限单调递减）**：子 capability 的 badge 必须 ≤ 父 capability 的 badge（权限只减不增），MINT/COPY 时强制 `child.perms = parent.perms & new_perms`
-- **约束 I2（派生链无环）**：MDB 派生链是树结构，禁止成环；cteInsert 时校验 parent 不在 child 的子树中
+- **约束 I2（派生链无环）**：MDB 派生链是树结构，禁止成环；cteInsert 时校验 parent 不在 child 的子树中。内核实现由 MOVE 的目的槽位所有权前置条件保证：`airy_cap_derive()` 的 `AIRY_CAP_OP_MOVE` 要求目的槽位未持有 badge，而派生链上每个节点必然已持有 badge，因此目的节点不可能位于源子树内；该情形在改写任何链接之前即以 `AIRY_EEXIST` 拒绝，无需另行遍历祖先链
 - **约束 I3（撤销原子性）**：revoke 递归撤销时，要么全部子 capability 撤销成功，要么回滚至撤销前状态（对齐 §3.5 preemptionPoint 分块撤销的原子语义）
 - **约束 I4（refcount 一致性）**：capability 的 refcount 必须 = MDB 子树中引用此 cap 的节点数；revoke 后 refcount 归零方可物理删除
 - **约束 I5（哈希链完整性）**：MDB 派生链维护 Merkle 哈希链，每个节点的哈希 = SHA-256(自身 cap_id + badge + 子节点哈希)；reconciliation 时整链哈希校验，检测任何篡改
