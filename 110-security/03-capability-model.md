@@ -506,12 +506,12 @@ agent-linux 借鉴 seL4 的 7 种核心 CNode 派生操作（`src/object/cnode.c
 | **Mint** | `airy_cap_derive(...,AIRY_CAP_OP_MINT,new_perms)` | v1.0.1 | 铸造 capability（始终降级 `perms = new_perms & src.perms`） |
 | **Move** | `airy_cap_derive(...,AIRY_CAP_OP_MOVE,0)` | v1.0.1 | 移动 capability（改变 CNode 位置，badge 与 MDB 位置不变；派生子树随迁，`generation`/`revocable` 保留） |
 | **Mutate** | `airy_cap_derive(...,AIRY_CAP_OP_MUTATE,new_perms)` | v1.0.1 | 变异 capability（修改权限位，不重新生成 RandomTag） |
-| **Revoke** | `airy_cap_derive(src,0,AIRY_CAP_OP_REVOKE,0)` | v1.0.1 | **级联撤销**：沿 MDB 派生树失效所有 `revocable` 后代（epoch bump + randtag 清零，对齐 seL4 `cteRevoke`），O(N) 子树规模；内核以显式栈迭代遍历，深度受槽位数约束，不占用内核栈 |
+| **Revoke** | `airy_cap_derive(src,0,AIRY_CAP_OP_REVOKE,0)` | v1.0.1 | **级联撤销**：沿 MDB 派生树失效所有 `revocable` 后代（epoch bump + randtag 清零 + `AIRY_CAP_FL_REVOKED`，并按新值重建 badge，对齐 seL4 `cteRevoke`），O(N) 子树规模；内核以显式栈迭代遍历，深度受槽位数约束，不占用内核栈 |
 | **Delete** | `airy_cap_derive(...,AIRY_CAP_OP_DELETE,0)` | v1.0.1 | 删除单个 capability（子节点提升为根后摘除自身，不级联） |
 | **Rotate** | `airy_cap_rotate()` | v1.0.1 | 轮换 Badge（重新生成 RandomTag，保留 Epoch 和 Perms） |
 
 **Revoke vs Rotate 区别**：
-- `Revoke`：沿 MDB 派生树**级联撤销**，对每个 `revocable` 后代执行 `epoch=new_epoch` + `randtag=0`，使整棵子树的 Badge 立即失效（对齐 seL4 `cteRevoke`）。复杂度 O(N)，N=子树节点数。实现使用显式栈迭代而非递归：最坏深度 1023 层，递归实现约需 48KB 栈帧，会耗尽 16KB 内核栈，而该路径持有全部 64 桶锁且关闭中断，不能承受栈溢出
+- `Revoke`：沿 MDB 派生树**级联撤销**，对每个 `revocable` 后代执行 `epoch=new_epoch` + `randtag=0` + `flags |= AIRY_CAP_FL_REVOKED`，并按新值重建 badge，使整棵子树的 Badge 立即失效（对齐 seL4 `cteRevoke`）。复杂度 O(N)，N=子树节点数。实现使用显式栈迭代而非递归：最坏深度 1023 层，递归实现约需 48KB 栈帧，会耗尽 16KB 内核栈，而该路径持有全部 64 桶锁且关闭中断，不能承受栈溢出
 - `Rotate`：仅重新生成目标 Agent 的 RandomTag（`agent_caps[agent_id].randtag = get_random_u32()`），不级联，不影响后代
 - 使用场景：Revoke 用于 Agent 终止时清理整棵派生树（seL4 语义），Rotate 用于定期轮换降低单 Agent Badge 暴力破解风险
 
@@ -574,6 +574,13 @@ static __u32 cap_revoke_stack[AIRY_CAP_MAX_AGENTS];
  * MDB derivation tree from the given agent, incrementing epoch and
  * clearing randtag for every revocable descendant.
  *
+ * The badge is rebuilt from the new epoch, the cleared random tag and
+ * the slot's permission mask, so the slot invariant
+ * badge == COMPILE(epoch, randtag, perms) keeps holding after a
+ * revocation.  Leaving the stale badge in place would let a later
+ * MUTATE or ROTATE resurrect the pre-revocation epoch and permanently
+ * desynchronise the slot.
+ *
  * Complexity: O(N) where N = subtree size.
  */
 static void airy_cap_revoke_subtree(__u32 agent_id, __u16 new_epoch)
@@ -584,11 +591,17 @@ static void airy_cap_revoke_subtree(__u32 agent_id, __u16 new_epoch)
 
     while (nr != 0) {
         struct airy_cap_slot *slot;
+        __u16 perms;
         __u32 child;
 
         slot = &agent_caps[cap_revoke_stack[--nr]];
+        perms = READ_ONCE(slot->perms);
         WRITE_ONCE(slot->epoch, new_epoch);
         WRITE_ONCE(slot->randtag, 0);
+        WRITE_ONCE(slot->flags,
+                   READ_ONCE(slot->flags) | AIRY_CAP_FL_REVOKED);
+        /* Publish the badge only after the fields it embeds. */
+        cap_pub_badge(slot, AIRY_BADGE_COMPILE(new_epoch, 0, perms));
 
         child = READ_ONCE(slot->first_child);
         while (child != 0) {
@@ -602,9 +615,11 @@ static void airy_cap_revoke_subtree(__u32 agent_id, __u16 new_epoch)
 }
 ```
 
+**撤销后的槽位语义**：REVOKE 保留槽位与 MDB 几何位置（子节点仍挂在被撤销节点之下，撤销是幂等的），但槽位不再承载任何权威：`epoch` 递增、`randtag` 清零、`flags` 置 `AIRY_CAP_FL_REVOKED`，并以新值重建 badge。`airy_cap_badge_ok()` 的 fastpath 与 `airy_cap_derive()` 入口都检查该标志，因此旧 badge、重建 badge 以及基于该槽位的 COPY/MINT/MOVE/MUTATE/ROTATE 一律返回 `-AIRY_ECAP_EPOCH`；只有 DELETE（以及 `airy_cap_unreg()`）经 `cap_slot_reset()` 清除标志并回收槽位。保留几何而非立即摘除，使并发撤销期间仍持有旧引用的遍历者看到一致的树结构，而权威失效由标志与 epoch 双重保证。
+
 **为什么用显式栈**：MDB 深度上限为 `AIRY_CAP_MAX_AGENTS-1`（1023 层），递归实现每层约 48 字节栈帧，最坏约 48KB，超过 16KB 内核栈；且撤销路径经 `cap_derive_lock_all()` 持有全部 64 个桶自旋锁并关闭中断，栈溢出将直接导致死锁型崩溃。静态栈容量与槽位数相同，每个节点最多入栈一次，故不会溢出；所有调用方均持全部桶锁，单实例天然串行，无需额外同步。语义与递归版本完全一致：仅 `revocable` 子节点入栈，不可撤销节点连同其子树一并跳过。
 
-**MDB 派生树表示（左孩子右兄弟）**：`airy_cap_slot` 含 `parent_agent` / `first_child` / `next_sibling` / `generation` / `revocable` 五字段（定义于 [SC] `lsm_types.h`）。COPY/MINT 派生时由 `airy_cap_mdb_link_child()` 链接，`generation` 递增；MOVE 迁移整棵子树且深度不变；DELETE 把子节点提升为根后摘除自身。`revocable` 字段控制 REVOKE 是否级联到该节点（默认 1，可由 MINT 时置 0 实现不可撤销派生）。
+**MDB 派生树表示（左孩子右兄弟）**：`airy_cap_slot` 含 `parent_agent` / `first_child` / `next_sibling` / `generation` / `revocable` 五字段（定义于 [SC] `lsm_types.h`）。COPY/MINT 派生时由 `airy_cap_mdb_link_child()` 链接，`generation` 递增，`revocable` 置 1；MOVE 迁移整棵子树并原样保留 `generation`/`revocable`；DELETE 把子节点提升为根后摘除自身，`revocable` 随槽位清零归 0。`revocable` 字段控制 REVOKE 是否级联到该节点：当前 `airy_cap_derive()` 没有 flags 参数，`airy_cap_mdb_link_child()` 无条件置 1，因此 0.0.3 的公开接口尚不提供"不可撤销派生"开关。
 
 **与早期设计差异（一致性修正）**：早期文档描述 Revoke 为"per-agent epoch bump，O(1) 定向撤销，爆炸半径收窄到单个 Agent"——此为 P1-2 重构前的旧实现。P1-2 起改为 seL4 `cteRevoke` 对齐的 MDB 递归级联，撤销影响整棵派生子树（语义正确：Agent 终止时其派生出的所有子 Agent capability 应一并失效）。
 
@@ -1562,7 +1577,9 @@ airy_sys_call(AIRY_OP_REVOKE_BADGE, &derived_badge);
  */
 void agent_terminate_cleanup(uint32_t agent_id)
 {
-    /* 1. 迭代撤销派生子树：revocable 后代 epoch+1、randtag 清零 */
+    /* 1. 迭代撤销派生子树：revocable 后代 epoch+1、randtag 清零、
+     *    flags 置 REVOKED，并按新值重建 badge
+     */
     /* 2. 子节点提升为 MDB 根，摘除自身子链，再清零源槽位 */
     airy_cap_unreg(agent_id);
 
@@ -1573,11 +1590,13 @@ void agent_terminate_cleanup(uint32_t agent_id)
 **实现说明（0.0.3）**：`airy_cap_unreg()` 由 `airy_task_free()` 调用，
 是正常退出、异常退出与创建失败三条路径的共同收口点。`agent_id == 0`
 表示未绑定，不持有槽位；空槽直接跳过，因此同一 `agent_id` 的重复释放
-是无操作。被撤销的子节点保留自身槽位与 badge 字段，但 epoch 已递增、
-randtag 已清零，撤销前签发的所有 badge 在 `airy_badge_chk()` 处失效；
-它们随后被提升为 MDB 根（`parent_agent = 0`、`generation = 0`），不再
-引用即将被回收的槽位。`revocable == 0` 的能力不参与级联撤销，但同样
-被提升为根。
+是无操作。被撤销的子节点保留自身槽位，但 epoch 已递增、randtag 已清零、
+`flags` 已置 `AIRY_CAP_FL_REVOKED`，badge 按新值重建，撤销前签发的所有
+badge 在 `airy_badge_chk()` 处失效；它们随后被提升为 MDB 根
+（`parent_agent = 0`、`generation = 0`），不再引用即将被回收的槽位。
+`revocable == 0` 的能力不参与级联撤销，但同样被提升为根；当前
+`airy_cap_derive()` 没有 flags 参数，`airy_cap_mdb_link_child()` 无条件置 1，
+因此 0.0.3 的公开接口尚不产生 `revocable == 0` 的活槽位（见 §3.5）。
 
 ### 13.4 Random Tag 碰撞概率分析（v1.0.1 新增）
 
@@ -2223,7 +2242,7 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P1（高危——信息泄漏 + 重用混淆） |
 | **根因** | DELETE/MOVE 使源 slot 失效时，badge 置为 NULL 但 epoch 残留旧值，可能导致重注册时混淆或攻击者推断历史撤销次数 |
-| **修复** | [airy_cap_derive.c:137,175](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除 |
+| **修复** | [airy_cap_derive.c:137,175](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除。**0.0.3 TB-03-04 起**清槽改由 `cap_slot_reset()` 统一执行，epoch 写为 `airy_epoch_next(旧值)` 而非 0：0 是保留值，归零会让 `AIRY_CAP_NULL` 与槽位全等比较重新成立，递增并跳过 0 可保证被回收槽位的历史 badge 永久失效 |
 | **seL4 对照** | `cteMove`（[cnode.c:458-460](../../.engineer-reference/seL4-master/src/object/cnode.c#L458)）`srcSlot->cap = cap_null_cap_new(); srcSlot->cteMDBNode = nullMDBNode` 清除源所有字段 |
 | **seL4 对照** | `emptySlot`（[cnode.c:587-588](../../.engineer-reference/seL4-master/src/object/cnode.c#L587)）`slot->cap = cap_null_cap_new(); slot->cteMDBNode = nullMDBNode` DELETE 时清除所有字段 |
 
