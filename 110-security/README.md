@@ -90,7 +90,8 @@ agent-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子�
 ├── 05-ipc-control-plane-reconciliation.md      # 新建：控制面 Reconciliation 最终一致性
 ├── 06-io-uring-hardening.md                    # 新建：io_uring 加固（命令白名单 + Ring 冻结）
 ├── 07-airy-lsm-design.md                       # 新建：纯 C airy_lsm 设计（不使用 BPF LSM）
-└── 09-lockdown.md                             # 新建：Airymax lockdown 四级阶梯
+├── 09-lockdown.md                              # 新建：Airymax lockdown 四级阶梯
+└── 10-policy-compiler.md                       # 新建：声明式策略编译器与决策表运行时
 ```
 
 | # | 文档 | 版本 | 内容概要 |
@@ -104,16 +105,17 @@ agent-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子�
 | 6 | [06-io-uring-hardening.md](06-io-uring-hardening.md) | v1.0 | **新建**：io_uring 加固——`IORING_OP_URING_CMD` 命令白名单、registered buffer 完整性校验、SQE/CQE 校验、Ring 冻结机制（`ring->frozen`） |
 | 7 | [07-airy-lsm-design.md](07-airy-lsm-design.md) | v1.0 | **新建**：纯 C `airy_lsm` 设计——`DEFINE_LSM(airy)` 骨架、`security_hook_list` 注册、capability 分层校验（fastpath + slowpath）、**不使用 BPF LSM（对齐 openEuler）** |
 | 8 | [09-lockdown.md](09-lockdown.md) | v1.0.1 | **新建**：Airymax lockdown 四级阶梯（none/early/late/full）——单调递增、三接口规则表、`enum lockdown_reason` 映射、四处 gate 接入、`airy.lockdown=` 与 securityfs 入口、`AIRY_ELOCKDOWN` 语义 |
+| 9 | [10-policy-compiler.md](10-policy-compiler.md) | v1.0.1 | **新建**：声明式安全策略——`.adl` → 纯 C 决策表（`tools/dsl/`）、运行时注册校验、7 钩子字段向量契约、四值裁决（`DENY > COMPLAIN > AUDIT > ALLOW`）、fault 上报、securityfs 内省、KUnit 测试矩阵 |
 
 ### 3.1 后续规划文档（1.0.1 版本）
 
 以下文档在 1.0.1 版本完成，不在 v1.0 范围内：
 
 - `08-module-signing.md`：模块签名验证
-- `10-keyrings.md`：4 层密钥环
-- `11-cupolas-dome.md`：agent-linux 专属 Cupolas 安全穹顶
-- `12-confidential-computing.md`：机密计算（VirtCCA）
-- `13-cryptography-compliance.md`：国密算法合规
+- `11-keyrings.md`：4 层密钥环
+- `12-cupolas-dome.md`：agent-linux 专属 Cupolas 安全穹顶
+- `13-confidential-computing.md`：机密计算（VirtCCA）
+- `14-cryptography-compliance.md`：国密算法合规
 
 ---
 
@@ -178,6 +180,7 @@ agent-linux v1.0 安全加固体系在内核调度、IPC 传输、安全钩子�
 | v1.0 | 2026-07-17 | 升级为 v1.0：新增sched_tac / IORING_OP_URING_CMD / 纯 C LSM / alloc_pages + mmap / IRON-9 v3 四层模型五大技术选型声明（**纯 C LSM 不使用 BPF LSM 对齐 openEuler 为核心**）；新增 Airymax Unify Design 映射（A-ULS Capability + 纯 C LSM、A-IPC IPC 安全 + io_uring 加固为核心）；新增 4 个文档（04-ipc-data-plane-autonomy / 05-ipc-control-plane-reconciliation / 06-io-uring-hardening / 07-airy-lsm-design）；文档索引对齐实际目录文件 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-10-18 | 新增 [09-lockdown.md](09-lockdown.md)：Airymax lockdown 四级阶梯落地，09 从规划列表转入实际索引 |
+| v1.0.1 | 2026-10-18 | 新增 [10-policy-compiler.md](10-policy-compiler.md)：声明式策略编译器与决策表运行时 SSoT；后续规划文档编号顺延（keyrings→11、cupolas→12、confidential→13、crypto→14） |
 
 ---
 

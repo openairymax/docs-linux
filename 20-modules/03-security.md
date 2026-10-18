@@ -123,8 +123,8 @@ security/
 与 Cupolas 同源的 LSM 实现，调度机制语义同源但实现独立：
 
 - `airy_lsm.c`：LSM hook 注册（file\_ops、net\_ops、task\_ops、ipc\_ops）——`security_add_hooks()` \[SS]。
-- `policy-engine`：声明式策略引擎（YAML/JSON 策略）。
-- `policy-compiler`：策略编译器（编译为 BPF 程序）。
+- `policy-engine`：声明式策略运行时——决策表注册与校验、钩子绑定、字段向量采集、四值裁决聚合、fault 上报、securityfs 只读内省（详见 [10-policy-compiler.md](../110-security/10-policy-compiler.md)）。
+- `policy-compiler`：策略编译器——`.adl` 源文件经 `tools/dsl/` 编译为纯 C 常量决策表，**不编译为 eBPF 程序**（与纯 C LSM 选型一致）。
 - `audit`：安全审计日志。
 
 ### 3.3 sandbox/（Landlock + seccomp）\[SS]
