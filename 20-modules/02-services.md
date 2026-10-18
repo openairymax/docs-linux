@@ -215,7 +215,10 @@ services/
   写入守卫 `airy_dmn_evok/delok` 供 IPC 通道注册分片复用。
 - `daemon/dmn_loop.c`：主循环与周期 tick——`airy_dmn_run/stop`、
   `start → epoll → stop` 生命周期、按单调时钟截止点的 tick 调度与
-  回调负值传播；框架自持 `eventfd` 唤醒源（`AIRY_DMN_CTL` 哨兵，
+  回调负值传播；tick 以首次截止点为锚按 `tick_ms` 推进，回调耗时与
+  调度延迟不改变网格，错过的周期合并为一次触发且不补发；事件批处理
+  中每个事件分派后检查截止点，避免长事件批饿死 tick。框架自持
+  `eventfd` 唤醒源（`AIRY_DMN_CTL` 哨兵，
   不占事件槽位），使 `airy_dmn_stop()` 在无外部事件时立即打断
   `epoll_wait()`。signalfd 以 `AIRY_DMN_SIG` 哨兵进入同一循环。
   ERR/HUP 不受注册掩码过滤，避免对端关闭后反复唤醒空转。
