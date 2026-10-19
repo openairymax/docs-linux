@@ -149,6 +149,7 @@ flowchart TD
 | 10 | 公钥 | `.asc` | — | AtomGit releases + keys.openpgp.org |
 | 11 | 签核记录 | Markdown | GPG | `agent-linux-mgmt` |
 | 12 | ABI 报告 | Markdown | GPG | AtomGit releases |
+| 13 | 安装 ISO（desktop） | `.iso` + `.sha256` | sha256 校验 | AtomGit releases |
 
 ### 3.2 源码 tarball
 
@@ -219,6 +220,19 @@ SBOM 采用 CycloneDX 1.5 JSON 格式，内容包括：
   - 升级说明（兼容性、迁移路径）。
   - 贡献者列表。
   - 物料校验和。
+
+### 3.8 安装 ISO
+
+- **生成方式**：由 `image-ci.yml` 的 `assemble` job 在源码区外的构建容器中
+  组装，产物为 `airymaxos-<version>-<arch>.iso` 与 `.sha256`。
+- **验收前置**：同一 workflow 的 `accept` job 必须在 QEMU 下完成 BIOS 与
+  UEFI 双固件装机、冷启动，并取得 `AIRYMAX-DESKTOP-READY`（发行前 B 轮为
+  `AIRYMAX-SMOKE-PASS`）与 TAP 证据，方可进入发行附件。
+- **上传方式**：发布负责人从 `image-ci` artifact 下载 ISO，复核 `.sha256`
+  与验收 TAP 后，人工附加到 AtomGit releases，与 tag `vX.Y.Z` 的
+  `release.yml` 产物并列；`release.yml` 不重复构建 ISO。
+- **完整性**：发行页同时提供 `.sha256`；校验值必须与 `iso-manifest.txt`
+  中记录一致。
 
 ---
 
