@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）CI/CD 管道完整设计
 > **文档定位**：agent-linux（AirymaxOS）CI/CD 管道完整设计——覆盖 7 层自动化验证体系（OS-STD-TOOL-001~161）的工程实现，定义 8 子仓 + 管理仓的全量 CI 覆盖矩阵、编译验证矩阵、代码质量门禁、测试覆盖矩阵、SSoT 校验流水线、[SC] 共享契约层双向 CI、发布流水线、CI 基础设施与失败回滚策略。本卷是 1.0.1 开发阶段的设计基线，所有设计必须在本阶段完成。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-22\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-10-19\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt `cmake/` + `.github/workflows/`（伞仓 CI）+ Linux 6.6 内核 CI 思想（KUnit/kselftest/checkpatch/sparse/Coccinelle）\
 > **理论根基**：Linux 6.6 内核基线 CI 工程 + Airymax 五维正交 24 原则（S/K/C/E/A 五维）+ 7 层自动化验证体系（OS-STD-TOOL-001~161）\
@@ -470,6 +470,21 @@ grep -E "warning:" build.log > warnings.log && grep -E "${airy_re}" warnings.log
 - **ccache 命中**：按 `config+arch+compiler` 三元组缓存 2G，二次构建命中率 ≥70%。
 - **路径过滤**：PR 仅触及 `Documentation/` 或 `tools/` 时跳过矩阵，仅跑文档格式校验。
 - **并行分批**：28 格 `max-parallel: 8` 分批运行，每批 ≤20 分钟。
+
+### 3.6 矩阵清单化与门禁（SSoT）
+
+矩阵定义、排除项、调度约束、超时预算、编译门禁语义与失败归因收敛在
+`agent-linux/tools/ci-matrix/manifest.yaml`，作为**唯一事实源**：
+
+- `tools/ci-matrix/ci_matrix.py --check` 逐项交叉校验清单与
+  `.github/workflows/ci-kernel.yml` 的 `kernel-build` job（维度、格数、
+  `exclude`、`fail-fast`、`max-parallel`、超时、job 数、门禁 token），
+  并以 OS-CHK 门禁 `OS-BUILD-CI-MATRIX`（P0）在 PR 中阻断漂移。
+- 架构维度不在该清单内重复定义，统一取自
+  `tools/defconfig-matrix/manifest.yaml` 中 `build: true` 的条目。
+- `--summary <result.json>` 按 §3.4 语义对逐格结果归因，输出
+  `ci-fail-compile` 标签，供 §10.1 失败分类复用；缺失格、重复格、
+  未知维度取值与 `skipped` / `cancelled` 一律判失败。
 
 ---
 
