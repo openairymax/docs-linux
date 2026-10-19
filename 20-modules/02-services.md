@@ -265,6 +265,15 @@ services/
   由各 daemon 经同一入口上报，语义见 07-systemd-integration.md §3.3。
 - 构建目标 `airy_daemon` 为 STATIC 库并链接 zlib：导出头文件与 [SC]
   头搜索路径，实现分片随各任务逐步并入。
+- `tests/dmn_test.c`：daemon 框架白盒单元测试，直接包含
+  `daemon/dmn_int.h`，以真实管道与 `SOCK_SEQPACKET` 套接字驱动 17 个
+  公共 API 与内部错误路径（对象生命周期、事件源表、IPC 整帧收发与
+  批量提交、心跳记账、周期 tick、systemd 上报与信号收口），不做桩
+  替代；结果以 TAP 13 输出。挂点由 `services/CMakeLists.txt` 的
+  `include(CTest)` 开启，`common/tests/CMakeLists.txt` 以
+  `add_test(NAME dmn_test COMMAND dmn_test)` 声明式注册，`ctest` 调度。
+  用户态无 KUnit，CTest 为其等价物（D2 测试挂点），对应
+  docs-linux/80-testing/02-kselftest.md §9.2。
 - [SC] 头通过 `-idirafter` 引用 `kernel/include/uapi`，避免遮蔽 glibc 的
   `<linux/*>`。
 
