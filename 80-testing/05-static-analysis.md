@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）静态分析
 > **文档定位**：agent-linux（AirymaxOS）测试工程体系第 5 卷——编译时静态分析（Static Analysis）。本卷规定 Sparse（内核静态分析工具）、Smatch（语义匹配）、Coccinelle（语义补丁检测）、Clang Static Analyzer、Coverity 扫描集成、checkpatch.pl 扩展、[SC] 头文件编译器无关性检查（`check-uapi-compiler-agnostic.sh`）的启用模型、规则配置与 `ci-kernel` workflow 集成。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.1.0\
+> **最后更新**： 2026-10-19\
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L5（静态分析）+ Linux 6.6 内核基线 `scripts/sparse/`、`scripts/coccinelle/`、`scripts/checkpatch.pl`\
 > **理论根基**：Linux 6.6 内核基线静态分析思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环 / A-4 完美主义）\
@@ -92,7 +92,7 @@ flowchart TB
 
 **OS-TEST-060**：CI PR 阶段必须运行 checkpatch + Sparse + Coccinelle 三项静态分析；任一工具报告 `error` 级别问题即阻断 PR。
 
-**OS-KER-120**：agent-linux 专属模块（`kernel/airymaxos/`）必须通过 `airy_checkpatch_ext.pl` 扩展规则；扩展规则比上游 checkpatch 更严格（如禁止 `printk` 必须用 `pr_*`）。
+**OS-KER-120**：agent-linux 专属模块（`security/airy/`、`kernel/superv/`、`kernel/syscalls/`、`kernel/corekern/`、`kernel/log/`、`kernel/ipc/`、`include/airymax/`、`include/uapi/linux/airymax/`，以及 `init/airy_core.c`、`include/trace/events/airy.h`）必须通过 `airy_checkpatch_ext.pl` 扩展规则；扩展规则比上游 checkpatch 更严格（如禁止 `printk` 必须用 `pr_*`）。
 
 ---
 
@@ -210,9 +210,9 @@ smatch_scripts/check_kernel.sh
 ### 3.3 Smatch 报告解析
 
 ```
-kernel/airymaxos/airy_ipc.c:234 airy_ipc_send() error: potential NULL dereference 'msg->payload'.
-kernel/airymaxos/airy_agent.c:456 airy_agent_alloc() warn: variable 'agent->state' uninitialized.
-kernel/airymaxos/airy_cap.c:789 airy_cap_check() error: buffer overflow 'cap_array' 41 <= 41.
+kernel/corekern/ipc/airy_ipc_ring.c:234 airy_ipc_send() error: potential NULL dereference 'msg->payload'.
+kernel/corekern/taskflow/airy_task_lifecycle.c:456 airy_task_alloc() warn: variable 'task->state' uninitialized.
+security/airy/airy_cap_check.c:789 airy_cap_check() error: buffer overflow 'cap_array' 41 <= 41.
 ```
 
 **OS-TEST-062**：CI nightly 必须运行 Smatch 全量扫描；`error: ` 级别报告即标记 nightly 失败，`warn: ` 级别报告汇总至 issue 但不阻断。
@@ -235,7 +235,7 @@ make coccicheck
 make coccicheck MODE=report     # 仅报告（默认）
 make coccicheck MODE=patch      # 生成补丁
 make coccicheck MODE=context    # 上下文模式
-make coccicheck M=kernel/airymaxos/  # 仅扫描指定目录
+make coccicheck M=security/airy/  # 仅扫描指定目录
 
 # 指定规则
 make coccicheck COCCI=scripts/coccinelle/null/deref_null.cocci
@@ -329,17 +329,19 @@ scan-view /tmp/scan-build-*/
 
 ### 5.3 在 agent-linux 的应用
 
-agent-linux 在 CI nightly 阶段运行 Clang 静态分析器，重点扫描 `kernel/airymaxos/` 目录：
+agent-linux 在 CI nightly 阶段运行 Clang 静态分析器，重点扫描 `security/airy/`、
+`kernel/superv/`、`kernel/syscalls/`、`kernel/corekern/`、`kernel/log/`、
+`kernel/ipc/` 等 AirymaxOS 目录：
 
 ```bash
 # CI nightly 步骤
 scan-build -o /tmp/scan-build \
   --status-bugs \
   --html-title="agent-linux Clang Static Analysis" \
-  make ARCH=um CC=clang -j$(nproc) kernel/airymaxos/
+  make ARCH=um CC=clang -j$(nproc) security/airy/
 ```
 
-**OS-TEST-064**：CI nightly 必须运行 Clang 静态分析器扫描 `kernel/airymaxos/`；任一 bug 报告即标记 nightly 失败。
+**OS-TEST-064**：CI nightly 必须运行 Clang 静态分析器扫描上述 AirymaxOS 目录；任一 bug 报告即标记 nightly 失败。
 
 ---
 
@@ -377,7 +379,7 @@ jobs:
           export PATH=$PWD/cov-analysis-linux64/bin:$PATH
           # UML 无 airy_defconfig 变体：defconfig + merge_config 叠加 x86 airy_defconfig
           make ARCH=um defconfig
-          ./scripts/kconfig/merge_config.sh -m .config arch/x86_64/configs/airy_defconfig
+          ./scripts/kconfig/merge_config.sh -m .config arch/x86/configs/airy_defconfig
           make ARCH=um olddefconfig
           cov-build --dir cov-int make ARCH=um -j$(nproc)
       - name: Submit to Coverity Scan
@@ -409,64 +411,64 @@ Linux 6.6 的 `scripts/checkpatch.pl` 是内核代码风格检查脚本，检测
 
 ### 7.2 `airy_checkpatch_ext.pl`：agent-linux 扩展
 
-`scripts/airy_checkpatch_ext.pl` 在上游 checkpatch 基础上添加 agent-linux 专属规则：
+`kernel/scripts/airy_checkpatch_ext.pl` 随 kernel 子模块（`ALK-6.6-dev`）维护，
+在上游 checkpatch 之外补充 AirymaxOS 架构约束。规则集由引擎内的单一注册表
+维护，`--help` 与 `--list-rules` 均由其派生；本卷记录契约，规则实现以引擎为
+唯一事实源（SSoT），集成测试位于 `tools/airy-checkpatch/tests/`。
 
 | 规则 ID | 检测内容 | 严重性 |
 |--------|---------|--------|
 | `AIRY-CHECKPATCH-001` | 必须使用 `pr_*` 而非 `printk` | error |
-| `AIRY-CHECKPATCH-002` | `airy_*` 函数必须以 `airy_` 前缀命名 | error |
+| `AIRY-CHECKPATCH-002` | 非 static 函数必须以 `airy_`/`stc_` 前缀命名 | error |
 | `AIRY-CHECKPATCH-003` | `airy_agent_state` 访问必须用 `READ_ONCE`/`WRITE_ONCE` | error |
-| `AIRY-CHECKPATCH-004` | `airy_ipc_send` 调用必须检查返回值 | error |
+| `AIRY-CHECKPATCH-004` | `airy_ipc_send` 调用必须检查返回值（含多行语句） | error |
 | `AIRY-CHECKPATCH-005` | `airy_cap_check` 调用必须显式处理 `-EPERM` | warning |
-| `AIRY-CHECKPATCH-006` | 禁止在 `airy_*` 函数中直接调用 `printk` | error |
-| `AIRY-CHECKPATCH-007` | `airy_lsm_hook` 注册必须使用 `security_hook_list` | error |
-| `AIRY-CHECKPATCH-008` | 禁止在 `airy_ipc_ring` 路径中调用 `dma_alloc_coherent` | error |
-| `AIRY-CHECKPATCH-009` | 禁止在 `airy_*` 路径中启用 `CONFIG_BPF_LSM` | error |
-| `AIRY-CHECKPATCH-010` | 禁止在 `airy_*` 路径中启用 `CONFIG_SCHED_EXT` | error |
+| `AIRY-CHECKPATCH-006` | 禁止在 `airy_*`/`stc_*` 函数中直接调用 `printk` | error |
+| `AIRY-CHECKPATCH-007` | LSM 注册必须使用 `security_hook_list` | error |
+| `AIRY-CHECKPATCH-008` | 禁止在 `airy_ipc`/`airy_mem` 路径调用 `dma_alloc_coherent` | error |
+| `AIRY-CHECKPATCH-009` | 禁止在 AirymaxOS 路径启用 `CONFIG_BPF_LSM` | error |
+| `AIRY-CHECKPATCH-010` | 禁止在 AirymaxOS 路径启用 `CONFIG_SCHED_EXT` | error |
+| `AIRY-CHECKPATCH-011` | 文件头：SPDX 首行 + 前导注释区 ≤ 20 行（OS-STD-STY-007） | error |
 
-```perl
-# scripts/airy_checkpatch_ext.pl
-#!/usr/bin/perl
-# agent-linux checkpatch 扩展规则
+扫描落点（相对 kernel 根，省略路径时使用）：
 
-sub airy_check {
-    my ($line, $file, $lineno) = @_;
+- 目录：`security/airy/`、`kernel/superv/`、`kernel/syscalls/`、
+  `kernel/corekern/`、`kernel/log/`、`kernel/ipc/`、`include/airymax/`、
+  `include/uapi/linux/airymax/`
+- 独立文件：`init/airy_core.c`、`include/trace/events/airy.h`
+- 配置：自动追加 `arch/*/configs/airy*_defconfig`
 
-    # AIRY-CHECKPATCH-001: 必须 pr_* 而非 printk
-    if ($line =~ /\bprintk\s*\(/ && $file =~ m{^kernel/airymaxos/}) {
-        return ("AIRY-CHECKPATCH-001",
-                "Use pr_*() instead of printk() in airymaxos/ code",
-                "error");
-    }
+分析语义：
 
-    # AIRY-CHECKPATCH-008: 禁止 dma_alloc_coherent
-    if ($line =~ /\bdma_alloc_coherent\s*\(/ && $file =~ m{airy_ipc|airy_mem}) {
-        return ("AIRY-CHECKPATCH-008",
-                "dma_alloc_coherent forbidden in airy_ipc/airy_mem path (use alloc_pages+mmap)",
-                "error");
-    }
+- 先剥离注释与字符串字面量，再按语句分析；多行调用与宏实参内的调用均
+  参与规则 004/005 判定。
+- 函数体范围由花括号配平推导，`static` 辅助函数的归属与其调用点一致。
+- 规则 004/005 仅在返回值被丢弃时报告：裸调用与 `(void)` 显式丢弃均视为
+  未检查；`if (...)`、赋值、断言宏等消费结果的调用不报告。
+- 规则 009/010 同时拒绝 `=y` 与 `=m`；`# CONFIG_X is not set` 视为关闭。
+- 目录遍历剪枝 `.git`、`.kunit`、`__pycache__`；显式目标先解析为绝对路径。
 
-    # AIRY-CHECKPATCH-009: 禁止 CONFIG_BPF_LSM
-    if ($line =~ /\bCONFIG_BPF_LSM\b.*=y/) {
-        return ("AIRY-CHECKPATCH-009",
-                "CONFIG_BPF_LSM forbidden — pure C LSM enforced",
-                "error");
-    }
+CLI 契约：
 
-    # AIRY-CHECKPATCH-010: 禁止 CONFIG_SCHED_EXT
-    if ($line =~ /\bCONFIG_SCHED_EXT\b.*=y/) {
-        return ("AIRY-CHECKPATCH-010",
-                "CONFIG_SCHED_EXT forbidden — sched_tac enforced",
-                "error");
-    }
-
-    return ();
-}
-
-1;
+```bash
+LC_ALL=C perl kernel/scripts/airy_checkpatch_ext.pl              # 默认落点
+LC_ALL=C perl kernel/scripts/airy_checkpatch_ext.pl kernel/security/airy
+perl kernel/scripts/airy_checkpatch_ext.pl --list-rules          # TSV 注册表
+LC_ALL=C perl kernel/scripts/airy_checkpatch_ext.pl --quiet      # 仅违规项
 ```
 
-**OS-TEST-066**：CI PR 阶段必须运行 `airy_checkpatch_ext.pl`，扫描 `kernel/airymaxos/` 与 `include/uapi/linux/airymax/`；任一 `error` 级别报告即阻断 PR。
+| 退出码 | 含义 |
+|--------|------|
+| `0` | 无 `error` 级违规（允许 `warning`） |
+| `1` | 存在 `error` 级违规 |
+| `2` | 用法或 IO 错误（显式目标不存在、文件不可读），优先于 `1` |
+
+输出格式：`<相对路径>:<行号>: <ERROR|WARNING> <规则号>: <说明>`，末行汇总为
+`airy_checkpatch_ext: N files checked, N errors, N warnings`；`--quiet` 省略
+汇总行，错误信息仍写标准错误。
+
+**OS-TEST-066**：CI PR 阶段必须运行 `airy_checkpatch_ext.pl` 扫描上述全部默认
+落点与 `airy*_defconfig`；任一 `error` 级别报告即阻断 PR。
 
 ---
 
@@ -587,8 +589,8 @@ jobs:
           for patch in $(git format-patch -1 HEAD); do
             scripts/checkpatch.pl --strict --no-tree -f "$patch" || exit 1
           done
-          # 对 kernel/airymaxos/ 源文件运行 airy_checkpatch_ext
-          scripts/airy_checkpatch_ext.pl kernel/airymaxos/ include/uapi/linux/airymax/
+          # 对 AirymaxOS 全部默认落点运行 airy_checkpatch_ext（省略路径即默认落点）
+          LC_ALL=C perl kernel/scripts/airy_checkpatch_ext.pl || exit 1
   
   sparse:
     runs-on: ubuntu-24.04
@@ -600,7 +602,7 @@ jobs:
         run: |
           # UML 无 airy_defconfig 变体：defconfig + merge_config 叠加 x86 airy_defconfig
           make ARCH=um defconfig
-          ./scripts/kconfig/merge_config.sh -m .config arch/x86_64/configs/airy_defconfig
+          ./scripts/kconfig/merge_config.sh -m .config arch/x86/configs/airy_defconfig
           make ARCH=um olddefconfig
           make ARCH=um C=2 CHECK=sparse \
             CF="-Wbitwise -Wcontext -Wdecl -Wno-transparent-union" \
@@ -622,7 +624,7 @@ jobs:
         run: sudo apt-get install -y coccinelle
       - name: Run Coccinelle
         run: |
-          make coccicheck MODE=report M=kernel/airymaxos/ 2>&1 | tee coccinelle.log
+          make coccicheck MODE=report M=security/airy/ 2>&1 | tee coccinelle.log
           # 检查 agent-linux 专属规则
           make coccicheck MODE=report \
             COCCI=scripts/coccinelle/airy/airy_agent_state_access.cocci
@@ -655,7 +657,7 @@ jobs:
         run: |
           # UML 无 airy_defconfig 变体：defconfig + merge_config 叠加 x86 airy_defconfig
           make ARCH=um defconfig
-          ./scripts/kconfig/merge_config.sh -m .config arch/x86_64/configs/airy_defconfig
+          ./scripts/kconfig/merge_config.sh -m .config arch/x86/configs/airy_defconfig
           make ARCH=um olddefconfig
           make ARCH=um CHECK=smatch C=1 -j$(nproc) 2>&1 | tee smatch.log
       - name: Parse Smatch reports
@@ -704,12 +706,22 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 
 本卷强制规则编号 `OS-TEST-060` ~ `OS-TEST-067`、`OS-KER-120` ~ `OS-KER-122`、`OS-STD-081`，已注册至 50-engineering-standards/09-ssot-registry.md 的"SSoT 规则编号注册表"。
 
-### 11.2 v1.0.1 新增内容
+### 11.2 v1.1.0 变更内容
 
-1. 6 大静态分析工具（Sparse/Smatch/Coccinelle/Clang Static Analyzer/Coverity/checkpatch.pl）的启用模型。
-2. `airy_checkpatch_ext.pl` 扩展规则 10 项。
-3. `check-uapi-compiler-agnostic.sh` [SC] 头文件编译器无关性校验脚本。
-4. `ci-kernel` workflow 静态分析阶段完整定义。
+1. §7.2 与内核引擎 `kernel/scripts/airy_checkpatch_ext.pl` 对齐：规则集扩展为
+   `AIRY-CHECKPATCH-001` ~ `011`（新增文件头规则 011），规则注册表为唯一事实源，
+   `--help` 与 `--list-rules` 由其派生。
+2. 明确默认扫描落点：8 个 Airy 目录 + 2 个独立文件 + 自动追加的
+   `arch/*/configs/airy*_defconfig`。
+3. 记录分析语义：注释/字符串剥离后的语句级分析、花括号配平推导函数范围、
+   规则 004/005 仅对丢弃返回值报告、009/010 同时拒绝 `=y` 与 `=m`、
+   VCS/构建目录剪枝与显式目标绝对化。
+4. 明确 CLI 契约与退出码：`--quiet` 仅输出违规项；`2`（用法/IO 错误）
+   优先于 `1`（存在 error）。
+5. 集成测试扩充至 32 个用例，覆盖规则命中、严重级语义、默认落点、剪枝与
+   错误路径。
+6. 全文路径校正为实际工程落点（`security/airy/`、`kernel/corekern/` 等），
+   删除与实际引擎不一致的规则伪代码，避免 SSoT 漂移。
 
 ### 11.3 后续版本规划
 
@@ -750,6 +762,7 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：定义 6 大静态分析工具（Sparse/Smatch/Coccinelle/Clang Static Analyzer/Coverity/checkpatch.pl）的启用模型；新增 `airy_checkpatch_ext.pl` 扩展规则 10 项；新增 `check-uapi-compiler-agnostic.sh` [SC] 头文件编译器无关性校验；定义 `ci-kernel` workflow 静态分析阶段 |
+| v1.1.0 | 2026-10-19 | §7.2 与内核引擎实际实现对齐：规则集 001~011、默认扫描落点、分析语义、CLI 与退出码契约；全文路径校正至实际工程落点；删除与引擎不一致的伪代码；集成测试 32 用例 |
 
 ---
 
