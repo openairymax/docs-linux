@@ -94,15 +94,20 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 agent-linux/.github/workflows/
 ├── ci-kernel.yml            # kernel 子仓 CI（28 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
 ├── ci-airy.yml              # Airymax 专属代码 CI（airy_defconfig 4 架构构建 + checkpatch + SPDX + 符号完整性）
+├── abi-verify.yml           # syscall ABI 四方权威源与基线快照一致性（OS-IRON-001）
+├── dsl-verify.yml           # 策略 DSL 零漂移（.adl 契约源 → 生成决策表，IRON-9）
+├── farm-verify.yml          # QEMU 测试农场工具单元与端到端回归
+├── os-chk-verify.yml        # OS-CHK 统一门禁编排（gates.yaml，P0/P1 阻断）
 ├── codegen-verify.yml       # codegen 一致性校验（契约源 → 生成产物零漂移 SSoT gate，见 30-interfaces/06-codegen-pipeline.md §7.2）
 ├── ssot-validate.yml        # SSoT 规则 ID 校验（全仓）
 ├── sc-dual-ci.yml           # [SC] 共享契约层双向 CI（OS-IRON-008）
+├── mgmt-orchestrator.yml    # 管理仓编排：文件完整性 + 子仓 CI 编排
+├── image-ci.yml             # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁）
 ├── nightly.yml              # develop nightly build（L5/L6 连接/协议验证；formal/soak/chaos 工具未实现，降级 SKIP）
-├── release.yml              # release tag 流水线（L7 发布验证）
-└── mgmt-orchestrator.yml    # 管理仓编排：文件完整性 + 子仓 CI 编排
+└── release.yml              # release tag 流水线（L7 发布验证）
 ```
 
-> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。
+> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-ci.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请 240 分钟发布级例外，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
 
 ### 2.2 管理仓 CI（mgmt-orchestrator.yml）
 
@@ -351,7 +356,8 @@ jobs:
         run: |
           cd "$KSFT_INSTALL"
           # x86_64 defconfig 无 CONFIG_VIRTIO_FS，须显式 --force-9p；
-          # GitHub 标准 runner 无 /dev/kvm，故 --disable-kvm 回退 TCG。
+          # kselftest 链路固定 --disable-kvm 走 TCG，不依赖 runner 的 /dev/kvm
+          # 是否可用（可用性随托管机型与仓库策略变化）。
           vng --run "$GITHUB_WORKSPACE/kernel/arch/x86/boot/bzImage" \
             --cwd "$KSFT_INSTALL" --force-9p --disable-kvm --quiet \
             --exec "./run_kselftest.sh --summary" > "$GITHUB_WORKSPACE/kselftest.tap" 2>&1
@@ -361,7 +367,7 @@ jobs:
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
 
-> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 7 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-orchestrator.yml` 聚合各子仓 CI 状态（§2.2）。
+> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 13 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-orchestrator.yml` 聚合各子仓 CI 状态（§2.2）。
 
 非 kernel 子仓按构建系统分类，每类一个 workflow 模板，子仓按自身归属选用：
 
