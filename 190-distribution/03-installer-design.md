@@ -919,6 +919,72 @@ virsh undefine "$TEST_VM_NAME"
 echo "OK: 安装测试通过"
 ```
 
+### 9.3 无人值守安装的串口判定契约
+
+无头验收不依赖 virsh 状态轮询，也不依赖 SSH 回连，只读 QEMU 串口日志。这要求 kickstart 与判定脚本之间存在一份稳定契约，否则「安装成功」与「安装失败」都会退化为超时。
+
+#### 9.3.1 `%post --log` 的输出不经过串口
+
+anaconda 把 `%post --log=FILE` 指定的文件作为该节区的标准输出，脚本的 stdout 与 stderr 全部写入目标系统的 `FILE`（例如 `/root/airymax-post.log`）。该重定向发生在脚本执行之前，串口设备不在这条路径上。
+
+因此下面这种写法在串口日志里看不到任何痕迹：
+
+```bash
+%post --log=/root/airymax-post.log
+set -eu
+echo "AirymaxOS install complete"
+```
+
+判定脚本按串口内容做 `grep` 时永远匹配不到，即使安装已经成功；唯一的退出方式是等待超时，代价是数十分钟的构建时间与无法区分「慢」和「坏」。
+
+#### 9.3.2 完成标记必须显式写 `/dev/console`
+
+`mark()` 同时写 stdout（保留在 `--log` 文件里供事后取证）与 `/dev/console`（进入串口）。内核按 `console=` 的注册顺序把 `/dev/console` 路由到最后一个可用的控制台：本项目的启动参数为 `console=ttyS0,115200 console=ttyAMA0,115200`，故 x86_64 落到 `ttyS0`，aarch64 落到 `ttyAMA0`。为覆盖重定向异常的场景，再以 `ttyS0`、`ttyAMA0` 作为显式兜底，任一设备可写即停止：
+
+```bash
+mark()
+{
+    local dev
+    printf '%s\n' "$*"
+    for dev in /dev/console /dev/ttyS0 /dev/ttyAMA0; do
+        [ -w "${dev}" ] || continue
+        if printf '%s\n' "$*" >"${dev}" 2>/dev/null; then
+            break
+        fi
+    done
+    return 0
+}
+```
+
+#### 9.3.3 失败必须主动上报，而不是等超时
+
+`set -eu` 让首条失败的断言立即终止节区，但 anaconda 仍会把安装判为完成。用 `trap` 在退出时补发失败标记，把「节区失败」转成「串口可见的失败」：
+
+```bash
+trap 'rc=$?; [ "${rc}" -eq 0 ] || mark "AIRYMAX-INSTALL-FAIL rc=${rc}"' EXIT
+```
+
+判定侧把该标记纳入失败模式（与 `Kernel panic`、`Fatal glibc error`、`dracut-initqueue.*timeout` 同级），命中即判负并立即结束，不必等 `--install-timeout`：
+
+```bash
+readonly INST_FAIL='Kernel panic|Fatal glibc error|dracut-initqueue.*timeout|AIRYMAX-INSTALL-FAIL'
+```
+
+成功路径最后一步调用 `mark` 输出 `AirymaxOS <profile> install complete (baseline <date>)`，该字符串是判定侧唯一的成功依据。
+
+#### 9.3.4 图形会话需要 DRM/KMS 设备
+
+安装成功只证明用户态可引导；UKUI 会话还要求 lightdm 能拿到一个 DRM/KMS 节点。本项目内核基线 `arch/x86/configs/x86_64_defconfig` 只启用 `CONFIG_DRM_VIRTIO_GPU=y`，未启用 `DRM_BOCHS`，也没有 `FB_VESA`；`openeuler_defconfig` 中的 `DRM_BOCHS=m` 不参与本项目的 x86_64 构建（spec 以 `make defconfig` 加 `airy_defconfig` 片段配置）。
+
+缺省 std VGA 因此没有驱动，`/dev/dri/card0` 不会出现，T1 图形会话必败。两种架构都接入 virtio-gpu：
+
+| 架构 | QEMU 参数 | 说明 |
+|------|-----------|------|
+| x86_64 | `-vga virtio` | 替换缺省的 std VGA，而不是并列追加第二个显示设备 |
+| aarch64 | `-machine virt -device virtio-gpu-pci` | `virt` 机型没有缺省 VGA，直接追加 PCI 显示设备 |
+
+`DRM_VIRTIO_GPU` 的 Kconfig 依赖为 `DRM && VIRTIO_MENU && MMU`，并 `select VIRTIO`、`DRM_KMS_HELPER`、`DRM_GEM_SHMEM_HELPER`、`VIRTIO_DMA_SHARED_BUFFER`；这些在基线配置中均已满足，无需追加片段。
+
 ---
 
 ## 10. 错误处理
