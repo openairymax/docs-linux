@@ -972,7 +972,42 @@ readonly INST_FAIL='Kernel panic|Fatal glibc error|dracut-initqueue.*timeout|AIR
 
 成功路径最后一步调用 `mark` 输出 `AirymaxOS <profile> install complete (baseline <date>)`，该字符串是判定侧唯一的成功依据。
 
-#### 9.3.4 图形会话需要 DRM/KMS 设备
+#### 9.3.4 rpm 事务错误同样属于安装失败
+
+`trap` 只能覆盖 kickstart 自身脚本的退出；rpm 在 `%pre`/`%post`/`%posttrans` 等
+scriptlet 中失败时，anaconda 只打印错误并停在 `按 ENTER 退出:` 等待输入，进程
+既不退出也不重启。此时串口上既无完成标记也无失败标记，判定侧只能等到
+`--install-timeout` 才判负，失败原因被埋在数十分钟的超时里。
+
+因此判定侧把 rpm 事务级错误与 `INST_FAIL` 合并为安装失败模式：
+
+```bash
+RPM_FAIL='Error in (PREIN|POSTIN|PREUN|POSTUN|PRETRANS|POSTTRANS|'
+RPM_FAIL="${RPM_FAIL}TRIGGERIN|TRIGGERUN|TRIGGERPOSTUN) scriptlet|"
+RPM_FAIL="${RPM_FAIL}An error occurred during the transaction"
+readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}"
+```
+
+`scriptlet` 前缀覆盖全部八个 scriptlet 类型，避免遗漏 `%trigger*`；事务级
+错误覆盖依赖解析失败等不产生 scriptlet 报错的路径。命中任一即判负，脚本
+同时回显串口尾行，使失败现场在 CI 日志中直接可读，不必下载 artifact 复现。
+
+#### 9.3.5 安装腿失败时跳过启动腿
+
+安装失败后磁盘不可引导，继续执行 `boot_run()` 只会在空盘上耗尽
+`--boot-timeout`，并把一次失败拖成两次等待。判定侧在安装腿失败后为该轮
+置 `skip` 标记：启动腿输出 `not ok`（保留 TAP 编号连续性）与
+`skipped: install failed`，manifest 记 `boot=skip`，不再启动 QEMU。
+
+#### 9.3.6 长耗时阶段必须回显进度
+
+无头验收只读串口日志，安装与启动两条腿在失败前可能静默数十分钟，CI 日志
+里看不到任何推进迹象。判定侧在等待循环内每 30 秒打印一次当前轮次、已耗时
+与该日志最后一条非空行（剥除 ANSI 序列与回车覆盖），使「慢」与「卡死」在
+日志中可区分，也便于在超时前终止明显走偏的运行。进度回显只读日志，不参与
+判定。
+
+#### 9.3.7 图形会话需要 DRM/KMS 设备
 
 安装成功只证明用户态可引导；UKUI 会话还要求 lightdm 能拿到一个 DRM/KMS 节点。本项目内核基线 `arch/x86/configs/x86_64_defconfig` 只启用 `CONFIG_DRM_VIRTIO_GPU=y`，未启用 `DRM_BOCHS`，也没有 `FB_VESA`；`openeuler_defconfig` 中的 `DRM_BOCHS=m` 不参与本项目的 x86_64 构建（spec 以 `make defconfig` 加 `airy_defconfig` 片段配置）。
 
