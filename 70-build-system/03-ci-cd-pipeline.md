@@ -107,7 +107,7 @@ agent-linux/.github/workflows/
 └── release.yml              # release tag 流水线（L7 发布验证）
 ```
 
-> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-ci.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请 240 分钟发布级例外，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
+> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-ci.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 180 分钟、`accept` 300 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
 
 ### 2.2 管理仓 CI（mgmt-orchestrator.yml）
 
