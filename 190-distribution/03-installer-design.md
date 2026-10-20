@@ -259,6 +259,8 @@ GRUB_ENABLE_BLSCFG=true
 GRUB_ENABLE_CRYPTODISK=y
 ```
 
+安装器不手工维护该文件：anaconda 安装引导装载程序时以 `/etc/system-release` 派生 `GRUB_DISTRIBUTOR`（`sed 's, release .*$,,g' /etc/system-release`）后写入，再调用 `grub-mkconfig`。因此该路径是安装期的硬依赖——`airymaxos-release` 必须同时提供 `/etc/airymaxos-release`（单行 `<NAME> release <VERSION>`，由 `release/os-release` 派生）与指向它的 `/etc/system-release`（上游 release 包已被 `Obsoletes` 排除，无人代为提供）。文件缺失时 `sed` 以非零退出，而 `grub-mkconfig` 以 `set -e` 运行并在开头 source `/etc/default/grub`，整次配置生成随之中止，anaconda 抛 `BootLoaderError` 并停在交互问句上。
+
 ### 4.3 GRUB 菜单条目
 
 ```bash
@@ -992,14 +994,36 @@ readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}"
 错误覆盖依赖解析失败等不产生 scriptlet 报错的路径。命中任一即判负，脚本
 同时回显串口尾行，使失败现场在 CI 日志中直接可读，不必下载 artifact 复现。
 
-#### 9.3.5 安装腿失败时跳过启动腿
+#### 9.3.5 交互问句同样是安装失败
+
+anaconda 在配置阶段遇到无法自处理的错误时会转为交互问句，而不是退出进程：
+
+```
+安装引导装载程序时发生以下错误。系统将无法引导。要忽略该错误并继续安装吗？
+failed to write boot loader configuration
+请回答 'yes' 或 'no':
+```
+
+无头安装没有 stdin，问句永远等不到回答，串口上既无完成标记也无失败标记。这类问句本身即失败证据，判定侧与 `INST_ERR` 合并：
+
+```bash
+ASK_FAIL='failed to write boot loader configuration|'
+ASK_FAIL="${ASK_FAIL}Please answer .yes. or .no.|"
+ASK_FAIL="${ASK_FAIL}请回答 .yes. 或 .no."
+readonly ASK_FAIL
+readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}|${ASK_FAIL}"
+```
+
+`trap` 与 rpm 事务规则都覆盖不到这条路径：前者只捕获 kickstart 自身脚本的退出，后者只匹配 scriptlet 报错，而 anaconda 自己抛出的异常两者都不产生。问句按中英文各留一条模式，避免安装界面语言或 TUI/文本模式差异导致漏判。
+
+#### 9.3.6 安装腿失败时跳过启动腿
 
 安装失败后磁盘不可引导，继续执行 `boot_run()` 只会在空盘上耗尽
 `--boot-timeout`，并把一次失败拖成两次等待。判定侧在安装腿失败后为该轮
 置 `skip` 标记：启动腿输出 `not ok`（保留 TAP 编号连续性）与
 `skipped: install failed`，manifest 记 `boot=skip`，不再启动 QEMU。
 
-#### 9.3.6 长耗时阶段必须回显进度
+#### 9.3.7 长耗时阶段必须回显进度
 
 无头验收只读串口日志，安装与启动两条腿在失败前可能静默数十分钟，CI 日志
 里看不到任何推进迹象。判定侧在等待循环内每 30 秒打印一次当前轮次、已耗时
@@ -1007,7 +1031,7 @@ readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}"
 日志中可区分，也便于在超时前终止明显走偏的运行。进度回显只读日志，不参与
 判定。
 
-#### 9.3.7 图形会话需要 DRM/KMS 设备
+#### 9.3.8 图形会话需要 DRM/KMS 设备
 
 安装成功只证明用户态可引导；UKUI 会话还要求 lightdm 能拿到一个 DRM/KMS 节点。本项目内核基线 `arch/x86/configs/x86_64_defconfig` 只启用 `CONFIG_DRM_VIRTIO_GPU=y`，未启用 `DRM_BOCHS`，也没有 `FB_VESA`；`openeuler_defconfig` 中的 `DRM_BOCHS=m` 不参与本项目的 x86_64 构建（spec 以 `make defconfig` 加 `airy_defconfig` 片段配置）。
 
