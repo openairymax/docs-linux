@@ -1029,7 +1029,7 @@ readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}"
 | 错误场景 | 处理方式 |
 |---------|---------|
 | 磁盘空间不足 | 提示用户调整分区 |
-| 网络不可用 | 切换到离线安装（使用 ISO 内置包） |
+| 网络不可用 | 安装中止并提示检查网络；ISO 内离线仓库（`/airymax/Packages`，cost=1）只承载 `airymaxos-*` 自有包，基础用户空间与 UKUI 闭包来自 kickstart 声明的 openEuler 网络仓库，完整离线闭包随 M-12 落地 |
 | Secure Boot 校验失败 | 提示用户禁用 Secure Boot 或注册密钥 |
 | 包签名验证失败 | 中止安装，提示仓库损坏 |
 | GRUB 安装失败 | 回滚分区变更，提示用户手动安装 |
