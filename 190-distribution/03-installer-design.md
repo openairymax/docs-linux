@@ -540,7 +540,7 @@ fi
 | root 口令 | SHA-512 crypt 哈希 + `--iscrypted` | 禁止明文；哈希常量后缀 `0x01` 标识初始代次 |
 | root 首次登录 | `chage -d 0 root` | 安装后强制改密，仅用于首次控制台接管 |
 | 初始用户 | `airymax`，`wheel` 组 | lightdm/UKUI 的登录主体，口令同样以哈希落盘 |
-| 账户自检 | `%post` 中 `passwd -S <user>` 必须为 `P` | 失败即 `exit 1`，让无人值守安装可判定失败 |
+| 账户自检 | `%post` 中 `acct_ok <user>`（`passwd -S` 状态必须为 `P`） | 失败即 `fail <token>`，串口标记带 `reason=` 归因 |
 
 初始口令哈希是仓库内的唯一凭据载体，明文不入库、不入文档。轮换初始凭据时
 同时改写两份配方并递增哈希盐后缀，避免两剖面漂移。生产环境应在首次登录后
@@ -550,7 +550,9 @@ fi
 
 工作站剖面的验收判据是「会话定义 / lightdm 单元 / greeter 会话」三级登录链成立。交付链路：
 
-1. `%post` 执行 `systemctl set-default graphical.target`，默认进入图形目标；
+1. `%post` 以 `systemctl --root=/ set-default graphical.target` 设定默认目标，判据是
+   `/etc/systemd/system/default.target` 的符号链接落盘状态（安装器 chroot 内没有
+   systemd 总线，见 §9.3.9）；
 2. kickstart `services --enabled=lightdm airymax-desktop-ready` 显式启用显示
    管理器与就绪探针，包自身 `%post` 不做启用（OS-OPS-010 的同一条原则）；
 3. `airymaxos-release` 安装 `/etc/lightdm/lightdm.conf.d/50-airymax.conf`，以
@@ -589,8 +591,9 @@ fi
   `airy-incident@.service` 无 `[Install]`，不列入）；
 - `airymaxos-system` 的 `%post` 不调用 `systemctl preset`，安装器与管理员是
   唯一的显式启用入口；
-- 工作站 kickstart 的 `%post` 只做 `systemctl daemon-reload`，不启用
-  `agentrt.target`；OS-OPS-010 的启用动作随 `airymaxos-services` 同版本落地；
+- 工作站 kickstart 的 `%post` 不启用 `agentrt.target`，也不调用 `daemon-reload`
+  （该动词依赖总线，对尚未启动的已安装系统没有意义）；OS-OPS-010 的启用动作随
+  `airymaxos-services` 同版本落地；
 - 启用边界由 `distro/tools/preset_lint.py`（P001~P006）静态校验，并纳入
   `distro/ci/run-lint.sh` 统一门禁。
 
@@ -966,6 +969,23 @@ mark()
 trap 'rc=$?; [ "${rc}" -eq 0 ] || mark "AIRYMAX-INSTALL-FAIL rc=${rc}"' EXIT
 ```
 
+`trap` 只给出退出码，`rc=1` 无法区分是哪条断言失败。除兜底 `trap` 之外，所有
+显式断言统一经 `fail()` 上报，标记携带 `reason=<断言名>`：
+
+```bash
+fail()
+{
+    trap - EXIT
+    mark "AIRYMAX-INSTALL-FAIL reason=$1"
+    exit 1
+}
+```
+
+`reason` 取稳定的断言名（`release-pkg`、`system-release`、`system-pkg`、
+`root-account`、`airymax-account`、`root-expire`、`default-target`），与配方里的
+检查项一一对应；读串口即可定位失败点，不必下载 `/root/airymax-post.log` 复现。
+未预期的错误仍由 `trap` 以 `rc=N` 上报，两条路径互不影响。
+
 判定侧把该标记纳入失败模式（与 `Kernel panic`、`Fatal glibc error`、`dracut-initqueue.*timeout` 同级），命中即判负并立即结束，不必等 `--install-timeout`：
 
 ```bash
@@ -1043,6 +1063,23 @@ readonly INST_ERR="${INST_FAIL}|${RPM_FAIL}|${ASK_FAIL}"
 | aarch64 | `-machine virt -device virtio-gpu-pci` | `virt` 机型没有缺省 VGA，直接追加 PCI 显示设备 |
 
 `DRM_VIRTIO_GPU` 的 Kconfig 依赖为 `DRM && VIRTIO_MENU && MMU`，并 `select VIRTIO`、`DRM_KMS_HELPER`、`DRM_GEM_SHMEM_HELPER`、`VIRTIO_DMA_SHARED_BUFFER`；这些在基线配置中均已满足，无需追加片段。
+
+#### 9.3.9 安装器 chroot 内没有 systemd 总线
+
+`%post` 运行在目标系统的 chroot 里，此时 systemd 尚未启动、`/run/systemd/system`
+不存在。`systemctl` 的单元文件类动词（`set-default`、`enable`、`disable`、`mask`）
+会尝试连接总线并以非零码失败；不同 systemd 版本对此的退出码与报错并不一致，
+既可能让 `set -e` 中断安装，也可能静默留下未生效的配置。规则：
+
+| 约束 | 做法 |
+|------|------|
+| 单元文件动词 | 一律显式 `systemctl --root=/ <verb> ...`，走离线（文件）语义，不依赖总线 |
+| 默认 target | 由各剖面 kickstart 唯一设定（工作站 `graphical.target`、最小化 `multi-user.target`），`airymaxos-release` 的策略脚本不重复设定（SSoT） |
+| 成功判据 | 不看 `systemctl` 退出码，看落盘事实：`readlink -f /etc/systemd/system/default.target` 必须指向 `/usr/lib/systemd/system/<target>`，否则 `fail default-target` |
+| `daemon-reload` | 总线动词，对尚未启动的已安装系统没有意义，`%post` 不调用 |
+
+`set-default` 工具退出码不可信时先回显 `AIRYMAX-INSTALL-NOTE set-default rc=N`，
+再以符号链接判定，使「工具语义差异」与「真实失败」在串口上可区分。
 
 ---
 
