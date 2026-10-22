@@ -1089,7 +1089,7 @@ sign:
         COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
       run: |
         cosign sign --key env://COSIGN_KEY \
-          ghcr.io/spharx/airymaxos:${{ github.ref_name }}
+          ghcr.io/openairymax/airymaxos:${{ github.ref_name }}
 ```
 
 ### 8.5 发布渠道
@@ -1112,8 +1112,8 @@ publish:
         rsync -avz airymaxos-repo/ ${{ secrets.DNF_REPO_HOST }}:/var/www/airymaxos-repo/
     - name: Publish OCI image
       run: |
-        docker build -t ghcr.io/spharx/airymaxos:${{ github.ref_name }} .
-        docker push ghcr.io/spharx/airymaxos:${{ github.ref_name }}
+        docker build -t ghcr.io/openairymax/airymaxos:${{ github.ref_name }} .
+        docker push ghcr.io/openairymax/airymaxos:${{ github.ref_name }}
     - name: Publish SDK tarball
       run: |
         tar czf airymaxos-sdk-${{ github.ref_name }}.tar.gz sdk/

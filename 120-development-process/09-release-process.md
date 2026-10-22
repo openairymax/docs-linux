@@ -357,7 +357,7 @@ rpm-repo/
 
 ### 5.4 容器镜像仓库
 
-- **镜像名**：`ghcr.io/spharx/airymaxos:vMAJOR.MINOR.PATCH`。
+- **镜像名**：`ghcr.io/openairymax/airymaxos:vMAJOR.MINOR.PATCH`。
 - **镜像分层**：基底镜像 `agent-base` 为内核层（`airymaxos-kernel`）+ SDK 层，系统层在其上叠加 12 daemon 与必要工具。
 - **签名**：容器镜像使用 Cosign 签名。
 - **架构**：x86_64 / aarch64 多架构镜像。

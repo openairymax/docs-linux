@@ -1082,7 +1082,7 @@ jobs:
     name: Generate SPDX SBOM
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/spharx/airymaxos-build-env:1.0.1@sha256:5c5e8e4ed4a3b7c1f9d2e8a0b6c4d2e9f1a3b5c7d8e0f2a4b6c8d0e2f4a6b8c
+      image: ghcr.io/openairymax/airymaxos-build-env:1.0.1@sha256:5c5e8e4ed4a3b7c1f9d2e8a0b6c4d2e9f1a3b5c7d8e0f2a4b6c8d0e2f4a6b8c
       env:
         SOURCE_DATE_EPOCH: ${{ vars.SOURCE_DATE_EPOCH }}
         TZ: UTC
@@ -1441,7 +1441,7 @@ SBOM 生成环境通过容器镜像锁定，容器镜像的 digest 写入 `sbom-
 # sbom-manifest.txt 示例
 # agent-linux SBOM manifest
 # Generated at: 2026-07-15T08:00:00Z (SOURCE_DATE_EPOCH=1721000000)
-# Build environment: ghcr.io/spharx/airymaxos-build-env:1.0.1
+# Build environment: ghcr.io/openairymax/airymaxos-build-env:1.0.1
 # Container digest: sha256:5c5e8e4ed4a3b7c1f9d2e8a0b6c4d2e9f1a3b5c7d8e0f2a4b6c8d0e2f4a6b8c
 
 agent-linux-1.0.1.spdx.json    sha256:7a3f5e9c1d2b4a8f0e6c3d7b5a9f1e3c2d4b6a8f0e2c4d6b8a0f2e4c6d8b0a2

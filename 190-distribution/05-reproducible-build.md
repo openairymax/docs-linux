@@ -872,7 +872,7 @@ sha256sum build-env-fingerprint.json
 ```json
 {
   "build_env_lock_version": "1.0.1",
-  "base_image": "ghcr.io/spharx/build-base:1.0.1",
+  "base_image": "ghcr.io/openairymax/build-base:1.0.1",
   "base_image_digest": "sha256:abcdef1234567890...",
   "packages": {
     "gcc": "13.2.1-6.fc39",
@@ -1234,7 +1234,7 @@ case "$ERROR_CODE" in
     RB-E005)
         echo "[ERROR] Build environment fingerprint mismatch"
         echo "[INFO] Rebuild from locked container image"
-        echo "[FIX] podman pull ghcr.io/spharx/build-base:1.0.1"
+        echo "[FIX] podman pull ghcr.io/openairymax/build-base:1.0.1"
         ;;
     *)
         echo "[ERROR] Unknown error code: $ERROR_CODE"
@@ -1304,7 +1304,7 @@ echo "[OK] All products verified"
 podman run --rm \
     -v $(pwd):/build:Z \
     -w /build \
-    ghcr.io/spharx/build-base:1.0.1 \
+    ghcr.io/openairymax/build-base:1.0.1 \
     /build/scripts/reproducible-rpm-build.sh /build x86_64
 ```
 
