@@ -210,16 +210,20 @@ SBOM 采用 CycloneDX 1.5 JSON 格式，内容包括：
 
 ### 3.7 release notes
 
-- **格式**：Markdown。
+- **格式**：Markdown，仅含三个 `##` 章节，全文（含空行）不超过 12 行。
 - **内容**：
-  - 版本概述（版本号、发布日期、类型）。
-  - 新特性（minor 版本）。
-  - 修复的缺陷（含 `Fixes:` 引用）。
-  - 安全修复（含 CVE 编号）。
-  - 已知问题。
-  - 升级说明（兼容性、迁移路径）。
-  - 贡献者列表。
-  - 物料校验和。
+  - `## 概述`：一行，`版本号：<X.Y.Z>；发布日期：<YYYY-MM-DD>`。
+  - `## 说明`：本版本更新了什么，至多 3 条单行条目。
+  - `## 其他`：需要额外说明的事项（附件方式、验收方式、物料签名等），
+    至多 3 条单行条目。
+- **唯一事实源**：`说明` / `其他` 两节的内容取自
+  `tools/release-engineering/manifest.yaml` 的 `notes.summary` /
+  `notes.remarks`；由 `release_manifest.py --notes` 渲染，禁止在
+  release notes 中另行手工增删章节或条目。
+- **生成方式**：
+  `python3 tools/release-engineering/release_manifest.py --notes
+  --version <X.Y.Z> --output agent-linux-<X.Y.Z>-release-notes.md`，
+  随后按 §4.2 以 GPG 签名。
 
 ### 3.8 安装 ISO
 

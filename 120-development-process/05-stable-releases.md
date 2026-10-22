@@ -449,27 +449,17 @@ gantt
 ### 9.3 release notes 摘要
 
 ```markdown
-# agent-linux v1.0.1
+## 概述
+版本号：1.0.1；发布日期：2026-11-08
 
-发布日期：2026-11-08
-类型：正式版（首个可投产版本，M0-M8 全部里程碑完成）
+## 说明
+- 首个可投产正式版本，M0-M8 里程碑全部完成
+- 修复 RC 阶段 4 项 P1 缺陷与 1 项中危 CVE（CVE-2026-1234）
+- airy_defconfig 首次锁定，ABI 首版基线
 
-## 修复的缺陷（RC 阶段）
-- [P1] sched: SCHED_DEADLINE 在高负载下错过截止时间（Fixes: a1b2c3d4）
-- [P1] ipc: IORING_OP_URING_CMD 在 EAGAIN 时未释放缓冲区（Fixes: e5f6a7b8）
-- [P1] mem: alloc_pages 在 NUMA 节点 0 之外分配失败（Fixes: c9d0e1f2）
-- [P2] log: 128B 记录在跨 CPU 时时间戳乱序（Fixes: 3a4b5c6d）
-
-## 安全修复
-- CVE-2026-1234（中危）：纯 C LSM 钩子在并发场景下存在 TOCTOU（Fixes: 7e8f9a0b）
-
-## 安装说明
-- 全新安装：v1.0.1 为首个正式版本（路线图：130-roadmap/02-milestones-and-timeline.md）
-- airy_defconfig：首次发布锁定
-- ABI：首版基线
-
-## 已知问题
-- 无
+## 其他
+- 全新安装；路线图见 130-roadmap/02-milestones-and-timeline.md
+- 物料均经 GPG 签名，校验和见 agent-linux-1.0.1.sha256sum
 ```
 
 ---
