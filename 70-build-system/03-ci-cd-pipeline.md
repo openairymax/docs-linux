@@ -102,12 +102,14 @@ agent-linux/.github/workflows/
 ├── ssot-validate.yml        # SSoT 规则 ID 校验（全仓）
 ├── sc-dual-ci.yml           # [SC] 共享契约层双向 CI（OS-IRON-008）
 ├── mgmt-orchestrator.yml    # 管理仓编排：文件完整性 + 子仓 CI 编排
-├── image-ci.yml             # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁）
+├── image-ci.yml             # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁；可选复用 Release 内核包）
 ├── nightly.yml              # develop nightly build（L5/L6 连接/协议验证；formal/soak/chaos 工具未实现，降级 SKIP）
 └── release.yml              # release tag 流水线（L7 发布验证）
 ```
 
 > **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-ci.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 180 分钟、`accept` 300 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
+
+> **内核单次构建**：`image-ci.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
 
 ### 2.2 管理仓 CI（mgmt-orchestrator.yml）
 

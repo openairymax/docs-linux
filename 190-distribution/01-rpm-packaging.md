@@ -22,11 +22,15 @@ agent-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重�
 
 ### 1.2 适用范围
 
-- Linux 6.6 内核基线衍生包（kernel / kernel-modules / kernel-headers）
+- Linux 6.6 内核基线衍生包（kernel / core / modules / headers / devel / tools 共 6 个，配方见 `distro/specs/kernel/airymaxos-kernel.spec`）
 - 12 daemon 用户态服务包（airymaxos-services-*）
 - SDK 多语言包（Python / Rust / Go / TypeScript）
 - CJK 字体包与 locale 数据包
-- 多架构镜像构建（x86_64 / aarch64 / riscv64）
+- 多架构镜像构建（x86_64 / aarch64 / riscv64 / loongarch64）
+
+> **架构差异**：`airymaxos-kernel-tools`（perf/bpftool）只能在本机架构上运行，
+> 因此仅在 `%{_target_cpu}` 与 `uname -m` 相同的原生构建中产出；交叉构建的四架构
+> 里其余五个内核包照常产出，tools 包缺席不是缺陷。
 
 ### 1.3 术语规范
 
@@ -161,7 +165,7 @@ BuildRequires:  bison, flex, openssl-devel
 BuildRequires:  clang, llvm, libbpf-devel
 Requires:       airymaxos-system >= %{version}
 
-ExclusiveArch:  x86_64 aarch64 riscv64
+ExclusiveArch:  x86_64 aarch64 riscv64 loongarch64
 
 %description
 The agent-linux (AirymaxOS) kernel package contains the Linux 6.6 kernel
@@ -187,6 +191,11 @@ Requires:       airymaxos-kernel-headers = %{version}-%{release}
 Summary:        agent-linux kernel tools (perf, bpftool, etc.)
 Requires:       airymaxos-kernel-core = %{version}-%{release}
 ```
+
+> **tools 子包的条件定义**：模板中的 `%package tools` 与其余四个子包不同，实际配方用
+> `%global native %(test "%{_target_cpu}" = "$(uname -m)" && echo 1 || echo 0)` 判定，
+> 并把 `%package`/`%build`/`%install`/`%check`/`%files` 各段一并包在 `%if %{native}` 内；
+> 交叉构建架构上没有可执行的 perf/bpftool，产不出该包。
 
 ### 3.2 %prep 阶段
 
