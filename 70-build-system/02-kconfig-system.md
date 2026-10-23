@@ -431,7 +431,7 @@ make allmodconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 make allnoconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 ```
 
-`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agent-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`、`CONFIG_USER_NS=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agent-linux 核心特性关掉。`CONFIG_USER_NS=y` 属桌面运行时依赖：systemd 单元的 `PrivateUsers=`/`RestrictNamespaces=` 需要用户命名空间，缺失时 upower 等单元以 `217/USER` 失败并使启动降级。
+`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agent-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`、`CONFIG_USER_NS=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agent-linux 核心特性关掉。`CONFIG_USER_NS=y` 属桌面运行时依赖：systemd 单元的 `PrivateUsers=`/`RestrictNamespaces=` 需要用户命名空间，缺失时 upower 等单元以 `217/USER` 失败并使启动降级。同一组必选项由 `distro/specs/kernel/airymaxos-kernel.spec` 的 `%check` 对合并后的 `.config` 逐项断言，与 `ci-airy.yml`/`ci-kernel.yml` 的必备清单同源；发布流水线不跑矩阵校验，故打包层是片段回退的最后一道构建期拦截。
 
 > **说明**：早期设计中的独立 `airymaxos-base.config` 全配置基线文件并不存在（`kernel/` 下未提供）；其"必须启用的选项基线"角色由各架构 `airy_defconfig` 直接承担，CI 通过 `scripts/kconfig/merge_config.sh` 叠加使用（见 §7.1）。
 
