@@ -36,7 +36,7 @@ agent-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重�
 
 | 类别 | 包名前缀 | 数量 | 备注 |
 |------|----------|------|------|
-| 内核 | airymaxos-kernel | 5 | 主包 / devel / headers / modules / debuginfo（对齐 build/airymaxos-kernel.spec） |
+| 内核 | airymaxos-kernel | 6 | 主包 / core / modules / headers / devel / tools（对齐 distro/specs/kernel/airymaxos-kernel.spec） |
 | 用户态服务 | airymaxos-services | 12 | gateway_d / cogn_d / dev_d 等 |
 | 认知运行时 | airymaxos-cognition | 3 | cognition / taskflow / mac |
 | 记忆卷载 | airymaxos-memory | 4 | core / regions / forgetting / tiering |
@@ -46,7 +46,7 @@ agent-linux（AirymaxOS）RPM 打包设计旨在为发行版构建提供可重�
 | 测试框架 | airymaxos-tests-linux | 6 | unit / perf / fuzz / integration / e2e / bench |
 | SDK | airymaxos-sdk | 4 | python / rust / go / typescript |
 | 字体 | airymaxos-fonts | 5 | cjk-zh-cn / cjk-zh-tw / cjk-ja / cjk-ko / common |
-| 总计 | — | 51 | — |
+| 总计 | — | 52 | — |
 
 ---
 
@@ -59,12 +59,13 @@ agent-linux 发行版顶层分为"内核"、"用户态"、"开发"三大组：
 ```bash
 # 顶层组与依赖关系
 airymaxos-base (虚拟组)
-├── airymaxos-kernel              # 内核组（airymaxos-kernel.spec 5 包拆分）
-│   ├── airymaxos-kernel          # 主包（vmlinuz + /boot + /lib/modules 基础）
-│   ├── airymaxos-kernel-devel
-│   ├── airymaxos-kernel-headers
+├── airymaxos-kernel              # 内核组（airymaxos-kernel.spec 6 包拆分）
+│   ├── airymaxos-kernel          # 主包（身份与 install-only 声明）
+│   ├── airymaxos-kernel-core     # vmlinuz 与安装期生成的 initramfs
 │   ├── airymaxos-kernel-modules
-│   └── airymaxos-kernel-debuginfo
+│   ├── airymaxos-kernel-headers
+│   ├── airymaxos-kernel-devel
+│   └── airymaxos-kernel-tools    # 仅原生架构产出（perf/bpftool）
 ├── airymaxos-services            # 用户态服务组
 │   ├── airymaxos-services-gateway
 │   ├── airymaxos-services-cogn

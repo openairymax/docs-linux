@@ -100,10 +100,12 @@ AirymaxOS 全面复用 openEuler 24.03 LTS 构建体系（LAYER 方案，详见 
 
 | 产物 | 路径 | 作用 |
 |------|------|------|
-| airymaxos-kernel.spec | build/airymaxos-kernel.spec | RPM 打包模板（5 包拆分：airymaxos-kernel/devel/headers/modules/debuginfo） |
-| meta-airymax/ | build/meta-airymax/ | Yocto 自定义层（嵌入式镜像） |
-| custom/cfg_airymax/ | build/custom/cfg_airymax/ | imageTailor 配置覆盖（服务器/桌面镜像） |
-| ks-airymax.cfg | build/ks-airymax.cfg | Kickstart 安装脚本 |
+| airymaxos-kernel.spec | distro/specs/kernel/airymaxos-kernel.spec | 内核 RPM 配方（主包 + core/modules/headers/devel/tools） |
+| airymaxos-system.spec | distro/specs/airymaxos-system.spec | 系统服务与预设 RPM 配方 |
+| airymaxos-release.spec | distro/specs/airymaxos-release.spec | 发行标识 RPM 配方 |
+| kickstart | distro/kickstart/airymaxos-*.ks | minimal 与 workstation 两个安装剖面 |
+
+RPM 与 ISO 全部由 `distro/` 的脚本与配方产出，`imageTailor`/`Yocto` 侧不另设覆盖目录。
 
 **关键约束**：
 
