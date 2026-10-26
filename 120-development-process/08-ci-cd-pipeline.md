@@ -40,12 +40,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | # | workflow | 主要职责 | 触发条件 | 阻断级别 |
 |---|---------|---------|---------|---------|
-| 1 | `ci-kernel.yml` | 内核编译 + 静态分析 + KUnit + kselftest | push / PR | 阻断 |
-| 2 | `ssot-validate.yml` | SSoT v2 规则校验 + 四层归属校验 + [SC] 数量校验 | push / PR（涉及 SSoT 文件） | 阻断 |
-| 3 | `sc-dual-ci.yml` | [SC] 头文件双端逐字节校验 + 编译器无关性 | push / PR（涉及 [SC] 文件） | 阻断 |
+| 1 | `kernel-verify.yml` | 内核编译 + 静态分析 + KUnit + kselftest | push / PR | 阻断 |
+| 2 | `ssot-verify.yml` | SSoT v2 规则校验 + 四层归属校验 + [SC] 数量校验 | push / PR（涉及 SSoT 文件） | 阻断 |
+| 3 | `sc-verify.yml` | [SC] 头文件双端逐字节校验 + 编译器无关性 | push / PR（涉及 [SC] 文件） | 阻断 |
 | 4 | `nightly.yml` | 全量测试 + 性能基准 + 动态分析 + 覆盖率 | 定时（每日 02:00 UTC） | 不阻断（生成报告） |
 | 5 | `release.yml` | RPM 构建 + SBOM 生成 + 签名 + 发布 | tag push / 手动 | 阻断（影响发布） |
-| 6 | `mgmt-orchestrator.yml` | 管理仓库同步 + 子仓协调 | push / PR（管理仓库） | 阻断 |
+| 6 | `mgmt-verify.yml` | 管理仓库同步 + 子仓协调 | push / PR（管理仓库） | 阻断 |
 
 ---
 
@@ -67,12 +67,12 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 | workflow | 触发路径 | 排除路径 |
 |---------|---------|---------|
-| `ci-kernel.yml` | `kernel/**` / `services/**` / `security/**` / `memory/**` / `cognition/**` / `cloudnative/**` / `system/**` | `docs/**` / `*.md` |
-| `ssot-validate.yml` | `docs/docs-linux/**` / `kernel/include/uapi/linux/airymax/**` / `airy_defconfig` | — |
-| `sc-dual-ci.yml` | `kernel/include/uapi/linux/airymax/**`（仅 12 个 [SC] 头文件） | — |
+| `kernel-verify.yml` | `kernel/**` / `services/**` / `security/**` / `memory/**` / `cognition/**` / `cloudnative/**` / `system/**` | `docs/**` / `*.md` |
+| `ssot-verify.yml` | `docs/docs-linux/**` / `kernel/include/uapi/linux/airymax/**` / `airy_defconfig` | — |
+| `sc-verify.yml` | `kernel/include/uapi/linux/airymax/**`（仅 12 个 [SC] 头文件） | — |
 | `nightly.yml` | 全部 | — |
 | `release.yml` | tag `v*` | — |
-| `mgmt-orchestrator.yml` | `agent-linux-mgmt/**` | — |
+| `mgmt-verify.yml` | `agent-linux-mgmt/**` | — |
 
 ### 2.3 分支保护规则
 
@@ -86,11 +86,11 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ---
 
-## 3. workflow 1：ci-kernel.yml
+## 3. workflow 1：kernel-verify.yml
 
 ### 3.1 设计目标
 
-`ci-kernel.yml` 是最基础的 CI workflow，负责内核与 daemon 的编译、静态分析、单元测试。每个 PR 必须通过此 workflow 才能合并。
+`kernel-verify.yml` 是最基础的 CI workflow，负责内核与 daemon 的编译、静态分析、单元测试。每个 PR 必须通过此 workflow 才能合并。
 
 ### 3.2 触发条件
 
@@ -252,11 +252,11 @@ flowchart TD
 
 ---
 
-## 4. workflow 2：ssot-validate.yml
+## 4. workflow 2：ssot-verify.yml
 
 ### 4.1 设计目标
 
-`ssot-validate.yml` 守护 SSoT v2 单一权威源模型，确保每个技术点只有一个权威源，且 IRON-9 v3 四层归属一致。
+`ssot-verify.yml` 守护 SSoT v2 单一权威源模型，确保每个技术点只有一个权威源，且 IRON-9 v3 四层归属一致。
 
 ### 4.2 触发条件
 
@@ -339,11 +339,11 @@ on:
 
 ---
 
-## 5. workflow 3：sc-dual-ci.yml
+## 5. workflow 3：sc-verify.yml
 
 ### 5.1 设计目标
 
-`sc-dual-ci.yml` 守护 12 个 [SC] 头文件的双端（agentrt 与 agent-linux）逐字节一致性，以及编译器无关性。
+`sc-verify.yml` 守护 12 个 [SC] 头文件的双端（agentrt 与 agent-linux）逐字节一致性，以及编译器无关性。
 
 ### 5.2 触发条件
 
@@ -561,11 +561,11 @@ on:
 
 ---
 
-## 8. workflow 6：mgmt-orchestrator.yml
+## 8. workflow 6：mgmt-verify.yml
 
 ### 8.1 设计目标
 
-`mgmt-orchestrator.yml` 是管理仓库 workflow，负责 8 子仓的协调与同步。
+`mgmt-verify.yml` 是管理仓库 workflow，负责 8 子仓的协调与同步。
 
 ### 8.2 触发条件
 
@@ -619,12 +619,12 @@ on:
 
 | workflow | Runner | 说明 |
 |---------|--------|------|
-| `ci-kernel.yml` | self-hosted（x86_64 + aarch64） | 内核编译需要大内存 |
-| `ssot-validate.yml` | GitHub-hosted | 轻量校验 |
-| `sc-dual-ci.yml` | self-hosted（含 MSVC 编译器） | 需要多种编译器 |
+| `kernel-verify.yml` | self-hosted（x86_64 + aarch64） | 内核编译需要大内存 |
+| `ssot-verify.yml` | GitHub-hosted | 轻量校验 |
+| `sc-verify.yml` | self-hosted（含 MSVC 编译器） | 需要多种编译器 |
 | `nightly.yml` | self-hosted（大内存机器） | 性能基准需要稳定环境 |
 | `release.yml` | self-hosted（隔离环境） | 发布需要安全环境 |
-| `mgmt-orchestrator.yml` | GitHub-hosted | 轻量校验 |
+| `mgmt-verify.yml` | GitHub-hosted | 轻量校验 |
 
 ### 9.2 并发限制
 
@@ -727,11 +727,11 @@ concurrency:
 
 | Unify 模块 | CI 关系 |
 |-----------|---------|
-| **A-UEF** | `ci-kernel.yml` 校验 A-UEF 错误码使用一致性；`ssot-validate.yml` 校验 A-UEF 权威源唯一性 |
-| **A-ULP** | `ci-kernel.yml` 校验 A-ULP 日志使用一致性；`sc-dual-ci.yml` 校验 [SC] `log_types.h` 双端一致 |
-| **A-UCS** | `ssot-validate.yml` 校验 `airy_defconfig` 五大选型锁定；A-UCS 配置变更触发 SSoT 校验 |
-| **A-ULS** | `ci-kernel.yml` 校验纯 C LSM 编译；`ssot-validate.yml` 校验未引入 BPF LSM |
-| **A-IPC** | `ci-kernel.yml` 校验 IORING_OP_URING_CMD 路径；`sc-dual-ci.yml` 校验 [SC] `ipc.h` 双端一致；`nightly.yml` 校验 IPC 性能基准 |
+| **A-UEF** | `kernel-verify.yml` 校验 A-UEF 错误码使用一致性；`ssot-verify.yml` 校验 A-UEF 权威源唯一性 |
+| **A-ULP** | `kernel-verify.yml` 校验 A-ULP 日志使用一致性；`sc-verify.yml` 校验 [SC] `log_types.h` 双端一致 |
+| **A-UCS** | `ssot-verify.yml` 校验 `airy_defconfig` 五大选型锁定；A-UCS 配置变更触发 SSoT 校验 |
+| **A-ULS** | `kernel-verify.yml` 校验纯 C LSM 编译；`ssot-verify.yml` 校验未引入 BPF LSM |
+| **A-IPC** | `kernel-verify.yml` 校验 IORING_OP_URING_CMD 路径；`sc-verify.yml` 校验 [SC] `ipc.h` 双端一致；`nightly.yml` 校验 IPC 性能基准 |
 
 ---
 
@@ -755,7 +755,7 @@ concurrency:
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：建立 6 个 CI workflow 详细设计（`ci-kernel.yml` 9 个 job / `ssot-validate.yml` 6 个 job / `sc-dual-ci.yml` 5 个 job / `nightly.yml` 8 个 job / `release.yml` 10 个 job / `mgmt-orchestrator.yml` 5 个 job）、CI 触发条件（push/PR/定时/手动/tag）、CI 资源管理（self-hosted runner + 并发限制 + 缓存策略）、CI 失败处理（自动重试 + flaky 管理 + 通知机制）、CI 监控与报表（Grafana 仪表盘 + 周报） |
+| v1.0.1 | 2026-07-18 | 初始版本：建立 6 个 CI workflow 详细设计（`kernel-verify.yml` 9 个 job / `ssot-verify.yml` 6 个 job / `sc-verify.yml` 5 个 job / `nightly.yml` 8 个 job / `release.yml` 10 个 job / `mgmt-verify.yml` 5 个 job）、CI 触发条件（push/PR/定时/手动/tag）、CI 资源管理（self-hosted runner + 并发限制 + 缓存策略）、CI 失败处理（自动重试 + flaky 管理 + 通知机制）、CI 监控与报表（Grafana 仪表盘 + 周报） |
 
 ---
 

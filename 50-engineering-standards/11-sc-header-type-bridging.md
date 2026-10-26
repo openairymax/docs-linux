@@ -411,18 +411,18 @@ error: conflicting types for '__u64'
 | `bpf_struct_ops.h` | [SC] 补充 | eBPF struct_ops | `__u32`（state、refcount） |
 | `syscall_gen.h` | [SC] 补充 | syscall 入口 | `__u32/__u64`（参数类型） |
 
-> **SSoT 一致性说明**：本表 12 个文件按 SSoT 权威源（`09-ssot-registry.md` OS-IRON-014）统一归为 [SC] 层，分为两类——**10 个 [SC] 核心头文件 + 2 个 [SC] 补充共享文件（`syscall_gen.h`、`bpf_struct_ops.h`）**。早期审查曾误将 `syscall_gen.h` 判为"非 [SC] 的 codegen 产物"，与 OS-IRON-014 冲突；`bpf_struct_ops.h` 文件头自声明 "NOT a [SC] core header" 仅表示其非"核心"，仍属 [SC] 补充共享文件。2 个补充共享文件与 10 个核心头同等参与 `sc-dual-ci.yml` 逐字节校验。
+> **SSoT 一致性说明**：本表 12 个文件按 SSoT 权威源（`09-ssot-registry.md` OS-IRON-014）统一归为 [SC] 层，分为两类——**10 个 [SC] 核心头文件 + 2 个 [SC] 补充共享文件（`syscall_gen.h`、`bpf_struct_ops.h`）**。早期审查曾误将 `syscall_gen.h` 判为"非 [SC] 的 codegen 产物"，与 OS-IRON-014 冲突；`bpf_struct_ops.h` 文件头自声明 "NOT a [SC] core header" 仅表示其非"核心"，仍属 [SC] 补充共享文件。2 个补充共享文件与 10 个核心头同等参与 `sc-verify.yml` 逐字节校验。
 
 ### 4.3 双端共享机制
 
-`uapi_compat.h` 与其他 [SC] 头文件一样，由 agentrt（用户态 SDK）与 agent-linux（内核态）双端逐字节共享。CI 通过 `sc-dual-ci.yml` 验证两端一致性：
+`uapi_compat.h` 与其他 [SC] 头文件一样，由 agentrt（用户态 SDK）与 agent-linux（内核态）双端逐字节共享。CI 通过 `sc-verify.yml` 验证两端一致性：
 
 | 校验项 | CI 脚本 | 频率 |
 |--------|---------|------|
-| 12 头文件存在性 | `sc-dual-ci.yml`（sc-validate job） | 每次 PR |
-| 无物理副本 | `sc-dual-ci.yml`（sc-validate job） | 每次 PR |
-| 触发 agentrt 镜像 PR | `sc-dual-ci.yml`（sc-trigger-and-await job） | 每次 PR |
-| 治理文件完整性 | `mgmt-orchestrator.yml`（file-integrity job） | 每次 PR |
+| 12 头文件存在性 | `sc-verify.yml`（sc-validate job） | 每次 PR |
+| 无物理副本 | `sc-verify.yml`（sc-validate job） | 每次 PR |
+| 触发 agentrt 镜像 PR | `sc-verify.yml`（sc-trigger-and-await job） | 每次 PR |
+| 治理文件完整性 | `mgmt-verify.yml`（file-integrity job） | 每次 PR |
 
 ---
 
@@ -446,7 +446,7 @@ CI 对每个 [SC] 头文件执行五路编译测试：常规三路确保内核�
 
 ### 5.2 CI 脚本示例
 
-五路矩阵由 `tools/sc-tri-compile/sc_tri_compile.py` 以常量表落地，工作流只负责调度与阻断，不在 YAML 中重复路径定义（避免两处漂移）。以下摘自 `agent-linux/.github/workflows/sc-dual-ci.yml` 的 `sc-validate` job：
+五路矩阵由 `tools/sc-tri-compile/sc_tri_compile.py` 以常量表落地，工作流只负责调度与阻断，不在 YAML 中重复路径定义（避免两处漂移）。以下摘自 `agent-linux/.github/workflows/sc-verify.yml` 的 `sc-validate` job：
 
 ```yaml
       - name: Install sc-tri-compile test dependencies
@@ -506,7 +506,7 @@ SC TRI-COMPILE: PASS (5/5 checks)
 | v1.0.1 | 2026-07-26 | **02-P0-17 SSoT 冲突修复**（历史记录原早期修订，v4.0 审查）：§4.1/§4.2 头文件分类修正——原表将 12 个文件统称 "[SC] 头文件" 与 SSoT 权威源（`09-ssot-registry.md` OS-IRON-014 "10 个核心 + bpf_struct_ops.h 补充"）冲突。已修正为三类分类：10 个 [SC] 核心头文件 + bpf_struct_ops.h 补充共享文件（文件头自声明非核心）+ syscall_gen.h codegen 产物（@generated 标记，非 [SC] 契约）。§4.3 CI 校验项 "12 头文件" → "10+1 头文件"。 |
 | v1.0.1 | 2026-07-29 | **P0-NEW-04/05/06/07/16 修复**（历史记录原早期修订）：§2.1/§2.2/§2.3/§5/SSoT 声明由错误的"二路条件编译（不使用 `__KERNEL__`）"修正为与实际 `uapi_compat.h` 代码一致的"三路条件编译（`#ifdef __KERNEL__` / `#elif defined(__linux__)` / `#else`）"；§5 CI 由二路编译改为三路编译（增加内核态 `__KERNEL__` 路径）；§1.1 头文件计数由"共 12 个"细化为"10 个 [SC] 核心 + bpf_struct_ops.h 补充 + syscall_gen.h codegen"。 |
 | v1.0.1 | 2026-10-12 | **恢复 OS-IRON-014 canonical**：上一行"10+1 头文件""syscall_gen.h 非 [SC]"的分类与 SSoT 权威源（`09-ssot-registry.md` OS-IRON-014，原文"10 核心 + 2 补充共 12 个"）冲突，属误订正。§1.1/§4.1/§4.2/§4.3 统一回归 canonical：**12 个 [SC] 头文件 = 10 核心 + 2 补充（`syscall_gen.h`/`bpf_struct_ops.h`）**，`syscall_gen.h` 由"codegen 产物"改归 [SC] 补充共享文件；CI 校验项 "10+1" → "12"。 |
-| v1.0.1 | 2026-10-17 | **`[DSL]` 降级契约可证明化**（A-38）：§2.5 新增降级模式两路收敛语义；`uapi_compat.h` 降级块删除不可达 typedef 与死代码，改为 `_AIRY_UAPI_COMPAT_TYPES_SET` 不变量断言 + `AIRY_DSL_UAPI_BRANCHES = 2` 契约标记；§5 由三路扩为五路（常规三路 + `[DSL]` 两路），检查项 4 → 5，编译次数 42 → 70；§5.2 改为引用 `sc-dual-ci.yml` 实态；降级路径以 `-Werror -Wno-error=cpp` 仅豁免 `#warning`。 |
+| v1.0.1 | 2026-10-17 | **`[DSL]` 降级契约可证明化**（A-38）：§2.5 新增降级模式两路收敛语义；`uapi_compat.h` 降级块删除不可达 typedef 与死代码，改为 `_AIRY_UAPI_COMPAT_TYPES_SET` 不变量断言 + `AIRY_DSL_UAPI_BRANCHES = 2` 契约标记；§5 由三路扩为五路（常规三路 + `[DSL]` 两路），检查项 4 → 5，编译次数 42 → 70；§5.2 改为引用 `sc-verify.yml` 实态；降级路径以 `-Werror -Wno-error=cpp` 仅豁免 `#warning`。 |
 
 ---
 

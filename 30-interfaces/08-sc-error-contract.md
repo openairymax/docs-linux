@@ -50,7 +50,7 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 | 物理路径 | `kernel/include/uapi/linux/airymax/error.h` |
 | 共享层级 | [SC] 共享契约层（IRON-9 v3 第一层） |
 | 共享方式 | 物理共享，逐字节相同 |
-| CI 校验 | `sc-dual-ci.yml` 逐字节校验 |
+| CI 校验 | `sc-verify.yml` 逐字节校验 |
 | agentrt 引用方式 | `-I` 编译选项 + `#include <airymax/error.h>` |
 
 ### 1.3 类型约束
@@ -434,14 +434,14 @@ static inline bool airy_is_error(airy_err_t err) {
 
 ---
 
-## §4 CI 逐字节校验：sc-dual-ci.yml 验证两端 error.h 相同
+## §4 CI 逐字节校验：sc-verify.yml 验证两端 error.h 相同
 
 ### 4.1 校验机制
 
-`sc-dual-ci.yml` 是 [SC] 双端一致性 CI 工作流，对 `error.h` 进行逐字节校验：
+`sc-verify.yml` 是 [SC] 双端一致性 CI 工作流，对 `error.h` 进行逐字节校验：
 
 ```yaml
-# .github/workflows/sc-dual-ci.yml
+# .github/workflows/sc-verify.yml
 name: [SC] Dual CI
 on: [push, pull_request]
 jobs:
@@ -472,7 +472,7 @@ jobs:
 
 ### 4.2 校验失败的处理
 
-当 `sc-dual-ci.yml` 校验失败时：
+当 `sc-verify.yml` 校验失败时：
 
 1. CI 自动设置 `AIRY_SC_FALLBACK` 并重新构建（验证降级路径可编译）
 2. CI 阻止合并，要求双端维护者同步评审
@@ -630,7 +630,7 @@ jobs:
 1. 在本文件（`08-sc-error-contract.md`）提出变更提案
 2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/error.h` 物理头文件
-4. `sc-dual-ci.yml` 双端校验通过
+4. `sc-verify.yml` 双端校验通过
 5. 更新本契约文档版本号
 
 ---

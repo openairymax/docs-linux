@@ -896,7 +896,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 - 物理宿主唯一：`kernel/include/uapi/linux/airymax/`
 - agentrt 通过 `-I` 编译选项引用同一物理文件
-- **禁止任何一端单方面修改**——变更必须双向同步，通过 `sc-dual-ci.yml` 逐字节校验
+- **禁止任何一端单方面修改**——变更必须双向同步，通过 `sc-verify.yml` 逐字节校验
 - 使用内核 UAPI 类型（`__u32`/`__u16`/`__u64`/`__u8`），不使用 `uint32_t` 等 C 标准库类型
 - **禁止使用** **`float`** **类型**——内核态不支持浮点运算
 - 每个头文件底部包含 `#ifdef AIRY_SC_FALLBACK` 降级块（\[DSL] 层）
@@ -956,7 +956,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 | 安全    | 纯 C LSM 完整校验                                     | 仅 POSIX capability                        |
 | Fault | Fault Handler 优雅处理                               | 统一 Panic（Fault 码禁用）                       |
 
-**触发条件**: `sc-dual-ci.yml` 检测到两端 \[SC] 头文件不一致 / `airy_defconfig` 中显式配置 `CONFIG_AIRY_SC_FALLBACK=y` / \[SC] 头文件物理校验失败（hash 不匹配）。
+**触发条件**: `sc-verify.yml` 检测到两端 \[SC] 头文件不一致 / `airy_defconfig` 中显式配置 `CONFIG_AIRY_SC_FALLBACK=y` / \[SC] 头文件物理校验失败（hash 不匹配）。
 
 **标准名称**: \[DSL]（Degraded Survival Layer，降级生存层）
 
@@ -1037,7 +1037,7 @@ Micro-Supervisor 不做任何"人性化"决策，仅执行冷酷的机制级执�
 
 **标准名称**: ssot-registry.yaml（SSoT v2 机器可读注册表）
 
-**参见**: SSoT、CI 校验、sc-dual-ci.yml
+**参见**: SSoT、CI 校验、sc-verify.yml
 
 ***
 

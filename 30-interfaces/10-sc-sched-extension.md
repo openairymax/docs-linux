@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 契约定位
 
-`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享，CI 通过 `sc-dual-ci.yml` 验证两端一致性。
+`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享，CI 通过 `sc-verify.yml` 验证两端一致性。
 
 ### 1.2 契约边界
 
@@ -369,16 +369,16 @@ OLK 6.6 提供了一系列 QoS 调度增强（`kernel/sched/grid/`），agent-li
 
 ### 6.2 版本号
 
-> **SSoT 对齐说明（v3.5 修复）**：SSoT `sched.h` **不定义** `AIRY_SCHED_VERSION` 与 `AIRY_SCHED_VERSION_CHECK` 宏。版本一致性通过 [SC] 共享契约层双端 CI（`sc-dual-ci.yml`）逐字节校验保证，无需在头文件内嵌版本号宏。旧文档中引用的 `AIRY_SCHED_VERSION`/`AIRY_SCHED_VERSION_CHECK` 为虚构定义，已移除。
+> **SSoT 对齐说明（v3.5 修复）**：SSoT `sched.h` **不定义** `AIRY_SCHED_VERSION` 与 `AIRY_SCHED_VERSION_CHECK` 宏。版本一致性通过 [SC] 共享契约层双端 CI（`sc-verify.yml`）逐字节校验保证，无需在头文件内嵌版本号宏。旧文档中引用的 `AIRY_SCHED_VERSION`/`AIRY_SCHED_VERSION_CHECK` 为虚构定义，已移除。
 
 ```c
-/* SSoT sched.h 不含版本号宏 —— 一致性由 sc-dual-ci.yml 逐字节校验保证 */
+/* SSoT sched.h 不含版本号宏 —— 一致性由 sc-verify.yml 逐字节校验保证 */
 /* 旧文档引用的 AIRY_SCHED_VERSION / AIRY_SCHED_VERSION_CHECK 已废弃 */
 ```
 
 ### 6.3 CI 双端校验
 
-`sc-dual-ci.yml` 对 `sched.h` 执行以下校验：
+`sc-verify.yml` 对 `sched.h` 执行以下校验：
 
 1. **逐字节对比**：agentrt 与 agent-linux 的 `sched.h` 必须逐字节相同
 2. **枚举值校验**：8 态枚举值必须在 `[0, 7]` 范围内且不重复（含 `AIRY_AGENT_STATE_MAX` 上界哨兵）

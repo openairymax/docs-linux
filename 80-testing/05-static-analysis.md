@@ -1,7 +1,7 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）静态分析
-> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 5 卷——编译时静态分析（Static Analysis）。本卷规定 Sparse（内核静态分析工具）、Smatch（语义匹配）、Coccinelle（语义补丁检测）、Clang Static Analyzer、Coverity 扫描集成、checkpatch.pl 扩展、[SC] 头文件编译器无关性检查（`check-uapi-compiler-agnostic.sh`）的启用模型、规则配置与 `ci-kernel` workflow 集成。\
+> **文档定位**：agent-linux（AirymaxOS）测试工程体系第 5 卷——编译时静态分析（Static Analysis）。本卷规定 Sparse（内核静态分析工具）、Smatch（语义匹配）、Coccinelle（语义补丁检测）、Clang Static Analyzer、Coverity 扫描集成、checkpatch.pl 扩展、[SC] 头文件编译器无关性检查（`check-uapi-compiler-agnostic.sh`）的启用模型、规则配置与 `kernel-verify` workflow 集成。\
 > **文档版本**：v1.1.0\
 > **最后更新**： 2026-10-19\
 > **上级文档**：[80-testing README](README.md)\
@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | Coverity | 商业静态分析服务，扫描内核代码 |
 | `checkpatch.pl` | 内核代码风格检查脚本 |
 | `check-uapi-compiler-agnostic.sh` | agent-linux 专属脚本，校验 [SC] 头文件编译器无关性 |
-| `ci-kernel` workflow | CI 流水线的静态分析阶段 |
+| `kernel-verify` workflow | CI 流水线的静态分析阶段 |
 
 ---
 
@@ -569,13 +569,13 @@ exit 0
 
 ---
 
-## 9. CI 集成：`ci-kernel` workflow
+## 9. CI 集成：`kernel-verify` workflow
 
-### 9.1 `ci-kernel` workflow 静态分析阶段
+### 9.1 `kernel-verify` workflow 静态分析阶段
 
 ```yaml
-# .github/workflows/ci-kernel.yml
-name: ci-kernel
+# .github/workflows/kernel-verify.yml
+name: kernel-verify
 on: [push, pull_request]
 
 jobs:
@@ -585,7 +585,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run checkpatch.pl + airy_checkpatch_ext.pl
         run: |
-          # 对每个 .patch 文件运行 checkpatch（失败即阻断，对齐 ci-kernel.yml）
+          # 对每个 .patch 文件运行 checkpatch（失败即阻断，对齐 kernel-verify.yml）
           for patch in $(git format-patch -1 HEAD); do
             scripts/checkpatch.pl --strict --no-tree -f "$patch" || exit 1
           done
@@ -741,7 +741,7 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 - [../10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)：IRON-9 v3 四层模型（[SC] 契约层）
 - [../30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)：A-UEF [SC] error.h 契约
 - [../50-engineering-standards/06-toolchain-and-automation.md](../50-engineering-standards/06-toolchain-and-automation.md)：工具链与自动化
-- [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`ci-kernel.yml`）
+- [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`kernel-verify.yml`）
 
 ---
 
@@ -761,7 +761,7 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：定义 6 大静态分析工具（Sparse/Smatch/Coccinelle/Clang Static Analyzer/Coverity/checkpatch.pl）的启用模型；新增 `airy_checkpatch_ext.pl` 扩展规则 10 项；新增 `check-uapi-compiler-agnostic.sh` [SC] 头文件编译器无关性校验；定义 `ci-kernel` workflow 静态分析阶段 |
+| v1.0.1 | 2026-07-18 | 初始版本：定义 6 大静态分析工具（Sparse/Smatch/Coccinelle/Clang Static Analyzer/Coverity/checkpatch.pl）的启用模型；新增 `airy_checkpatch_ext.pl` 扩展规则 10 项；新增 `check-uapi-compiler-agnostic.sh` [SC] 头文件编译器无关性校验；定义 `kernel-verify` workflow 静态分析阶段 |
 | v1.1.0 | 2026-10-19 | §7.2 与内核引擎实际实现对齐：规则集 001~011、默认扫描落点、分析语义、CLI 与退出码契约；全文路径校正至实际工程落点；删除与引擎不一致的伪代码；集成测试 32 用例 |
 
 ---

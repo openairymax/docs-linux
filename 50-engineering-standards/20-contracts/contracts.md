@@ -283,7 +283,7 @@ agent-linux IPC 基于 Linux 6.6 内核基线的 io_uring 子系统，在标准 
 
 #### 6.2 零拷贝机制
 
-io_uring 零拷贝路径通过以下三步实现，消除 CPU 数据复制（**不使用 page flipping**，遵循 ssot-validate.yml 选型约束）：
+io_uring 零拷贝路径通过以下三步实现，消除 CPU 数据复制（**不使用 page flipping**，遵循 ssot-verify.yml 选型约束）：
 
 1. Registered Buffers：发送方通过 io_uring_register_buffers() 预注册内存页，内核持有 page 引用。
 2. mmap 共享映射：接收方通过 mmap 将发送方注册缓冲区映射到接收方地址空间（零拷贝传输，不翻转 page table）。

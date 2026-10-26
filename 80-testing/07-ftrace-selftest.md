@@ -363,10 +363,10 @@ late_initcall(airy_trace_to_ulps_init);
 
 ## 8. CI 集成
 
-### 8.1 `ci-kernel` workflow ftrace 自检阶段
+### 8.1 `kernel-verify` workflow ftrace 自检阶段
 
 ```yaml
-# .github/workflows/ci-kernel.yml 的 ftrace-selftest 作业
+# .github/workflows/kernel-verify.yml 的 ftrace-selftest 作业
 jobs:
   ftrace-selftest:
     runs-on: ubuntu-24.04
@@ -450,7 +450,7 @@ CI 在解析 `dmesg` 时分别提取 `airy_selftest:` 与 `tracer_selftest:` 前
 2. function tracer / function_graph tracer / hwlat tracer 三大上游 tracer 的验证流程。
 3. agent-linux 专属 ftrace 自检 3 项（sched_tac 调度延迟、IPC fastpath、Agent 状态转换）。
 4. `airy_ftrace_defconfig` 配置定义（**规划，未实现**）。
-5. `ci-kernel` workflow ftrace 自检阶段。
+5. `kernel-verify` workflow ftrace 自检阶段。
 6. ftrace → A-ULP 集成验证。
 
 ### 10.3 后续版本规划

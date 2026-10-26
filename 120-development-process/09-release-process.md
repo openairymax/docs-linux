@@ -101,8 +101,8 @@ flowchart TD
 | 安全扫描 | Trivy / Snyk / Coverity | 零高危 |
 | ABI 兼容性 | libabigail | 无破坏性变更 |
 | Agent 契约兼容性 | `check-agent-contract.sh` | 无破坏性变更 |
-| [SC] 双端一致 | `sc-dual-ci.yml` | 双端逐字节一致 |
-| SSoT 校验 | `ssot-validate.yml` | 四层归属一致 |
+| [SC] 双端一致 | `sc-verify.yml` | 双端逐字节一致 |
+| SSoT 校验 | `ssot-verify.yml` | 四层归属一致 |
 | 升级测试 | 上版本 → RC1 | 升级路径通过 |
 | 回滚测试 | RC1 → 上版本 | 回滚路径通过 |
 | 兼容性测试 | 与上版本 ABI / 契约 / 配置兼容 | 全部兼容 |
@@ -227,12 +227,12 @@ SBOM 采用 CycloneDX 1.5 JSON 格式，内容包括：
 
 ### 3.8 安装 ISO
 
-- **生成方式**：由 `image-ci.yml` 的 `assemble` job 在源码区外的构建容器中
+- **生成方式**：由 `image-build.yml` 的 `assemble` job 在源码区外的构建容器中
   组装，产物为 `airymaxos-<version>-<arch>.iso` 与 `.sha256`。
 - **验收前置**：同一 workflow 的 `accept` job 必须在 QEMU 下完成 BIOS 与
   UEFI 双固件装机、冷启动，并取得 `AIRYMAX-DESKTOP-READY`（发行前 B 轮为
   `AIRYMAX-SMOKE-PASS`）与 TAP 证据，方可进入发行附件。
-- **上传方式**：发布负责人从 `image-ci` artifact 下载 ISO，复核 `.sha256`
+- **上传方式**：发布负责人从 `image-build` artifact 下载 ISO，复核 `.sha256`
   与验收 TAP 后，人工附加到 AtomGit releases，与 tag `vX.Y.Z` 的
   `release.yml` 产物并列；`release.yml` 不重复构建 ISO。
 - **完整性**：发行页同时提供 `.sha256`；校验值必须与 `iso-manifest.txt`
@@ -568,8 +568,8 @@ flowchart TD
 | 4 | 测试覆盖达标 | `coverage-report` | 行覆盖 ≥ 80%，分支覆盖 ≥ 70% | 阻断 |
 | 5 | ABI 兼容性 | libabigail | 无破坏性 ABI 变更 | 阻断 |
 | 6 | Agent 契约兼容性 | `check-agent-contract.sh` | 无破坏性契约变更 | 阻断 |
-| 7 | [SC] 双端一致 | `sc-dual-ci.yml` | 双端逐字节一致 | 阻断 |
-| 8 | SSoT 校验通过 | `ssot-validate.yml` | 四层归属一致 | 阻断 |
+| 7 | [SC] 双端一致 | `sc-verify.yml` | 双端逐字节一致 | 阻断 |
+| 8 | SSoT 校验通过 | `ssot-verify.yml` | 四层归属一致 | 阻断 |
 | 9 | 文档完整 | `doc-check.sh` | 接口/行为变更已更新文档 | 强制 |
 | 10 | release notes 完整 | 人工 | 已编写并评审 | 强制 |
 | 11 | 签核记录完整 | 人工 | SSoT 委员会签字 | 强制 |

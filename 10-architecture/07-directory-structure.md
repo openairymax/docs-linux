@@ -41,7 +41,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - 子仓维护者：理解本子仓目录拓扑与 [SC] 头文件引用方式
 - 内核开发者：理解 ALK 6.6 内核子仓内部结构
 - 工具链开发者：理解 scripts/ 与 tools/ 的边界
-- CI/CD 工程师：理解 sc-dual-ci.yml 双向校验机制
+- CI/CD 工程师：理解 sc-verify.yml 双向校验机制
 
 ---
 
@@ -141,14 +141,14 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
 ├── .editorconfig                    # 编辑器配置
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci-kernel.yml            # kernel 子仓 CI
-│   │   ├── ci-airy.yml              # Airymax 专属代码 CI
-│   │   ├── codegen-verify.yml       # codegen 零漂移门禁
-│   │   ├── ssot-validate.yml        # SSoT 规则 ID 校验
-│   │   ├── sc-dual-ci.yml           # [SC] 双向字节级校验（核心）
-│   │   ├── nightly.yml              # nightly build
-│   │   ├── release.yml              # 发布流水线
-│   │   └── mgmt-orchestrator.yml    # 管理仓编排
+│   │   ├── kernel-verify.yml            # kernel 子仓 CI
+│   │   ├── airy-verify.yml              # Airymax 专属代码 CI
+│   │   ├── codegen-verify.yml           # codegen 零漂移门禁
+│   │   ├── ssot-verify.yml              # SSoT 规则 ID 校验
+│   │   ├── sc-verify.yml                # [SC] 双向字节级校验（核心）
+│   │   ├── nightly.yml                  # nightly build
+│   │   ├── release.yml                  # 发布流水线
+│   │   └── mgmt-verify.yml              # 管理仓编排
 │   └── ISSUE_TEMPLATE/
 ├── sdk/                             # SDK（[SC] 消费侧）
 │   ├── go/ python/ rust/ ts/        # 多语言绑定
@@ -376,7 +376,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
 1. P3 单一宿主：[SC] 头文件唯一物理宿主 kernel/include/uapi/linux/airymax/
 2. OS-IRON-014 已登记：禁止物理副本
 3. -I 引用是 C/C++ 标准做法，无运行时开销
-4. sc-dual-ci.yml 双向校验确保两端字节相同
+4. sc-verify.yml 双向校验确保两端字节相同
 
 **最终选择：G1（-I 直接引用，禁止物理副本）**
 
@@ -390,7 +390,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
   ccflags-y += -I$(src)/../kernel/include
   ```
 - 禁止 `cp kernel/include/uapi/linux/airymax/*.h <submodule>/include/`
-- sc-dual-ci.yml 校验：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
+- sc-verify.yml 校验：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
 
 ### 3.8 决策 H：scripts/ 与 tools/ 边界不清（问题 8）
 
@@ -415,7 +415,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
   - bootstrap.sh：开发环境引导（安装依赖、初始化 submodule）
   - install.sh：安装到系统（/usr/local/bin、/etc/systemd/system）
   - gen-version.sh：版本号生成（从 git tag 推导）
-  - sc-verify.sh：[SC] 双向字节级校验（sc-dual-ci.yml 调用）
+  - sc-verify.sh：[SC] 双向字节级校验（sc-verify.yml 调用）
 - tools/（管理仓根目录）：
   - ipc-profiler/：IPC 性能分析器（C，编译为二进制）
   - cap-inspector/：Capability 检查器（C，编译为二进制）
@@ -1315,9 +1315,9 @@ tests-linux/
 - Kbuild 子仓：`ccflags-y += -I$(src)/../kernel/include`
 - **禁止**：物理复制头文件到其他子仓（违反 OS-IRON-014 与 P3 单一宿主）
 
-**双向字节级校验**：`.github/workflows/sc-dual-ci.yml`
+**双向字节级校验**：`.github/workflows/sc-verify.yml`
 ```yaml
-sc-dual-ci:
+sc-verify:
   steps:
     - name: verify-sc-byte-identity
       run: |
@@ -1770,7 +1770,7 @@ agentrt/          agent-linux/
 (引用方)          (各子仓引用)
 ```
 
-**双向 CI 校验**（`.github/workflows/sc-dual-ci.yml`）：
+**双向 CI 校验**（`.github/workflows/sc-verify.yml`）：
 - 字节级 diff：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
 - 行为契约测试：两端编译相同测试用例，验证行为一致
 

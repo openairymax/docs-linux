@@ -81,7 +81,7 @@ agent-linux v1.0 构建系统在内核调度、IPC 传输、安全钩子、内�
 | — | [README.md](README.md) | v1.0 | 构建系统主索引（本文件） |
 | 1 | [01-kbuild-system.md](01-kbuild-system.md) | v1.0 | Kbuild 递归构建、`if_changed` 增量构建、`Makefile.airymaxos` 版本注入、模块构建 |
 | 2 | [02-kconfig-system.md](02-kconfig-system.md) | v1.0 | Kconfig 配置门控、`lib/Kconfig.airymaxos` 聚合点、`airy_defconfig` A-UCS 构建期基线（锁定五大技术选型） |
-| 3 | [03-ci-cd-pipeline.md](03-ci-cd-pipeline.md) | v1.0 | CI/CD 流水线、`sc-dual-ci.yml` [SC] 逐字节校验、`ssot-validate.yml` 四层模型归属校验 |
+| 3 | [03-ci-cd-pipeline.md](03-ci-cd-pipeline.md) | v1.0 | CI/CD 流水线、`sc-verify.yml` [SC] 逐字节校验、`ssot-verify.yml` 四层模型归属校验 |
 
 ### 3.1 后续规划文档（1.0.1 版本）
 
@@ -121,7 +121,7 @@ RPM 与 ISO 全部由 `distro/` 的脚本与配方产出，`imageTailor`/`Yocto`
 
 | Unify 模块 | 关系 | 在本目录的体现 |
 |-----------|------|--------------|
-| **A-UEF** | 辅助 | A-UEF 的 [SC] `error.h` 头文件由 CI 流水线逐字节校验（`sc-dual-ci.yml`） |
+| **A-UEF** | 辅助 | A-UEF 的 [SC] `error.h` 头文件由 CI 流水线逐字节校验（`sc-verify.yml`） |
 | **A-ULP** | 辅助 | A-ULP 的 [SC] `log_types.h` 头文件由 CI 流水线逐字节校验；128B 日志记录格式在 defconfig 中固化 |
 | **A-UCS** | **核心** | `airy_defconfig` 是 A-UCS 模块在构建期的物理承载——所有 [SC] 配置项（IPC 消息头大小、Ring Buffer 大小、魔数）在 defconfig 中固化为不可妥协基线；sysctl/JSON 双向热重载的语义同源配置（[SS]）由 Kconfig 选项控制启用 |
 | **A-ULS** | 辅助 | A-ULS 的纯 C LSM 模块（`airy_lsm`）通过 `CONFIG_SECURITY_AIRY=y` 编译；Agent 8 态生命周期 [SC] `sched.h` 由 CI 校验 |

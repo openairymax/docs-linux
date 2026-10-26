@@ -136,9 +136,9 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 
 | 层级 | 名称 | 权威强度 | 变更门槛 | CI 校验 | 覆盖范围 |
 |------|------|---------|---------|---------|---------|
-| **Tier 0** | 不可变权威源 | 最高——一经定义永不破坏 | 需 TSC 全体通过 + 跨端双向评审 + ADR 记录 | `sc-dual-ci.yml` 逐字节哈希锁定 | 用户空间 ABI（OS-IRON-001）、[SC] 共享契约物理宿主（`kernel/include/uapi/linux/airymax/*.h`）、IPC magic、日志 magic、128B 消息头布局 |
-| **Tier 1** | 强权威源 | 高——变更需 RFC + 双向评审 | RFC 流程 + 本注册表登记 + 主题文档同步 | `ssot-validate.yml` 一致性校验 | 错误码枚举、日志级别枚举、capability 44 ID（41 POSIX + 3 Airymax 扩展）、调度参数、IRON-9 四层模型、Unify Design 5 模块边界、[DSL] 降级块、内核基线（Linux 6.6 / 7.1）、Agent 8 态生命周期 |
-| **Tier 2** | 常规权威源 | 中——变更需 PR 评审 | PR 评审 + 本注册表登记 | `ssot-validate.yml` 编号唯一性校验 | 本注册表第 2-13 章登记的 `OS-*` 规则编号、第 14 章 agentrt 17 类规则编号 |
+| **Tier 0** | 不可变权威源 | 最高——一经定义永不破坏 | 需 TSC 全体通过 + 跨端双向评审 + ADR 记录 | `sc-verify.yml` 逐字节哈希锁定 | 用户空间 ABI（OS-IRON-001）、[SC] 共享契约物理宿主（`kernel/include/uapi/linux/airymax/*.h`）、IPC magic、日志 magic、128B 消息头布局 |
+| **Tier 1** | 强权威源 | 高——变更需 RFC + 双向评审 | RFC 流程 + 本注册表登记 + 主题文档同步 | `ssot-verify.yml` 一致性校验 | 错误码枚举、日志级别枚举、capability 44 ID（41 POSIX + 3 Airymax 扩展）、调度参数、IRON-9 四层模型、Unify Design 5 模块边界、[DSL] 降级块、内核基线（Linux 6.6 / 7.1）、Agent 8 态生命周期 |
+| **Tier 2** | 常规权威源 | 中——变更需 PR 评审 | PR 评审 + 本注册表登记 | `ssot-verify.yml` 编号唯一性校验 | 本注册表第 2-13 章登记的 `OS-*` 规则编号、第 14 章 agentrt 17 类规则编号 |
 
 **层级判定规则**：
 
@@ -174,7 +174,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 **使用规则**：
 
 - 主题文档定义上述技术点的细节时，**必须**引用本表登记的权威源，禁止重新定义
-- 本表新增技术点须标注 Tier 层级与物理宿主；Tier 0 技术点变更触发 `sc-dual-ci.yml` 哈希重算
+- 本表新增技术点须标注 Tier 层级与物理宿主；Tier 0 技术点变更触发 `sc-verify.yml` 哈希重算
 - 跨技术点的复合设计（如 IPC + capability + 调度）须交叉引用多个权威源，不得在单一文档中合并定义
 
 ### 1.8 CI 强制校验机制
@@ -183,10 +183,10 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 
 | # | CI Workflow | 校验内容 | 覆盖层级 | 失败动作 |
 |---|------------|---------|---------|---------|
-| 1 | `ci-kernel.yml` | kernel Kbuild 18 配置矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest | Tier 0/1 | 阻断合入 |
-| 2 | `sc-dual-ci.yml` | agentrt 与 AirymaxOS 两端 [SC] 头文件逐字节一致 + 编译器无关性 + Tier 0 权威源逐字节哈希校验（[SC] 12 头文件 + magic 值）+ 禁止新增 `AIRY_ERR_*` 双轨引用（错误码以 `AIRY_E*` 正数幅值为准，对齐错误码迁移阶段 3+） | Tier 0/1 | 阻断合入，Tier 0 变更要求 TSC 评审 |
-| 3 | `ssot-validate.yml` | §1.7 权威源清单引用一致性 + [SC] 头文件数量为 12 + 每个 [SC] 有 [DSL] 降级块 + [SS] 语义映射文档存在 + [IND] 实现未泄露到 [SC]/[SS] + Unify Design 5 模块边界一致性 + sched_tac 调度选型（禁 sched_ext）+ IPC 零拷贝选型（禁 page flipping）+ 内存选型（禁 DMA 一致性内存用于日志/IPC） | Tier 0/1 | 阻断合入 |
-| 4 | `mgmt-orchestrator.yml` | SSoT 规则 ID 校验 + 本注册表登记的 `OS-*` / agentrt 编号唯一性 + 主题文档引用编号均在注册表覆盖范围内 + 文件完整性（9 子仓 submodule 指针 + [SC] 12 头文件物理存在）+ 子仓 CI 状态聚合 + 文档格式（markdownlint + 版权头 + 链接有效性） | Tier 1/2 | 阻断合入 |
+| 1 | `kernel-verify.yml` | kernel Kbuild 18 配置矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest | Tier 0/1 | 阻断合入 |
+| 2 | `sc-verify.yml` | agentrt 与 AirymaxOS 两端 [SC] 头文件逐字节一致 + 编译器无关性 + Tier 0 权威源逐字节哈希校验（[SC] 12 头文件 + magic 值）+ 禁止新增 `AIRY_ERR_*` 双轨引用（错误码以 `AIRY_E*` 正数幅值为准，对齐错误码迁移阶段 3+） | Tier 0/1 | 阻断合入，Tier 0 变更要求 TSC 评审 |
+| 3 | `ssot-verify.yml` | §1.7 权威源清单引用一致性 + [SC] 头文件数量为 12 + 每个 [SC] 有 [DSL] 降级块 + [SS] 语义映射文档存在 + [IND] 实现未泄露到 [SC]/[SS] + Unify Design 5 模块边界一致性 + sched_tac 调度选型（禁 sched_ext）+ IPC 零拷贝选型（禁 page flipping）+ 内存选型（禁 DMA 一致性内存用于日志/IPC） | Tier 0/1 | 阻断合入 |
+| 4 | `mgmt-verify.yml` | SSoT 规则 ID 校验 + 本注册表登记的 `OS-*` / agentrt 编号唯一性 + 主题文档引用编号均在注册表覆盖范围内 + 文件完整性（9 子仓 submodule 指针 + [SC] 12 头文件物理存在）+ 子仓 CI 状态聚合 + 文档格式（markdownlint + 版权头 + 链接有效性） | Tier 1/2 | 阻断合入 |
 | 5 | `nightly.yml` | develop 夜间构建（L5/L6 连接/协议验证）+ 性能回归检测 | — | 标记回退 |
 | 6 | `release.yml` | release tag 流水线（L7 发布验证）+ ABI 兼容性校验 | — | 阻断发布 |
 
@@ -1606,6 +1606,6 @@ agentrt 规则编号新增须遵循以下流程（与 AirymaxOS `OS-*` 编号流
 | 2026-07-15 | 0.1.1 | **SSoT 升级：AirymaxOS → Airymax 全局**——标题从"AirymaxOS 全局规则编号注册表"升级为"Airymax 全局规则 SSoT 注册表"；文档定位扩展为"Airymax 全项目（agentrt 用户态运行时 + AirymaxOS/agent-linux 操作系统）"；头部新增双编号体系声明（AirymaxOS `OS-*` 前缀第 2-9 章 + agentrt 无前缀第 10 章）+ IRON-9 v3 四层共享模型引用；§1.1-§1.3 扩展核心原则/使用规则/编号格式覆盖双编号体系，§1.2 新增"编号体系隔离"规则禁止 `OS-IRON-001` 与 `IRON-1` 混用，§1.3 新增 agentrt 编号格式 `<前缀>-<NN>` 声明；新增第 10 章 agentrt 规则编号体系（§10.1-§10.18 共 18 节），全量登记 17 类规则：IRON-1\~10（10 条全量）/BAN-001\~361（摘要 16 区间）/STD-01\~08（8 条全量，含 STD-02 IPC 128 字节消息头）/ACC 149 项（摘要 6 区间）/FOUND-01\~10（10 条全量）/SPLIT-01\~08（8 条全量）/PROD-01\~06（6 条全量）/ARC-01\~08（8 条全量，含方案 A 接口反转）/LC-01\~08（8 条全量，含 AGPL+Apache 双许可证）/PRT-01\~18（摘要 3 区间）/LOG-01\~26（摘要 6 区间）/PATH-BAN-1\~5（5 条全量）/L-01\~53（摘要 2 区间）/CROSS-01\~06（6 条全量）/REQ-01\~08（8 条全量）/W01-W30（摘要 3 区间）/SP01-SP37（摘要 3 区间）；小类全量登记 10 类共 77 条（IRON 10/STD 8/FOUND 10/SPLIT 8/PROD 6/ARC 8/LC 8/PATH-BAN 5/CROSS 6/REQ 8）+ 大类摘要登记 7 类共 674 条（BAN 361/ACC 149/PRT 18/LOG 26/L 53/W 30/SP 37）= 总计 17 类 751 条 agentrt 规则；§10.18 新增 agentrt 规则编号新增流程（RFC→评审→注册三步）+ 双编号体系同步声明（agentrt 新增规则与 AirymaxOS 存在语义同源关系时须同时登记 `OS-*` 编号） | SPHARX 工程标准组 |
 | 2026-07-15 | 0.1.1 | **P0 修复：补登 42 个未在 SSoT 登记的规则编号 + 重编号原 §10 → §13**——深层审查发现 OS-ARCH-001\~010（10-architecture/ 5 文档）/ OS-IFACE-001\~010（30-interfaces/ 5 文档）/ OS-TEST-001\~022（80-testing/ 2 文档 + 10-architecture/07-directory-structure.md L329 引用 OS-TEST-010）共 42 个 `OS-*` 前缀规则编号在主题文档中使用但完全未在 SSoT 登记，构成 P0 级 SSoT 违规（违反 §1.2"编号分配权"——所有编号分配权仅属于 SSoT）。修复方案：① 新增 §10 OS-ARCH 架构工程规则章节摘要登记 OS-ARCH-001\~010；② 新增 §11 OS-IFACE 接口工程规则章节摘要登记 OS-IFACE-001\~010；③ 新增 §12 OS-TEST 测试工程规则章节摘要登记 OS-TEST-001\~022；④ 原 §10 agentrt 规则编号体系重编号为 §13（§10.1-§10.18 共 18 个子章节标题 + 17 个总览表引用全部同步更新）；⑤ 头部双编号体系声明更新为"AirymaxOS 第 2-12 章 + agentrt 第 13 章"；⑥ TOC 同步追加 §10/§11/§12/§13 四个条目；⑦ 00-engineering-standards-handbook.md §3 章节引用列表同步追加 §10-§13。本次修复使 AirymaxOS `OS-*` 编号体系（OS-IRON/OS-KER/OS-STD/OS-BAN/OS-ACC/OS-ABI/OS-SEC/OS-ARCH/OS-IFACE/OS-TEST 共 10 个系列）与 agentrt 17 类无前缀编号体系（IRON/BAN/STD/ACC/FOUND/SPLIT/PROD/ARC/LC/PRT/LOG/PATH-BAN/L/CROSS/REQ/W/SP）在 SSoT 中获得完全登记覆盖，根除"主题文档使用未登记编号"的系统性 SSoT 违规                                                                                                                               | SPHARX 工程标准组 |
 
-| 2026-07-17 | 0.2.0 | **v0.2.0 升级：SSoT 三层模型 + 技术点单一权威源清单 + CI 强制校验机制**——(1) 新增 §1.6 SSoT 三层模型（Tier 0 不可变权威源 / Tier 1 强权威源 / Tier 2 常规权威源），定义层级判定规则与层间优先级。(2) 新增 §1.7 技术点单一权威源清单，登记 11 个核心技术点（错误码/日志类型/IPC 协议/调度策略/安全模型/微内核策略/IRON-9 模型/Unify Design/[DSL] 降级层/内核基线/[SC] 头文件物理宿主与目录结构）的 Tier 层级与唯一权威文档。(3) 新增 §1.8 CI 强制校验机制，登记 6 个 CI workflow（ci-kernel/sc-dual-ci/ssot-validate/mgmt-orchestrator/nightly/release）覆盖三层模型强制力。本次升级配套创建 P2 级文档：20-modules/12-logger-daemon-module.md（Logger Daemon 模块设计）+ 20-modules/13-printk-bridge.md（printk 桥接设计）+ agentrt 50-engineering-standards/11-log-convergence-plan.md（日志收敛计划）+ 12-error-code-migration-plan.md（错误码迁移计划）；升级 03-microkernel-strategy.md / 07-ipc-fastpath.md / 03-capability-model.md 至 v1.0（新增附录：Unify Design 5 模块融入 + sched_tac + [DSL] 降级层 + Capability 缓存/Reconciliation/MDB 完整性约束） | SPHARX 工程标准组 |
+| 2026-07-17 | 0.2.0 | **v0.2.0 升级：SSoT 三层模型 + 技术点单一权威源清单 + CI 强制校验机制**——(1) 新增 §1.6 SSoT 三层模型（Tier 0 不可变权威源 / Tier 1 强权威源 / Tier 2 常规权威源），定义层级判定规则与层间优先级。(2) 新增 §1.7 技术点单一权威源清单，登记 11 个核心技术点（错误码/日志类型/IPC 协议/调度策略/安全模型/微内核策略/IRON-9 模型/Unify Design/[DSL] 降级层/内核基线/[SC] 头文件物理宿主与目录结构）的 Tier 层级与唯一权威文档。(3) 新增 §1.8 CI 强制校验机制，登记 6 个 CI workflow（kernel-verify/sc-verify/ssot-verify/mgmt-verify/nightly/release）覆盖三层模型强制力。本次升级配套创建 P2 级文档：20-modules/12-logger-daemon-module.md（Logger Daemon 模块设计）+ 20-modules/13-printk-bridge.md（printk 桥接设计）+ agentrt 50-engineering-standards/11-log-convergence-plan.md（日志收敛计划）+ 12-error-code-migration-plan.md（错误码迁移计划）；升级 03-microkernel-strategy.md / 07-ipc-fastpath.md / 03-capability-model.md 至 v1.0（新增附录：Unify Design 5 模块融入 + sched_tac + [DSL] 降级层 + Capability 缓存/Reconciliation/MDB 完整性约束） | SPHARX 工程标准组 |
 | 2026-08-29 | 0.1.6 | **0.1.6 P2-3：agentrt 技术点单一权威源登记（TP-012~016）+ validate-ssot CI 门禁**——(1) §1.7 表格追加 5 个 agentrt 用户态技术点：TP-012 插件扩展清单 Schema（plugin-manifest.schema.json，plugin_d 离线校验 S-4）/ TP-013 插件服务接口（plugin_service.h 生命周期 vtable）/ TP-014 gateway 统一能力注册表（gateway_cap_registry.h cap_key 单一权威源，fail-closed -32601）/ TP-015 事件流记录格式与全局因果序（hall_store.h gseq + FNV-1a 校验和 + replay_global）/ TP-016 Hook 事件类型（hook_service.h HOOK_TYPE_* 9 类 + airy_hook_type_name 类型名单一权威源）。(2) 新建 tools/scripts/ci/verify/validate-ssot.py 门禁：从 §1.7 表格解析 TP-012~016 登记的权威源/被引用方路径（伞仓根相对），校验全部存在，任何缺失退出码 1。(3) quality-gate.sh 新增 Gate 7 SSoT-Validate。agentrt 技术点均以源码为物理宿主，杜绝"文档登记了不存在的权威源"漂移 | SPHARX 工程标准组 |
 | 2026-10-01 | 0.1.19 | **SSoT 漂移修复：TP-012/013/016 物理宿主路径对齐 0.1.19 架构重构**——0.1.19 gen5 五件套装配、工具域归位与 hook_d 并户入 notify_d 之后，§1.7 登记的三处物理宿主路径失效，validate-ssot 门禁（Gate 7）实测 4 条漂移。更正：(1) TP-012 引用方 `daemons/tool_d/src/plugin_discovery.c` → `daemons/tool_d/src/plugin/plugin_discovery.c`（插件域归位）；(2) TP-013 权威源 `daemons/tool_d/include/plugin_service.h` → `daemons/tool_d/src/plugin/plugin_service.h`，实现 `daemons/tool_d/src/plugin_service.c` → `daemons/tool_d/src/plugin/plugin_service.c`（五件套装配后 include/ 仅留发布面，插件服务接口降为域内私有头）；(3) TP-016 引用方 `daemons/hook_d/src/main.c` → `daemons/notify_d/src/hook_rpc.c`（R7 并户，hook 面由 notify_d 承接）。技术点定义与权威源语义不变，仅更正物理落点 | SPHARX 工程标准组 |

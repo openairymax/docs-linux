@@ -40,7 +40,7 @@ Airymax Unify Design 的 [SC] 共享契约层（物理宿主 `kernel/include/uap
 | 头文件版本漂移 | 双端未同步更新导致 `error.h` 不一致 | 编译失败或运行时码值错位 |
 | 头文件物理损坏 | 磁盘错误、构建产物污染 | 编译失败 |
 | 最小化构建环境 | 嵌入式/恢复模式下仅保留内核最小子集 | [SC] 头文件未部署 |
-| CI 双端校验失败 | `sc-dual-ci.yml` 检测到两端不一致 | 必须降级构建以保持可运行 |
+| CI 双端校验失败 | `sc-verify.yml` 检测到两端不一致 | 必须降级构建以保持可运行 |
 
 传统设计在上述场景下直接编译失败，导致系统无法启动。Airymax 引入 [DSL] 降级生存层，确保在 [SC] 头文件损坏/缺失时，系统仍具备**最小可运行子集**——能启动、能打印日志、能完成基本 IPC、能安全 Panic。
 
@@ -184,7 +184,7 @@ Airymax Unify Design 的 [SC] 共享契约层（物理宿主 `kernel/include/uap
 
 构建系统在以下情况自动注入 `AIRY_SC_FALLBACK`：
 
-1. `sc-dual-ci.yml` 检测到两端 [SC] 头文件不一致
+1. `sc-verify.yml` 检测到两端 [SC] 头文件不一致
 2. `airy_defconfig` 中显式配置 `CONFIG_AIRY_SC_FALLBACK=y`
 3. [SC] 头文件物理校验失败（hash 不匹配）
 
@@ -306,7 +306,7 @@ _Static_assert(sizeof(struct airy_ipc_msg_hdr_min) == 128,
 降级模式是临时状态，恢复正常路径的流程：
 
 1. 运维修复 [SC] 头文件（重新部署或 git checkout）
-2. `sc-dual-ci.yml` 校验通过
+2. `sc-verify.yml` 校验通过
 3. 重新编译内核（去掉 `AIRY_SC_FALLBACK`）
 4. 重启系统，进入正常路径
 

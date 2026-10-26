@@ -431,7 +431,7 @@ make allmodconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 make allnoconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 ```
 
-`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agent-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`、`CONFIG_USER_NS=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agent-linux 核心特性关掉。`CONFIG_USER_NS=y` 属桌面运行时依赖：systemd 单元的 `PrivateUsers=`/`RestrictNamespaces=` 需要用户命名空间，缺失时 upower 等单元以 `217/USER` 失败并使启动降级。同一组必选项由 `distro/specs/kernel/airymaxos-kernel.spec` 的 `%check` 对合并后的 `.config` 逐项断言，与 `ci-airy.yml`/`ci-kernel.yml` 的必备清单同源；发布流水线不跑矩阵校验，故打包层是片段回退的最后一道构建期拦截。
+`airy_defconfig`（`arch/<arch>/configs/airy_defconfig`，共 5 个：x86/arm64/riscv/loongarch/sw_64）列出 agent-linux 必须启用的选项（如 `CONFIG_SECURITY_AIRY=y`、`CONFIG_AIRY_IPC=y`、`CONFIG_AIRY_CAP_TABLE_SIZE=1024`、`CONFIG_IO_URING=y`、`CONFIG_USER_NS=y`）。这样 `allnoconfig` 也会保留这些必选项，避免"最小内核"把 agent-linux 核心特性关掉。`CONFIG_USER_NS=y` 属桌面运行时依赖：systemd 单元的 `PrivateUsers=`/`RestrictNamespaces=` 需要用户命名空间，缺失时 upower 等单元以 `217/USER` 失败并使启动降级。同一组必选项由 `distro/specs/kernel/airymaxos-kernel.spec` 的 `%check` 对合并后的 `.config` 逐项断言，与 `airy-verify.yml`/`kernel-verify.yml` 的必备清单同源；发布流水线不跑矩阵校验，故打包层是片段回退的最后一道构建期拦截。
 
 > **说明**：早期设计中的独立 `airymaxos-base.config` 全配置基线文件并不存在（`kernel/` 下未提供）；其"必须启用的选项基线"角色由各架构 `airy_defconfig` 直接承担，CI 通过 `scripts/kconfig/merge_config.sh` 叠加使用（见 §7.1）。
 
@@ -441,7 +441,7 @@ make allnoconfig KCONFIG_ALLCONFIG=arch/x86/configs/airy_defconfig
 
 ### 7.1 defconfig 与 airy_defconfig 的关系
 
-`make defconfig` 读取 `arch/$(SRCARCH)/configs/defconfig`（架构默认配置）生成 `.config`；`airy_defconfig` 是各架构独立的 Airymax 完整配置，CI 采用 **merge_config 叠加**方式启用（对齐 `ci-airy.yml`）：
+`make defconfig` 读取 `arch/$(SRCARCH)/configs/defconfig`（架构默认配置）生成 `.config`；`airy_defconfig` 是各架构独立的 Airymax 完整配置，CI 采用 **merge_config 叠加**方式启用（对齐 `airy-verify.yml`）：
 
 ```bash
 make ARCH=<arch> defconfig
@@ -451,7 +451,7 @@ make ARCH=<arch> olddefconfig
 
 `KCONFIG_ALLCONFIG` 与 `airy_defconfig` 的区别：`airy_defconfig` 是"完整用户起点配置"，`KCONFIG_ALLCONFIG` 是"全配置策略的保底基线"。二者配合：CI 用 `KCONFIG_ALLCONFIG` 保证极端配置下核心特性不丢，开发者用 `defconfig` + `merge_config.sh` 叠加 `airy_defconfig` 作为日常起点。
 
-- **OS-BUILD-028**：每个支持架构（x86_64/arm64/riscv/loongarch/sw_64）必须有 `airy_defconfig`；CI 必须验证 `make ARCH=<arch> defconfig` + `merge_config.sh` 叠加 `airy_defconfig` + `olddefconfig` 后 `CONFIG_SECURITY_AIRY=y` 等 Airymax 核心项仍被启用（配置闭包可求解，对齐 `ci-airy.yml` 的 Verify Airymax CONFIGs 步骤）。
+- **OS-BUILD-028**：每个支持架构（x86_64/arm64/riscv/loongarch/sw_64）必须有 `airy_defconfig`；CI 必须验证 `make ARCH=<arch> defconfig` + `merge_config.sh` 叠加 `airy_defconfig` + `olddefconfig` 后 `CONFIG_SECURITY_AIRY=y` 等 Airymax 核心项仍被启用（配置闭包可求解，对齐 `airy-verify.yml` 的 Verify Airymax CONFIGs 步骤）。
 
 ---
 

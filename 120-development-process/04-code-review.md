@@ -191,10 +191,10 @@ flowchart TD
 | 1 | 编译器无关性 | `check-uapi-compiler-agnostic.sh` | 零违反 |
 | 2 | 五编译器编译 | `headers_compile_test.sh` | 5/5 通过 |
 | 3 | ABI 稳定性 | `check-abi.sh`（libabigail） | 无破坏性变更 |
-| 4 | 双端逐字节一致 | `sc-dual-ci.yml` | diff 零字节差异 |
+| 4 | 双端逐字节一致 | `sc-verify.yml` | diff 零字节差异 |
 | 5 | 注释完整性 | 人工 | 每个结构体/字段/枚举有文档注释 |
 | 6 | 类型桥接规则 | `check-sc-bridge.sh` | 符合 [SC] 类型桥接规则 |
-| 7 | [SC] 数量守恒 | `ssot-validate.yml` | 保持 12 个 [SC] 头文件 |
+| 7 | [SC] 数量守恒 | `ssot-verify.yml` | 保持 12 个 [SC] 头文件 |
 
 ---
 
@@ -307,20 +307,20 @@ Agent 代码（cognition 子仓）必须通过 Agent 契约一致性校验。
 
 | 工具 | 用途 | 触发 | workflow |
 |------|------|------|---------|
-| checkpatch.pl | 内核编码规范 | 每个 PR | `ci-kernel.yml` |
-| Sparse | 内核静态分析 | 每个 PR | `ci-kernel.yml` |
+| checkpatch.pl | 内核编码规范 | 每个 PR | `kernel-verify.yml` |
+| Sparse | 内核静态分析 | 每个 PR | `kernel-verify.yml` |
 | Coverity | 静态分析（商业） | nightly | `nightly.yml` |
-| KUnit | 内核单元测试 | 每个 PR | `ci-kernel.yml` |
-| kselftest | 内核自测试 | 每个 PR | `ci-kernel.yml` |
-| ASan / KASan | 内存安全 | nightly + PR | `ci-kernel.yml` + `nightly.yml` |
+| KUnit | 内核单元测试 | 每个 PR | `kernel-verify.yml` |
+| kselftest | 内核自测试 | 每个 PR | `kernel-verify.yml` |
+| ASan / KASan | 内存安全 | nightly + PR | `kernel-verify.yml` + `nightly.yml` |
 | ThreadSanitizer | 并发安全 | nightly | `nightly.yml` |
-| libabigail | ABI 稳定性 | 每个 PR（[SC] 变更） | `sc-dual-ci.yml` |
-| CBMC / Frama-C | 形式化验证 | 每个 PR（纯 C LSM 变更） | `ci-kernel.yml` |
+| libabigail | ABI 稳定性 | 每个 PR（[SC] 变更） | `sc-verify.yml` |
+| CBMC / Frama-C | 形式化验证 | 每个 PR（纯 C LSM 变更） | `kernel-verify.yml` |
 | Trivy / Snyk | 漏洞扫描 | nightly + release | `nightly.yml` + `release.yml` |
-| `check-uapi-compiler-agnostic.sh` | [SC] 编译器无关性 | 每个 PR（[SC] 变更） | `sc-dual-ci.yml` |
-| `check-abi.sh` | ABI 稳定性 | 每个 PR（[SC] 变更） | `sc-dual-ci.yml` |
-| `check-agent-contract.sh` | Agent 契约一致性 | 每个 PR（cognition 变更） | `ci-kernel.yml` |
-| `ssot-validate.yml` | SSoT 校验 | 每个 PR（SSoT 变更） | `ssot-validate.yml` |
+| `check-uapi-compiler-agnostic.sh` | [SC] 编译器无关性 | 每个 PR（[SC] 变更） | `sc-verify.yml` |
+| `check-abi.sh` | ABI 稳定性 | 每个 PR（[SC] 变更） | `sc-verify.yml` |
+| `check-agent-contract.sh` | Agent 契约一致性 | 每个 PR（cognition 变更） | `kernel-verify.yml` |
+| `ssot-verify.yml` | SSoT 校验 | 每个 PR（SSoT 变更） | `ssot-verify.yml` |
 
 ### 8.2 人工审查工具
 
@@ -333,9 +333,9 @@ Agent 代码（cognition 子仓）必须通过 Agent 契约一致性校验。
 ```mermaid
 flowchart LR
     A[PR 提交]
-    B[GitHub Actions<br/>ci-kernel.yml]
-    C[sc-dual-ci.yml<br/>SC 校验]
-    D[ssot-validate.yml<br/>SSoT 校验]
+    B[GitHub Actions<br/>kernel-verify.yml]
+    C[sc-verify.yml<br/>SC 校验]
+    D[ssot-verify.yml<br/>SSoT 校验]
     E[Coverity<br/>静态分析]
     F[CBMC<br/>形式化]
     G[Gerrit<br/>人工审查]

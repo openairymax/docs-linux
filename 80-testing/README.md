@@ -17,7 +17,7 @@ agent-linux 测试体系是工程标准可执行性的核心保障。它继承 L
 1. **KUnit 单元测试**：白盒单元测试，毫秒级执行，验证单函数行为契约（含 A-UEF 错误码、A-ULP 128B 记录格式、A-UCS 配置加载）。
 2. **kselftest 系统级测试**：从用户态测试内核特性，重点覆盖sched_tac 调度类（`SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF`）、io_uring IORING_OP_URING_CMD 零拷贝、纯 C LSM 钩子。
 3. **集成测试**：跨子仓跨模块的端到端测试，验证 IRON-9 v3 四层模型的 [SC] 头文件逐字节一致、agentrt ↔ agent-linux 同源 API 互操作。
-4. **CI 流水线**：`sc-dual-ci.yml`（[SC] 逐字节校验）+ `ssot-validate.yml`（四层模型归属校验）+ 覆盖率门槛（kernel 90% / security 95%，关键路径 100%——数值以 [06-coverage-metrics.md](06-coverage-metrics.md) 4 级门槛为唯一权威，与 [70-build-system/03-ci-cd-pipeline.md §5.6](../70-build-system/03-ci-cd-pipeline.md) 互引统一）。
+4. **CI 流水线**：`sc-verify.yml`（[SC] 逐字节校验）+ `ssot-verify.yml`（四层模型归属校验）+ 覆盖率门槛（kernel 90% / security 95%，关键路径 100%——数值以 [06-coverage-metrics.md](06-coverage-metrics.md) 4 级门槛为唯一权威，与 [70-build-system/03-ci-cd-pipeline.md §5.6](../70-build-system/03-ci-cd-pipeline.md) 互引统一）。
 
 ### 1.1 测试体系分层
 
@@ -38,7 +38,7 @@ agent-linux 测试体系是工程标准可执行性的核心保障。它继承 L
 
 - **sched_tac 调度测试**：验证 `SCHED_DEADLINE` / `SCHED_FIFO` / `EEVDF` 三层调度类组合的 Agent 8 态生命周期映射（INACTIVE→SPAWNING→READY→RUNNING→BLOCKED→STOPPING→STOPPED→DEAD）
 - **IPC 零拷贝测试**：验证 `IORING_OP_URING_CMD` 的 fastpath 性能（~160ns 为端到端口径 SLA；内核派发口径实测 ~46ns，UML x86_64）与 page flipping 路径未启用
-- **[SC] 头文件逐字节校验**：`sc-dual-ci.yml` 双端 diff 12 个 `include/uapi/linux/airymax/*.h` 头文件
+- **[SC] 头文件逐字节校验**：`sc-verify.yml` 双端 diff 12 个 `include/uapi/linux/airymax/*.h` 头文件
 - **纯 C LSM 验证**：验证 `airy_lsm` 钩子注册、capability 缓存命中、BPF LSM 未启用
 - **alloc_pages + mmap 验证**：验证共享内存未使用 `dma_alloc_coherent`
 
@@ -54,7 +54,7 @@ agent-linux v1.0 测试体系在内核调度、IPC 传输、安全钩子、内�
 | 2 | **IPC 零拷贝** | **IORING_OP_URING_CMD**：通过 io_uring 命令操作码实现内核↔用户态零拷贝传输 | **不使用 page flipping**（不交换物理页、不破坏内存布局稳定性） | IPC fastpath 性能基准测试（~160ns 端到端 SLA；内核派发口径实测 ~46ns）；CI 断言 page flipping 代码路径未编译 |
 | 3 | **安全钩子** | **纯 C LSM**：以纯 C 实现的 `airy_lsm` 通过 `security_hook_list` 注册 | **不使用 BPF LSM**（不依赖 BPF LSM 框架、不通过 eBPF 程序挂载安全钩子） | KUnit 测试纯 C LSM 钩子注册与 capability 缓存；CI 断言 `CONFIG_BPF_LSM` 未启用 |
 | 4 | **内存分配** | **alloc_pages + mmap**：通过 `alloc_pages` 分配物理页后 `vm_map_pages` / `remap_pfn_range` 映射 | **不使用 DMA 一致性内存**（不调用 `dma_alloc_coherent`、不依赖硬件一致性缓存） | KUnit 测试 `alloc_pages + mmap` 内存路径；CI 断言 `dma_alloc_coherent` 未在共享内存路径调用 |
-| 5 | **同源代码共享** | **IRON-9 v3 四层模型**：[SC] 共享契约层 + [SS] 语义同源层 + [IND] 独立实现层 + [DSL] 降级生存层 | （v2 三层模型升级为 v3 四层模型，新增 [DSL] 降级生存层） | `sc-dual-ci.yml` 双端逐字节校验 12 个 [SC] 头文件；`ssot-validate.yml` 校验四层归属一致性 |
+| 5 | **同源代码共享** | **IRON-9 v3 四层模型**：[SC] 共享契约层 + [SS] 语义同源层 + [IND] 独立实现层 + [DSL] 降级生存层 | （v2 三层模型升级为 v3 四层模型，新增 [DSL] 降级生存层） | `sc-verify.yml` 双端逐字节校验 12 个 [SC] 头文件；`ssot-verify.yml` 校验四层归属一致性 |
 
 ### 2.1 IRON-9 v3 四层模型在测试体系的归属
 
@@ -133,7 +133,7 @@ agent-linux v1.0 测试体系在内核调度、IPC 传输、安全钩子、内�
 - [30-interfaces/09-sc-log-types-contract.md](../30-interfaces/09-sc-log-types-contract.md)：A-ULP [SC] log_types.h 契约
 - [30-interfaces/10-sc-sched-extension.md](../30-interfaces/10-sc-sched-extension.md)：sched_tac [SC] sched.h 契约
 - [50-engineering-standards/09-ssot-registry.md](../50-engineering-standards/09-ssot-registry.md)：SSoT v2 单一权威源注册表
-- [70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`sc-dual-ci.yml` + `ssot-validate.yml`）
+- [70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`sc-verify.yml` + `ssot-verify.yml`）
 - [110-security/README.md](../110-security/README.md)：安全测试（纯 C LSM + capability）
 - [170-performance/README.md](../170-performance/README.md)：性能工程（IPC fastpath SLA）
 
