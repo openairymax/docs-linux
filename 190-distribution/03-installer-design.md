@@ -1,9 +1,9 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）安装器设计
-> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、cloud-init 云定制、安装测试与错误处理\
-> **文档版本**：v1.0.2\
-> **最后更新**： 2026-10-18\
+> **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、介质写入、cloud-init 云定制、安装测试与错误处理\
+> **文档版本**：v1.0.3\
+> **最后更新**： 2026-10-26\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -266,9 +266,9 @@ GRUB_ENABLE_CRYPTODISK=y
 ```bash
 # /boot/grub2/grub.cfg（自动生成）
 
-menuentry "agent-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-agentrt)" {
+menuentry "agent-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-alk)" {
     set root=(hd0,gpt2)
-    linux /boot/vmlinuz-6.6.0-agentrt \
+    linux /boot/vmlinuz-6.6.0-alk \
         root=/dev/mapper/airymaxos--vg-root \
         ro crashkernel=auto \
         agentrt.sched_cprime=1 \
@@ -279,15 +279,15 @@ menuentry "agent-linux (AirymaxOS) 1.0.1 (Linux 6.6.0-agentrt)" {
         rd.driver.pre=cxl_acpi,cxl_mem \
         intel_iommu=on iommu=pt \
         loglevel=7
-    initrd /boot/initramfs-6.6.0-agentrt.img
+    initrd /boot/initramfs-6.6.0-alk.img
 }
 
 menuentry "agent-linux (AirymaxOS) 1.0.1 (recovery mode)" {
     set root=(hd0,gpt2)
-    linux /boot/vmlinuz-6.6.0-agentrt \
+    linux /boot/vmlinuz-6.6.0-alk \
         root=/dev/mapper/airymaxos--vg-root \
         ro single systemd.unit=rescue.target
-    initrd /boot/initramfs-6.6.0-agentrt.img
+    initrd /boot/initramfs-6.6.0-alk.img
 }
 ```
 
@@ -311,8 +311,8 @@ openssl req -new -x509 -newkey rsa:2048 \
 
 # 2. 签名内核
 sbsign --key db.key --cert db.crt \
-    --output /boot/vmlinuz-6.6.0-agentrt.signed \
-    /boot/vmlinuz-6.6.0-agentrt
+    --output /boot/vmlinuz-6.6.0-alk.signed \
+    /boot/vmlinuz-6.6.0-alk
 
 # 3. 注册密钥到 UEFI 固件
 mokutil --import PK.crt
@@ -676,8 +676,8 @@ rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR"/{LiveOS,isolinux,images,Packages,repodata,EFI/BOOT}
 
 echo "[2/6] 复制内核与 initramfs"
-cp /boot/vmlinuz-6.6.0-agentrt "$WORK_DIR/isolinux/vmlinuz"
-cp /boot/initramfs-6.6.0-agentrt.img "$WORK_DIR/isolinux/initrd.img"
+cp /boot/vmlinuz-6.6.0-alk "$WORK_DIR/isolinux/vmlinuz"
+cp /boot/initramfs-6.6.0-alk.img "$WORK_DIR/isolinux/initrd.img"
 
 echo "[3/6] 复制 kickstart 与 GRUB EFI"
 cp /usr/lib/airymaxos/installer/airymaxos-default.ks "$WORK_DIR/isolinux/ks.cfg"
@@ -744,8 +744,8 @@ qemu-system-${ARCH} \
     -m 4096 -smp 4 \
     -drive file="$IMG_NAME",format=qcow2,if=virtio \
     -cdrom airymaxos-${VERSION}-${ARCH}.iso \
-    -kernel /boot/vmlinuz-6.6.0-agentrt \
-    -initrd /boot/initramfs-6.6.0-agentrt.img \
+    -kernel /boot/vmlinuz-6.6.0-alk \
+    -initrd /boot/initramfs-6.6.0-alk.img \
     -append "inst.ks=file:/isolinux/ks.cfg \
              console=ttyS0 \
              agentrt.sched_cprime=1" \
@@ -762,6 +762,66 @@ mv "${IMG_NAME}.compressed" "$IMG_NAME"
 echo "[完成] QCOW2 镜像已生成: $IMG_NAME"
 qemu-img info "$IMG_NAME"
 ```
+
+### 7.3 介质写入（烧录）
+
+安装介质从 ISO 到 U 盘的这一段不属于「安装」，但它是整条交付链上唯一
+由人手工接触块设备的环节，也是最容易把系统盘写掉的一步。本节只定设计，
+操作步骤的唯一权威源是 `agent-linux` 仓的 `tools/airy-flash/README.md`。
+
+#### 7.3.1 自研工具还是用 `dd`
+
+结论：**自研一个薄层，不引入第三方刻录器**。理由是发行物本身已经解决
+了「怎么引导」，缺的是「这台设备能不能写、这个包是不是发布物、写完是否
+逐字节一致、过程能否复盘」这四件事，而它们恰好都是有明确判据的判定：
+
+| 备选 | 能解决 | 不解决 | 取舍 |
+|---|---|---|---|
+| `dd` 手写 | 顺序写入 | 写错盘、包不对、写完不知成没成、无记录 | 作为底层实现被封装，不作为操作入口 |
+| Rufus / balenaEtcher 等 GUI | 介质发现与写入 | 无 `--json`、无退出码契约、不可在无人值守轮次复现，且引入一个不受本仓审计的二进制 | 仅在非 Linux 平台作为等价手段出现在对照表里 |
+| 自研 `airy-flash` | 上述四项 + 机器可读结果 | 不重造分区与引导 | 采用 |
+
+自研的边界写在工具入口注释里：**ISO 由 `mkksiso` 保留 isohybrid 分区表与
+EFI 镜像，顺序写入即可双固件引导**。再加一套分区/引导引擎等于引入第二处
+事实源，与 SSoT 原则冲突。
+
+#### 7.3.2 可复现烧录的取证链
+
+「可复现」在这里不是「每次烧出来的 U 盘字节相同」——那是 `sha256` 保证的
+——而是**每块盘都能指回一次确定的流水线产出**。链条上的每一环都可独立验证：
+
+| 环节 | 证据 | 由谁保证 |
+|---|---|---|
+| 源字节 | ISO 的 `sha256` | `image-build.yml` 产 `.sha256` |
+| 取件无损 | `.sha256` 校验通过 | `sha256sum -c` |
+| 取件同源 | `iso-oci.txt` 的 `sha256=` 等于本地 `.sha256` | `ci/ci.sh iso-publish` 写入 |
+| registry 无损 | OCI layer digest 等于文件 `sha256` | `ci/gates/iso-publish.sh` 远端断言 |
+| 写入正确 | 回读窗口逐字节一致 | `airy-flash` 的 `verify` 阶段 |
+| 装机可用 | `AIRYMAX-SMOKE-PASS` / `AIRYMAX-DESKTOP-READY` | `ci/ci.sh accept --firmware both` |
+
+任一环断裂即中止，不做「先烧了再说」。摘要来源缺失时工具默认拒绝写入，
+`--allow-unverified` 只在调试时显式使用，且报告里该阶段标 `[SKIP]`。
+
+#### 7.3.3 与验收的分工
+
+`airy-flash` 证明「盘上的字节对」，不证明「系统起得来」。两者不重叠、
+也不能互相替代：
+
+- 引导与桌面：QEMU 上以 `--firmware both` 跑 BIOS / UEFI 双固件冷启动，
+  产品 ISO 另断言 `AIRYMAX-DESKTOP-READY`。
+- 工具自身：`tools/airy-flash/tests/` 在 `python-verify` 门禁里跑，用临时
+  目录合成 sysfs 树与挂载表，不需要 root 与真实块设备。
+- 真机：作为验收的最后一跳（`acceptance-report` 的真机小节），产出
+  `flash-report.json` 与回读结论，随发行记录归档。
+
+#### 7.3.4 通用化约束
+
+工具不含验证机的分支：任何在 Linux 上以块设备出现的介质（U 盘、SD 卡、
+USB 硬盘盒、NVMe 转接盘）走同一套预检与写入路径，节点名不做假设。系统盘
+由 `/proc/mounts` 反查承载 `/`、`/boot`、`/boot/efi`、`/usr`、`/var` 的磁盘
+得到，而不是靠 `sdX` 命名或设备型号猜测——这条约束保证换一台机器、换一种
+介质，判定逻辑不变。非 Linux 平台不提供桩实现，只给出用平台原生工具复现
+同一顺序的对照表，见 `tools/airy-flash/README.md`。
 
 ---
 
@@ -1212,6 +1272,7 @@ agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），�
 - `100-operations/README.md`（部署运维）
 - `110-security/README.md`（Secure Boot 与 TPM）
 - `170-performance/02-memory-performance.md`（PMEM/CXL 分区）
+- `agent-linux` 仓 `tools/airy-flash/README.md`（介质写入的操作权威源，§7.3 只定设计）
 
 ---
 
@@ -1241,4 +1302,4 @@ agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），�
 
 ---
 
-> **文档结束** | agent-linux（AirymaxOS）安装器设计 v1.0.1
+> **文档结束** | agent-linux（AirymaxOS）安装器设计 v1.0.3
