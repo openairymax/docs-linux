@@ -741,7 +741,7 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 | 编号              | 规则                                                                                  | 章节           |
 | --------------- | ----------------------------------------------------------------------------------- | ------------ |
 | OS-STD-TEST-010 | 每个 `TEST_F` 必须有对应 `FIXTURE_SETUP` 与 `FIXTURE_TEARDOWN`；资源在 setup 中获取，在 teardown 中释放 | 02-kselftest |
-| OS-STD-TEST-011 | CI 总时长不得超过 60 分钟（与 06-toolchain-and-automation 的 OS-STD-033 对齐）                     | 02-kselftest |
+| OS-STD-TEST-011 | CI 总时长不得超过 60 分钟（与 06-toolchain-and-automation 的 OS-STD-033 对齐）；kernel 矩阵冷缓存兜底 90 分钟                     | 02-kselftest |
 
 ***
 

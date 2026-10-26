@@ -572,7 +572,7 @@ kselftest 输出 TAP（version 13），形如 `ok <num> <suite>:<case>` / `not o
 
 **OS-TEST-021**：CI 必须解析 kselftest TAP 输出并上传至测试报告系统；新增/删除测试集必须使总用例数单调变化，PR 评审需显式确认。
 
-**OS-STD-TEST-011**：CI 总时长不得超过 60 分钟（与 06-toolchain-and-automation 的 OS-STD-033 对齐）；超时的子集必须拆分或缓存优化。
+**OS-STD-TEST-011**：CI 总时长不得超过 60 分钟（与 06-toolchain-and-automation 的 OS-STD-033 对齐）；超时的子集必须拆分或缓存优化。kernel 28 矩阵 job 的冷缓存兜底上限为 90 分钟（见 `70-build-system/03-ci-cd-pipeline.md` §9.4）。
 
 ### 11.3 失败重试
 

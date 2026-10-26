@@ -243,7 +243,7 @@ agent-linux 与 agentrt 之间的代码共享与语义同源遵循 IRON-9 v3 四
 | 架构 | x86_64 / aarch64 / riscv64（+ ppc64 推荐用于交叉编译检查） |
 | 配置 | allnoconfig / allmodconfig / defconfig |
 | 编译器 | gcc + clang（双编译器交叉验证） |
-| 总时长 | ≤ 60 分钟 |
+| 总时长 | ≤ 60 分钟（kernel 矩阵冷缓存兜底 90 分钟） |
 
 ### 5.3 动态分析工具矩阵
 

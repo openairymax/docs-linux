@@ -747,7 +747,7 @@ agent-linux 在 Linux 6.6 内核基线工程工具链之上，构建了 7 层自
 - **触发**：每次 PR 创建与更新
 - **OS-STD-031**：PR 必须通过所有 GitHub Actions 检查才能合并；任一失败禁止合并（与 OS-STD-PROD-033 对齐）。
 - **OS-STD-032**：CI 矩阵必须覆盖 x86_64 / aarch64 / riscv64 × allmodconfig / allnoconfig / defconfig 共 9 种组合。
-- **OS-STD-033**：CI 总时长不得超过 60 分钟；超时的 job 必须拆分或缓存优化。
+- **OS-STD-033**：CI 总时长不得超过 60 分钟；超时的 job 必须拆分或缓存优化。kernel 28 矩阵 job 允许 90 分钟冷缓存兜底上限。
 
 ### 1.5 第 5 层：连接验证
 
@@ -1288,7 +1288,7 @@ agent-linux 继承 Linux 内核的 24 项提交检查清单，并新增 agent-li
 | OS-STD-023 | make format-check 必须通过 | MUST |
 | OS-STD-031 | PR 必须过全部 GitHub Actions | MUST |
 | OS-STD-032 | CI 矩阵覆盖 9 种组合 | MUST |
-| OS-STD-033 | CI 总时长 ≤60 分钟 | MUST |
+| OS-STD-033 | CI 总时长 ≤60 分钟（kernel 矩阵冷缓存兜底 90 分钟） | MUST |
 | OS-STD-041 | EXPORT_SYMBOL 在 Module.symvers 中 | MUST |
 | OS-STD-042 | 跨子仓符号通过 check_abisym.sh | MUST |
 | OS-STD-051 | AgentsIPC 128B 改动通过 airymax-ipc-check | MUST |

@@ -78,7 +78,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 | **A-4 完美主义** | 7 层验证全绿方可合并；零警告编译；多配置矩阵全绿 |
 | **S-1 反馈闭环** | L3 本地预提交毫秒级反馈 + L4 CI 分钟级阻断 |
 | **S-2 层次分解** | 7 层按"局部 → 全局 → 跨仓 → 发布"递进 |
-| **E-3 资源确定性** | ccache/cargo/pip 三级缓存 + CI 总时长 ≤60 分钟（OS-STD-TEST-011） |
+| **E-3 资源确定性** | ccache/cargo/pip 三级缓存 + CI 总时长 ≤60 分钟，kernel 矩阵冷缓存兜底 90 分钟（OS-STD-TEST-011） |
 | **E-7 文档即代码** | SSoT YAML Schema 机器可读 + .md 文档规则 ID 自动校验 |
 | **K-4 可插拔策略** | 子仓按构建系统分类（Meson/Cargo/Go/tsc），CI job 可独立增删 |
 
@@ -395,9 +395,12 @@ grep -E "warning:" build.log > warnings.log && grep -E "${airy_re}" warnings.log
 
 ### 3.5 矩阵优化
 
-28 格全量构建在 GitHub Actions 上耗时约 40 分钟，逼近 60 分钟上限（OS-STD-TEST-011）。优化策略：
+28 格全量构建在 GitHub Actions 上热缓存耗时约 40 分钟，冷缓存实测最慢格
+62 分钟（airy_defconfig / arm64 / clang，2026-10-26）。优化策略：
 
-- **ccache 命中**：按 `config+arch+compiler` 三元组缓存 2G，二次构建命中率 ≥70%。
+- **定向 ccache**：GitHub 每仓缓存上限 10G，28 格各 2G 的名义总量 56G 必然
+  被 LRU 淘汰（表现为 `Restore cache` → `No cache found`），因此只给最慢的
+  `airy_defconfig` 七格建缓存（7×800M≈5.6G），其余格冷构建也在 30 分钟内。
 - **路径过滤**：PR 仅触及 `Documentation/` 或 `tools/` 时跳过矩阵，仅跑文档格式校验。
 - **并行分批**：28 格 `max-parallel: 8` 分批运行，每批 ≤20 分钟。
 
@@ -1106,25 +1109,30 @@ publish:
 
 ### 9.4 超时约束（OS-STD-TEST-011）
 
-CI 总时长不得超过 60 分钟。各阶段预算：
+CI 总时长稳态不得超过 60 分钟；唯一例外是 kernel 28 矩阵 job 的**冷缓存兜底
+90 分钟**（ccache 未命中时最慢格实测 62 分钟，见 §3.5）。各阶段预算：
 
 | 阶段 | 预算 | 备注 |
 |------|------|------|
 | kernel 28 矩阵 | 40 分钟 | ccache 命中后 ≤25 分钟 |
+| kernel 矩阵（冷缓存兜底） | 90 分钟 | 硬上限，仅该 job 适用 |
 | kernel 质量门禁（checkpatch/sparse/Coccinelle） | 8 分钟 | 串行 |
 | kernel KUnit + kselftest | 10 分钟 | UML + QEMU |
 | 其他 7 子仓（并行） | 15 分钟 | 与 kernel 并行，不占 kernel 预算 |
 | 管理仓 2 job（串行） | 5 分钟 | 与子仓并行 |
-| **总计（关键路径）** | **≤60 分钟** | kernel 为关键路径 |
+| **总计（关键路径）** | **≤60 分钟** | kernel 为关键路径，冷缓存轮次 ≤90 分钟 |
 
 ```yaml
 # 每个 job 显式声明 timeout-minutes，避免悬挂 job 拖垮总时长
 kernel-build:
   runs-on: ubuntu-latest
-  timeout-minutes: 60
+  timeout-minutes: 90   # 取值由 tools/ci-matrix/manifest.yaml 唯一承载
 ```
 
-超时处理：单 job 超时计入失败；CI 总时长超 60 分钟由 `nightly.yml` 的 `ci-budget` job 检测并告警，超时子集必须拆分或缓存优化（OS-STD-TEST-011）。
+超时处理：单 job 超时计入失败；CI 总时长超 60 分钟由 `nightly.yml` 的
+`ci-budget` job 检测并告警，超时子集必须拆分或缓存优化（OS-STD-TEST-011）。
+矩阵 job 的预算值以 `tools/ci-matrix/manifest.yaml` 的 `budget.timeout_minutes`
+为唯一事实源，`tools/ci-matrix/ci_matrix.py --check` 校验 workflow 与清单一致。
 
 ---
 
@@ -1172,7 +1180,7 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 | SSoT 违规 | PR 作者 + 文档维护者（`50-engineering-standards/` CODEOWNERS） | PR review comment，列出违规编号与文件 |
 | [SC] 双向 CI 失败 | PR 作者 + kernel/agentrt 双方 L3 维护者 | PR review comment + 镜像 PR 链接 |
 | nightly 回归 | 引入回归的 commit 作者 + 顶级维护者 | revert PR comment + 邮件列表 |
-| CI 总时长超 60 分钟 | CI 基础设施维护者 | issue 自动创建 |
+| CI 总时长超 60 分钟（kernel 矩阵冷缓存轮次超 90 分钟） | CI 基础设施维护者 | issue 自动创建 |
 
 ```yaml
 - name: Notify on failure (PR review comment)
@@ -1199,7 +1207,7 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 | **A-4 完美主义** | 7 层验证全绿方可合并；28 矩阵零警告；关键路径 100% 覆盖（OS-STD-TOOL-124） |
 | **S-1 反馈闭环** | L3 本地预提交毫秒级 + L4 CI 分钟级 + nightly 回归自动 revert |
 | **S-2 层次分解** | 7 层按"局部→全局→跨仓→发布"递进；8 子仓 CI 隔离 |
-| **E-3 资源确定性** | 三级缓存 + CI ≤60 分钟（OS-STD-TEST-011）+ 可重现发布 |
+| **E-3 资源确定性** | 三级缓存 + CI ≤60 分钟、kernel 矩阵冷缓存兜底 90 分钟（OS-STD-TEST-011）+ 可重现发布 |
 | **E-7 文档即代码** | SSoT YAML Schema 机器可读 + .md 规则 ID 自动校验 |
 | **K-4 可插拔策略** | 子仓按构建系统分类，CI job 独立增删 |
 | **E-1 安全内生** | 发布双重签名（GPG + cosign）+ SBOM 全链路追溯 |
