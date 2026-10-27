@@ -342,6 +342,47 @@ tpm2_pcrread -L sha256:0,1,2,3,4,5,6,7
 # PCR7:  Secure Boot 状态
 ```
 
+### 4.6 UEFI 品牌化（NVRAM 条目与 ESP 落点）
+
+anaconda 由 `/etc/system-release` 派生 `GRUB_DISTRIBUTOR`，NVRAM 条目因此叫
+`openEuler`，固件菜单与 `BootOrder` 都是上游名字。条目标签不能就地改名，
+只能在装机段新建一条 `AirymaxOS` 并置顶，实现为
+`distro/boot/efi_brand.sh`，做两件事：
+
+1. 在 `${ESP}/EFI/airymaxos` 放一整套已签名的二级加载器
+   （`shimx64.efi`/`grubx64.efi`/`mmx64.efi`/`fbx64.efi` 等，按源目录存在项
+   复制）与 `BOOTX64.CSV`。shim 只从自身目录取 `grubx64.efi`，签名链也在同
+   目录闭合，所以必须是完整一套，不能只放 shim。`grubx64.efi` 内嵌 prefix
+   仍指向 `/EFI/openEuler`，生效的菜单配置不变。
+2. 用 `efibootmgr -c` 新建条目（先删同名旧条目，避免重装后 `AirymaxOS0` 与
+   `BootOrder` 指向旧路径），把新条目插到 `BootOrder` 首位，再回读断言首项。
+
+**时机**：只有装机段可行。默认视图的 chroot 段看不到 ESP 与 NVRAM；首启
+systemd 单元被 SELinux 拒绝（`init_t` 在 `dosfs_t` 上 `create`，验收 run
+40574831975 的 AVC）。
+
+**执行环境**：目标根而不是安装器环境。`efibootmgr`/`findmnt`/`lsblk` 由
+被测系统提供，与真机一致；安装器自带的环境没有这些工具，早期版本直接调用
+时脚本走进 skip 分支，而配方对退出码 0 无条件报 OK（验收 run 40587295652
+的 ESP 内因此没有 `EFI/airymaxos`）。因此 `%post --nochroot` 段先把
+efivarfs、ESP（按目标根 `/etc/fstab` 的 `/boot/efi` 来源挂回）与
+`/dev /proc /sys` 挂进目标根，再 `chroot <root>` 执行脚本；段内挂载记入
+owned 列表，`trap ... EXIT` 以 `umount -R` 还回，不污染安装器环境。
+
+**判定**（脚本退出码 + 状态文件双重口径）：
+
+| 情况 | 退出码 | 安装段行为 |
+|------|--------|------------|
+| 非 EFI 装机 | 0（skip） | 打 `AIRYMAX-EFI-SKIP`，继续安装 |
+| 此前已品牌化（状态文件存在） | 0（skip） | 同上 |
+| ESP 未挂载 / 缺 `efibootmgr` / 无签名 shim | 1 | 打 `AIRYMAX-EFI-FAIL`，`--erroronfail` 终止安装 |
+| 退出码 0 但状态文件缺失 | 1（段内断言） | 同上 |
+
+状态文件 `/var/lib/airymaxos/efi-brand` 是「已品牌化」的唯一事实；品牌日志
+落 `/var/log/airymax/efi-brand.log`。`--log` 指定的文件在安装器环境，装机
+结束即消失，不用于归因。验收侧 `ci/run-smoke.sh` 的 T11 同时断言 ESP 套件、
+状态文件与 `BootOrder` 首位，失败诊断附 `state=` 与品牌日志末行。
+
 ---
 
 ## 5. kickstart 自动安装配置
