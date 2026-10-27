@@ -548,7 +548,10 @@ fi
 
 ### 5.5 工作站图形会话（lightdm + UKUI）
 
-工作站剖面的验收判据是「会话定义 / lightdm 单元 / greeter 会话」三级登录链成立。交付链路：
+工作站剖面的验收判据是「会话定义 / lightdm 单元 / 登录会话」三级登录链成立。
+第三级按座位策略取并集：启用 autologin 时 lightdm 不创建 greeter，直接以
+`lightdm-autologin` 拉起 `Class=user` 的 X11 会话；未启用 autologin 才停在
+`Class=greeter`。交付链路：
 
 1. `%post` 以 `systemctl --root=/ set-default graphical.target` 设定默认目标，判据是
    `/etc/systemd/system/default.target` 的符号链接落盘状态（安装器 chroot 内没有
@@ -563,10 +566,12 @@ fi
    `TimeoutStartSec=180`，`WantedBy=graphical.target`）运行 `desktop_ready.sh`：
    先静态校验 `/usr/share/xsessions/ukui.desktop` 存在且其 `Exec` 可解析
    可执行，随后在 90 秒内每 2 秒轮询，要求 `lightdm` 处于 active 且存在
-   `Service=lightdm, Class=greeter, Type=x11, State=active|online` 的 logind
-   会话，成功打印 `AIRYMAX-DESKTOP-READY`；会话定义不成立立即打印
-   `AIRYMAX-DESKTOP-FAIL reason=session`，greeter 超时打印
-   `AIRYMAX-DESKTOP-FAIL unit=lightdm wait=<n>s`。两种失败串均由
+   `Service=lightdm*`、`Class∈{greeter,user}`、`Type=x11`、
+   `State∈{active,online}` 的 logind 会话，成功打印
+   `AIRYMAX-DESKTOP-READY`；会话定义不成立立即打印
+   `AIRYMAX-DESKTOP-FAIL reason=session`，等待超时打印
+   `AIRYMAX-DESKTOP-FAIL unit=lightdm wait=<n>s`。探针只判定「会话已建立」，
+   桌面进程是否存活由 `run-smoke.sh` T1 单独取证，不设第二事实源。两种失败串均由
    `install-test.sh` 的 `BOOT_FAIL` 规则即时捕获；
 5. 桌面自带 AI 控制面（`kylin-ai*`）在 `%packages` 中通配排除，agent 控制面
    唯一入口保持为 Gateway（R1-06 口径）。
