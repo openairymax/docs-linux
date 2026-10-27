@@ -597,27 +597,17 @@ kselftest 是 agent-linux 系统级测试框架，默认在 QEMU 上运行（CI 
 - **OS-TEST-022**：flaky 测试必须在 `airy_flaky_baseline.md` 登记并限期修复；未修复的 flaky 测试由 CI 标记为 `KSFT_XFAIL`。
 
 ```yaml
-env:
-  KSFT_INSTALL: ${{ github.workspace }}/kselftest-install
-steps:
-  - name: Build and install kselftest subset (OS-TEST-013~022)
-    working-directory: kernel
-    run: |
-      make -C tools/testing/selftests TARGETS="seccomp pidfd membarrier rseq" \
-        -j"$(nproc)" install KSFT_INSTALL_PATH="$KSFT_INSTALL"
-  - name: kselftest on QEMU via virtme-ng (OS-TEST-013~022)
-    run: |
-      cd "$KSFT_INSTALL"
-      vng --run "$GITHUB_WORKSPACE/kernel/arch/x86/boot/bzImage" \
-        --cwd "$KSFT_INSTALL" --force-9p --disable-kvm --quiet \
-        --exec "./run_kselftest.sh --summary" > "$GITHUB_WORKSPACE/kselftest.tap" 2>&1
-  - name: Parse kselftest TAP output
-    run: python3 tools/parse-tap.py --input kselftest.tap --fail-on-not-ok
+      - name: kselftest subset in virtme-ng
+        run: ci/ci.sh kernel-kselftest --tap "$RUNNER_TEMP/kselftest.tap"
 ```
 
-> **执行载体**：`run_kselftest.sh` 从自身位置推导 `BASE_DIR` 并读取同目录的 `kselftest-list.txt`，因此**必须从 `KSFT_INSTALL_PATH` 安装目录运行**，且 Linux 6.6 的该脚本只接受 `-s|--summary`、`-t`、`-c`、`-l`、`-d`、`-o`、`-h`——**不存在 `--tap` 参数**，旧文档的 `./tools/testing/kselftest/run_kselftest.sh --tap` 既路径错误又参数非法。
+> **执行载体**：构建安装、运行、TAP 解析三段合成一条门禁 `ci/gates/kernel-kselftest.sh`。理由不是少写 YAML，而是 install 目录是「构建」与「运行」之间的唯一契约：三段分开写时，任一段单独重跑都会在 install 目录过期的情况下照样通过。`run_kselftest.sh` 从自身位置推导 `BASE_DIR` 并读取同目录的 `kselftest-list.txt`，因此**必须从安装目录运行**；Linux 6.6 的该脚本只接受 `-s|--summary`、`-t`、`-c`、`-l`、`-d`、`-o`、`-h`，**不存在 `--tap` 参数**，旧文档的 `./tools/testing/kselftest/run_kselftest.sh --tap` 既路径错误又参数非法。
 >
-> **运行环境**：CI 容器无 `/dev/kvm`，`vng --disable-kvm` 回退 TCG 软件模拟；x86_64 `defconfig` 未启用 `CONFIG_VIRTIO_FS`，故必须 `--force-9p` 走 9p 共享。所选子集 `seccomp pidfd membarrier rseq` 均为自包含测试，缺 CONFIG 的用例以 `SKIP` 上报，而 `parse-tap.py` 将 `SKIP` 记为 `ok`，不误伤门禁。
+> **预算按目录落，不做全局覆盖**：上游预算有两层——裸机缺省 `kselftest_default_timeout=45`，目录可用 `settings` 改预算且 `timeout=0` 表示无界。`run_kselftest.sh -o` 是全局覆盖，会同时抹掉这两层：0.0.3 把 pidfd 从 45s 提到 240s 后，失败项立刻平移到 `rseq/run_param_test.sh`，因为该目录声明 `timeout=0`（上游把它当浸泡用）。门禁改为把预算写进**安装目录**的 `<dir>/settings`（不碰源码树，install 会覆盖回去），上游已声明有限预算的目录一律尊重（`seccomp` 保持 120s），并加整批墙钟上界（缺省 1200s）防止死锁吃掉 job 预算。
+>
+> **浸泡用例显式剔除且可审计**：`rseq/run_param_test.sh` 一轮约 608 次进程启动（8 组配置 + 9 个注入点 + 9 个阻塞相位 × 4 二进制 × 1000 reps × 6×ncpu 线程），不是回归信号。门禁在运行前按 `dir:name` 从清单剔除，并**先断言该名字确实在清单里**——名字写错则硬失败，避免「静默少跑一批用例」；剔除项与理由登记在验收报告，实机浸泡另立任务。
+>
+> **运行环境**：CI 容器无 `/dev/kvm` 时门禁自动追加 `--disable-kvm` 退回 TCG（本地有 KVM 则不做模拟）；x86_64 `defconfig` 未启用 `CONFIG_VIRTIO_FS`，故必须 `--force-9p` 走 9p 共享。**不加 `--summary`**：它把 logfile 指向 `$BASE_DIR/output.log`，而 virtme-ng 把安装目录只读挂载，整批用例会因写日志失败而一律 `exit=2`（0.0.3 实测 19/19 命中）。所选子集 `seccomp pidfd membarrier rseq` 均为自包含测试，缺 CONFIG 的用例以 `SKIP` 上报，而 `parse-tap.py` 将 `SKIP` 记为 `ok`，不误伤门禁。
 
 ### 5.4 形式化验证（seL4 风格）
 
