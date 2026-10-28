@@ -916,6 +916,40 @@ USB 硬盘盒、NVMe 转接盘）走同一套预检与写入路径，节点名�
   `/etc/systemd/journald.conf.d/50-airymax-journald.conf`（`Storage=persistent`），
   `journalctl -b -1` 才能回答「上一次启动停在哪」。
 
+#### 7.4 站点派生介质（保留既有系统的装机）
+
+产品 ISO 的分区策略是 `clearpart --all`，整盘归 AirymaxOS，这是发行物的正确
+语义。但验证机与工作站常已有别的系统（例如前两个分区属于 Ubuntu），此时需要
+的是「同一份字节，只改分区作用域」，而不是给产品 ISO 加一个分支开关。
+
+做法是派生一份**站点介质**：除 `/ks.cfg` 外不改动任何字节。
+
+```
+xorriso -indev product.iso -outdev site.iso \
+        -map site.ks /ks.cfg -boot_image any keep
+```
+
+不用 `mkksiso`：它会在产品 ISO 的每条 `append`/`linuxefi` 行尾再追加一个
+`inst.ks=`，与产品 ISO 已有的同名键并存；重复键的解析结果在构建侧无法证伪，
+且改动面不可逐字节复核。`xorriso -map` 只替换一个成员，卷标、分区项（含 ESP
+的 `0xef` 项）与两个引导配置保持原样，派生后可挂载比对 `/ks.cfg` 与源逐字节
+一致。
+
+站点 ks 的硬约束：
+
+- `clearpart --none` 关闭整盘清除，每个分区行用 `--onpart=<disk>pN` 显式绑定；
+  目标分区名从 `%pre` 探测结果得到，不写死 `nvme0n1`，换机只改探测结果。
+- `%pre` 必须自证前提：目标分区存在、容量不小于配方假设、`blkid` 的 `LABEL`
+  与预期一致；任一不满足即非零退出，让安装失败，而不是带着错误的盘继续写。
+- 每个系统保留各自的 ESP，站点配方只写自己的那一个；向既有 ESP 叠加第二套
+  引导会与固件里的既有启动项争用同一目录。
+- 站点配方同样受 `ks_lint` 门禁约束（`%post` 首行 `set -eu` 等），派生后先跑
+  门禁再写盘。
+
+定位：站点介质是**装机现场产物**，不是发行物——它不进 `ghcr.io`、不入库，
+也不作为验收证据；验收与发行使用的始终是流水线产出的原始 ISO。这条边界保证
+「产品字节」与「某台机器的装法」不被混为一谈。
+
 ---
 
 ## 8. cloud-init 云镜像定制
