@@ -396,6 +396,8 @@ msgfmt ../po/zh_CN.po -o \
 
 ### 5.1 仓库结构
 
+> 目标态，自 0.1.x 自有基底起生效。0.0.x 不运营自有仓库，见 §5.2。
+
 ```bash
 # agent-linux 官方仓库结构
 /var/www/airymaxos-repo/
@@ -423,42 +425,37 @@ msgfmt ../po/zh_CN.po -o \
 
 ### 5.2 客户端 dnf 仓库配置
 
-```ini
-# /etc/yum.repos.d/airymaxos.repo —— agent-linux dnf 仓库配置
+**0.0.x（当前）：客户端直连 openEuler 镜像。** 已装系统的唯一源文件是
+`/etc/yum.repos.d/airymaxos.repo`（由 `airymaxos-release` 提供，源文件
+`distro/repo/airymax-os.repo`）。它必须与安装期 kickstart 的仓库闭包逐项
+对齐，不得有独立演化：
 
-[airymaxos-base]
-name=agent-linux (AirymaxOS) BaseOS $releasever - $basearch
-baseurl=https://repo.airymaxos.org/$releasever/BaseOS/$basearch/
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
-repo_gpgcheck=1
-metadata_expire=6h
-skip_if_unavailable=True
+| 段名 | 上游路径（`openEuler-24.03-LTS-SP2`） | 默认 |
+|------|----------------------------------------|------|
+| `airymaxos-base` | `OS` | 启用 |
+| `airymaxos-updates` | `update` | 启用 |
+| `airymaxos-epol` | `EPOL/main` | 启用 |
+| `airymaxos-epol-updates` | `EPOL/update/main` | 启用 |
+| `airymaxos-everything` | `everything` | 关闭 |
 
-[airymaxos-appstream]
-name=agent-linux (AirymaxOS) AppStream $releasever - $basearch
-baseurl=https://repo.airymaxos.org/$releasever/AppStream/$basearch/
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
-metadata_expire=6h
+每条 `baseurl` 列三个镜像（`repo.openeuler.org`、清华 TUNA、华为云），顺序与
+`ci/gates/media-fetch.sh` 一致；单个上游故障不应让系统失去升级能力。
 
-[airymaxos-updates]
-name=agent-linux (AirymaxOS) Updates $releasever - $basearch
-baseurl=https://repo.airymaxos.org/$releasever/updates/$basearch/
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos
-metadata_expire=1h
+三条硬约束由 `specs/airymaxos-release.spec` 的 `%check` 断言，漂移在构建期
+失败：
 
-[airymaxos-testing]
-name=agent-linux (AirymaxOS) Testing $releasever - $basearch
-baseurl=https://repo.airymaxos.org/testing/$basearch/
-enabled=0
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-airymaxos-testing
-```
+- **不用 `$releasever`**：dnf 中它展开为产品版本（`0.0.3`），不是基底发行版
+  版本，拼出的路径必然 404；基底版本由 `%global oe_base` 显式书写。改这一处
+  必须同时改 kickstart 的 `url`/`repo` 行。
+- **`gpgcheck=0` 与 `repo_gpgcheck=0`**：openEuler 24.03 LTS SP2 的软件包与
+  仓库元数据均无 PGP 签名（`rpm -q --qf '%{SIGPGP:pgpsig}'` 为 `(none)`），
+  非零取值会让 dnf 拒绝每一个包。链路完整性只由 HTTPS 保证。
+- **段集与 kickstart 一一对应**：装机期的 `url`/`repo` 行与装完之后的客户端
+  配置分属两层，两层错位就是「装得进去、装完装不了」。
+
+**1.0（目标）：自有仓库 + 签名强制。** 布局见 §5.1。`repo.airymaxos.org` 上线
+与 `airymaxos-keyring` 落地后，段名改为 `BaseOS`/`AppStream`/`updates`/
+`testing`，`gpgcheck` 与 `repo_gpgcheck` 恢复为 1。
 
 ### 5.3 创建本地仓库
 
