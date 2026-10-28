@@ -383,6 +383,23 @@ owned 列表，`trap ... EXIT` 以 `umount -R` 还回，不污染安装器环境
 结束即消失，不用于归因。验收侧 `ci/run-smoke.sh` 的 T11 同时断言 ESP 套件、
 状态文件与 `BootOrder` 首位，失败诊断附 `state=` 与品牌日志末行。
 
+### 4.7 启动画面
+
+交付机第一次冷启动的观感由两处共同决定，缺任一处都会退回逐行日志或黑屏：
+
+| 位置 | 取值 | 缺了会怎样 |
+|------|------|------------|
+| kickstart `bootloader --append` | `rhgb quiet` | plymouth 不接管屏幕，内核日志逐行滚动 |
+| `airymaxos-release` 的 `/etc/plymouth/plymouthd.conf` | `Theme=tribar`、`ShowDelay=0` | 落到上游默认 `text` 主题，或黑屏 5 秒才出画面 |
+
+`quiet` 只把控制台 loglevel 压到 4：告警以上仍打印，全部记录照样进 journal
+与 `ttyS0`，安装测试等待的 `login:` 哨兵来自 agetty，不受影响。按 Esc 或
+删掉这两个参数即回到逐行日志，现场排障不必重装。主题缺失或渲染后端不可
+用时 plymouth 自行回落 `text`，配置写错只影响观感，不阻断启动；`plymouth`
+包因此写进工作站包清单，而不是靠桌面闭包间接带入。
+
+minimal 变体不加 `rhgb`：它没有画面可换，留下逐行日志更便于取证。
+
 ---
 
 ## 5. kickstart 自动安装配置
@@ -868,6 +885,25 @@ USB 硬盘盒、NVMe 转接盘）走同一套预检与写入路径，节点名�
 得到，而不是靠 `sdX` 命名或设备型号猜测——这条约束保证换一台机器、换一种
 介质，判定逻辑不变。非 Linux 平台不提供桩实现，只给出用平台原生工具复现
 同一顺序的对照表，见 `tools/airy-flash/README.md`。
+
+#### 7.3.5 装机收尾与首次启动
+
+写入正确只说明介质可用，能否进桌面还要看安装器收尾这一段。安装配方末行是
+`reboot`，但「安装器请求重启」与「机器真的重启」是两件事：B50 实机
+（2026-10-28）上 anaconda 收尾落到 `reboot: System halted`，机器停住 37
+分钟，直到人工断电重上电。由此定下三条口径：
+
+- 无人值守轮次不把「自重启」当作流程节点。串口终态出现即视为安装结束，
+  后续引导由外部动作驱动：`efibootmgr -n <条目号>` 指定一次性启动项，再
+  上电。用 `-n` 而不是改 `BootOrder`，是为了让写坏 `BootOrder` 时也不至于
+  连同原系统一起锁死。
+- 品牌化脚本在装机段把 `AirymaxOS` 条目置顶（§4.6），因此正常路径上一次性
+  启动项与默认启动项指向同一条；`-n` 只是把「本次一定进安装器」这件事从
+  固件默认值里摘出来。
+- `halt` 与 `reboot` 只差一次 ACPI 事件，事后区分二者只能靠日志，因此持久
+  日志是这条流程的前置条件而不是可选项：`airymaxos-release` 交付
+  `/etc/systemd/journald.conf.d/50-airymax-journald.conf`（`Storage=persistent`），
+  `journalctl -b -1` 才能回答「上一次启动停在哪」。
 
 ---
 
