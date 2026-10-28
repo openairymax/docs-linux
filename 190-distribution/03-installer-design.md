@@ -390,12 +390,23 @@ owned 列表，`trap ... EXIT` 以 `umount -R` 还回，不污染安装器环境
 | 位置 | 取值 | 缺了会怎样 |
 |------|------|------------|
 | kickstart `bootloader --append` | `rhgb quiet` | plymouth 不接管屏幕，内核日志逐行滚动 |
-| `airymaxos-release` 的 `/etc/plymouth/plymouthd.conf` | `Theme=tribar`、`ShowDelay=0` | 落到上游默认 `text` 主题，或黑屏 5 秒才出画面 |
+| `airymaxos-release` 的 `/usr/share/plymouth/themes/default.plymouth` 符号链接 | 指向 `tribar/tribar.plymouth` | 落到上游默认 `text` 主题 |
+
+plymouth 按 `plymouthd.conf` → `plymouthd.defaults` → `default.plymouth` 链接
+→ `text` 逐级解析主题。前两级连同其所在目录都由 `plymouth` 包持有，第二个
+包再声明同名文件会让整个安装事务以 `conflicts between attempted installs`
+失败（0.0.3-13 的实测结果，验收 run 40639862403 两条固件腿均停在此处）；
+`default.plymouth` 未被上游打包占用，正是发行版声明默认主题的位置。openEuler
+的 `plymouthd.defaults` 写着 `spinner`，其包内却没有该主题目录，前两级因此
+都落空，链接才是实际生效的那一处。dracut 的 `plymouth-populate-initrd` 走同
+一条链，主题随之进入 initramfs；`ShowDelay=0` 也来自该 defaults，启动早期
+没有额外的黑屏窗口。构建期 `%check` 断言链接本身与目标名两段：目标拼错时
+链接悬空，plymouthd 静默回落 `text`，除观感外不留任何日志痕迹。
 
 `quiet` 只把控制台 loglevel 压到 4：告警以上仍打印，全部记录照样进 journal
 与 `ttyS0`，安装测试等待的 `login:` 哨兵来自 agetty，不受影响。按 Esc 或
 删掉这两个参数即回到逐行日志，现场排障不必重装。主题缺失或渲染后端不可
-用时 plymouth 自行回落 `text`，配置写错只影响观感，不阻断启动；`plymouth`
+用时 plymouth 自行回落 `text`，写错只影响观感，不阻断启动；`plymouth`
 包因此写进工作站包清单，而不是靠桌面闭包间接带入。
 
 minimal 变体不加 `rhgb`：它没有画面可换，留下逐行日志更便于取证。
