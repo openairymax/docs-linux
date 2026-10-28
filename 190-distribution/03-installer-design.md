@@ -876,6 +876,14 @@ EFI 镜像，顺序写入即可双固件引导**。再加一套分区/引导引�
 任一环断裂即中止，不做「先烧了再说」。摘要来源缺失时工具默认拒绝写入，
 `--allow-unverified` 只在调试时显式使用，且报告里该阶段标 `[SKIP]`。
 
+取件通道不属于取证链的一环。同一 tag 的清单在任一 registry 镜像上都指向同
+一个 layer digest，带宽差异只影响等多久，不影响取回的是什么，因此允许按可达
+性择优（先试地区镜像，失败回落 `ghcr.io`），判据始终是「层摘要等于发布值」。
+实测（B50，2026-10-28）直连 `ghcr.io` 为 21 KB/s（3.76 GB 需 49 小时），经
+`ghcr.nju.edu.cn` 为 9.8 MB/s（6 分钟），两者清单里的 digest 完全相同，
+落盘后 `sha256sum -c` 一致。把这条写进流程的意义是：出口带宽不可控时，
+可复现性不跟着一起丢。
+
 #### 7.3.3 与验收的分工
 
 `airy-flash` 证明「盘上的字节对」，不证明「系统起得来」。两者不重叠、
@@ -927,6 +935,7 @@ USB 硬盘盒、NVMe 转接盘）走同一套预检与写入路径，节点名�
 ```
 xorriso -indev product.iso -outdev site.iso \
         -map site.ks /ks.cfg -boot_image any keep
+truncate -s "$(stat -c %s product.iso)" site.iso   # 补回原长度，见下
 ```
 
 不用 `mkksiso`：它会在产品 ISO 的每条 `append`/`linuxefi` 行尾再追加一个
@@ -934,6 +943,14 @@ xorriso -indev product.iso -outdev site.iso \
 且改动面不可逐字节复核。`xorriso -map` 只替换一个成员，卷标、分区项（含 ESP
 的 `0xef` 项）与两个引导配置保持原样，派生后可挂载比对 `/ks.cfg` 与源逐字节
 一致。
+
+`truncate` 不是可有可无的收尾。isohybrid 镜像的 MBR/GPT 尾部项按输入长度
+布局，而 `-outdev` 重新打包会丢掉末尾的填充扇区：2026-10-28 实测派生结果比
+产品 ISO 短 1.98 MB（3755.9 MB vs 3763.8 MB），并触发 `libburn: SORRY: Read
+start address ... larger than number of readable blocks`——被切掉的正是 ESP
+所在的那一段。文件短了，`xorriso` 只是「容忍」这个问题，整盘写入后固件读
+不到完整的 EFI 分区，介质直接不可引导。因此派生后一律补回原长度，`xorriso`
+的 `SORRY` 消退、回读校验返回 0 才算通过。
 
 站点 ks 的硬约束：
 
