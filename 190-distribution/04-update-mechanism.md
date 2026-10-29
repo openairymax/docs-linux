@@ -78,6 +78,10 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 比较规则：先按三段数值比较 `version`；相等再比 `build` 的整数段。
 `build` 不同只能得出「同版本重建」，不得表述为「有新版本」。
 
+现有 tag 不带构建号：同一 tag 重建时 `version` 不变而 `build` 前进
+（0.0.3 的 19 → 22 即此形态）。故「最新」只能指向 tag，「是不是
+同一个系统」只能由三元组回答，两者不可互相替代。
+
 ### 2.3 发行通道清单
 
 清单是发布流水线的确定性产出，不是手写文件，与 `.sha256sum` 同源：
@@ -87,7 +91,8 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 | 托管 | GitHub Release 资产 |
 | 地址 | `https://github.com/openairymax/agent-linux/releases/latest/download/channel.json` |
 | 选型理由 | 静态资产，无 API 配额、无需令牌、可被 CDN 缓存；不解析 HTML 页面 |
-| 生成 | `tools/release-engineering/` 的清单生成器，随 `release.yml` 产出 |
+| 生成 | `tools/release-engineering/` 的清单生成器，与 `.sha256sum` 同一遍读文件产出 |
+| 可见性 | 只有非 prerelease 的 Release 会被 `/releases/latest/download/` 命中，「未取证不得进 latest」由托管方机械保证，不靠人工置位 |
 | 签名 | 0.0.x 由 HTTPS 保证链路；GPG 随 0.1.x 自有仓库签名一并引入 |
 
 `schema_version=1` 的最小形态：
@@ -109,6 +114,12 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 `notes_url` 落在发行域白名单内的清单；任一字段缺失或越界即整份判不可信
 并退出报错，不做「尽量理解」。清单若带 `iso.url`，其域名必须属于同一
 白名单，否则不渲染也不下载：远端字段不得把客户端变成任意地址的下载器。
+
+生成器是「身份链」的末端，不是手写清单的替代品。它至少断言两条：
+`iso.sha256` 等于 `iso-oci.txt` 记录的摘要，`build` 等于
+`airymaxos-release` NEVRA 的 `Release`。缺这两条，清单只是又一组
+看起来对的字符串——0.0.3 已付过一次代价：发布页描述的取件形态与线上
+制品不一致（单层、无 `chunk-size`），而链路上没有任何环节把它判成错。
 
 ### 2.4 客户端 airy-update
 
@@ -149,6 +160,7 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 | 单元 | 版本比较：同版本不同构建、跨段、前导零 | 三态结论正确，且不依赖字符串比较 |
 | 单元 | 清单校验：缺字段、坏摘要、越界域名、未知 schema | 一律判不可信，错误定位到字段 |
 | 单元 | 状态原子写与失败保留 | 注入异常后 `last_ok` 不被覆盖 |
+| 发布 | 生成器交叉断言：`iso` 摘要对账本、`build` 对 NEVRA | 任一不等即不产出清单，发布判失败 |
 | 装机 | `airy-update status` | 三元组与 `os-release`、`rpm -q`、`uname -r` 一致 |
 | 装机 | `airy-update check` | 无网络时返回 1 且不污染状态；有网络时给出确定结论 |
 
