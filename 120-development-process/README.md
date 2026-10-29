@@ -40,7 +40,7 @@ agent-linux 开发流程是代码从设计到主线再到稳定发布的全生�
 - **预览集成**：`develop` 分支等价 linux-next 树
 - **稳定版**：`release/*` 分支等价 -stable 树
 - **SSoT v2 单一权威源模型**：每个技术点只允许有一个权威源，CI 强制校验
-- **CI 强制校验**：`sc-verify.yml`（[SC] 逐字节校验）+ `ssot-verify.yml`（四层模型归属校验）+ 五大技术选型回归测试
+- **CI 强制校验**：`[SC]` 契约门禁（[SC] 逐字节校验）+ `ssot-verify.yml`（四层模型归属校验）+ 五大技术选型回归测试
 
 ---
 
@@ -54,7 +54,7 @@ agent-linux v1.0 开发流程在内核调度、IPC 传输、安全钩子、内�
 | 2 | **IPC 零拷贝** | **IORING_OP_URING_CMD**：通过 io_uring 命令操作码实现内核↔用户态零拷贝传输 | **不使用 page flipping**（不交换物理页、不破坏内存布局稳定性） | CI 强制校验 `CONFIG_IO_URING=y`；引入 page flipping 代码路径的 PR 被 CI 阻断 |
 | 3 | **安全钩子** | **纯 C LSM**：以纯 C 实现的 `airy_lsm` 通过 `security_hook_list` 注册 | **不使用 BPF LSM**（不依赖 BPF LSM 框架、不通过 eBPF 程序挂载安全钩子） | CI 强制校验 `# CONFIG_BPF_LSM is not set` 与 `CONFIG_SECURITY_AIRY_LSM=y`；引入 BPF LSM 钩子的 PR 被 CI 阻断 |
 | 4 | **内存分配** | **alloc_pages + mmap**：通过 `alloc_pages` 分配物理页后 `vm_map_pages` / `remap_pfn_range` 映射 | **不使用 DMA 一致性内存**（不调用 `dma_alloc_coherent`、不依赖硬件一致性缓存） | CI 强制扫描共享内存路径未调用 `dma_alloc_coherent`；引入 DMA 一致性内存的 PR 被 CI 阻断 |
-| 5 | **同源代码共享** | **IRON-9 v3 四层模型**：[SC] 共享契约层 + [SS] 语义同源层 + [IND] 独立实现层 + [DSL] 降级生存层 | （v2 三层模型升级为 v3 四层模型，新增 [DSL] 降级生存层） | `sc-verify.yml` 双端逐字节校验 12 个 [SC] 头文件；`ssot-verify.yml` 校验四层归属一致性；[SC] 变更必须双向评审 |
+| 5 | **同源代码共享** | **IRON-9 v3 四层模型**：[SC] 共享契约层 + [SS] 语义同源层 + [IND] 独立实现层 + [DSL] 降级生存层 | （v2 三层模型升级为 v3 四层模型，新增 [DSL] 降级生存层） | `[SC]` 契约门禁（OS-CHK-DOC-04） 12 个 [SC] 头文件；`ssot-verify.yml` 校验四层归属一致性；[SC] 变更必须双向评审 |
 
 ### 2.1 SSoT v2 单一权威源模型
 
@@ -95,7 +95,7 @@ agent-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权�
 | # | 文档 | 版本 | 内容概要 |
 |---|------|------|---------|
 | — | [README.md](README.md) | v1.0.1 | 开发流程主索引（本文件，含 SSoT v2 单一权威源模型） |
-| 1 | [01-patch-lifecycle.md](01-patch-lifecycle.md) | v1.0.1 | 补丁生命周期 6 阶段（Design → Early review → Wider review → Mainline → Stable release → LTS）、PR 拆分原则、commit 格式、审查流程、CI 强制校验（`sc-verify.yml` + `ssot-verify.yml` + 五大技术选型回归） |
+| 1 | [01-patch-lifecycle.md](01-patch-lifecycle.md) | v1.0.1 | 补丁生命周期 6 阶段（Design → Early review → Wider review → Mainline → Stable release → LTS）、PR 拆分原则、commit 格式、审查流程、CI 强制校验（`[SC]` 契约门禁 + `ssot-verify.yml` + 五大技术选型回归） |
 | 2 | [02-maintainer-hierarchy.md](02-maintainer-hierarchy.md) | v1.0.1 | 维护者层级制度（Lieutenant System）、CODEOWNERS、DCO bot、8 子仓协同开发、agentrt ↔ agent-linux 同源 API 季度评审 |
 
 ### 3.1 后续规划文档（1.0.1 版本）
@@ -107,7 +107,7 @@ agent-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权�
 - `05-stable-releases.md`：稳定版维护（详细）
 - `06-long-term-support.md`：LTS 长期支持（详细）
 - `07-contribution-workflow.md`：贡献者工作流
-- `08-ci-cd-pipeline.md`：CI/CD 流水线（详细）
+- `08-ci-cd-pipeline.md`：CI 强制点与合并门禁（流程层；workflow 清单见 `.github/workflows/README.md`）
 - `09-release-process.md`：版本发布流程
 
 ---
@@ -118,7 +118,7 @@ agent-linux 开发流程遵循 SSoT v2（Single Source of Truth v2）单一权�
 
 | Unify 模块 | 关系 | 在本目录的体现 |
 |-----------|------|--------------|
-| **A-UEF** | 治理 | A-UEF 的 [SC] `error.h` 变更必须双向评审（agentrt ↔ agent-linux）；CI 强制校验双端逐字节一致 |
+| **A-UEF** | 治理 | A-UEF 的 [SC] `error.h` 变更必须双向评审（agentrt ↔ agent-linux）；头文件唯一副本由 `mgmt-files`（OS-IRON-008）守护，可编译性由 OS-CHK-DOC-04 五路编译守护 |
 | **A-ULP** | 治理 | A-ULP 的 [SC] `log_types.h` 变更必须双向评审；128B 记录格式变更触发 SSoT 评审 |
 | **A-UCS** | 治理 | A-UCS 的 [SS] 语义同源配置（sysctl ↔ JSON）变更必须同步两端；`airy_defconfig` 锁定五大选型，偏离即 CI 阻断 |
 | **A-ULS** | 治理 | A-ULS 的纯 C LSM 模块变更必须通过安全子系统维护者评审；引入 BPF LSM 的 PR 被 CI 阻断 |

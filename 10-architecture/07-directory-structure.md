@@ -41,7 +41,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 - 子仓维护者：理解本子仓目录拓扑与 [SC] 头文件引用方式
 - 内核开发者：理解 ALK 6.6 内核子仓内部结构
 - 工具链开发者：理解 scripts/ 与 tools/ 的边界
-- CI/CD 工程师：理解 sc-verify.yml 双向校验机制
+- CI/CD 工程师：理解 `[SC]` 契约门禁 双向校验机制
 
 ---
 
@@ -141,14 +141,14 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
 ├── .editorconfig                    # 编辑器配置
 ├── .github/
 │   ├── workflows/
-│   │   ├── kernel-verify.yml            # kernel 子仓 CI
-│   │   ├── airy-verify.yml              # Airymax 专属代码 CI
-│   │   ├── codegen-verify.yml           # codegen 零漂移门禁
-│   │   ├── ssot-verify.yml              # SSoT 规则 ID 校验
-│   │   ├── sc-verify.yml                # [SC] 双向字节级校验（核心）
-│   │   ├── nightly.yml                  # nightly build
-│   │   ├── release.yml                  # 发布流水线
-│   │   └── mgmt-verify.yml              # 管理仓编排
+│   │   ├── kernel-verify.yml            # kernel 子仓：矩阵编译 / ABI / codegen 零漂移 / kunit
+│   │   ├── airy-verify.yml              # Airymax 专属代码 CI（[SC] 桥接与契约消费）
+│   │   ├── ssot-verify.yml              # SSoT 四层模型归属校验
+│   │   ├── os-chk-verify.yml            # OS-CHK 门禁表（含 OS-CHK-DOC-04 五路编译）
+│   │   ├── mgmt-verify.yml              # 管理仓文件完整性与子仓 CI 聚合
+│   │   ├── image-build.yml              # 发行镜像构建与 OCI 分块发布
+│   │   ├── nightly.yml                  # nightly 全量构建
+│   │   └── release.yml                  # 发布流水线
 │   └── ISSUE_TEMPLATE/
 ├── sdk/                             # SDK（[SC] 消费侧）
 │   ├── go/ python/ rust/ ts/        # 多语言绑定
@@ -376,7 +376,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
 1. P3 单一宿主：[SC] 头文件唯一物理宿主 kernel/include/uapi/linux/airymax/
 2. OS-IRON-014 已登记：禁止物理副本
 3. -I 引用是 C/C++ 标准做法，无运行时开销
-4. sc-verify.yml 双向校验确保两端字节相同
+4. `[SC]` 契约门禁 双向校验确保两端字节相同
 
 **最终选择：G1（-I 直接引用，禁止物理副本）**
 
@@ -390,7 +390,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
   ccflags-y += -I$(src)/../kernel/include
   ```
 - 禁止 `cp kernel/include/uapi/linux/airymax/*.h <submodule>/include/`
-- sc-verify.yml 校验：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
+- `[SC]` 契约门禁 校验：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
 
 ### 3.8 决策 H：scripts/ 与 tools/ 边界不清（问题 8）
 
@@ -415,7 +415,7 @@ agent-linux/                       # 管理仓（独立 git repo，内含 9 个 
   - bootstrap.sh：开发环境引导（安装依赖、初始化 submodule）
   - install.sh：安装到系统（/usr/local/bin、/etc/systemd/system）
   - gen-version.sh：版本号生成（从 git tag 推导）
-  - sc-verify.sh：[SC] 双向字节级校验（sc-verify.yml 调用）
+  - `[SC]` 契约门禁.sh：[SC] 双向字节级校验（`[SC]` 契约门禁 调用）
 - tools/（管理仓根目录）：
   - ipc-profiler/：IPC 性能分析器（C，编译为二进制）
   - cap-inspector/：Capability 检查器（C，编译为二进制）
@@ -1315,18 +1315,14 @@ tests-linux/
 - Kbuild 子仓：`ccflags-y += -I$(src)/../kernel/include`
 - **禁止**：物理复制头文件到其他子仓（违反 OS-IRON-014 与 P3 单一宿主）
 
-**双向字节级校验**：`.github/workflows/sc-verify.yml`
-```yaml
-sc-verify:
-  steps:
-    - name: verify-sc-byte-identity
-      run: |
-        diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/
-        if [ $? -ne 0 ]; then
-          echo "[SC] byte-level identity violated"
-          exit 1
-        fi
-```
+**头文件唯一性校验**：仓库内不存在独立的契约工作流，头文件的唯一性与编译可行性由两道门禁分别守护。
+
+| 门禁 | 执行器 | 判定内容 |
+|------|--------|---------|
+| `OS-IRON-008`（`mgmt-files`） | `ci/gates/mgmt-files.sh` | 12 个头文件在源码树内只有一份物理副本，禁止复制到其他子仓 |
+| `OS-CHK-DOC-04`（五路编译） | `tools/sc-tri-compile/sc_tri_compile.py --check` | 同一份头文件在 kernel-space / linux-user-space / third-party / dsl-kernel-space / dsl-linux-user-space 五路下均可编译通过 |
+
+两道门禁均由 `os-chk-verify.yml` 触发，判定逻辑全部落在 `ci/gates/`，workflow 本身不含 diff 逻辑。
 
 ### 5.2 12 头文件清单
 
@@ -1770,9 +1766,10 @@ agentrt/          agent-linux/
 (引用方)          (各子仓引用)
 ```
 
-**双向 CI 校验**（`.github/workflows/sc-verify.yml`）：
-- 字节级 diff：`diff -r kernel/include/uapi/linux/airymax/ agentrt/../kernel/include/uapi/linux/airymax/`
-- 行为契约测试：两端编译相同测试用例，验证行为一致
+**头文件共享校验**（无独立契约工作流）：
+- 唯一副本：`OS-IRON-008`（`ci/gates/mgmt-files.sh`）确认 12 个头文件在源码树内仅一份物理副本
+- 可编译性：`OS-CHK-DOC-04` 五路编译确认同一份头文件在 kernel / 用户态 / 三方 / DSL 两侧均能通过
+- 跨仓行为一致性由两侧各自的单元测试保障，不依赖跨仓 diff
 
 ### 10.3 daemon 对比
 

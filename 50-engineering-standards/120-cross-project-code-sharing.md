@@ -67,7 +67,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 2.1 12 个 \[SC] 头文件清单（10 核心 + 2 补充）
 
-\[SC] 层包含**12 个**共享头文件（10 核心 + 2 补充），**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 sc-verify 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agent-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
+\[SC] 层包含**12 个**共享头文件（10 核心 + 2 补充），**唯一权威宿主**于 `kernel/include/uapi/linux/airymax/` 目录（agentrt 为独立仓，经 `[SC]` 契约门禁 镜像 PR 机制维护 `agentrt/commons/include/airymax/` 物理镜像副本，一致性由双向 CI 逐字节强制；OS-IRON-014 落地），两端（agentrt 与 agent-linux）共同依赖，**逐字节相同**。下表清单与 [06-iron9-shared-model.md §2.2](../10-architecture/06-iron9-shared-model.md) 完全一致（权威源）：
 
 | 序号 | 文件                  | 共享内容                                                                                                    | magic 值               | 落地路径                                |
 | -- | ------------------- | ------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------- |
@@ -82,7 +82,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 | 9  | `uapi_compat.h`     | 三路类型桥接（内核态 `__u32` ↔ 用户态 Linux `uint32_t` ↔ 第三方 `uint32_t` with stdint.h），确保 [SC] 头文件跨平台逐字节相同编译         | —                     | `include/uapi/linux/airymax/uapi_compat.h`    |
 | 10 | `lsm_types.h`       | 纯 C LSM 模块类型定义（`struct airy_lsm_blob` + `airy_capability_check()` 回调原型 + Capability 缓存结构）            | —                     | `include/uapi/linux/airymax/lsm_types.h`       |
 | 11 | `syscall_gen.h`     | syscall_gen.py 生成的系统调用编号定义（`__NR_airy_sys_*` 注册号 548-551，源自 syscall.xml，R-01 SSoT）                       | —                     | `include/uapi/linux/airymax/syscall_gen.h`（内核侧 codegen 产物，不镜像） |
-| 12 | `bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）      | —                     | `include/uapi/linux/airymax/bpf_struct_ops.h`（补充共享文件，sc-verify 字节校验） |
+| 12 | `bpf_struct_ops.h` | struct_ops 状态机枚举（INIT/REGISTERED/ACTIVE/DRAINING）+ common_value 布局（sched_tac 用户态调度器经 BTF 只读消费）      | —                     | `include/uapi/linux/airymax/bpf_struct_ops.h`（补充共享文件，`[SC]` 契约门禁 字节校验） |
 
 **补充内容**（不属于上述 12 个 [SC] 头文件，但两端共享语义）：
 
@@ -195,7 +195,7 @@ struct airy_struct_ops_value {
 - **当前权威源**：`kernel/include/uapi/linux/airymax/error.h`（[SC] 物理宿主，已创建，195 行）
 - **历史源**：`agentrt/commons/utils/error/include/error.h` + `agentrt/commons/include/airy_types.h`（迁移完成后废弃）
 - **SSoT 登记**：`09-ssot-registry.md §2 OS-IRON-014`（[SC] 10 核心 + 2 补充共 12 个头文件单一数据源）
-- **CI 校验**：`sc-verify.yml` 逐字节验证两端 error.h 相同
+- **CI 校验**：`[SC]` 契约门禁 逐字节验证两端 error.h 相同
 
 **已废弃方案**：方案 B（runtime_interfaces.md 的 -1/-2/-11 自定义序列）、方案 C（coding_conventions.md 的 -2/-4/-6 旧值）、方案 D（project_erp.md 的位掩码 0x00010000，仅用于 ERP 分类，非错误码方案）均已废弃，禁止在新代码中使用。
 
@@ -622,7 +622,7 @@ extern "C" {
 
 构建系统在以下情况自动注入 `AIRY_SC_FALLBACK`：
 
-1. `sc-verify.yml` 检测到两端 [SC] 头文件不一致
+1. `[SC]` 契约门禁 检测到两端 [SC] 头文件不一致
 2. `airy_defconfig` 中显式配置 `CONFIG_AIRY_SC_FALLBACK=y`
 3. [SC] 头文件物理校验失败（hash 不匹配）
 
@@ -839,8 +839,8 @@ sc-contract-bidirectional:
 
 | magic         | 十六进制         | ASCII  | 物理宿主 | CI 校验方式 |
 | ------------- | ------------ | ------ | -------- | -------- |
-| IPC 消息头 magic | `0x41524531` | 'ARE1' | `include/uapi/linux/airymax/ipc.h` | `sc-verify.yml` 逐字节验证 + 行为契约测试（`assert(hdr.magic == 0x41524531u)`） |
-| 任务描述符 magic   | `0x41475453` | 'AGTS' | `include/uapi/linux/airymax/sched.h` | `sc-verify.yml` 逐字节验证 + 行为契约测试（`assert(desc.magic == 0x41475453u)`） |
+| IPC 消息头 magic | `0x41524531` | 'ARE1' | `include/uapi/linux/airymax/ipc.h` | `[SC]` 契约门禁 逐字节验证 + 行为契约测试（`assert(hdr.magic == 0x41524531u)`） |
+| 任务描述符 magic   | `0x41475453` | 'AGTS' | `include/uapi/linux/airymax/sched.h` | `[SC]` 契约门禁 逐字节验证 + 行为契约测试（`assert(desc.magic == 0x41475453u)`） |
 
 > **变更禁令**：magic 值一经发布即冻结，禁止修改。如需协议演进，新增 magic（如 'ARE2'）而非修改现有 magic。CI 校验对 magic 值的任何修改均为合并阻断错误。
 

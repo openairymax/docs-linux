@@ -50,7 +50,7 @@ A-UEF（Unified Error and Fault Framework，统一错误码与故障定义体系
 | 物理路径 | `kernel/include/uapi/linux/airymax/error.h` |
 | 共享层级 | [SC] 共享契约层（IRON-9 v3 第一层） |
 | 共享方式 | 物理共享，逐字节相同 |
-| CI 校验 | `sc-verify.yml` 逐字节校验 |
+| CI 校验 | `[SC]` 契约门禁（OS-CHK-DOC-04） |
 | agentrt 引用方式 | `-I` 编译选项 + `#include <airymax/error.h>` |
 
 ### 1.3 类型约束
@@ -434,53 +434,40 @@ static inline bool airy_is_error(airy_err_t err) {
 
 ---
 
-## §4 CI 逐字节校验：sc-verify.yml 验证两端 error.h 相同
+## §4 CI 契约门禁：`error.h` 由 OS-CHK-DOC-04 五路编译校验
 
 ### 4.1 校验机制
 
-`sc-verify.yml` 是 [SC] 双端一致性 CI 工作流，对 `error.h` 进行逐字节校验：
+`error.h` 是 [SC] 共享契约层的 12 个权威头文件之一，权威副本位于
+`kernel/include/uapi/linux/airymax/`。仓库内不设独立的契约工作流：八条
+workflow 里没有 `sc-verify.yml` 或 `codegen-verify.yml`，契约校验作为门禁
+`OS-CHK-DOC-04` 落在 `os-chk-verify.yml` 与 `kernel-verify.yml` 共用的
+`tools/sc-tri-compile` 上，由 `python3 tools/sc-tri-compile/sc_tri_compile.py --check`
+一次跑完五路编译：
 
-```yaml
-# .github/workflows/sc-verify.yml
-name: [SC] Dual CI
-on: [push, pull_request]
-jobs:
-  sc-error-h-validation:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: spharx/agent-linux
-          path: agent-linux
-      - uses: actions/checkout@v4
-        with:
-          repository: spharx/agentrt
-          path: agentrt
-      - name: Verify error.h byte-for-byte identical
-        run: |
-          diff agent-linux/kernel/include/uapi/linux/airymax/error.h \
-               agentrt/commons/include/uapi/linux/airymax/error.h
-          if [ $? -ne 0 ]; then
-            echo "::error::error.h dual-end mismatch detected"
-            exit 1
-          fi
-      - name: Verify [DSL] fallback block hash
-        run: |
-          scripts/airymax/check-uapi-compiler-agnostic.sh \
-            agent-linux/kernel/include/uapi/linux/airymax/error.h
-```
+| 编译路 | 消费方式 | 证明的事 |
+|--------|----------|----------|
+| kernel-space | 内核源码树内 `#include` | 头文件可作为内核 C 代码编译 |
+| linux-user-space | 用户态 C，`-D__KERNEL__` 未定义 | 用户态可见的声明完整 |
+| third-party | C++ 编译器 | 无 C 专用语法泄漏到 C++ 消费者 |
+| dsl-kernel-space | 定义 `AIRY_SC_FALLBACK` | §5 降级块可独立编译 |
+| dsl-linux-user-space | 同上，用户态 | 降级块在用户态同样成立 |
+
+单副本约束由 `mgmt-files` 门禁强制：`airymax` 头文件在管理仓内只允许存在
+一份物理副本，出现第二份即失败（OS-IRON-008）。
 
 ### 4.2 校验失败的处理
 
-当 `sc-verify.yml` 校验失败时：
+当 `OS-CHK-DOC-04` 失败时：
 
-1. CI 自动设置 `AIRY_SC_FALLBACK` 并重新构建（验证降级路径可编译）
-2. CI 阻止合并，要求双端维护者同步评审
-3. 修复后重新触发 CI，校验通过方可合并
+1. 失败路会在日志里逐行给出编译器原文，定位到具体头文件与行号
+2. CI 阻止合并；契约改动需 kernel 与用户态两侧维护者共同评审
+3. 修复后重新触发流水线，五路全绿方可合并
 
-### 4.3 编译器无关性校验
+### 4.3 编译器无关性约束
 
-除逐字节校验外，`error.h` 还需通过编译器无关性校验（`check-uapi-compiler-agnostic.sh`），确保在 GCC / Clang / 不同版本下布局一致。校验项包括：
+`error.h` 的写法受以下约束，由上述 C++ 路与用户态路反证（GCC 与 Clang
+在不同 `-std` 下都必须通过）。校验项包括：
 
 - 无 `sizeof` 依赖的结构体
 - 无编译器扩展（`__attribute__` 仅限 `packed`）
@@ -630,7 +617,7 @@ jobs:
 1. 在本文件（`08-sc-error-contract.md`）提出变更提案
 2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/error.h` 物理头文件
-4. `sc-verify.yml` 双端校验通过
+4. `[SC]` 契约门禁校验通过
 5. 更新本契约文档版本号
 
 ---

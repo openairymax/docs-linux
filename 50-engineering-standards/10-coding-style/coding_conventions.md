@@ -2954,7 +2954,7 @@ AIRY_<类别>_<名称>
 > **② AirymaxOS 内核 UAPI（[SC] 共享契约头）**：权威源
 > `kernel/include/uapi/linux/airymax/error.h`（正数幅值，POSIX errno 风格；调用方返回 `-AIRY_E*`），
 > 用于内核 syscall 边界。agentrt 侧镜像为 `agentrt/commons/include/airymax/error.h`，
-> 经 sc-verify 逐字节校验一致。两者分属不同体系（负值 vs 正数幅值），
+> 经 `[SC]` 契约门禁 逐字节校验一致。两者分属不同体系（负值 vs 正数幅值），
 > 禁止在同一编译单元混用（值域冲突，如 EINVAL 分别为 -22 与 5）。
 >
 > 历史方案 B/C/D 错误码数值（-2/-4/-6 自定义序列等）均已废弃，禁止在新代码中使用。

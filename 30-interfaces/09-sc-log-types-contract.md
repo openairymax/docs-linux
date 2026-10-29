@@ -49,7 +49,7 @@ A-ULP（Unified Logging and Printk Subsystem，统一日志与打印系统）是
 | 物理路径 | `kernel/include/uapi/linux/airymax/log_types.h` |
 | 共享层级 | [SC] 共享契约层（IRON-9 v3 第一层） |
 | 共享方式 | 物理共享，逐字节相同 |
-| CI 校验 | `sc-verify.yml` 逐字节校验 |
+| CI 校验 | `[SC]` 契约门禁（OS-CHK-DOC-04） |
 | 关联实现 | `kernel/log/airy_log_ring.c`（内核侧）+ `services/daemons/logger_d/`（用户态） |
 
 ### 1.3 设计原则
@@ -245,7 +245,7 @@ Linux 6.6 的 `printk` 定义 8 级日志级别（`KERN_EMERG` ~ `KERN_DEBUG`）
 1. 在本文件（`09-sc-log-types-contract.md`）提出变更提案
 2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/log_types.h` 物理头文件
-4. `sc-verify.yml` 双端校验通过
+4. `[SC]` 契约门禁校验通过
 5. 更新本契约文档版本号
 
 ### 5.4 与 128B IPC 消息头的关系

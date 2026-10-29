@@ -646,9 +646,9 @@ sec_d 是 v1.0.1 Capability Folding 的唯一 Badge 编译者，必须保证串�
 | `include/uapi/linux/airymax/memory_types.h`    | MemoryRovol L1-L4 数据结构 + GFP 掩码语义 + PMEM 持久化接口            | 单元测试 + 形式化验证（Coq 快照一致性）+ Soak 监控 |
 | `include/uapi/linux/airymax/security_types.h`  | capability 44 ID（41 POSIX + 3 Airymax 扩展） 枚举 + LSM 250 ID + Cupolas blob 布局 + `agent_caps[1024]` + 64-bit Badge 布局 | 单元测试 + 形式化验证（Isabelle/HOL 不可伪造 + CBMC fastpath 校验）  |
 | `include/uapi/linux/airymax/cognition_types.h` | CoreLoopThree 阶段枚举 + Thinkdual 模式枚举 + LLM 推理阶段枚举          | 单元测试 + 形式化验证（Coq 阶段转换）+ Soak 监控  |
-| `include/uapi/linux/airymax/uapi_compat.h`     | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）+ [SC] 双端契约 | 单元测试 + sc-verify 双端校验 |
+| `include/uapi/linux/airymax/uapi_compat.h`     | 三路类型桥接（`__KERNEL__` / `__linux__` / `#else`）+ [SC] 双端契约 | 单元测试 + `[SC]` 契约门禁校验 |
 | `include/uapi/linux/airymax/lsm_types.h`       | 纯 C LSM 类型 + `DEFINE_LSM(airy)` 骨架 + `LSM_ORDER_MUTABLE` 注册（不使用 `LSM_ORDER_FIRST`，不使用 BPF LSM） | 单元测试 + CBMC 注册逻辑验证 |
-| `include/uapi/linux/airymax/bpf_struct_ops.h`  | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING） + 注册状态读取 | 单元测试 + sc-verify 双端校验 |
+| `include/uapi/linux/airymax/bpf_struct_ops.h`  | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING） + 注册状态读取 | 单元测试 + `[SC]` 契约门禁校验 |
 | `include/uapi/linux/airymax/syscall_gen.h`     | syscall 入口定义（由 `syscall.xml` 经 `syscall_gen.py` 派生）+ 参数类型 | 单元测试 + codegen-verify 零漂移校验 |
 
 ### 6.2 \[SS] 语义同源层——8 项 API 映射

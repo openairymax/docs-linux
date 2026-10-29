@@ -335,7 +335,7 @@ SBOM（Software Bill of Materials）采用 CycloneDX 1.5 格式，内容包括�
 | 4 | 测试覆盖达标 | `coverage-report` | 行覆盖 ≥ 80%，分支覆盖 ≥ 70% | 阻断 |
 | 5 | ABI 兼容性 | libabigail | 无破坏性 ABI 变更 | 阻断 |
 | 6 | Agent 契约兼容性 | `check-agent-contract.sh` | 无破坏性契约变更 | 阻断 |
-| 7 | [SC] 双端一致 | `sc-verify.yml` | 双端逐字节一致 | 阻断 |
+| 7 | [SC] 双端一致 | `[SC]` 契约门禁 | 双端逐字节一致 | 阻断 |
 | 8 | SSoT 校验通过 | `ssot-verify.yml` | 四层归属一致 | 阻断 |
 | 9 | 文档完整 | `doc-check.sh` | 接口/行为变更已更新文档 | 强制 |
 | 10 | release notes 完整 | 人工 | 已编写并评审 | 强制 |
@@ -435,7 +435,7 @@ gantt
 
 1. **回溯 fix**：将 main 上的 4 个 bug fix + 1 个 CVE 修复回溯到 `release/1.0` 稳定分支。
 2. **创建发布 PR**：在 `release/1.0` 创建发布分支 `release/1.0.1`。
-3. **CI 校验**：`kernel-verify.yml` + `sc-verify.yml` + `ssot-verify.yml` 全绿。
+3. **CI 校验**：`kernel-verify.yml` + `[SC]` 契约门禁 + `ssot-verify.yml` 全绿。
 4. **性能基准**：与 RC1 基线对比，无回归。
 5. **安全扫描**：Trivy + Snyk + Coverity 全部通过。
 6. **签核**：SSoT 委员会 5 名成员 + 总维护者签核。

@@ -1,753 +1,267 @@
 Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
-# agent-linux（AirymaxOS）CI/CD 流水线详细设计
-> **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 8 卷——CI/CD 流水线详细设计。本文档详述 6 个 CI workflow 的设计、触发条件、资源管理、失败处理，是补丁生命周期（01 卷）CI 强制校验在工具层的完整展开。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+# agent-linux（AirymaxOS）CI 强制点与合并门禁
+> **文档定位**：120-development-process 模块第 8 卷。把 [01 卷补丁生命周期](01-patch-lifecycle.md) 中的「必须通过 CI」翻译成可执行的阻断规则——哪个阶段、必须过哪些门禁、失败如何处置。\
+> **文档版本**：v1.1.0\
+> **最后更新**：2026-10-29\
 > **上级文档**：[120-development-process README](README.md)\
-> **同源映射**：agentrt CI/CD 流水线 + Linux 6.6 内核 CI（kernelci.org + 0-Day）\
-> **理论根基**：Linux 6.6 内核基线 + Airymax S-4 涌现性管理 + SSoT v2 单一权威源 + C-2 增量演化\
-> **核心约束**：6 个 workflow 协同守护五大技术选型；[SC] 双端逐字节校验阻断单端合并；SSoT 四层归属校验阻断违规变更
+> **同源映射**：Linux 6.6 内核 CI（kernelci.org + Intel 0-Day）\
+> **核心约束**：workflow 是薄壳；判定落在 `ci/gates/`；8 个 workflow 协同，不存在独立的 `[SC]` 契约工作流
 
 ---
 
-## 1. 模块定位与范围
+## 1. 定位与权威源边界
 
-本文档是 120-development-process 模块的第 8 卷，回答"6 个 CI workflow 各做什么、何时触发、如何并行、如何缓存、失败如何处理"。它继承 Linux 内核 CI（kernelci.org + Intel 0-Day）的设计哲学，并将其适配到 agent-linux 的 GitHub Actions 工作流。
+### 1.1 三段式职责划分
 
-### 1.1 与工程标准层的关系
+同一件事不允许在两个地方各写一遍。CI/CD 主题按下列边界拆分，本文只负责最后一行：
 
-工程标准层 `70-build-system/03-ci-cd-pipeline.md` 定义 CI/CD 的"规则与编号"（OS-BS-3XX），本文档定义 6 个 workflow 在模块设计层的完整实现（OS-DEV-8XX）。
+| 主题 | 唯一权威源 | 本文是否复制 |
+|------|-----------|-------------|
+| workflow 文件清单、job 结构、触发路径 | [`.github/workflows/README.md`](../../../agent-linux/.github/workflows/README.md) | 否 |
+| 门禁注册表（id / severity / authority / executor） | [`tools/os-chk/gates.yaml`](../../../agent-linux/tools/os-chk/gates.yaml) | 否 |
+| 编译矩阵、静态分析、测试矩阵、SBOM、签名、缓存 | [70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md) | 否 |
+| 生命周期阶段 ↔ 门禁的阻断关系、分支保护、失败处置、预算棘轮 | **本文** | — |
 
-### 1.2 适用范围
+### 1.2 判定逻辑的落点
 
-本文档适用于 agent-linux 8 子仓以及管理仓库 `agent-linux-mgmt`。所有 PR、push、定时任务、手动触发的 CI 都在本文档覆盖范围内。
+`.github/workflows/*.yml` 里的每个 step 只有三种形态：`actions/checkout`、`ci/ci.sh <gate>`、`actions/upload-artifact`。只要出现第四种形态（内联 shell 断言），就违反薄壳原则，由 `ci/check-workflows.py` 在 `run-lint` 中拦下。
 
-### 1.3 关键术语
+因此排障不需要重跑云端 job：同一条 `ci/ci.sh <gate>` 可以在本地对遗留的构建目录复放，这是本文与 70-build-system/03 共同的技术前提。
 
-| 术语 | 定义 |
-|------|------|
-| workflow | GitHub Actions 工作流，一个 `.yml` 文件 |
-| job | workflow 内的一个任务单元 |
-| step | job 内的一个步骤 |
-| matrix | 多架构 / 多编译器并行测试矩阵 |
-| runner | CI 执行机器（GitHub-hosted / self-hosted） |
-| cache | CI 缓存（如 ccache、pip、cargo） |
-| artifact | CI 产出物（如 tarball、RPM、日志） |
-| quality gate | 质量门，CI 必须通过才能合并 |
+### 1.3 适用范围
 
-### 1.4 6 个 CI workflow 总览
-
-| # | workflow | 主要职责 | 触发条件 | 阻断级别 |
-|---|---------|---------|---------|---------|
-| 1 | `kernel-verify.yml` | 内核编译 + 静态分析 + KUnit + kselftest | push / PR | 阻断 |
-| 2 | `ssot-verify.yml` | SSoT v2 规则校验 + 四层归属校验 + [SC] 数量校验 | push / PR（涉及 SSoT 文件） | 阻断 |
-| 3 | `sc-verify.yml` | [SC] 头文件双端逐字节校验 + 编译器无关性 | push / PR（涉及 [SC] 文件） | 阻断 |
-| 4 | `nightly.yml` | 全量测试 + 性能基准 + 动态分析 + 覆盖率 | 定时（每日 02:00 UTC） | 不阻断（生成报告） |
-| 5 | `release.yml` | RPM 构建 + SBOM 生成 + 签名 + 发布 | tag push / 手动 | 阻断（影响发布） |
-| 6 | `mgmt-verify.yml` | 管理仓库同步 + 子仓协调 | push / PR（管理仓库） | 阻断 |
+agent-linux 管理仓的 8 个子仓（kernel / distro / system / security / services / memory / cognition / cloudnative）的语言级 CI 由各叶子仓自己的 `.github/workflows/` 承担；管理仓只做编排与门禁聚合。本文描述的是管理仓这一层。
 
 ---
 
-## 2. CI 触发条件总览
+## 2. 八个 workflow 与生命周期阶段的对应
 
-### 2.1 触发类型
+| workflow | 触发 | 阻断级别 | 承接的生命周期阶段 |
+|----------|------|---------|------------------|
+| `kernel-verify.yml` | push / PR（`kernel` gitlink、`ci/gates/kernel-*.sh`、`ci/lib/**`） | 阻断 | 补丁进入评审前：编译矩阵、静态分析、KUnit、kselftest |
+| `airy-verify.yml` | push / PR（同上） | 阻断 | Airymax 专属代码（`security/airy/`、`kernel/superv/`）的 CONFIG / BTF / 符号完整性 |
+| `os-chk-verify.yml` | push / PR（`tools/**`、`sdk/**`、`ci/**`、四个受审 gitlink） | 阻断 | 门禁表执行 + 全量 Python 工具链测试 |
+| `mgmt-verify.yml` | PR（治理文件、`.github/**`、`kernel`）；push `main` | 阻断 | 治理文件完整性、12 个 `[SC]` 头唯一副本、子仓 CI 聚合 |
+| `ssot-verify.yml` | push / PR（`**.md`、`ssot-registry.yaml`） | 阻断 | SSoT 规则 ID 注册、跨文档引用、相对路径链接 |
+| `image-build.yml` | `workflow_dispatch` | 阻断（发布门，非 PR 门） | 发行镜像组装 + QEMU 安装/冷启动验收 |
+| `nightly.yml` | cron `0 2 * * *` / `workflow_dispatch` | **不阻断** | 回归哨兵：形式化验证、soak、chaos、自动回退 |
+| `release.yml` | tag `v*` / `v*-rc*` / `workflow_dispatch` | 阻断（影响发布） | SBOM、内核 RPM、签名、ghcr 推送、Release 发布 |
 
-| 触发类型 | 适用 workflow | 说明 |
-|---------|-------------|------|
-| `push` | 1, 2, 3, 6 | 推送到 `main` / `develop` / `release/*` / `stable-*` 分支 |
-| `pull_request` | 1, 2, 3, 6 | PR 提交 / 更新（push 新 commit） |
-| `schedule` | 4 | cron 定时（每日 02:00 UTC） |
-| `workflow_dispatch` | 4, 5 | 手动触发 |
-| `release` (tag push) | 5 | 推送 `v*` 标签 |
+workflow 的文件名、职责与 job 明细见 [`.github/workflows/README.md`](../../../agent-linux/.github/workflows/README.md)，此处不重复。
 
-### 2.2 路径过滤
+---
 
-为避免无关文件触发 CI，每个 workflow 配置路径过滤：
+## 3. 门禁注册表与阻断语义
 
-| workflow | 触发路径 | 排除路径 |
-|---------|---------|---------|
-| `kernel-verify.yml` | `kernel/**` / `services/**` / `security/**` / `memory/**` / `cognition/**` / `cloudnative/**` / `system/**` | `docs/**` / `*.md` |
-| `ssot-verify.yml` | `docs/docs-linux/**` / `kernel/include/uapi/linux/airymax/**` / `airy_defconfig` | — |
-| `sc-verify.yml` | `kernel/include/uapi/linux/airymax/**`（仅 12 个 [SC] 头文件） | — |
-| `nightly.yml` | 全部 | — |
-| `release.yml` | tag `v*` | — |
-| `mgmt-verify.yml` | `agent-linux-mgmt/**` | — |
+### 3.1 单入口
 
-### 2.3 分支保护规则
+所有门禁只有一个入口：`ci/ci.sh <gate> [args]`，其实现是 `exec bash ci/gates/<gate>.sh "$@"`。`ci/ci.sh --list` 是门禁清单的可执行答案——文档与 `--list` 不一致时，以 `--list` 为准并修文档。
+
+### 3.2 注册门禁（`gates.yaml` v1.9.0，15 项，全部 P0）
+
+| id | 名称 | executor |
+|----|------|----------|
+| `OS-CHK-DOC-01` | Copyright 头部 | `tools/check-copyright.py --root .` |
+| `OS-CHK-DOC-04` | `[SC]` 头文件清单一致性（五路编译） | `tools/sc-tri-compile/sc_tri_compile.py --check` |
+| `OS-IRON-001` | syscall ABI 稳定性 | `tools/abi-check/abi_check.py --check` |
+| `OS-IRON-015` | SSoT 规则 ID 注册一致性 | `tools/validate-ssot.py . ssot-registry.yaml` |
+| `OS-IRON-009-CODEGEN` | codegen 产物零漂移 | `tools/codegen/run_codegen.py --check` |
+| `OS-IRON-009-DSL` | 策略 DSL 决策表零漂移 | `tools/dsl/dsl_compile.py --check` |
+| `OS-TEST-066` | Airymax 定制 checkpatch 扩展规则 | `kernel/scripts/airy_checkpatch_ext.pl` |
+| `OS-BUILD-MATRIX` | defconfig 构建矩阵一致性 | `tools/defconfig-matrix/defconfig_matrix.py --check` |
+| `OS-BUILD-CI-MATRIX` | CI 编译矩阵一致性 | `tools/ci-matrix/ci_matrix.py --check` |
+| `OS-BUILD-BTF` | BTF / eBPF 基线一致性 | `tools/btf-integration/btf_integration.py --check` |
+| `OS-BUILD-KBUILD-VERSION` | Kbuild 版本注入一致性 | `tools/kbuild-version/kbuild_version.py --check` |
+| `OS-BUILD-RELEASE` | 发布物料清单一致性 | `tools/release-engineering/release_manifest.py --check` |
+| `OS-BUILD-NIGHTLY` | nightly 契约一致性 | `tools/nightly/nightly.py --check` |
+| `OS-BUILD-REPO-SCAFFOLD` | 八子仓脚手架一致性 | `tools/repo-scaffold/repo_scaffold.py --check` |
+| `OS-OPS-ROLLBACK` | 版本回滚契约一致性 | `tools/airy-rollback/airy_rollback.py check` |
+
+不在注册表内、由 workflow 直接调用的辅助门禁（`mgmt-files`、`mgmt-leaves`、`distro-lint`、`kernel-*` 系列、`assemble`、`accept`、`iso-publish` 等）属于构建与集成载荷，其契约由上面的注册表门禁反向约束：例如 `assemble` 的产物必须被 `OS-BUILD-RELEASE` 的物料清单登记。
+
+### 3.3 阻断语义
+
+- **P0 阻断**：门禁失败 ⇒ 该 PR 不可合并，`main` 上的 push 会留下红色状态。
+- **不阻断**：只有 `nightly.yml` 属于此类，理由是它跑的是小时级全量与形式化载荷，放进 PR 路径会把反馈延迟拉到不可接受（见 §6.1）。
+- **不得降级**：没有任何一条运行路径允许把 P0 门禁改成 `continue-on-error`。紧急处置走 §4.2 的回退通道，而不是关掉门禁。
+
+---
+
+## 4. 合并阻断矩阵
+
+### 4.1 分支保护（目标态）
 
 | 分支 | 必须通过的 workflow | 必须审查 | 禁止 force push |
-|------|------------------|---------|---------------|
-| `main` | 1, 2, 3, 6 | ✓ | ✓ |
-| `develop` | 1, 2, 3, 6 | ✓ | ✓ |
-| `release/*` | 1, 2, 3, 6 | ✓ | ✓ |
-| `stable-*` / `lts-*` | 1, 2, 3, 6 | ✓ | ✓ |
-| `docs-*` | — | ✓ | ✓ |
+|------|-------------------|---------|----------------|
+| `main` | `kernel-verify`、`airy-verify`、`os-chk-verify`、`mgmt-verify`、`ssot-verify` | ✓ | ✓ |
+| `release/*` | 同上 | ✓ | ✓ |
+| `stable-*` / `lts-*` | 同上 | ✓ | ✓ |
+| `docs-*` | `ssot-verify` | ✓ | ✓ |
+
+`image-build` 与 `release` 不参与 PR 阻断：前者只由发布责任人 `workflow_dispatch` 触发，后者由 tag 触发。
+
+### 4.2 回退通道
+
+回归已经进入分支时，唯一合法的快速路径是**回退**而不是豁免：`git revert` 产生的新提交同样要通过全部门禁，但因为它恢复了已被验证过的状态，通常一次即绿。直接 push 绕过门禁在审计上等同于未评审提交。
+
+### 4.3 提交侧处置
+
+门禁红了的处置顺序固定为：本地复放 `ci/ci.sh <gate>` → 定位到具体断言 → 修根因 → 重推。禁止通过缩小受检范围、增加排除项、调整阈值来「让门禁变绿」；这类改动本身需要评审，且会触发对应的清单一致性门禁（`OS-BUILD-CI-MATRIX` 校验矩阵格数与排除项）。
 
 ---
 
-## 3. workflow 1：kernel-verify.yml
+## 5. 代码侧校验的落点
 
-### 3.1 设计目标
+| workflow | job 数 | 内容 |
+|----------|-------|------|
+| `kernel-verify.yml` | 2 | `kernel-build`：4 config × 4 arch × 2 compiler − 4 排除格 = 28 格，`max-parallel: 8`，`W=2` 零告警门；`kernel-verify`：checkpatch `--strict`、sparse `C=2`、Coccinelle、KUnit（UML）、kselftest（QEMU） |
+| `airy-verify.yml` | 2 | `airy-build`：`airy_defconfig` 四架构编译 + `kernel-airy --kind assert`（Airymax CONFIG、BTF 内嵌、六个 `built-in.a`、`security/airy/` 与 `kernel/superv/` 符号冲突）；`airy-static`：SPDX 标识审计 |
+| `os-chk-verify.yml` | 1 | 解析 `gates.yaml` 派发全部注册 executors，聚合成报告并按 P0/P1 阻断；同时承载全量 Python 工具链的依赖安装与 pytest |
 
-`kernel-verify.yml` 是最基础的 CI workflow，负责内核与 daemon 的编译、静态分析、单元测试。每个 PR 必须通过此 workflow 才能合并。
-
-### 3.2 触发条件
-
-```yaml
-on:
-  push:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'kernel/**'
-      - 'services/**'
-      - 'security/**'
-      - 'memory/**'
-      - 'cognition/**'
-      - 'cloudnative/**'
-      - 'system/**'
-  pull_request:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'kernel/**'
-      - 'services/**'
-      - 'security/**'
-      - 'memory/**'
-      - 'cognition/**'
-      - 'cloudnative/**'
-      - 'system/**'
-```
-
-### 3.3 Job 结构
-
-```mermaid
-flowchart TD
-    A["Job 1: build-matrix<br/>多架构编译"]
-    B["Job 2: static-analysis<br/>静态分析"]
-    C["Job 3: kunit<br/>内核单元测试"]
-    D["Job 4: kselftest<br/>内核自测试"]
-    E["Job 5: daemon-tests<br/>12 daemon 单元测试"]
-    F["Job 6: checkpatch<br/>编码规范"]
-    G["Job 7: abi-check<br/>ABI 兼容性"]
-    H["Job 8: sc-bridge-check<br/>[SC] 类型桥接"]
-    I["Job 9: agent-contract-check<br/>Agent 契约一致性"]
-
-    A --> E
-    B --> E
-    C --> E
-    D --> E
-    F --> E
-    G --> E
-    H --> E
-    I --> E
-
-    style A fill:#e3f2fd,stroke:#1565c0
-    style E fill:#c8e6c9,stroke:#2e7d32
-```
-
-### 3.4 Job 1：build-matrix
-
-- **矩阵**：
-
-| 架构 | 编译器 | defconfig |
-|------|--------|-----------|
-| x86_64 | GCC 13 | `airy_defconfig` |
-| x86_64 | Clang 17 | `airy_defconfig` |
-| aarch64 | GCC 13 | `airy_defconfig` |
-| aarch64 | Clang 17 | `airy_defconfig` |
-| riscv64 | GCC 13 | `airy_defconfig` |
-| loongarch64 | GCC 13 | `airy_defconfig` |
-
-- **步骤**：
-  1. checkout 代码。
-  2. 安装编译器与依赖。
-  3. 应用 `airy_defconfig`。
-  4. **五大选型守护**：扫描 `airy_defconfig` 验证：
-     - `# CONFIG_SCHED_EXT is not set`
-     - `CONFIG_IO_URING=y`
-     - `# CONFIG_BPF_LSM is not set`
-     - `CONFIG_SECURITY_AIRY_LSM=y`
-  5. `make -j$(nproc)` 编译内核。
-  6. 编译 12 daemon（meson）。
-  7. 上传构建产物（kernel image、daemon binaries）作为 artifact。
-- **失败处理**：任何架构编译失败即 job 失败，阻断 PR。
-- **缓存**：ccache 缓存（`~/.ccache`），key 含架构 + 编译器 + lock 文件 hash。
-
-### 3.5 Job 2：static-analysis
-
-- **工具**：
-  - `checkpatch.pl`（编码规范）。
-  - `sparse`（内核静态分析）。
-  - `scan-build`（Clang 静态分析，用于 daemon）。
-- **步骤**：
-  1. 对所有变更文件运行 `checkpatch.pl --no-tree -f`。
-  2. 对内核代码运行 `make C=2`（sparse）。
-  3. 对 daemon 代码运行 `scan-build meson compile`。
-- **通过标准**：零 error、零 warning。
-- **失败处理**：任何 error/warning 即 job 失败。
-
-### 3.6 Job 3：kunit
-
-- **测试范围**：agent-linux 内核模块的 KUnit 测试。
-- **步骤**：
-  1. 编译内核时启用 `CONFIG_KUNIT=y`。
-  2. 在 QEMU 中启动内核，运行 KUnit 测试。
-  3. 收集测试结果。
-- **通过标准**：所有 KUnit 测试通过。
-- **失败处理**：任何测试失败即 job 失败。
-
-### 3.7 Job 4：kselftest
-
-- **测试范围**：agent-linux 相关的 kselftest 套件。
-- **步骤**：
-  1. 编译 kselftest。
-  2. 在 QEMU 中运行 kselftest。
-  3. 收集测试结果。
-- **通过标准**：所有 kselftest 通过。
-- **失败处理**：任何测试失败即 job 失败。
-
-### 3.8 Job 5：daemon-tests
-
-- **测试范围**：12 daemon 的单元测试与集成测试。
-- **步骤**：
-  1. 编译 12 daemon。
-  2. 运行每个 daemon 的单元测试（meson test）。
-  3. 运行 daemon 间集成测试（IPC 协议、监管链路）。
-- **通过标准**：所有测试通过。
-- **失败处理**：任何测试失败即 job 失败。
-
-### 3.9 Job 6：checkpatch
-
-- **范围**：仅 PR 变更的文件。
-- **步骤**：
-  1. 获取 PR 变更文件列表。
-  2. 对每个文件运行 `checkpatch.pl --no-tree -f`。
-- **通过标准**：零 error、零 warning。
-- **OS-DEV-801**：checkpatch 失败即阻断 PR，禁止使用 `--ignore` 跳过检查。
-
-### 3.10 Job 7：abi-check
-
-- **范围**：仅涉及 [SC] 头文件变更的 PR。
-- **工具**：`libabigail`。
-- **步骤**：
-  1. 获取上一版本（main 分支 HEAD）的 [SC] 头文件。
-  2. 获取本 PR 的 [SC] 头文件。
-  3. 运行 `abidiff` 比对。
-- **通过标准**：无破坏性 ABI 变更（允许新增，禁止删除/修改）。
-- **失败处理**：破坏性 ABI 变更即 job 失败，除非 PR 标记为 `breaking` 且通过 RFC 评审。
-
-### 3.11 Job 8：sc-bridge-check
-
-- **范围**：仅涉及 [SC] 头文件变更的 PR。
-- **工具**：`check-sc-bridge.sh`。
-- **校验内容**：[SC] 头文件的类型桥接规则（详见 `50-engineering-standards/11-sc-header-type-bridging.md`）。
-- **通过标准**：符合桥接规则。
-
-### 3.12 Job 9：agent-contract-check
-
-- **范围**：仅涉及 cognition 子仓变更的 PR。
-- **工具**：`check-agent-contract.sh`。
-- **校验内容**：Agent 实现与 [SC] `agent_contract.h` 声明的契约一致。
-- **通过标准**：契约一致。
+矩阵维度、排除项、格数与超时的唯一事实源是 [`tools/ci-matrix/manifest.yaml`](../../../agent-linux/tools/ci-matrix/manifest.yaml)，与 `kernel-verify.yml` 的偏差由 `OS-BUILD-CI-MATRIX` 拦截——「清单写了 28 格、流水线只跑 20 格」是明确的阻断项。
 
 ---
 
-## 4. workflow 2：ssot-verify.yml
+## 6. nightly.yml
 
-### 4.1 设计目标
+### 6.1 nightly 结果不阻断 PR
 
-`ssot-verify.yml` 守护 SSoT v2 单一权威源模型，确保每个技术点只有一个权威源，且 IRON-9 v3 四层归属一致。
+nightly 的载荷是形式化验证、72h soak、chaos 注入，单轮以小时计。把它挂到 PR 路径上会让每个补丁的反馈时间失去上界，从而诱发「先合并再修」的实践，反而降低质量。因此 nightly **只**跑在 cron 与手动触发上，其结果作为回归哨兵与回退依据，不参与合并判定。
 
-### 4.2 触发条件
-
-```yaml
-on:
-  push:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'docs/docs-linux/**'
-      - 'kernel/include/uapi/linux/airymax/**'
-      - 'airy_defconfig'
-  pull_request:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'docs/docs-linux/**'
-      - 'kernel/include/uapi/linux/airymax/**'
-      - 'airy_defconfig'
-```
-
-### 4.3 Job 结构
-
-| Job | 职责 | 通过标准 |
-|-----|------|---------|
-| 1 | 四层归属校验 | 变更文件正确归属到 [SC] / [SS] / [IND] / [DSL] |
-| 2 | 权威源唯一性 | 变更不引入冲突权威源 |
-| 3 | [SC] 数量校验 | `kernel/include/uapi/linux/airymax/` 下保持 12 个 [SC] 头文件 |
-| 4 | 跨文档引用一致性 | SSoT 注册表中的链接有效 |
-| 5 | 五大选型守护 | 变更未偏离五大技术选型 |
-| 6 | `airy_defconfig` 锁定 | 五大选型配置不变 |
-
-### 4.4 Job 1：四层归属校验
-
-- **校验内容**：每个变更文件必须明确归属到 IRON-9 v3 四层模型之一：
-  - **[SC]**：共享契约层（12 个头文件）。
-  - **[SS]**：语义同源层（agentrt 与 agent-linux 共享语义但独立实现）。
-  - **[IND]**：独立实现层（agent-linux 独有）。
-  - **[DSL]**：降级生存层（fallback 实现）。
-- **校验方式**：根据文件路径与 SSoT 注册表比对。
-- **失败处理**：归属错误即 job 失败。
-
-### 4.5 Job 2：权威源唯一性
-
-- **校验内容**：变更不能引入与已有权威源冲突的新权威源声明。
-- **校验方式**：扫描变更文件中的"权威源"声明，与 SSoT 注册表比对。
-- **失败处理**：冲突即 job 失败。
-
-### 4.6 Job 3：[SC] 数量校验
-
-- **校验内容**：`kernel/include/uapi/linux/airymax/` 下的 [SC] 头文件数量保持为 12 个（10 核心 + 2 补充）。
-- **校验方式**：统计 `kernel/include/uapi/linux/airymax/*.h` 文件数量。
-- **失败处理**：数量不为 12 即 job 失败。
-- **OS-DEV-802**：新增或删除 [SC] 头文件必须通过 SSoT 委员会决议，且同步更新 SSoT 注册表。
-
-### 4.7 Job 4：跨文档引用一致性
-
-- **校验内容**：SSoT 注册表（`50-engineering-standards/09-ssot-registry.md`）中的跨文档链接有效。
-- **校验方式**：使用 markdown link checker 扫描所有链接。
-- **失败处理**：失效链接即 job 失败。
-
-### 4.8 Job 5：五大选型守护
-
-- **校验内容**：变更不能偏离五大技术选型声明：
-  - sched_tac（不引入 sched_ext）。
-  - IORING_OP_URING_CMD（不引入 page flipping）。
-  - 纯 C LSM（不引入 BPF LSM）。
-  - alloc_pages + mmap（不引入 DMA 一致性内存）。
-  - IRON-9 v3 四层模型（不退化为 v2 三层）。
-- **校验方式**：扫描变更文件中的关键词（如 `sched_ext` / `page flipping` / `BPF_LSM` / `dma_alloc_coherent`）。
-- **失败处理**：发现偏离关键词即 job 失败，需 SSoT 委员会豁免。
-
-### 4.9 Job 6：airy_defconfig 锁定
-
-- **校验内容**：`airy_defconfig` 中的五大选型配置不变：
-  - `# CONFIG_SCHED_EXT is not set`
-  - `CONFIG_IO_URING=y`
-  - `# CONFIG_BPF_LSM is not set`
-  - `CONFIG_SECURITY_AIRY_LSM=y`
-- **校验方式**：与上一版本 `airy_defconfig` 比对上述配置项。
-- **失败处理**：配置项变更即 job 失败，需 SSoT 委员会豁免。
-
----
-
-## 5. workflow 3：sc-verify.yml
-
-### 5.1 设计目标
-
-`sc-verify.yml` 守护 12 个 [SC] 头文件的双端（agentrt 与 agent-linux）逐字节一致性，以及编译器无关性。
-
-### 5.2 触发条件
-
-```yaml
-on:
-  push:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'kernel/include/uapi/linux/airymax/**'
-  pull_request:
-    branches: [main, develop, 'release/*', 'stable-*', 'lts-*']
-    paths:
-      - 'kernel/include/uapi/linux/airymax/**'
-```
-
-### 5.3 Job 结构
-
-| Job | 职责 | 通过标准 |
-|-----|------|---------|
-| 1 | 双端 PR 检测 | agentrt 端有对应 PR |
-| 2 | 双端逐字节校验 | 12 个 [SC] 头文件双端逐字节一致 |
-| 3 | 编译器无关性校验 | 通过 `check-uapi-compiler-agnostic.sh` |
-| 4 | 五编译器编译 | GCC / Clang / MSVC / icx / armclang 全部编译通过 |
-| 5 | ABI 稳定性 | 通过 `check-abi.sh`（libabigail） |
-
-### 5.4 Job 1：双端 PR 检测
-
-- **校验内容**：agent-linux 端的 [SC] PR 必须在 agentrt 端有对应 PR。
-- **校验方式**：解析 PR 描述中的 agentrt 端 PR 链接，验证链接有效且 PR 存在。
-- **失败处理**：未提供 agentrt 端 PR 链接或链接无效即 job 失败。
-
-### 5.5 Job 2：双端逐字节校验
-
-- **校验步骤**：
-  1. 从 agent-linux 拉取本 PR 分支。
-  2. 从 agentrt 拉取对应 PR 分支（使用 GitHub API）。
-  3. 提取双端的 12 个 [SC] 头文件。
-  4. 对每个文件运行 `diff -u`。
-- **通过标准**：12 个文件全部 `diff` 无输出（零字节差异）。
-- **失败处理**：任何字节差异即 job 失败，阻断合并。
-- **OS-DEV-803**：[SC] 双端校验失败时，CI 评论列出差异，要求双端同步修改。
-
-### 5.6 Job 3：编译器无关性校验
-
-- **工具**：`scripts/check-uapi-compiler-agnostic.sh`。
-- **校验内容**：
-  - 禁止 GCC 扩展（`__attribute__`、`__builtin_`、`__asm__`）。
-  - 禁止 Clang 扩展（`_Clang`、`__has_feature`）。
-  - 禁止 MSVC 扩展（`__declspec`、`__int64`）。
-  - 必须使用 C11 标准类型。
-- **通过标准**：零违反。
-
-### 5.7 Job 4：五编译器编译
-
-- **矩阵**：
-
-| 编译器 | 版本 | 平台 |
-|--------|------|------|
-| GCC | 13+ | x86_64 |
-| Clang | 17+ | x86_64 |
-| MSVC | 2022+ | x86_64（交叉编译） |
-| icx | 2024+ | x86_64 |
-| armclang | 6.20+ | aarch64 |
-
-- **校验步骤**：每个编译器独立编译 12 个 [SC] 头文件。
-- **通过标准**：5 种编译器全部编译通过，零 warning。
-- **失败处理**：任何编译器编译失败即 job 失败。
-
-### 5.8 Job 5：ABI 稳定性
-
-- **工具**：`scripts/check-abi.sh`（基于 `libabigail`）。
-- **校验内容**：与上一版本 [SC] 头文件相比，无破坏性 ABI 变更。
-- **通过标准**：无破坏性变更（允许新增，禁止删除/修改）。
-
----
-
-## 6. workflow 4：nightly.yml
-
-### 6.1 设计目标
-
-`nightly.yml` 是每日全量测试 workflow，执行 PR CI 不便执行的耗时测试（性能基准、动态分析、覆盖率）。其结果不阻断 PR，但生成报告供维护者参考。
+同理，`pull_request` / `pull_request_target` / `push` 三种触发在 nightly 中是**禁止项**，由 `OS-BUILD-NIGHTLY` 显式校验，防止后来者「顺手加上 PR 触发」。
 
 ### 6.2 触发条件
 
-```yaml
-on:
-  schedule:
-    - cron: '0 2 * * *'  # 每日 02:00 UTC
-  workflow_dispatch:      # 手动触发
-```
+- `schedule`：唯一 cron `0 2 * * *`（每日 02:00 UTC）。
+- `workflow_dispatch`：手动补跑。
 
-### 6.3 Job 结构
+### 6.3 job 拓扑与超时预算
 
-| Job | 职责 | 耗时 |
-|-----|------|------|
-| 1 | 全量构建 | 30 分钟 |
-| 2 | 全量 KUnit + kselftest | 60 分钟 |
-| 3 | 性能基准 | 90 分钟 |
-| 4 | 动态分析（ASan / KASan / TSan / UBSan） | 120 分钟 |
-| 5 | 覆盖率统计 | 60 分钟 |
-| 6 | 安全扫描（Trivy / Snyk / Coverity） | 60 分钟 |
-| 7 | 上游 Linux LTS 跟踪 | 30 分钟 |
-| 8 | 报告生成 | 10 分钟 |
+| job | 超时 | needs | 说明 |
+|-----|------|-------|------|
+| `nightly-test-suite` | 360 分钟 | — | formal-verify / soak-runner / chaos-runner |
+| `nightly-revert-or-budget` | 30 分钟 | `nightly-test-suite` | `always: true`，回归时自动回退，否则做预算检查 |
 
-### 6.4 Job 3：性能基准
+CI 总时长预算 60 分钟（OS-STD-TEST-011），由 `ci-budget-check --max-minutes 60` 在第二个 job 中强制；内核冷缓存回退场景的上限放宽到 90 分钟。
 
-- **基准指标**：
+### 6.4 helper 契约
 
-| 指标 | 工具 | 基线 |
-|------|------|------|
-| IPC 延迟 | `ipc-latency-bench` | v0.1.1 |
-| 调度延迟 | `sched-latency-bench` | v0.1.1 |
-| 内存分配延迟 | `mem-alloc-bench` | v0.1.1 |
-| 128B 日志吞吐 | `log-throughput-bench` | v0.1.1 |
-| Agent 启动时间 | `agent-startup-bench` | v0.1.1 |
-| 内核构建时间 | `kernel-build-bench` | v0.1.1 |
+`tools/nightly/manifest.yaml` 登记了 6 个 helper，每个都有 `status` 与调用参数契约：
 
-- **报告**：与基线对比，列出回归/改进指标。
-- **告警**：回归超过 5% 自动通知维护者。
+- `deferred`：脚本尚未落地，workflow 必须带存在性守卫并输出 SKIP 标记，不得静默执行。
+- `available`：脚本已落地，守卫必须移除。
 
-### 6.5 Job 4：动态分析
-
-- **工具矩阵**：
-
-| 工具 | 范围 | 检测内容 |
-|------|------|---------|
-| ASan | daemon | 用户态内存错误 |
-| KASan | kernel | 内核内存错误 |
-| ThreadSanitizer | daemon | 数据竞争 |
-| KernelThreadSanitizer | kernel | 内核数据竞争 |
-| UBSan | kernel + daemon | 未定义行为 |
-
-- **报告**：列出所有发现的错误。
-- **告警**：发现错误自动创建 issue。
-
-### 6.6 Job 5：覆盖率统计
-
-- **工具**：`lcov`（内核）+ `gcovr`（daemon）。
-- **指标**：行覆盖率、分支覆盖率、函数覆盖率。
-- **报告**：与上一版本对比覆盖率变化。
-- **告警**：覆盖率下降超过 2% 自动通知维护者。
-
-### 6.7 Job 7：上游 Linux LTS 跟踪
-
-- **跟踪内容**：Linux 6.6 LTS 分支（`linux-6.6.y`）的新 commit。
-- **报告**：列出本日新增的 commit，标记是否需要回溯到 agent-linux LTS。
-- **告警**：发现安全相关 commit 自动通知 LTS 团队。
+「未实现即静默执行」与「已实现仍被跳过」都会让 nightly 变成安慰剂，因此两者都由 `OS-BUILD-NIGHTLY` 判为漂移并阻断。
 
 ---
 
-## 7. workflow 5：release.yml
+## 7. release.yml 与发布物料一致性
 
-### 7.1 设计目标
+`release.yml` 只有两个 job：`build-and-sign`（SPDX SBOM、内核 RPM、GPG + cosign 签名、SDK tarball）与 `publish-release`（校验签名产物、推送 OCI 镜像到 ghcr、清理旧资产、创建 GitHub Release）。
 
-`release.yml` 是发布 workflow，负责 RPM 构建、SBOM 生成、签名与发布。
+流水线声明的产物与 [`tools/release-engineering/manifest.yaml`](../../../agent-linux/tools/release-engineering/manifest.yaml) 必须双向对齐：清单里的每条 active 物料都要在流水线里有真实的 evidence 声明，流水线声明的每个产物 glob 都要在清单里登记。单向对齐会分别产生「文档写了、流水线没产」与「流水线产了、清单没登记」两类漂移，都由 `OS-BUILD-RELEASE` 阻断。
 
-### 7.2 触发条件
+---
 
-```yaml
-on:
-  push:
-    tags:
-      - 'v*'  # 推送 v 开头的 tag
-  workflow_dispatch:
-    inputs:
-      version:
-        description: '版本号（如 1.0.1）'
-        required: true
-```
+## 8. 镜像流水线与实机验收
 
-### 7.3 Job 结构
+`image-build.yml` 是发布门而非 PR 门，两个 job 各有明确判据：
 
-| Job | 职责 |
+| job | 判据 |
 |-----|------|
-| 1 | 构建源码 tarball |
-| 2 | 构建 14 个 RPM（12 daemon + kernel + devstation） |
-| 3 | 生成 SBOM（CycloneDX） |
-| 4 | 生成 `airy_defconfig` 快照 |
-| 5 | 生成文档快照 |
-| 6 | GPG 签名所有物料 |
-| 7 | 实时签名 RPM（若有签名服务） |
-| 8 | 上传到 AtomGit releases |
-| 9 | 上传到 RPM 仓库 |
-| 10 | 发布公告 |
+| `assemble` | 在固定版本 openEuler netinst 基础上于特权官方容器内组装桌面 ISO；装配清单与 ISO 校验和必须与登记值一致 |
+| `accept` | QEMU 下分别以 BIOS 与 UEFI 安装并冷启动，直到出现 `AIRYMAX-DESKTOP-READY`（或 `acceptance=true` 时的 `AIRYMAX-SMOKE-PASS`），导出 TAP 与串口日志 |
 
-### 7.4 Job 2：RPM 构建
+产物是分块 OCI 制品（独立包 `ghcr.io/openairymax/airymaxos-iso`，192 MiB/块，账本 `iso-oci.txt`），与基础镜像 `ghcr.io/openairymax/airymaxos` 分离发布——ISO 体积会独立增长，混进同一个包会让基础镜像的拉取成本被 ISO 绑架。
 
-- **构建矩阵**：
-
-| RPM | 架构 | 构建工具 |
-|-----|------|---------|
-| `airymaxos-kernel` | x86_64 / aarch64 / riscv64 / loongarch64 | `rpmbuild` |
-| 12 daemon RPM | x86_64 / aarch64 | `rpmbuild` |
-| `airymaxos-devstation` | x86_64 | `rpmbuild` |
-
-- **依赖**：daemon RPM 依赖 kernel RPM。
-- **签名**：RPM 构建后使用 GPG 密钥签名。
-
-### 7.5 Job 3：SBOM 生成
-
-- **工具**：`cyclonedx-cli` + `syft`。
-- **格式**：CycloneDX 1.5 JSON。
-- **内容**：详见 05 卷第 6.3 节。
-
-### 7.6 Job 6-7：签名
-
-- **GPG 签名**：使用项目 GPG 密钥签名所有物料（tarball、RPM、SBOM、defconfig、文档）。
-- **实时签名**：RPM 包使用实时签名服务（如 Sigstore）附加签名。
-- **公钥**：项目公钥发布到 `keys.openpgp.org` 与项目 README。
-
-### 7.7 Job 8-9：发布
-
-- **AtomGit releases**：上传 tarball、SBOM、defconfig、文档、release notes。
-- **RPM 仓库**：上传 14 个 RPM 到 RPM 仓库，更新仓库元数据。
+实机验收（U 盘写入、真实硬件启动、桌面登录）不在 CI 能力范围内，由 [190-distribution/03-installer-design.md](../190-distribution/03-installer-design.md) 规定的字段与 `airy-flash` 的回读校验承担，CI 只负责让该 ISO 具备可验收的前提。
 
 ---
 
-## 8. workflow 6：mgmt-verify.yml
+## 9. 资源与预算
 
-### 8.1 设计目标
+### 9.1 runner
 
-`mgmt-verify.yml` 是管理仓库 workflow，负责 8 子仓的协调与同步。
-
-### 8.2 触发条件
-
-```yaml
-on:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'mgmt/**'
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'mgmt/**'
-  schedule:
-    - cron: '0 4 * * *'  # 每日 04:00 UTC 同步检查
-```
-
-### 8.3 Job 结构
-
-| Job | 职责 |
-|-----|------|
-| 1 | 跨仓 PR 状态校验 |
-| 2 | 子仓 develop 同步检查 |
-| 3 | 子仓版本号一致性校验 |
-| 4 | 跨仓依赖图校验 |
-| 5 | 协调 issue 自动关闭 |
-
-### 8.4 Job 1：跨仓 PR 状态校验
-
-- **校验内容**：管理仓库中登记的跨仓 PR 全部 ready（所有子仓 PR 通过 CI + 审查）。
-- **校验方式**：使用 GitHub API 查询每个子仓 PR 状态。
-- **失败处理**：任一子仓 PR 未 ready 即阻止合并。
-
-### 8.5 Job 2：子仓 develop 同步检查
-
-- **校验内容**：8 子仓的 develop 分支与 main 分支的偏离不超过 7 天。
-- **校验方式**：比较各子仓 develop 与 main 的最新 commit 时间。
-- **告警**：偏离超过 7 天通知维护者。
-
-### 8.6 Job 3：子仓版本号一致性校验
-
-- **校验内容**：8 子仓的版本号一致（同一 minor 版本）。
-- **校验方式**：扫描各子仓的 `meson.build` 或 `Makefile` 中的版本号。
-- **失败处理**：版本号不一致即 job 失败。
-
----
-
-## 9. CI 资源管理
-
-### 9.1 Runner 选择
-
-| workflow | Runner | 说明 |
-|---------|--------|------|
-| `kernel-verify.yml` | self-hosted（x86_64 + aarch64） | 内核编译需要大内存 |
-| `ssot-verify.yml` | GitHub-hosted | 轻量校验 |
-| `sc-verify.yml` | self-hosted（含 MSVC 编译器） | 需要多种编译器 |
-| `nightly.yml` | self-hosted（大内存机器） | 性能基准需要稳定环境 |
-| `release.yml` | self-hosted（隔离环境） | 发布需要安全环境 |
-| `mgmt-verify.yml` | GitHub-hosted | 轻量校验 |
+托管 `ubuntu-latest` 为主，`kernel-build` 因 28 格矩阵需要 `max-parallel: 8` 的自限。`image-build` 需要特权容器与 QEMU，单 job 硬上限 360 分钟。
 
 ### 9.2 并发限制
 
-- **PR CI**：同一 PR 同时只允许 1 次 CI 运行（取消旧的，保留新的）。
-- **push CI**：同一分支同时只允许 1 次 CI 运行。
-- **nightly CI**：全局同时只允许 1 次 nightly 运行。
-- **release CI**：全局同时只允许 1 次 release 运行。
+除 nightly 外，各 workflow 按分支分组并发，新推送取消进行中的同组运行。nightly 例外：`concurrency.group: nightly` 且 `cancel_in_progress: false`——夜里被打断的 soak 等于没跑，重跑要再等一天。
 
-```yaml
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true  # 对 PR CI 启用；对 push/nightly 关闭
-```
+### 9.3 内联预算棘轮
 
-### 9.3 缓存策略
+[`ci/workflow-budgets.txt`](../../../agent-linux/ci/workflow-budgets.txt) 为每个 workflow 记录「允许的内联 `run` 块数」与「允许的 job 数」，只许减不许加。当前 8 个文件中 6 个已归零，`nightly.yml`（6 段）与 `release.yml`（10 段）是迁移中的欠账。内联预算为 0 的文件还会被检查禁用模式（`docker load`、`sha256sum -c`、`rm -rf /usr/share/dotnet`、`apt-get install qemu`、TAP 解析），防止逻辑被抄回 YAML。
 
-| 缓存 | 内容 | key | 有效期 |
-|------|------|-----|--------|
-| ccache | 编译器缓存 | `ccache-<arch>-<compiler>-<lock-hash>` | 7 天 |
-| pip | Python 依赖 | `pip-${{ hashFiles('**/requirements.txt') }}` | 7 天 |
-| cargo | Rust 依赖（若有） | `cargo-${{ hashFiles('**/Cargo.lock') }}` | 7 天 |
-| submodules | Git 子模块 | `submodules-${{ hashFiles('.gitmodules') }}` | 7 天 |
-| build | 构建产物（PR 间复用） | `build-<branch>-<arch>` | 1 天 |
+### 9.4 超时约束
 
-### 9.4 资源配额
-
-- **GitHub Actions 配额**：每月 50000 分钟（付费账户）。
-- **self-hosted runner 资源**：
-  - x86_64 runner：8 台（32 核 / 64GB 内存 / 1TB SSD）。
-  - aarch64 runner：4 台（64 核 / 128GB 内存 / 1TB SSD）。
-- **OS-DEV-804**：nightly 与 release CI 必须在非工作时间（02:00-08:00 UTC）运行，避免与 PR CI 争抢资源。
+CI 总时长 ≤60 分钟（OS-STD-TEST-011）。矩阵类 workflow 的单格超时与总预算必须能对上：28 格 × 单格耗时 ÷ `max-parallel` 不得突破总预算，否则 `OS-BUILD-CI-MATRIX` 拒绝该配置。
 
 ---
 
-## 10. CI 失败处理
+## 10. 失败处理
 
-### 10.1 失败分类
+### 10.1 分类
 
-| 失败类型 | 处理方式 |
-|---------|---------|
-| 代码错误（编译/测试失败） | 阻断 PR，通知作者修复 |
-| CI 基础设施错误 | 自动重试 3 次，仍失败则通知 `#ci-infra` 频道 |
-| 超时 | 自动重试 1 次，仍超时则通知维护者 |
-| flaky 测试 | 标记为 flaky，自动重试 3 次；连续 3 天 flaky 则禁用并创建 issue |
+| 类别 | 判据 | 处置 |
+|------|------|------|
+| 环境失败 | checkout / 依赖安装 / runner 镜像异常 | 重试一次；连续两次同类失败升级为基础设施问题 |
+| 门禁失败 | `ci/ci.sh <gate>` 非零退出 | 不改配置，修根因（§4.3） |
+| 超时 | 命中 §9.4 的预算 | 先判断是否矩阵格数或缓存失效导致，再决定拆分而非放宽 |
+| flaky | 同一提交重跑结果不一致 | 立即登记并定位，禁止用重试掩盖（§10.2） |
 
-### 10.2 自动重试
+### 10.2 flaky 管理
 
-- **触发条件**：CI 因基础设施错误（如 runner 离线、网络超时）失败。
-- **重试次数**：最多 3 次。
-- **退避策略**：指数退避（1 分钟 / 4 分钟 / 9 分钟）。
-- **OS-DEV-805**：代码错误禁止自动重试，避免掩盖真实问题。
+测试一旦被观察到在同一提交上不稳定，就有两条路：修掉，或删除。不允许第三条路——无限重试。重试会把不确定性从 CI 转移到用户，代价高一个数量级。
 
-### 10.3 通知机制
+### 10.3 通知
 
-| 事件 | 通知渠道 | 通知对象 |
-|------|---------|---------|
-| PR CI 失败 | PR 评论 | PR 作者 + 审查者 |
-| PR CI 失败超 24 小时未修复 | 邮件 | PR 作者 + 维护者 |
-| nightly CI 失败 | 邮件 + 聊天 | 维护者 |
-| release CI 失败 | 邮件 + 聊天 + 短信 | 发布团队 + SSoT 委员会 |
-| CI 基础设施错误 | 聊天 | `#ci-infra` 频道 |
-
-### 10.4 flaky 测试管理
-
-- **标记**：连续 3 次运行中至少 1 次失败的测试标记为 flaky。
-- **隔离**：flaky 测试不阻断 PR，但记入报告。
-- **修复**：flaky 测试必须在 14 天内修复，否则禁用并创建 issue。
-- **OS-DEV-806**：禁止删除 flaky 测试，必须修复根因。
+阻断类失败通过 PR 状态回写；`main` 变红额外在 issue 上留痕。nightly 失败按 §6.3 的第二个 job 自动回退，不依赖人工值守。
 
 ---
 
-## 11. CI 监控与报表
+## 11. 可观测与报表
 
-### 11.1 CI 仪表盘
+### 11.1 门禁与镜像的观测标记
 
-- **工具**：Grafana + Prometheus。
-- **指标**：
-  - CI 成功率（按 workflow / job）。
-  - CI 平均耗时（按 workflow / job）。
-  - CI 队列长度（等待中的 run 数）。
-  - runner 利用率。
-  - flaky 测试数量。
-- **告警**：
-  - 成功率低于 95%：通知 `#ci-infra`。
-  - 平均耗时增长 20%：通知 `#ci-infra`。
-  - runner 利用率超过 90%：通知 `#ci-infra`。
+判定结果以固定标记落入日志，便于 grep 与机器汇总：
+
+| 标记 | 来源 | 含义 |
+|------|------|------|
+| `AIRY-FLASH-PASS` / `AIRY-FLASH-FAIL` | `airy-flash` 写入与回读 | 介质写入是否逐字节验证通过 |
+| `AIRYMAX-SMOKE-PASS` / `AIRYMAX-SMOKE-FAIL` | `run-smoke.sh` | 安装后冒烟检查 |
+| `AIRYMAX-DESKTOP-READY` | `desktop_ready.sh` | 桌面会话可达 |
+| `AIRYMAX-RT-BUDGET` | `rt_budget.sh` | RT 运行时预算的分配与落地情况 |
+| `AIRYMAX-OBSERVE` | `airy_observe.sh` | 运行期观测点快照 |
+| `AIRYMAX-RECORD` | `airy_record.sh` | 录屏产物路径、帧数与校验和 |
+
+标记格式统一为 `MARK key=value ...`，值含空格时用双引号包裹，保证单行可解析。
 
 ### 11.2 周报
 
-- **内容**：
-  - 本周 CI 运行次数与成功率。
-  - 本周 flaky 测试列表。
-  - 本周性能基准回归/改进。
-  - 本周覆盖率变化。
-- **发布**：每周一发布到 `#ci-report` 频道与开发周会。
+周报只汇总三件事：门禁红过的次数与原因分布、迁移欠账（§9.3）的净减少量、flaky 登记与清零数。其余指标不进门禁决策。
 
 ---
 
 ## 12. 与 Airymax Unify Design 的关系
 
-| Unify 模块 | CI 关系 |
-|-----------|---------|
-| **A-UEF** | `kernel-verify.yml` 校验 A-UEF 错误码使用一致性；`ssot-verify.yml` 校验 A-UEF 权威源唯一性 |
-| **A-ULP** | `kernel-verify.yml` 校验 A-ULP 日志使用一致性；`sc-verify.yml` 校验 [SC] `log_types.h` 双端一致 |
-| **A-UCS** | `ssot-verify.yml` 校验 `airy_defconfig` 五大选型锁定；A-UCS 配置变更触发 SSoT 校验 |
-| **A-ULS** | `kernel-verify.yml` 校验纯 C LSM 编译；`ssot-verify.yml` 校验未引入 BPF LSM |
-| **A-IPC** | `kernel-verify.yml` 校验 IORING_OP_URING_CMD 路径；`sc-verify.yml` 校验 [SC] `ipc.h` 双端一致；`nightly.yml` 校验 IPC 性能基准 |
+IRON-9 v3 四层模型对 CI 的唯一硬要求是 `[SC]` 共享契约层不被单端改动。0.0.3 的落地方式是把「唯一性」与「可编译性」拆成两道门禁，而不是再造一条逐字节 diff 流水线：
+
+- 唯一性：`ci/ci.sh mgmt-files`（OS-IRON-008）确认 12 个 `[SC]` 头在源码树内只有一份物理副本。
+- 可编译性：`OS-CHK-DOC-04` 用 `sc_tri_compile.py --check` 在五路（kernel-space / linux-user-space / third-party / dsl-kernel-space / dsl-linux-user-space）下编译同一份头文件。
+
+跨仓（用户态副本 `agentrt/commons/include/airymax/`）的一致性在 0.0.3 **尚无门禁**，登记为 0.0.4 的 `SC-01`。这是已知缺口，不是已解决问题。
 
 ---
 
 ## 13. 相关文档
 
-- [120-development-process README](README.md)：开发流程主索引
-- [01-patch-lifecycle.md](01-patch-lifecycle.md)：补丁生命周期 6 阶段
-- [03-pull-requests.md](03-pull-requests.md)：Pull Request 流程规范
-- [04-code-review.md](04-code-review.md)：代码审查标准
-- [05-stable-releases.md](05-stable-releases.md)：稳定版本发布
-- [06-long-term-support.md](06-long-term-support.md)：长期支持策略
-- [09-release-process.md](09-release-process.md)：发布流程详细设计
-- [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：工程标准 CI/CD 流水线
-- [../50-engineering-standards/09-ssot-registry.md](../50-engineering-standards/09-ssot-registry.md)：SSoT v2 单一权威源注册表
-- [../50-engineering-standards/11-sc-header-type-bridging.md](../50-engineering-standards/11-sc-header-type-bridging.md)：[SC] 头文件类型桥接规则
-- [../80-testing/README.md](../80-testing/README.md)：测试体系
+- [01-patch-lifecycle.md](01-patch-lifecycle.md)：补丁生命周期（本文的上游）
+- [03-pull-requests.md](03-pull-requests.md)：PR 评审规则
+- [09-release-process.md](09-release-process.md)：发布流程
+- [70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：构建、矩阵、静态分析、签名、缓存的技术细节
+- [190-distribution/03-installer-design.md](../190-distribution/03-installer-design.md)：烧录与安装的判据
+- [`.github/workflows/README.md`](../../../agent-linux/.github/workflows/README.md)：workflow 清单（SSoT）
 
 ---
 
@@ -755,8 +269,6 @@ concurrency:
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0.1 | 2026-07-18 | 初始版本：建立 6 个 CI workflow 详细设计（`kernel-verify.yml` 9 个 job / `ssot-verify.yml` 6 个 job / `sc-verify.yml` 5 个 job / `nightly.yml` 8 个 job / `release.yml` 10 个 job / `mgmt-verify.yml` 5 个 job）、CI 触发条件（push/PR/定时/手动/tag）、CI 资源管理（self-hosted runner + 并发限制 + 缓存策略）、CI 失败处理（自动重试 + flaky 管理 + 通知机制）、CI 监控与报表（Grafana 仪表盘 + 周报） |
-
----
-
-> **文档结束** | agent-linux CI/CD 流水线详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+| v1.0 | 2026-06-20 | 初始版本：6 个 workflow 逐一定义 job 结构 |
+| v1.0.1 | 2026-07-21 | 补充 nightly / release 的 job 细节 |
+| v1.1.0 | 2026-10-29 | 重写为流程层文档：workflow 清单与 job 结构交由 `.github/workflows/README.md` 与 70-build-system/03 承载，本文只保留阻断关系、分支保护、失败处置与预算棘轮；删除已退役的 `sc-verify.yml` 契约工作流章节，`[SC]` 校验改为指向 `mgmt-files`（OS-IRON-008）与 `OS-CHK-DOC-04` |

@@ -105,10 +105,10 @@ agent-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS
 | 5 | [05-syscall-semantic-mapping.md](05-syscall-semantic-mapping.md) | P0-03 方案 D 分层 API 设计 + [SS] 语义映射表 + [IND] 独有调用 + SDK 层签名同源 + 调用路径选择 | 400-500 |
 | 6 | [06-codegen-pipeline.md](06-codegen-pipeline.md) | 代码生成流水线 + 多语言 SDK 自动生成 + 契约驱动开发 | 300-400 |
 | 7 | [07-ipc-fastpath.md](07-ipc-fastpath.md) | IPC fastpath 设计 + IORING_OP_URING_CMD + registered buffer + mmap + Capability 分层校验 + 数据面自治三原则 | 400-500 |
-| 8 | [08-sc-error-contract.md](08-sc-error-contract.md) | **[SC] error.h 二进制契约** + Error（负数可恢复）vs Fault（正数 0x1000+ 不可恢复）分层 + 10 子空间分配 + CI 逐字节校验 + [DSL] 降级块 | 300-400 |
+| 8 | [08-sc-error-contract.md](08-sc-error-contract.md) | **[SC] error.h 二进制契约** + Error（负数可恢复）vs Fault（正数 0x1000+ 不可恢复）分层 + 10 子空间分配 + 五路编译校验 + [DSL] 降级块 | 300-400 |
 | 9 | [09-sc-log-types-contract.md](09-sc-log-types-contract.md) | **[SC] log_types.h 二进制契约** + 128B 固定记录格式 + 5 级日志枚举 + printk 8 级映射 | 250-350 |
 
-> **[SC] 共享契约说明**：文档 #8、#9 是 Airymax Unify Design 五模块（A-UEF/A-ULP）的 [SC] 共享契约权威定义，物理宿主为 `kernel/include/uapi/linux/airymax/error.h` 与 `kernel/include/uapi/linux/airymax/log_types.h`，由 `sc-verify.yml` 进行双端逐字节校验。详见 [10-architecture/10-unify-design.md](../10-architecture/10-unify-design.md) 与 [10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。
+> **[SC] 共享契约说明**：文档 #8、#9 是 Airymax Unify Design 五模块（A-UEF/A-ULP）的 [SC] 共享契约权威定义，物理宿主为 `kernel/include/uapi/linux/airymax/error.h` 与 `kernel/include/uapi/linux/airymax/log_types.h`。头文件唯一副本由 `OS-IRON-008`（`mgmt-files`）守护，可编译性由 `OS-CHK-DOC-04` 五路编译守护。详见 [10-architecture/10-unify-design.md](../10-architecture/10-unify-design.md) 与 [10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)。
 
 ## 5. 与 agentrt 接口的关系
 

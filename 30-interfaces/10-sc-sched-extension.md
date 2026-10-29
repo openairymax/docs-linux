@@ -31,7 +31,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 契约定位
 
-`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享，CI 通过 `sc-verify.yml` 验证两端一致性。
+`kernel/include/uapi/linux/airymax/sched.h` 是 A-ULS 模块的 [SC] 共享契约头文件，定义 Agent 生命周期状态机与sched_tac 调度参数的统一契约。该头文件由 agentrt（用户态 SDK）与 agent-linux（内核态实现）双端逐字节共享，CI 通过 `[SC]` 契约门禁 验证两端一致性。
 
 ### 1.2 契约边界
 
@@ -363,28 +363,38 @@ OLK 6.6 提供了一系列 QoS 调度增强（`kernel/sched/grid/`），agent-li
 
 | 项目 | 路径 | 说明 |
 |------|------|------|
-| [SC] 头文件 | `kernel/include/uapi/linux/airymax/sched.h` | 双端逐字节共享 |
+| [SC] 头文件 | `kernel/include/uapi/linux/airymax/sched.h` | 源码树内唯一物理副本，五路编译校验 |
 | 内核实现 | `kernel/corekern/taskflow/airy_task_desc.c`（`airy_task_desc_init()` / `airy_task_desc_valid()`；原文档引用的 `kernel/kernel/superv/airy_sched.c` 不存在，调度策略注入走 `sched_setattr()`，见 §4.2） | 调度策略实现 |
 | 用户态实现 | `services/daemons/macro_d/sched.c` | 调度参数注入 |
 
 ### 6.2 版本号
 
-> **SSoT 对齐说明（v3.5 修复）**：SSoT `sched.h` **不定义** `AIRY_SCHED_VERSION` 与 `AIRY_SCHED_VERSION_CHECK` 宏。版本一致性通过 [SC] 共享契约层双端 CI（`sc-verify.yml`）逐字节校验保证，无需在头文件内嵌版本号宏。旧文档中引用的 `AIRY_SCHED_VERSION`/`AIRY_SCHED_VERSION_CHECK` 为虚构定义，已移除。
+> **SSoT 对齐说明（v3.5 修复）**：SSoT `sched.h` **不定义** `AIRY_SCHED_VERSION` 与 `AIRY_SCHED_VERSION_CHECK` 宏。一致性由「唯一物理副本 + 编译期断言 + 五路编译」三重保障，无需在头文件内嵌版本号宏。旧文档中引用的 `AIRY_SCHED_VERSION`/`AIRY_SCHED_VERSION_CHECK` 为虚构定义，已移除。
 
 ```c
-/* SSoT sched.h 不含版本号宏 —— 一致性由 sc-verify.yml 逐字节校验保证 */
+/* SSoT sched.h 不含版本号宏 —— 布局与语义由编译期断言和五路编译守护 */
 /* 旧文档引用的 AIRY_SCHED_VERSION / AIRY_SCHED_VERSION_CHECK 已废弃 */
 ```
 
-### 6.3 CI 双端校验
+### 6.3 CI 校验
 
-`sc-verify.yml` 对 `sched.h` 执行以下校验：
+`sched.h` 的约束由三道门禁分别守护，全部落在 `ci/gates/`，workflow 侧仅调用 `ci/ci.sh <gate>`：
 
-1. **逐字节对比**：agentrt 与 agent-linux 的 `sched.h` 必须逐字节相同
-2. **枚举值校验**：8 态枚举值必须在 `[0, 7]` 范围内且不重复（含 `AIRY_AGENT_STATE_MAX` 上界哨兵）
-3. **结构体偏移校验**：`struct airy_task_desc`（64 字节）字段偏移在两端一致，`_Static_assert` 保证 `sizeof == 64`
-4. **策略标识符校验**：`AIRY_SCHED_POLICY_DEADLINE=1` / `_FIFO=2` / `_EEVDF=3` / `_BESTEFFORT=4` 双端一致
-5. **[DSL] 块校验**：`AIRY_DSL_SCHED_POLICY_*` 与 `AIRY_DSL_VTIME_DECAY` 宏双端一致
+| 门禁 | 执行器 | 判定内容 |
+|------|--------|---------|
+| `OS-IRON-008` | `ci/gates/mgmt-files.sh` | 12 个 [SC] 头文件在源码树内只有一份物理副本，禁止复制到其他子仓 |
+| `OS-CHK-DOC-04` | `tools/sc-tri-compile/sc_tri_compile.py --check` | 同一份 `sched.h` 在 kernel-space / linux-user-space / third-party / dsl-kernel-space / dsl-linux-user-space 五路下均可编译通过 |
+| `OS-IRON-009-CODEGEN` | `ci/gates/python-verify.sh --kind codegen` | [DSL] 块的生成结果与提交内容一致（幂等） |
+
+结构体布局的强约束写在头文件自身，随任意一路编译立即失败：
+
+1. **枚举值**：8 态枚举必须在 `[0, 7]` 范围内且不重复（含 `AIRY_AGENT_STATE_MAX` 上界哨兵），由 `_Static_assert` 固化
+2. **结构体大小**：`_Static_assert(sizeof(struct airy_task_desc) == 64, ...)` 保证 ABI 宽度
+3. **字段偏移**：`offsetof()` 常量断言固化每个字段的偏移，任何重排都会在编译期报错
+4. **策略标识符**：`AIRY_SCHED_POLICY_DEADLINE=1` / `_FIFO=2` / `_EEVDF=3` / `_BESTEFFORT=4` 为 ABI 常量，改动即破坏断言
+5. **[DSL] 块**：`AIRY_DSL_SCHED_POLICY_*` 与 `AIRY_DSL_VTIME_DECAY` 由 codegen 幂等门禁复核
+
+跨仓行为一致性在 0.0.3 尚无门禁（两侧副本各自演进），已登记为 0.0.4 的 `SC-01`。
 
 ---
 

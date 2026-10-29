@@ -680,78 +680,36 @@ all: codegen
 
 开发者执行 `make` 时，`make codegen && make` 自动串行执行：先生成代码，再编译。`make codegen` 可单独运行以预览生成产物。
 
-### 7.2 CI 验证：diff 必须为空
+### 7.2 CI 验证：生成物零漂移由 OS-IRON-009-CODEGEN 判定
 
-CI 在 PR 检查阶段运行 codegen 并与仓库已提交文件对比，diff 必须为空。校验逻辑：运行 `make codegen` 后执行 `git diff --exit-code`，若有差异则 CI 失败。
+仓库内没有独立的 `codegen-verify.yml`。生成物一致性是门禁
+`OS-IRON-009-CODEGEN`，执行器为 `ci/gates/python-verify.sh --kind codegen`，
+由 `kernel-verify.yml` 在每次 push / PR 时调用：
 
-```yaml
-# .github/workflows/codegen-verify.yml — codegen 一致性校验工作流
-name: codegen-verify
-
-on:
-  pull_request:
-    paths:
-      - 'include/uapi/linux/airymax/syscall.xml'
-      - 'include/uapi/linux/airymax/structures_*.bf'
-      - '50-engineering-standards/20-contracts/contracts.md'
-      - 'security/include/airy_cap_ids.def'
-      - 'tools/codegen/**'
-      - 'include/uapi/linux/airymax/syscall_gen.h'
-      - 'arch/x86/entry/syscalls/syscall_64.tbl'
-      - 'include/uapi/linux/airymax/structures_*_gen.h'
-      - 'include/uapi/linux/airymax/ipc.h'
-      - 'include/uapi/linux/airymax/security_types.h'
-      - 'sdk/**/syscalls.*'
-      - 'sdk/**/ipc.*'
-      - 'sdk/**/cap_ids.*'
-
-jobs:
-  codegen-diff-check:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install codegen dependencies
-        run: pip install -r tools/codegen/requirements.txt
-
-      - name: Run codegen pipeline
-        run: make codegen
-
-      - name: Verify generated files match committed files (diff must be empty)
-        run: |
-          if ! git diff --exit-code; then
-            echo "::error::codegen output differs from committed files."
-            echo "::error::Run 'make codegen' locally and commit the results."
-            git diff --stat
-            exit 1
-          fi
-          echo "::notice::codegen output matches committed files (zero diff)."
+```sh
+python3 tools/codegen/run_codegen.py --check
 ```
+
+`--check` 在内存中重跑全部生成器并把结果与仓库已提交文件逐字节比对，
+不写工作区，因此判定与工作树是否干净无关。任一产物不一致即非零退出，
+并打印漂移文件的路径。
 
 ### 7.3 回滚策略
 
-- **codegen 失败阻止 PR 合并**：codegen 生成器报错（契约源语法错误、引用未定义符号等）时，CI job 直接失败，PR 进入 blocked 状态，不得合并。
-- **diff 非空阻止 PR 合并**：codegen 成功但输出与已提交文件不一致时，CI job 失败并提示开发者运行 `make codegen` 后提交结果。
-- **契约变更触发全量重新生成**：任何契约源文件（`syscall.xml` / `*.bf` / `contracts.md` / `airy_cap_ids.def`）变更，CI 通过 `paths` 触发器自动运行 codegen-verify，确保生成产物同步更新。
+- **生成器报错阻止合并**：契约源语法错误、引用未定义符号等，`--check` 直接失败，PR 不得合并。
+- **产物漂移阻止合并**：生成器成功但产物与提交文件不一致时，门禁失败并提示开发者运行 `make codegen` 后提交结果。
+- **契约源变更即全量重算**：`syscall.xml` / `*.bf` / `contracts.md` / `airy_cap_ids.def` 任一变更都会改变生成物，`--check` 覆盖全量而非增量，不存在漏检路径。
 
 ### 7.4 CI 流程图
 
 ```mermaid
 graph LR
-    PR[PR 提交] --> CHECKOUT[checkout 代码]
-    CHECKOUT --> INSTALL[安装 Python 3.12 + 依赖]
-    INSTALL --> RUN[make codegen]
-    RUN --> DIFF{git diff --exit-code}
-    DIFF -->|零差异| PASS[CI 通过 ✅]
-    DIFF -->|有差异| FAIL1[CI 失败 ❌<br/>提示 make codegen]
-    RUN -->|生成器报错| FAIL2[CI 失败 ❌<br/>契约源错误]
+    PR[push / PR 提交] --> GATE[kernel-verify.yml]
+    GATE --> RUN[python-verify.sh --kind codegen]
+    RUN --> CHECK[run_codegen.py --check]
+    CHECK -->|产物与提交一致| PASS[门禁通过 ✅]
+    CHECK -->|产物漂移| FAIL1[门禁失败 ❌<br/>提示 make codegen]
+    RUN -->|生成器报错| FAIL2[门禁失败 ❌<br/>契约源错误]
     PASS --> MERGE[允许合并]
     FAIL1 --> BLOCK[阻止合并]
     FAIL2 --> BLOCK

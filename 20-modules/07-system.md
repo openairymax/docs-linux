@@ -401,7 +401,7 @@ airymaxmon 通过 [SC] 共享契约层读取内核子系统状态，确保监控
 | `include/uapi/linux/airymax/bpf_struct_ops.h` | eBPF struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态） | airymaxmon 读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态 |
 | `include/uapi/linux/airymax/syscall_gen.h` | codegen 派生的 syscall 入口定义（参数类型） | airymaxmon 监控 syscall 调用统计 |
 
-> **补充共享文件说明**：12 个 [SC] 头文件 = 10 核心 + 2 补充共享文件（`syscall_gen.h`/`bpf_struct_ops.h`），物理宿主均为 `kernel/include/uapi/linux/airymax/`。`bpf_struct_ops.h` 定义 struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态），airymaxmon 通过它读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态；`syscall_gen.h` 由 `syscall_gen.py` 从 `syscall.xml` 派生。2 个补充共享文件与 10 个核心头同等参与 `sc-verify.yml` 逐字节校验。详见 [11-sc-header-type-bridging.md](../50-engineering-standards/11-sc-header-type-bridging.md) §4。
+> **补充共享文件说明**：12 个 [SC] 头文件 = 10 核心 + 2 补充共享文件（`syscall_gen.h`/`bpf_struct_ops.h`），物理宿主均为 `kernel/include/uapi/linux/airymax/`。`bpf_struct_ops.h` 定义 struct_ops 状态机框架（INIT/REGISTERED/ACTIVE/DRAINING 四态），airymaxmon 通过它读取 sched_tac/macrosuperv 等 BPF struct_ops 注册状态；`syscall_gen.h` 由 `syscall_gen.py` 从 `syscall.xml` 派生。2 个补充共享文件与 10 个核心头同等参与 `[SC]` 契约门禁（OS-CHK-DOC-04）。详见 [11-sc-header-type-bridging.md](../50-engineering-standards/11-sc-header-type-bridging.md) §4。
 
 ### 6.2 [SS] 语义同源层——8 项 API 映射
 

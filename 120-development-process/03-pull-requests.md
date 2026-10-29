@@ -7,7 +7,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **上级文档**：[120-development-process README](README.md)\
 > **同源映射**：agentrt PR 流程 + Linux 6.6 内核 `submitting-patches.rst`（GitHub PR 替代 git send-email）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax S-4 涌现性管理 + C-2 增量演化 + SSoT v2 单一权威源\
-> **核心约束**：[SC] 头文件变更 PR 必须通过 `sc-verify.yml` 逐字节校验；SSoT 变更 PR 必须通过 `ssot-verify.yml` 四层归属校验
+> **核心约束**：[SC] 头文件变更 PR 必须通过 `[SC]` 契约门禁（OS-CHK-DOC-04）；SSoT 变更 PR 必须通过 `ssot-verify.yml` 四层归属校验
 
 ---
 
@@ -68,7 +68,7 @@ flowchart LR
 ### 2.2 步骤 2：Branch
 
 - **分支命名**：`<type>/<scope>-<short-description>`，例如 `feat/sched-deadline-tuning`、`fix/ipc-uring-leak`、`docs/sc-header-bridge`。
-- **type 取值**：`feat`（新功能）/ `fix`（缺陷修复）/ `docs`（文档）/ `refactor`（重构）/ `test`（测试）/ `chore`（构建/工具）/ `sc`（[SC] 头文件变更，必须配合 `sc-verify.yml`）。
+- **type 取值**：`feat`（新功能）/ `fix`（缺陷修复）/ `docs`（文档）/ `refactor`（重构）/ `test`（测试）/ `chore`（构建/工具）/ `sc`（[SC] 头文件变更，必须配合 `[SC]` 契约门禁）。
 - **基线分支**：默认从 `main` 派生；若为稳定版回溯，从 `release/*` 派生；若为 develop 集成测试，从 `develop` 派生。
 - **OS-DEV-301**：分支名禁止使用 `master`、`HEAD`、纯数字、超过 80 字符的描述。
 
@@ -183,7 +183,7 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 | 普通 PR | 2 | 2 名 maintainer | CI 全绿 |
 | 子系统 PR | 2 | 子系统维护者 + 顶级子系统维护者 | CI 全绿 |
 | 跨仓 PR | 3 | 2 子仓维护者 + 总维护者 | CI 全绿 + 跨仓协调 |
-| [SC] 头文件 PR | 3 | agentrt 端 + agent-linux 端 + 总维护者 | CI 全绿 + sc-verify 全绿 |
+| [SC] 头文件 PR | 3 | agentrt 端 + agent-linux 端 + 总维护者 | CI 全绿 + `[SC]` 契约门禁全绿 |
 | SSoT 变更 PR | 3 | SSoT 注册表维护者 + 子系统维护者 + 总维护者 | CI 全绿 + ssot-verify 全绿 |
 | 五大选型变更 PR | 4 | 5 名顶级子系统维护者中至少 4 名 + 总维护者 | CI 全绿 + SSoT 委员会签字 |
 
@@ -221,11 +221,11 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 
 - **同时提交**：[SC] 变更必须在 agentrt 与 agent-linux 同时发起 PR，PR 描述中互相引用对方 PR 链接。
 - **同时合并**：双端 PR 必须在同一合并窗口内合并，禁止单端合并（会导致双端逐字节不一致）。
-- **OS-DEV-306**：任何单端合并 [SC] PR 的尝试会被 `sc-verify.yml` 阻断。
+- **OS-DEV-306**：任何单端合并 [SC] PR 的尝试会被 `[SC]` 契约门禁 阻断。
 
-### 5.2 sc-verify.yml 强制校验
+### 5.2 `[SC]` 契约门禁 强制校验
 
-`sc-verify.yml` 在 [SC] PR 上执行以下校验：
+`[SC]` 契约门禁 在 [SC] PR 上执行以下校验：
 
 1. **拉取双端 PR 分支**：从 agentrt 与 agent-linux 分别拉取对应 PR 的分支。
 2. **提取 12 个 [SC] 头文件**：从 `kernel/include/uapi/linux/airymax/*.h` 提取 12 个 [SC] 文件。
@@ -242,8 +242,8 @@ Signed-off-by: <作者> <邮箱>                # DCO 必填
 ### 5.4 回滚特殊要求
 
 - [SC] PR 合并后若发现严重问题需要回滚，必须双端同时回滚。
-- 回滚 PR 也必须通过 `sc-verify.yml` 校验。
-- 单端回滚会被 `sc-verify.yml` 阻断。
+- 回滚 PR 也必须通过 `[SC]` 契约门禁校验。
+- 单端回滚会被 `[SC]` 契约门禁 阻断。
 
 ---
 
@@ -381,7 +381,7 @@ agent-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必须
 | 无意义 commit | "fix typo"、"wip" 等无信息 commit | 强制 squash |
 | 强推主仓库 | 直接 push 到 upstream main | 分支保护阻断 |
 | 自合并 | 合并自己的 PR | 分支保护阻断 |
-| [SC] 单端合并 | 仅 agentrt 或仅 agent-linux 端合并 | sc-verify 阻断 |
+| [SC] 单端合并 | 仅 agentrt 或仅 agent-linux 端合并 | `[SC]` 契约门禁阻断 |
 | 绕过 SSoT | 未通过 SSoT 评审即修改权威源 | ssot-verify 阻断 |
 | 隐藏破坏性变更 | 破坏性变更未在 PR 描述中声明 | NACK + 关闭 |
 | 假审查 | 审查者未实际审查即 `Reviewed-by` | 撤销审查权限 |
@@ -392,11 +392,11 @@ agent-linux 共有 8 子仓 + 1 管理仓库。涉及多个子仓的变更必须
 
 | Unify 模块 | PR 流程关系 |
 |-----------|-----------|
-| **A-UEF** | A-UEF [SC] `error.h` 变更 PR 必须通过 sc-verify 双端校验 |
-| **A-ULP** | A-ULP [SC] `log_types.h` 变更 PR 必须通过 sc-verify 双端校验；128B 记录格式变更触发 SSoT 评审 |
+| **A-UEF** | A-UEF [SC] `error.h` 变更 PR 必须通过 `[SC]` 契约门禁校验 |
+| **A-ULP** | A-ULP [SC] `log_types.h` 变更 PR 必须通过 `[SC]` 契约门禁校验；128B 记录格式变更触发 SSoT 评审 |
 | **A-UCS** | A-UCS 变更 PR 必须同步更新 `airy_defconfig`；选型偏离被 CI 阻断 |
 | **A-ULS** | A-ULS 纯 C LSM 变更 PR 必须通过安全子系统维护者审查；引入 BPF LSM 被 CI 阻断 |
-| **A-IPC** | A-IPC [SC] `ipc.h` 变更 PR 必须通过 sc-verify 双端校验；引入 page flipping 被 CI 阻断 |
+| **A-IPC** | A-IPC [SC] `ipc.h` 变更 PR 必须通过 `[SC]` 契约门禁校验；引入 page flipping 被 CI 阻断 |
 
 ---
 

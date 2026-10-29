@@ -101,7 +101,7 @@ flowchart TD
 | 安全扫描 | Trivy / Snyk / Coverity | 零高危 |
 | ABI 兼容性 | libabigail | 无破坏性变更 |
 | Agent 契约兼容性 | `check-agent-contract.sh` | 无破坏性变更 |
-| [SC] 双端一致 | `sc-verify.yml` | 双端逐字节一致 |
+| [SC] 双端一致 | `[SC]` 契约门禁 | 双端逐字节一致 |
 | SSoT 校验 | `ssot-verify.yml` | 四层归属一致 |
 | 升级测试 | 上版本 → RC1 | 升级路径通过 |
 | 回滚测试 | RC1 → 上版本 | 回滚路径通过 |
@@ -570,7 +570,7 @@ flowchart TD
 | 4 | 测试覆盖达标 | `coverage-report` | 行覆盖 ≥ 80%，分支覆盖 ≥ 70% | 阻断 |
 | 5 | ABI 兼容性 | libabigail | 无破坏性 ABI 变更 | 阻断 |
 | 6 | Agent 契约兼容性 | `check-agent-contract.sh` | 无破坏性契约变更 | 阻断 |
-| 7 | [SC] 双端一致 | `sc-verify.yml` | 双端逐字节一致 | 阻断 |
+| 7 | [SC] 双端一致 | `[SC]` 契约门禁 | 双端逐字节一致 | 阻断 |
 | 8 | SSoT 校验通过 | `ssot-verify.yml` | 四层归属一致 | 阻断 |
 | 9 | 文档完整 | `doc-check.sh` | 接口/行为变更已更新文档 | 强制 |
 | 10 | release notes 完整 | 人工 | 已编写并评审 | 强制 |

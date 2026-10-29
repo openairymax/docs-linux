@@ -27,8 +27,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 |------|------|
 | 7 层自动化验证体系 | OS-STD-TOOL-001~161 定义的端到端验证链：L1 编译期检查 / L2 静态分析 / L3 预提交 / L4 CI 门禁 / L5 连接验证 / L6 协议验证 / L7 发布验证 |
 | CI 矩阵 | 配置 × 架构 × 编译器的笛卡尔积构建矩阵（4×4×2−4=28，loongarch+clang 组合整体排除） |
-| [SC] 共享契约层 | agentrt ↔ agent-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014），物理宿主 `kernel/include/uapi/linux/airymax/` |
-| 双向 CI | kernel CI 通过 → 触发 agentrt 镜像 PR → agentrt CI 通过 → L1 审查 → L3 审批（OS-IRON-008） |
+| [SC] 共享契约层 | kernel 与用户态共用的 12 个头文件契约（OS-IRON-014），权威副本位于 `kernel/include/uapi/linux/airymax/` |
+| [SC] 强制 | kernel 侧权威副本 + `mgmt-files` / OS-CHK-DOC-04 / OS-IRON-001 三道门禁（OS-IRON-008） |
 | SSoT | Single Source of Truth，规则编号唯一权威来源（`09-ssot-registry.md`/`.yaml`） |
 | 门禁（Gate） | CI 中阻断 PR 合并的硬性检查点，失败即禁止合并 |
 | SBOM | Software Bill of Materials，软件物料清单（本设计采用 SPDX 格式） |
@@ -67,9 +67,9 @@ agent-linux CI/CD 管道的设计目标是把"代码进入主线"的工程契约
 CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9 个独立 git 仓库 + submodule 管理）：
 
 - **9 子仓**：每个子仓独立维护 `.github/workflows/`，CI 互相隔离、独立失败、独立回滚。
-- **管理仓（agentrt）**：维护 SSoT 校验、文件完整性、子仓状态聚合、文档格式校验，串行执行。
+- **管理仓（agent-linux）**：维护 SSoT 校验、文件完整性、子仓状态聚合、文档格式校验，串行执行。
 - **kernel 子仓**：CI 最重，承载 Kbuild 编译、checkpatch、sparse、Coccinelle、KUnit、kselftest 全套内核验证。
-- **[SC] 共享契约层**：跨 kernel ↔ agentrt 的双向 CI（OS-IRON-008），由变更触发自动联动。
+- **[SC] 共享契约层**：kernel 侧权威副本 + `mgmt-files` / OS-CHK-DOC-04 / OS-IRON-001 门禁强制（§7）。
 
 ### 1.3 设计原则映射
 
@@ -92,22 +92,19 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 
 ```
 agent-linux/.github/workflows/
-├── kernel-verify.yml      # kernel 子仓 CI（28 格 Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest）
-├── airy-verify.yml        # Airymax 专属代码 CI（airy_defconfig 4 架构构建 + checkpatch + SPDX + 符号完整性）
-├── abi-verify.yml         # syscall ABI 四方权威源与基线快照一致性（OS-IRON-001）
-├── dsl-verify.yml         # 策略 DSL 零漂移（.adl 契约源 → 生成决策表，IRON-9）
-├── farm-verify.yml        # QEMU 测试农场工具单元与端到端回归
-├── os-chk-verify.yml      # OS-CHK 统一门禁编排（gates.yaml，P0/P1 阻断）
-├── codegen-verify.yml     # codegen 一致性校验（契约源 → 生成产物零漂移 SSoT gate，见 30-interfaces/06-codegen-pipeline.md §7.2）
+├── mgmt-verify.yml        # 管理仓：文件完整性（含 [SC] 头文件存在性与仓内唯一副本）+ 子仓 CI 聚合
 ├── ssot-verify.yml        # SSoT 规则 ID 校验（全仓）
-├── sc-verify.yml          # [SC] 共享契约层双向 CI（OS-IRON-008）
-├── mgmt-verify.yml        # 管理仓编排：文件完整性 + 子仓 CI 编排
-├── image-build.yml        # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁；可选复用 Release 内核包）
+├── kernel-verify.yml      # kernel 子仓：Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest
+├── airy-verify.yml        # Airymax 内核代码：4 架构构建 + kernel-airy（CONFIG/BTF/产物归属/符号冲突/SPDX）
+├── os-chk-verify.yml      # OS-CHK 统一门禁编排（gates.yaml，P0/P1 阻断）
+├── image-build.yml        # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁）
 ├── nightly.yml            # develop nightly build（L5/L6 连接/协议验证；formal/soak/chaos 工具未实现，降级 SKIP）
 └── release.yml            # release tag 流水线（L7 发布验证）
 ```
 
-> **规划说明**：`codegen-verify.yml` 是编译前置步骤的门禁（契约源变更触发全量重新生成），设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 180 分钟、`accept` 300 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
+> **薄壳原则**：8 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/check-workflows.py` 在每次 PR 强制。
+
+> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
 
 > **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
 
@@ -291,7 +288,7 @@ jobs:
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
 
-> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 13 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-verify.yml` 聚合各子仓 CI 状态（§2.2）。
+> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 8 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-verify.yml` 聚合各子仓 CI 状态（§2.2）。
 
 非 kernel 子仓按构建系统分类，每类一个 workflow 模板，子仓按自身归属选用：
 
@@ -317,9 +314,9 @@ jobs:
       - run: cargo test --all-features --no-fail-fast
 ```
 
-### 2.5 [SC] 共享契约层双向 CI（OS-IRON-008）
+### 2.5 [SC] 共享契约层门禁（OS-IRON-008）
 
-[SC] 层是 agentrt ↔ agent-linux 之间逐字节相同的 12 个头文件层（OS-IRON-014）。任一端的 [SC] 头文件变更必须触发对端的镜像 PR 并通过其 CI，详见 §7。
+[SC] 层是 kernel 与用户态共用的 12 个头文件契约（OS-IRON-014）。权威副本为 `kernel/include/uapi/linux/airymax/`，变更由 kernel 子仓 CI 与 os-chk 三道契约门禁共同验证；用户态消费副本的跨仓一致性尚未纳入门禁，详见 §7。
 
 ---
 
@@ -793,13 +790,15 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 
 ---
 
-## 7. [SC] 共享契约层双向 CI（OS-IRON-008）
+## 7. [SC] 共享契约层（OS-IRON-008）
 
-### 7.1 触发条件
+### 7.1 双仓副本模型
 
-[SC] 共享契约层是 agentrt ↔ agent-linux 之间逐字节相同的头文件层（OS-IRON-014）。物理宿主为 `kernel/include/uapi/linux/airymax/`，经 sc-verify 镜像 PR 机制同步到 `agentrt/commons/include/airymax/`（agentrt 独立仓镜像副本，一致性由双向 CI 强制）。目录下实际共 18 个文件：14 个 `.h`（12 个 [SC] 头文件 + 2 个 codegen 派生头 `structures_32_gen.h`/`structures_64_gen.h`）+ `syscall.xml`（R-01 SSoT）、`structures_32.bf`/`structures_64.bf`（R-02 SSoT）、`Kbuild`。
+[SC] 共享契约层是 kernel 与用户态共同遵守的头文件契约（OS-IRON-014）。权威副本位于 kernel 子仓 `kernel/include/uapi/linux/airymax/`；用户态仓 `agent-workload` 在 `agentrt/commons/include/airymax/` 维护消费副本，随 SDK 分发。两份副本的许可证头必然不同（内核侧 `GPL-2.0-only WITH Linux-syscall-note`，用户态侧 `BSD-3-Clause OR GPL-2.0`），故「逐字节相同」不是可达目标，契约一致性以声明与常量取值是否一致为准。
 
-当以下 12 个 [SC] 头文件中任一发生变更时，触发双向 CI（`syscall_gen.h`/`bpf_struct_ops.h` 为 2 个补充共享文件，与 10 个核心头同等强制字节校验）：
+权威副本目录下实际共 18 个文件：14 个 `.h`（12 个 [SC] 头文件 + 2 个 codegen 派生头 `structures_32_gen.h`/`structures_64_gen.h`）+ `syscall.xml`（R-01 SSoT）、`structures_32.bf`/`structures_64.bf`（R-02 SSoT）、`Kbuild`。
+
+`syscall_gen.h`/`bpf_struct_ops.h` 是两个补充共享文件，与 10 个核心头同等强制：
 
 | 序号 | 文件 | 共享内容 |
 |------|------|---------|
@@ -816,110 +815,30 @@ SSoT 校验独立于 7 层验证体系，是横切关注点：它不验证代码
 | 11 | `kernel/include/uapi/linux/airymax/lsm_types.h` | LSM 专用类型 |
 | 12 | `kernel/include/uapi/linux/airymax/bpf_struct_ops.h` | BPF 结构操作 |
 
-> 注：`syscall_gen.h`（`__NR_airy_sys_*` 548-551）为 [SC] 补充共享头，内容由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成并提交入库；作为 12 个 [SC] 头文件之一，参与镜像复制与 sc-verify 逐字节校验，禁止手工修改。
+> 注：`syscall_gen.h`（`__NR_airy_sys_*` 548-551）内容由 `syscall.xml`（R-01 SSoT）经 `tools/codegen/syscall_gen.py` 生成并提交入库，禁止手工修改；漂移由 OS-IRON-009-CODEGEN 门禁拦截。
 
-```yaml
-# agent-linux/.github/workflows/sc-verify.yml（触发段）
-on:
-  pull_request:
-    paths:
-      - 'kernel/include/uapi/linux/airymax/error.h'
-      - 'kernel/include/uapi/linux/airymax/log_types.h'
-      - 'kernel/include/uapi/linux/airymax/ipc.h'
-      - 'kernel/include/uapi/linux/airymax/sched.h'
-      - 'kernel/include/uapi/linux/airymax/memory_types.h'
-      - 'kernel/include/uapi/linux/airymax/security_types.h'
-      - 'kernel/include/uapi/linux/airymax/cognition_types.h'
-      - 'kernel/include/uapi/linux/airymax/syscalls.h'
-      - 'kernel/include/uapi/linux/airymax/uapi_compat.h'
-      - 'kernel/include/uapi/linux/airymax/lsm_types.h'
-      - 'kernel/include/uapi/linux/airymax/bpf_struct_ops.h'
-      - 'kernel/include/uapi/linux/airymax/syscall_gen.h'
-```
+### 7.2 三道强制检查
 
-### 7.2 双向流程
+| 检查 | 承载 | 拦什么 |
+|------|------|--------|
+| 头文件齐备 + 仓内唯一副本 | `mgmt-files` 门禁（`mgmt-verify.yml`） | 12 个 [SC] 头缺失；`ipc.h` 在本仓内被复制出第二份导致语义分叉 |
+| 五路编译与布局一致 | OS-CHK-DOC-04（`sc_tri_compile.py --check`，`os-chk-verify.yml`） | 头文件在 kernel / 用户态 / 第三方 / [DSL] 两条降级路径下编译失败或类型宽度、字段偏移漂移；`syscalls.h` ↔ `syscall.xml` ↔ `syscall_gen.h` 双向不一致 |
+| syscall ABI 稳定 | OS-IRON-001（`abi_check.py --check`，`os-chk-verify.yml`） | 已发布编号被改动、基线快照漂移 |
 
-```mermaid
-flowchart LR
-    A[kernel PR 触及<br/>12 个头文件] --> B{kernel CI<br/>28 矩阵+全套验证}
-    B -->|fail| Z[阻断 kernel PR 合并]
-    B -->|pass| C[触发 agentrt 镜像 PR]
-    C --> D{agentrt CI<br/>用户态全量验证}
-    D -->|fail| Z
-    D -->|pass| E[L1 子系统维护者审查]
-    E -->|NACK| Z
-    E -->|ACK| F[L3 顶级维护者审批]
-    F -->|reject| Z
-    F -->|approve| G[kernel PR 允许合并]
-```
+上表三道检查只覆盖权威副本。头文件位于 `kernel` 子仓内部，其变更由该子仓的 `kernel-verify.yml` 与管理仓上述门禁共同覆盖；用户态 `agentrt/commons/include/airymax/` 副本不在本仓 CI 覆盖范围内，跨仓一致性在 0.0.3 尚无门禁，已登记为 0.0.4 的 `SC-01`。
 
-### 7.3 流程步骤详解
+### 7.3 已退役的镜像 PR 机制
 
-1. **kernel CI 通过**：kernel 子仓 PR 先通过自身 CI（§2.3 全套验证）。若失败，kernel PR 直接阻断，不触发对端。
-2. **触发 agentrt 镜像 PR**：kernel CI 通过后，`sc-verify.yml` 自动在 agentrt 仓创建镜像 PR，包含相同头文件变更（通过 git format-patch/am 传递）。
-3. **agentrt CI 通过**：agentrt 仓对镜像 PR 运行用户态全量 CI（编译 + 单元测试 + 集成测试 + ABI 兼容性检查）。
-4. **L1 审查**：agentrt 子系统维护者（L1）审查头文件变更的语义正确性与向后兼容性。
-5. **L3 审批**：agentrt 顶级维护者（L3）最终审批，确认 [SC] 层契约稳定性。
-6. **kernel PR 允许合并**：两端 CI 全绿 + L1/L3 审批通过后，kernel PR 方可合并。
+0.0.2 及更早版本用 `sc-verify.yml` 在用户态镜像仓创建同名 PR 并轮询对端 CI。0.0.3 起该机制移除，原因有二：
 
-```yaml
-# agent-linux/.github/workflows/sc-verify.yml（核心 job）
-jobs:
-  kernel-ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: kernel CI (18 matrix + checkpatch + sparse + KUnit + kselftest)
-        run: tools/run-kernel-ci.sh
+- 镜像 PR 的触发路径写在管理仓 `pull_request.paths` 上，而这些路径全在 `kernel` gitlink 内部，父仓的 glob 永不命中，workflow 实际不可达；
+- 用户态副本随 `agent-workload` 独立发版后，两端许可证头必然不同，「逐字节 diff」的判定本身失效。
 
-  trigger-agentrt-mirror-pr:
-    runs-on: ubuntu-latest
-    needs: kernel-ci
-    if: success()
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create mirror PR in agentrt repo
-        env:
-          AGENTRT_TOKEN: ${{ secrets.AGENTRT_CI_TOKEN }}
-        run: |
-          # 导出 12 个头文件变更补丁
-          git format-patch origin/${{ github.base_ref }} HEAD -- \
-            kernel/include/uapi/linux/airymax/ -o /tmp/patches
-          # 在 agentrt 仓创建镜像 PR
-          python3 tools/create-agentrt-mirror-pr.py \
-            --patches /tmp/patches \
-            --source-pr ${{ github.event.pull_request.number }} \
-            --token "$AGENTRT_TOKEN"
+未来若要恢复跨仓校验，做法不是加回镜像 PR，而是在权威侧生成声明归一化后的哈希账本（`tools/sc-ledger`），由消费侧在自己的 CI 里比对同一份账本，既不需要跨仓 token，也不受 gitlink 路径限制。
 
-  await-agentrt-ci:
-    runs-on: ubuntu-latest
-    needs: trigger-agentrt-mirror-pr
-    steps:
-      - uses: actions/checkout@v4
-      - name: Poll agentrt mirror PR CI status
-        env:
-          AGENTRT_TOKEN: ${{ secrets.AGENTRT_CI_TOKEN }}
-        run: |
-          python3 agent-linux/tools/await-agentrt-ci.py \
-            --source-pr ${{ github.event.pull_request.number }} \
-            --timeout 30m \
-            --token "$AGENTRT_TOKEN"
+### 7.4 回归路径
 
-  require-l1-l3-review:
-    runs-on: ubuntu-latest
-    needs: await-agentrt-ci
-    steps:
-      - name: Require L1 ACK + L3 approval (enforced by branch protection)
-        run: echo "L1/L3 review enforced via GitHub branch protection rules"
-```
-
-### 7.4 回滚策略
-
-agentrt CI 失败时自动阻止 kernel PR 合并：
-
-- **镜像 PR CI 失败**：`await-agentrt-ci.py` 以非零退出码结束，`require-l1-l3-review` job 被跳过，kernel PR 的 `sc-verify` required check 显示失败 → GitHub branch protection 阻止合并。
-- **镜像 PR 自动关闭**：kernel PR 被关闭/合并时，`sc-verify.yml` 的 `pull_request` 关闭事件触发清理 job，自动关闭未完成的 agentrt 镜像 PR，避免悬挂 PR。
-- **逐字节校验**：合并前 `verify-byte-identical.py` 校验两端头文件 sha256 一致，防止镜像 PR 在传递中被篡改。
+门禁红即阻断：`mgmt-files` 失败说明契约头缺失或被复制出第二份，先删副本再谈变更；OS-CHK-DOC-04 失败说明改动破坏了五路编译或双向编号一致，必须改契约源（`syscall.xml`）后重新生成，不允许手改生成物；OS-IRON-001 失败说明动了已发布的 syscall 编号，属于破坏性变更，按 `05-development-process.md` 走 L3 审批并升主版本。
 
 ---
 
@@ -1095,7 +1014,7 @@ publish:
 | **8 子仓** | 并行（各子仓独立 workflow，互不阻塞） |
 | **kernel 28 矩阵** | `max-parallel: 8`（分批运行） |
 | **管理仓 2 job** | 串行（file-integrity → orchestrate-leaf-ci） |
-| **[SC] 双向 CI** | kernel CI → agentrt CI 串行（依赖关系） |
+| **[SC] 契约门禁** | `mgmt-files` → os-chk 三道检查串行（清单 → 五路编译 → ABI） |
 
 ### 9.4 超时约束（OS-STD-TEST-011）
 
@@ -1137,7 +1056,7 @@ kernel-build:
 | **静态分析警告** | sparse W=2 warning / Coccinelle report / clang-tidy warning | P0 | 阻断合并，PR 标记 `ci-fail-static` |
 | **格式违规** | checkpatch ERROR/WARNING / clang-format 差异 | P0 | 阻断合并，PR 标记 `ci-fail-format` |
 | **SSoT 违规** | 引用未登记/已废弃编号 / 格式错误 | P0 | 阻断合并，PR 标记 `ci-fail-ssot` |
-| **[SC] 双向 CI 失败** | agentrt 镜像 PR CI 失败 / 逐字节校验不一致 | P0 | 阻断 kernel PR 合并 |
+| **[SC] 契约门禁失败** | 头文件缺失或出现第二份物理副本 / 五路编译或编号双向不一致 | P0 | 阻断合并 |
 | **flaky 测试** | 同一 PR 重复运行结果不一致 | P1 | 登记 `airy_flaky_baseline.md`，限期修复 |
 
 ### 10.2 自动回滚策略
@@ -1168,7 +1087,7 @@ CI 失败通过 GitHub PR review comment 精准通知，避免全局噪音：
 |------|---------|------|
 | 编译/测试/静态分析失败 | PR 作者 + 子系统维护者（基于 `CODEOWNERS`） | PR review comment + check annotation |
 | SSoT 违规 | PR 作者 + 文档维护者（`50-engineering-standards/` CODEOWNERS） | PR review comment，列出违规编号与文件 |
-| [SC] 双向 CI 失败 | PR 作者 + kernel/agentrt 双方 L3 维护者 | PR review comment + 镜像 PR 链接 |
+| [SC] 契约门禁失败 | PR 作者 + kernel L3 维护者 | PR review comment + 门禁日志 |
 | nightly 回归 | 引入回归的 commit 作者 + 顶级维护者 | revert PR comment + 邮件列表 |
 | CI 总时长超 60 分钟（kernel 矩阵冷缓存轮次超 90 分钟） | CI 基础设施维护者 | issue 自动创建 |
 

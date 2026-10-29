@@ -7,7 +7,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 > **上级文档**：[80-testing README](README.md)\
 > **同源映射**：agentrt 7 层验证 L3（内核自检）+ Linux 6.6 内核基线 `lib/test_*.c`、`init/Kconfig`\
 > **理论根基**：Linux 6.6 内核基线自检思想 + Airymax 五维正交 24 原则（E-8 可测试性 / S-1 反馈闭环）\
-> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属自测试以独立 `lib/test_airy_*.c` 形式注入，禁止改写上游 `lib/test_*.c`；`sc-verify.yml` 强制校验 [SC] 头文件逐字节一致。
+> **核心约束**：IRON-9 v3 [IND] 独立实现层——agent-linux 专属自测试以独立 `lib/test_airy_*.c` 形式注入，禁止改写上游 `lib/test_*.c`；`[SC]` 契约门禁 强制校验 [SC] 头文件逐字节一致。
 
 ---
 
@@ -135,7 +135,7 @@ CONFIG_AIRY_TEST_SC=y          # [SC] 头文件逐字节
 CONFIG_AIRY_TEST_SELECTION=y   # 五大技术选型回归断言
 ```
 
-**OS-STD-061**：`airy_defconfig` 中所有 `CONFIG_AIRY_TEST_*` 必须为 `=y`，禁止 `=n` 或 `=m`；CI 在 `sc-verify.yml` 中通过 `grep` 验证，缺失或被关闭的 PR 禁止合入。
+**OS-STD-061**：`airy_defconfig` 中所有 `CONFIG_AIRY_TEST_*` 必须为 `=y`，禁止 `=n` 或 `=m`；CI 在 `[SC]` 契约门禁 中通过 `grep` 验证，缺失或被关闭的 PR 禁止合入。
 
 **OS-TEST-031**：自检模块禁止依赖 `=m`（模块态）；必须 `=y`（内置），保证 `late_initcall` 阶段自动执行。
 
@@ -434,7 +434,7 @@ late_initcall(test_airy_lsm_253_hooks);
 
 ### 3.5 [SC] 头文件逐字节校验自检
 
-`lib/airymax/test_airy_sc.c` 在内核启动阶段对 12 个 [SC] 共享契约层头文件进行逐字节自校验，与 `sc-verify.yml` 的 CI 阶段校验形成"启动时 + CI 时"双重保险。
+`lib/airymax/test_airy_sc.c` 在内核启动阶段对 12 个 [SC] 共享契约层头文件进行逐字节自校验，与 `[SC]` 契约门禁 的 CI 阶段校验形成"启动时 + CI 时"双重保险。
 
 ```c
 /* lib/airymax/test_airy_sc.c */
@@ -505,7 +505,7 @@ late_initcall(test_airy_sc_byte_for_byte);
 
 **OS-TEST-036**：[SC] 头文件自检必须在内核启动时计算 12 个头文件的 SHA-256，与构建时注入的预期哈希逐字节比对；任一不匹配即视为 [SC] 契约被破坏，自检以 `-EILSEQ` 失败，系统进入 `panic()` 防御模式（可选，由 `airy_sc_panic_on_mismatch` 启动参数控制）。
 
-**OS-STD-062**：`sc-verify.yml` 在 CI 阶段完成首次校验（双端 diff），本自检是"运行时第二次校验"，防止内核镜像被二次篡改；二者共同构成 [SC] 契约的双重保险。
+**OS-STD-062**：`[SC]` 契约门禁 在 CI 阶段完成首次校验（双端 diff），本自检是"运行时第二次校验"，防止内核镜像被二次篡改；二者共同构成 [SC] 契约的双重保险。
 
 ---
 
@@ -619,9 +619,9 @@ jobs:
           path: selftest.log
 ```
 
-### 5.2 `sc-verify.yml` 中的 [SC] 自检守护
+### 5.2 `[SC]` 契约门禁 中的 [SC] 自检守护
 
-`sc-verify.yml` 在 CI 阶段完成 12 个 [SC] 头文件的双端 diff 校验，与 `lib/airymax/test_airy_sc.c` 的运行时校验形成双重保险（见 §3.5）。
+`[SC]` 契约门禁 在 CI 阶段完成 12 个 [SC] 头文件的双端 diff 校验，与 `lib/airymax/test_airy_sc.c` 的运行时校验形成双重保险（见 §3.5）。
 
 ```yaml
 jobs:
@@ -646,7 +646,7 @@ jobs:
           done
 ```
 
-**OS-STD-064**：CI 阶段（`sc-verify.yml`）与启动阶段（`lib/airymax/test_airy_sc.c`）双重校验任一失败，PR 强制驳回；二者共同构成 [SC] 契约的"开发期 + 运行期"双重守护。
+**OS-STD-064**：CI 阶段（`[SC]` 契约门禁）与启动阶段（`lib/airymax/test_airy_sc.c`）双重校验任一失败，PR 强制驳回；二者共同构成 [SC] 契约的"开发期 + 运行期"双重守护。
 
 ### 5.3 选型守护自检与 CI 联动
 
@@ -727,7 +727,7 @@ kselftest（02 卷）是用户态系统级测试，启动用户态进程后通�
 - [../30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)：A-UEF [SC] error.h 契约
 - [../30-interfaces/09-sc-log-types-contract.md](../30-interfaces/09-sc-log-types-contract.md)：A-ULP [SC] log_types.h 契约
 - [../30-interfaces/10-sc-sched-extension.md](../30-interfaces/10-sc-sched-extension.md)：sched_tac [SC] sched.h 契约
-- [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`sc-verify.yml` + `kernel-verify.yml`）
+- [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`[SC]` 契约门禁 + `kernel-verify.yml`）
 
 ---
 

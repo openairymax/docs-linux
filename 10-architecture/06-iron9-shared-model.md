@@ -80,7 +80,7 @@ IRON-9 v2（三层）                    IRON-9 v3（四层）
 
 - 物理宿主在 `agent-linux/kernel/include/uapi/linux/airymax/` 目录
 - agentrt 通过 `-I` 编译选项引用同一物理文件
-- **禁止任何一端单方面修改**——变更必须双向同步，通过 `sc-verify.yml` 逐字节校验
+- **禁止任何一端单方面修改**——变更必须双向同步，通过 `[SC]` 契约门禁（OS-CHK-DOC-04）
 - 使用内核 UAPI 类型（`__u32`/`__u16`/`__u64`/`__u8`），不使用 `uint32_t` 等 C 标准库类型
 - **禁止使用 `float` 类型**——内核态不支持浮点运算
 
@@ -263,7 +263,7 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 
 ### 6.3 CI 校验
 
-`sc-verify.yml` 对 [SC] 头文件进行逐字节校验，`ssot-verify.yml` 对四层归属进行一致性校验：
+`[SC]` 契约门禁 对 [SC] 头文件进行逐字节校验，`ssot-verify.yml` 对四层归属进行一致性校验：
 
 - [SC] 头文件数量必须为 12（防止误增/误删）
 - 每个 [SC] 头文件必须有对应的 [DSL] 降级块
@@ -278,13 +278,13 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 
 | # | 校验项 | 校验方法 | 校验 workflow |
 |---|--------|---------|--------------|
-| 1 | [SC] 头文件逐字节一致 | `diff` 两端 12 个头文件 | `sc-verify.yml` |
+| 1 | [SC] 头文件逐字节一致 | `diff` 两端 12 个头文件 | `[SC]` 契约门禁 |
 | 2 | [SC] 数量为 12 | `ls include/uapi/linux/airymax/*.h \| wc -l == 12` | `ssot-verify.yml` |
 | 3 | 每个 [SC] 有 [DSL] 降级块 | `grep -l AIRY_SC_FALLBACK include/uapi/linux/airymax/*.h \| wc -l == 12` | `ssot-verify.yml` |
-| 4 | IPC magic 一致 | 两端均为 `0x41524531` | `sc-verify.yml` |
-| 5 | 错误码值一致 | 两端 `error.h` 逐字节相同 | `sc-verify.yml` |
-| 6 | 日志 magic 一致 | 两端均为 `0x414C4F47` | `sc-verify.yml` |
-| 7 | 编译器无关性 | `check-uapi-compiler-agnostic.sh` | `sc-verify.yml` |
+| 4 | IPC magic 一致 | 两端均为 `0x41524531` | `[SC]` 契约门禁 |
+| 5 | 错误码值一致 | 两端 `error.h` 逐字节相同 | `[SC]` 契约门禁 |
+| 6 | 日志 magic 一致 | 两端均为 `0x414C4F47` | `[SC]` 契约门禁 |
+| 7 | 编译器无关性 | `check-uapi-compiler-agnostic.sh` | `[SC]` 契约门禁 |
 
 ### 7.2 变更流程
 
@@ -293,7 +293,7 @@ A-UCS 模块的配置也属于 [SS] 层——内核侧 Kconfig/sysctl 与用户�
 1. **提议**：在对应的契约文档（如 `08-sc-error-contract.md`）提出变更提案
 2. **双向评审**：agentrt 和 agent-linux 双方维护者评审
 3. **同步修改**：修改 `kernel/include/uapi/linux/airymax/*.h` 物理头文件
-4. **CI 验证**：`sc-verify.yml` 双端逐字节校验通过
+4. **CI 验证**：`[SC]` 契约门禁（OS-CHK-DOC-04）通过
 5. **文档更新**：更新对应契约文档版本号 + 本文件版本号
 
 ---

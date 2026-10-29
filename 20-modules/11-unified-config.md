@@ -103,7 +103,7 @@ A-UCS 将配置按 IRON-9 v3 四层共享模型（ADR-014 确立 seL4 唯一来�
 
 | 约束 | 说明 | CI 校验 |
 |------|------|---------|
-| 逐字节相同 | agentrt 与 agent-linux 两端逐字节一致 | `sc-verify.yml` |
+| 逐字节相同 | agentrt 与 agent-linux 两端逐字节一致 | `[SC]` 契约门禁 |
 | 仅二进制布局 | 仅影响结构体大小、字段偏移、魔数 | 静态分析 |
 | 不可运行时修改 | 编译时确定，不支持热重载 | 无 sysctl |
 | 版本号强制 | `AIRY_CONFIG_VERSION` 不匹配拒绝加载 | 启动时校验 |
@@ -472,7 +472,7 @@ A-IPC 采用 Capability Folding 单平面架构（详见 [10-unify-design.md §8
 1. 在本文件提出变更提案
 2. agentrt 与 agent-linux 双方维护者评审
 3. 同步修改 `kernel/include/uapi/linux/airymax/config.h` 物理头文件
-4. `sc-verify.yml` 双端校验通过
+4. `[SC]` 契约门禁校验通过
 5. 更新 `AIRY_CONFIG_VERSION`
 
 ### 7.3 [SS] 层 Badge 模型配置

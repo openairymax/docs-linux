@@ -199,7 +199,7 @@ Fault 码从 `0x1000` 起步，每个 Fault 对应一个不可恢复的异常场
 
 ### 4.4 [SC] error.h 契约
 
-`kernel/include/uapi/linux/airymax/error.h` 是 A-UEF 的 [SC] 共享契约头文件，agentrt 与 agent-linux 物理共享同一份文件，逐字节相同。CI 通过 `sc-verify.yml` 验证两端 `error.h` 逐字节一致。详细契约定义见 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)。
+`kernel/include/uapi/linux/airymax/error.h` 是 A-UEF 的 [SC] 共享契约头文件，agentrt 与 agent-linux 物理共享同一份文件，逐字节相同。CI 通过 `[SC]` 契约门禁 验证两端 `error.h` 逐字节一致。详细契约定义见 [30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)。
 
 ---
 
