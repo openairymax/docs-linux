@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）更新机制设计详细规范
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）内核热更新、原子更新与回滚机制详细设计\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-10-29\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -41,12 +41,132 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 | 用户态 daemon 更新 | rpm-ostree + 滚动重启 | 部分重启 | 单服务 < 1 秒 | 应用更新 |
 | 大版本升级（1.0 → 2.0） | rpm-ostree rebase | 需重启 | 5-15 分钟 | 年度升级 |
 | 紧急回滚 | rpm-ostree rollback + 重启 | 需重启 | ≤ 30 秒 | 故障恢复 |
+| 版本发现（0.0.x） | 发行通道清单 + `airy-update check` | 无需重启 | 0 | 全量系统 |
 
 ---
 
-## 2. 内核热更新（livepatch）
+## 2. 更新通道与版本发现（0.0.x 落地）
 
-### 2.1 livepatch 架构
+### 2.1 能力边界
+
+0.0.x 全系以 openEuler 为基底（决策 B-01），自有包只随安装介质出厂，
+装完的系统上没有承载 AirymaxOS 自身版本的软件源；原子更新与自有仓库
+签名属 0.1.x（M-08/M-16，见 §4 与 §5）。因此本阶段的「更新」只有三项，
+边界之外一律明示不可为——用提示代替能力，等于把「装得上」当成「升得了」：
+
+| 能力 | 0.0.x 机制 | 明确不做 |
+|------|-----------|----------|
+| 版本发现 | 发行通道清单 + `airy-update check` | 不做增量差分、不做灰度发布 |
+| 基底勘误升级 | `dnf upgrade --refresh`（四段 openEuler 源） | 不做基底版本跃迁（SP2→SP3）的自动升级 |
+| 跨版本升级 | 重新烧录介质，清单给出 ISO 摘要 | 不做原地跨版本升级（无原子通道） |
+
+「同版本不同构建」是 0.0.x 的真实形态：`airymaxos-release-0.0.3-19` 与
+`-0.0.3-22` 的 `VERSION_ID` 完全相同而载荷不同。故版本身份必须是三元组；
+只读 `VERSION_ID` 会把两次构建当成同一个系统，也会把一次重建说成升级。
+
+### 2.2 本地版本身份（SSoT）
+
+| 字段 | 来源 | 用途 |
+|------|------|------|
+| `version` | `/usr/lib/os-release` 的 `VERSION_ID`（唯一事实源 `distro/release/os-release`） | 主版本比较 |
+| `build` | `airymaxos-release` 的 `%{RELEASE}`（`rpm -q --qf '%{RELEASE}'`） | 同版本内区分构建 |
+| `kernel` | `uname -r` | 诊断与清单对照 |
+
+派生路径（`/etc/system-release`、`PRETTY_NAME`）不得参与解析：它们是
+`VERSION_ID` 的投影，从投影反解版本等于把格式当成契约。
+
+比较规则：先按三段数值比较 `version`；相等再比 `build` 的整数段。
+`build` 不同只能得出「同版本重建」，不得表述为「有新版本」。
+
+### 2.3 发行通道清单
+
+清单是发布流水线的确定性产出，不是手写文件，与 `.sha256sum` 同源：
+
+| 项 | 取值 |
+|----|------|
+| 托管 | GitHub Release 资产 |
+| 地址 | `https://github.com/openairymax/agent-linux/releases/latest/download/channel.json` |
+| 选型理由 | 静态资产，无 API 配额、无需令牌、可被 CDN 缓存；不解析 HTML 页面 |
+| 生成 | `tools/release-engineering/` 的清单生成器，随 `release.yml` 产出 |
+| 签名 | 0.0.x 由 HTTPS 保证链路；GPG 随 0.1.x 自有仓库签名一并引入 |
+
+`schema_version=1` 的最小形态：
+
+```json
+{
+  "schema_version": 1,
+  "channel": "stable",
+  "version": "0.0.4",
+  "build": 3,
+  "released_at": "2026-11-20T00:00:00Z",
+  "iso": {"name": "airymaxos-0.0.4.iso", "size": 0, "sha256": "..."},
+  "kernel": {"nevra": "airymaxos-kernel-0.0.4-3.x86_64", "sha256": "..."},
+  "notes_url": "https://github.com/openairymax/agent-linux/releases/tag/v0.0.4"
+}
+```
+
+客户端只接受 `schema_version` 在白名单内、`sha256` 为 64 位十六进制、
+`notes_url` 落在发行域白名单内的清单；任一字段缺失或越界即整份判不可信
+并退出报错，不做「尽量理解」。清单若带 `iso.url`，其域名必须属于同一
+白名单，否则不渲染也不下载：远端字段不得把客户端变成任意地址的下载器。
+
+### 2.4 客户端 airy-update
+
+单文件 Python 3 实现，安装为 `/usr/bin/airy-update`，与 `airy-bench`
+同族；目录与命名随 `50-engineering-standards/10-coding-style`。
+
+| 子命令 | 网络 | 权限 | 行为 | 退出码 |
+|--------|------|------|------|--------|
+| `check` | 是 | 普通用户 | 取清单、比对、原子写状态 | 0 最新 / 10 有新版 / 1 失败 |
+| `status` | 否 | 普通用户 | 只读状态与本地身份 | 0 有状态 / 1 无状态 |
+| `apply` | 是 | `root` | 仅基底勘误的事务级升级 | 0 成功 / 1 失败 / 20 需重装介质 |
+| `notify` | 否 | 会话用户 | 有新版且未提醒过则发桌面通知 | 0 |
+
+状态文件 `/var/lib/airy-update/state.json` 只由 `check` 写：先写同目录
+临时文件再 `rename`，读者不会看到半份 JSON。字段含 `last_ok`（最近一次
+成功结论）、`last_error`（最近一次失败原因）、`notified`（已提醒过的
+`version/build` 对）。失败不覆盖 `last_ok`：一次 DNS 故障不该让系统
+「忘记」已知的新版本。
+
+`apply` 先用 `--assumeno` 求解事务计划，再据同一计划执行；计划中出现
+基底版本跃迁（包集合跨 SP 段迁移）即停止并返回 20，同时打印清单中的
+`iso.sha256` 与介质名。判定只看事务内容，不看版本号猜测。
+
+### 2.5 定时与提醒
+
+| 单元 | 关键参数 | 说明 |
+|------|----------|------|
+| `airymax-update-check.timer` | `OnCalendar=daily`、`RandomizedDelaySec=6h`、`Persistent=true` | 随机化避免同一镜像的终端集中取件 |
+| `airymax-update-check.service` | `Type=oneshot`、`After=network-online.target` | 失败只记 journal，不做重试风暴 |
+| `airymax-update-notify.desktop` | 会话 autostart | 调用 `notify`，同一 `version/build` 只提醒一次 |
+
+网络与状态属系统、提醒属会话，两者不共享凭据，也不要求用户会话常驻。
+
+### 2.6 验收
+
+| 层 | 用例 | 判据 |
+|----|------|------|
+| 单元 | 版本比较：同版本不同构建、跨段、前导零 | 三态结论正确，且不依赖字符串比较 |
+| 单元 | 清单校验：缺字段、坏摘要、越界域名、未知 schema | 一律判不可信，错误定位到字段 |
+| 单元 | 状态原子写与失败保留 | 注入异常后 `last_ok` 不被覆盖 |
+| 装机 | `airy-update status` | 三元组与 `os-release`、`rpm -q`、`uname -r` 一致 |
+| 装机 | `airy-update check` | 无网络时返回 1 且不污染状态；有网络时给出确定结论 |
+
+无网络时 `check` 判失败而非通过：把「没连上」记成「已是最新」是这类
+功能最常见的假绿，也是唯一无法靠人工复核发现的假绿。
+
+### 2.7 与 0.1.x 的衔接
+
+自有基底与自有仓库落地后：清单增加 `repo` 段与分离签名，`apply` 改由
+原子更新承担，`airy-update` 的子命令、退出码与状态 schema 保持不变——
+变化在通道，不在接口。届时 §5 的回滚能力接管失败路径，本节的「需重装
+介质」分支随之删除，而不是保留为兼容路径。
+
+---
+
+## 3. 内核热更新（livepatch）
+
+### 3.1 livepatch 架构
 
 Linux 6.6 内核基线原生支持 livepatch 子系统（CONFIG_LIVEPATCH=y），允许在不重启系统的情况下替换内核函数实现：
 
@@ -61,7 +181,7 @@ CONFIG_FUNCTION_TRACER=y
 CONFIG_FTRACE=y
 ```
 
-### 2.2 livepatch 模块开发
+### 3.2 livepatch 模块开发
 
 ```c
 /* kernel/livepatches/lp_sched_agent_fix.c */
@@ -136,7 +256,7 @@ MODULE_INFO(livepatch, "Y");
 MODULE_DESCRIPTION("agent-linux stc_agent vtime fix");
 ```
 
-### 2.3 livepatch 应用流程
+### 3.3 livepatch 应用流程
 
 ```bash
 #!/bin/bash
@@ -166,7 +286,7 @@ cat /proc/kallsyms | grep airy_sched_agent_compute_weight
 echo "[完成] livepatch 已应用，无需重启系统"
 ```
 
-### 2.4 livepatch 回滚
+### 3.4 livepatch 回滚
 
 ```bash
 #!/bin/bash
@@ -196,9 +316,9 @@ echo "[完成] livepatch 已回滚"
 
 ---
 
-## 3. rpm-ostree 原子更新
+## 4. rpm-ostree 原子更新
 
-### 3.1 rpm-ostree 架构
+### 4.1 rpm-ostree 架构
 
 rpm-ostree 将整个系统（内核 + 用户态 + 配置）作为不可变的"操作系统树"（ostree）管理。每次更新生成一棵新树，原子切换：
 
@@ -222,7 +342,7 @@ rpm-ostree 将整个系统（内核 + 用户态 + 配置）作为不可变的"�
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 系统初始化（首次安装）
+### 4.2 系统初始化（首次安装）
 
 ```bash
 #!/bin/bash
@@ -262,7 +382,7 @@ ostree admin status
 echo "[完成] rpm-ostree 系统已初始化"
 ```
 
-### 3.3 原子更新流程图
+### 4.3 原子更新流程图
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -289,7 +409,7 @@ echo "[完成] rpm-ostree 系统已初始化"
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.4 原子更新命令
+### 4.4 原子更新命令
 
 ```bash
 #!/bin/bash
@@ -320,9 +440,9 @@ rpm-ostree status
 
 ---
 
-## 4. 回滚机制
+## 5. 回滚机制
 
-### 4.1 回滚部署状态
+### 5.1 回滚部署状态
 
 ```bash
 # 查看所有部署版本
@@ -340,7 +460,7 @@ rpm-ostree status
 # 当前活跃版本（* 标记）为 1.0.2，可回滚到 1.0.1
 ```
 
-### 4.2 回滚命令序列
+### 5.2 回滚命令序列
 
 ```bash
 #!/bin/bash
@@ -383,7 +503,7 @@ echo "[6/6] 重启后健康检查（在启动脚本中执行）"
 # /usr/lib/airymaxos/scripts/health_check.sh
 ```
 
-### 4.3 自动回滚机制
+### 5.3 自动回滚机制
 
 系统启动后执行健康检查，若失败则自动回滚到前一版本：
 
@@ -484,9 +604,9 @@ exit 0
 
 ---
 
-## 5. MemoryRovol 数据兼容性
+## 6. MemoryRovol 数据兼容性
 
-### 5.1 数据版本化
+### 6.1 数据版本化
 
 MemoryRovol L1-L4 数据卷在更新过程中保留版本标记，确保跨版本兼容：
 
@@ -522,7 +642,7 @@ layers:
     schema_compatible: [1.0.1, 1.0.2]
 ```
 
-### 5.2 数据迁移
+### 6.2 数据迁移
 
 更新后若 schema 不兼容，自动执行数据迁移：
 
@@ -567,9 +687,9 @@ echo "[完成] MemoryRovol 数据已迁移至 $TARGET_VERSION"
 
 ---
 
-## 6. 滚动重启机制
+## 7. 滚动重启机制
 
-### 6.1 daemon 滚动重启
+### 7.1 daemon 滚动重启
 
 用户态 daemon 更新后，通过 systemd 滚动重启，避免全部服务同时下线：
 
@@ -613,7 +733,7 @@ echo "[完成] 12 daemon 滚动重启完成"
 
 ---
 
-## 7. 错误码体系对接
+## 8. 错误码体系对接
 
 更新机制错误码纳入 agent-linux 统一错误码体系（`include/uapi/linux/airymax/error.h`，[SC] 共享契约层）。**`AIRY_E*` 常量为正数幅值（如 POSIX errno），调用方返回 `-AIRY_E*` 产生负错误值**；[SC] error.h 中**不存在** `AIRY_DIST_*` 专用段（原虚构的 -1000~-1099 段已废弃，见 [160-compatibility/05-cross-distro.md §15.1](../160-compatibility/05-cross-distro.md)），更新机制场景复用既有段码，未来发行版专属错误码向 error.h 保留段 241-300 申请：
 
@@ -660,7 +780,7 @@ out_err:
 
 ---
 
-## 8. 五维原则映射
+## 9. 五维原则映射
 
 | 原则 | 在本设计的体现 |
 |------|---------------|
@@ -673,7 +793,7 @@ out_err:
 
 ---
 
-## 9. IRON-9 v3 同源映射
+## 10. IRON-9 v3 同源映射
 
 | 组件 | agent-linux（[IND]） | agentrt（[IND]） |
 |------|--------------------------|------------------|
@@ -686,17 +806,18 @@ agent-linux 的更新机制与 agentrt 完全独立（[IND] 完全独立层）�
 
 ---
 
-## 10. 相关文档
+## 11. 相关文档
 
 - `190-distribution/README.md`（发行版管理主索引）
 - `190-distribution/01-rpm-packaging.md`（RPM 打包设计）
 - `190-distribution/03-installer-design.md`（安装器设计）
+- `120-development-process/09-release-process.md`（发布流程，通道清单的产出方）
 - `100-operations/README.md`（部署运维）
 - `170-performance/02-memory-performance.md`（MemoryRovol 配置）
 
 ---
 
-## 11. 参考材料
+## 12. 参考材料
 
 - Linux 6.6 `kernel/livepatch/`（livepatch 子系统）
 - rpm-ostree 项目文档
