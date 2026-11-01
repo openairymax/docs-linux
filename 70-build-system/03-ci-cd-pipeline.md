@@ -104,7 +104,7 @@ agent-linux/.github/workflows/
 
 > **薄壳原则**：8 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/check-workflows.py` 在每次 PR 强制。
 
-> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-验收发行方案.md`](../../docs-closed/agent-linux-dev/0.0.3-验收发行方案.md) §3。
+> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
 > **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
 
