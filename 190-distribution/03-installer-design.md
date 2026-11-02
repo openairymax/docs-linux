@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）安装器设计
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）系统安装器工程设计文档，覆盖安装模式、分区方案、引导加载器配置、kickstart 自动化、ISO/QCOW2 镜像构建、介质写入、cloud-init 云定制、安装测试与错误处理\
-> **文档版本**：v1.0.3\
-> **最后更新**： 2026-10-26\
+> **文档版本**：v1.0.4\
+> **最后更新**： 2026-11-02\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **理论根基**：Linux 6.6 内核基线工程思想 + seL4 微内核设计思想 + Airymax 体系并行论\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -19,7 +19,7 @@ agent-linux（AirymaxOS）作为智能体操作系统发行版，其安装器是
 1. **三模式安装**：最小安装（Minimal）/ 完整安装（Full）/ 自定义安装（Expert）三种模式覆盖不同场景
 2. **多场景覆盖**：支持裸机安装（ISO）、虚拟机部署（QCOW2）、容器化部署（Docker）、云镜像部署（cloud-init）、PXE 网络安装
 3. **kickstart 自动化 100%**：所有安装场景均可通过 kickstart 文件自动化，无人值守完成
-4. **分区智能**：根据用户选择自动生成分区方案，支持 Btrfs 子卷、LVM、RAID，预留 PMEM 持久化区域与 CXL 内存区域
+4. **分区智能**：根据用户选择自动生成分区方案，支持 Btrfs 子卷、LVM、RAID，预留 PMEM 持久化区域与 CXL 内存区域；0.0.4 交付系统分区与数据分区分离的布局（§3.6），`/data` 可独立扩容
 5. **引导加载器安全**：GRUB + Secure Boot + TPM 2.0 度量，确保引导链可信
 
 ### 1.2 基线约束
@@ -218,6 +218,121 @@ echo always > /sys/kernel/mm/transparent_hugepage/enabled
 hugetlbfs /var/lib/agentrt/hugepages hugetlbfs mode=1770,gid=1000 0 0
 ```
 
+### 3.6 0.0.4 交付布局（系统分区与数据分区分离）
+
+> **交付态（2026-11-02）**：0.0.4 的选盘与分区由
+> `distro/kickstart/disk-select.sh` 单独定义，构建期以
+> `# %airy-embed: disk-select.sh` 内嵌进 kickstart 的 `%pre` 与 `%post`，
+> 源码区没有第二份手抄规则。§3.1~§3.5 仍是 1.0.x 的目标形态（Btrfs 子卷 /
+> LVM / PMEM），0.0.4 不交付它们。
+
+判据 DISK-01（《0.0.4 极境OS任务方案》§6.3 M-36）：装机后 `lsblk` 至少两个
+独立分区，`/` 与 `/data` 各自挂载且 `findmnt` 可分别取证；`/data` 可独立扩容，
+系统分区 UUID 与 `fsck` 结果不变；裸盘、多盘、双系统三种拓扑走同一条代码
+路径；无盘符、机型或品牌硬编码。
+
+#### 3.6.1 选盘
+
+| 步骤 | 规则 | 实现 |
+|------|------|------|
+| 排除安装介质 | 由介质挂载点反查整盘，不进入候选 | `airy_medium` |
+| 候选 | `TYPE=disk`、`RM=0`、`TRAN≠usb`、容量非零，按容量降序 | `airy_scan` |
+| 系统盘 | 第一块未被占用的候选；全部被占用时退回容量最大者 | `airy_pick` |
+| 数据盘 | 第一块既非系统盘、又未被占用的候选；没有则同盘切分 | `airy_data` |
+| 容量下限 | 系统盘小于 32 GiB 时在分区之前中止安装 | `airy_pre` |
+
+介质排除先以 `findmnt -no SOURCE` 取挂载源，再用 `lsblk -dno PKNAME` 求整盘：
+BMC 虚拟光驱与内置盘上的 ISO 都表现为 `RM=0`，不排除会把安装源自己格式化。
+
+"被占用"指该整盘自身或任一子分区的 `FSTYPE` 非空、存在分区号、或已挂载
+（`airy_busy`）。双系统现场那块更大的盘往往已有 Windows，按容量直接选会清掉
+既有系统，故空盘优先；全部盘都被占用时退回容量最大者，重装本系统的现场
+因此仍然可用。
+
+#### 3.6.2 布局
+
+磁盘标签固定 GPT，两条固件腿使用同一份布局；`initlabel` 的默认标签随固件与
+容量漂移，布局一旦随环境变化，两条腿就不再是同一种装机。
+
+单盘（系统盘与数据分区同一块盘）：
+
+| 分区 | 文件系统 | 大小 | 说明 |
+|------|----------|------|------|
+| `/boot/efi` | efi | 600 MiB | EFI 系统分区 |
+| `/boot` | ext4 | 1024 MiB | 内核与 initramfs |
+| swap | swap | 8192 MiB | `AIRY_SWAP_MIB` |
+| `/` | ext4 | 定容 `airy_root_mib` | 系统分区 |
+| `/data` | ext4 | 10240 MiB `--grow` | 数据分区 |
+
+双盘（系统盘之外还有一块未被占用的内置盘）：
+
+| 盘 | 分区 | 文件系统 | 大小 |
+|----|------|----------|------|
+| 系统盘 | `/boot/efi`、`/boot`、swap | efi / ext4 / swap | 600/1024/8192 MiB |
+| 系统盘 | `/` | ext4 | `--size=1 --grow` |
+| 数据盘 | `/data` | ext4 | `--size=1 --grow` |
+
+- BIOS 腿在系统盘最前额外生成 1 MiB `biosboot`（`ef02`）：GPT 没有 MBR 之后
+  那段空隙可放 `grub2-pc` 的 `core.img`，缺它时 anaconda 判存储配置无效并退回
+  交互式主菜单，无头安装只能空耗整轮超时。UEFI 从 ESP 引导，多一个 biosboot
+  是无用分区，故只在 BIOS 腿生成。
+- 每条 `part` 都带 `--ondisk`，并以 `ignoredisk --only-use` 收敛作用域；不用
+  `autopart`——它的引导设备选取会跨盘寻找既有 ESP、`/boot` 与 swap，
+  `ignoredisk --only-use` 约束不到这条路径。
+- `clearpart --all --initlabel --disklabel=gpt --drives=...` 只清作用域内的盘。
+
+同盘切分时系统分区的定容公式（单位 MiB）：
+
+```text
+avail = 盘字节 / 1 MiB − AIRY_SWAP_MIB − 1625
+half  = avail / 2
+lo    = 20480            # AIRY_ROOT_MIB
+hi    = avail − 10240    # AIRY_DATA_MIB
+root  = half 夹逼到 [lo, hi]；hi < lo 时 root = half
+```
+
+1625 MiB 是 biosboot 1 + ESP 600 + `/boot` 1024 的定值余量。折半让系统与数据
+两侧都不至于太窄；小盘上夹逼区间为空时退回折半，让 `/data` 仍拿得到可用空间，
+而不是把余量全部塞进系统分区。
+
+DISK-01 判据② 的依据：`/data` 独立挂载且位于系统分区之后，扩容只改数据分区
+尾端，不移动系统分区起止扇区，系统分区 UUID 与 `fsck` 结果因此保持不变。
+
+#### 3.6.3 选盘记录与装成后取证
+
+| 阶段 | 动作 | 结论落点 |
+|------|------|----------|
+| `%pre` | 选盘、生成分区片段、写选盘记录 | 串口 `AIRYMAX-DISK-*` |
+| `%post --nochroot` | `airy_keep` 复制记录进目标根 | 串口 `KEEP-*` |
+| `%post` | `airy-disk persist` 判定 fstab | 串口 `DISK-OK` / `-DIAG` |
+
+- `%pre` 成功打印 `AIRYMAX-DISK-OK` 及系统盘名、容量、总线、布局、固件、
+  数据盘六个字段；无内置盘与容量不足时打印 `AIRYMAX-DISK-FAIL`，原因分别为
+  `reason=no-internal-disk` 与 `reason=too-small`，都在分区之前终止安装。
+- `%post --nochroot` 成功打印 `AIRYMAX-DISK-KEEP-OK` 与目标根内路径
+  `/var/lib/airymaxos/install-disk.json`，失败为 `AIRYMAX-DISK-KEEP-FAIL`。
+- `%post` 成功打印 `AIRYMAX-DISK-OK <persist>`；失败先打印
+  `AIRYMAX-DISK-DIAG persist=…`，再以 `fail disk-fstab` 中止安装。
+
+选盘记录 schema 1 字段：`disk`（选中的系统盘）、`bytes`、`bus`、`firmware`
+（`uefi` / `bios`）、`layout`（`single` / `dual`）、`medium`（安装介质整盘）、
+`data`（数据盘，单盘时为空）。装成后 `airy-disk status` 以它为基准比对现场
+拓扑，结论为 `match` / `mismatch` / `absent` / `invalid` 之一。
+
+装成后的取证命令（亦即验收冒烟 T17 的判据）：
+
+```bash
+findmnt -n -o SOURCE /           # 系统分区源
+findmnt -n -o SOURCE /data       # 数据分区源，必须与上一行不同
+lsblk -n -o TYPE <源>             # 两处都必须是 part
+lsblk -n -o TYPE | grep -cx part  # 分区数 ≥2
+airy-disk layout --fstab /etc/fstab
+```
+
+`lsblk` 的 `TYPE` 判定不可省：Btrfs 子卷形如 `/dev/sda2[/@data]`，`/` 与
+`/data` 虽然源字符串不同，却仍落在同一个分区上。冒烟只看实际块层，不读
+安装期计划文件——计划与落地不一致时，读计划会漏检。
+
 ---
 
 ## 4. 引导加载器配置
@@ -415,13 +530,18 @@ minimal 变体不加 `rhgb`：它没有画面可换，留下逐行日志更便�
 
 ## 5. kickstart 自动安装配置
 
-> **0.0.3 交付态（2026-10-18）**：本章 §5.1/§5.2 保留 1.0 目标形态（`cdrom` 源、
-> Btrfs/LVM 布局）；0.0.3 实际交付的配方为
-> `distro/kickstart/airymaxos-minimal.ks` 与 `airymaxos-workstation.ks`，两者以
-> openEuler 24.03 LTS-SP2 官方 `url` 仓库在线组装、`autopart --type=plain
-> --fstype=ext4` 收敛首版装机面。口径收敛决策见《0.0.3 极境OS任务方案》
-> M-03 实施注记；Btrfs/LVM 随 0.1.x 的 M-14/M-15 再评估。以下示例中的账户、
-> 服务与包名以交付配方为准（见 §5.4~§5.6）。
+> **0.0.4 交付态（2026-11-02）**：实际交付的配方仍为
+> `distro/kickstart/airymaxos-minimal.ks` 与 `airymaxos-workstation.ks`，
+> 但分区不再走 `autopart`：`%pre` 调用 `disk-select.sh` 生成逐项 `--ondisk`
+> 的片段并 `%include`，系统分区与数据分区分离（§3.6）。两份配方共用同一份
+> 选盘规则，构建期由 `tools/ks_embed.py` 展开。
+>
+> **0.0.3 交付态（2026-10-18）**：本章 §5.1/§5.2 保留 1.0 目标形态（`cdrom`
+> 源、Btrfs/LVM 布局）；0.0.3 交付的配方以 openEuler 24.03 LTS-SP2 官方
+> `url` 仓库在线组装、`autopart --type=plain --fstype=ext4` 收敛首版装机面。
+> 口径收敛决策见《0.0.3 极境OS任务方案》M-03 实施注记；Btrfs/LVM 随 0.1.x
+> 的 M-14/M-15 再评估。以下示例中的账户、服务与包名以交付配方为准
+> （见 §5.4~§5.6）。
 
 ### 5.1 最小安装 kickstart（Btrfs 子卷方案）
 
@@ -1441,6 +1561,7 @@ agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），�
 
 | 版本 | 安装模式 | 分区 | 引导 | kickstart | 备注 |
 |------|---------|------|------|-----------|------|
+| 0.0.4 | 无人值守 | 系统/数据双分区（§3.6） | GRUB + ESP 品牌化 | 选盘器嵌入 | 285H 实机验收 |
 | 0.1.1 | 设计 | — | — | — | 仅文档 |
 | 1.0.1 | 三模式 | Btrfs/LVM | GRUB + SB + TPM | 完整 | 开发 |
 | 1.1.0 | + Cloud | + RAID | + Measured Boot | + 模板 | 云环境 |
@@ -1448,4 +1569,4 @@ agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），�
 
 ---
 
-> **文档结束** | agent-linux（AirymaxOS）安装器设计 v1.0.3
+> **文档结束** | agent-linux（AirymaxOS）安装器设计 v1.0.4
