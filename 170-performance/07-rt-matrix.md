@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）实时能力矩阵
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）实时能力探测与适用性判定设计\
-> **文档版本**：v1.0.1\
+> **文档版本**：v1.1.0\
 > **最后更新**： 2026-11-03\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -21,7 +21,8 @@ CPU 是否隔离、调频是否被钉在 performance，这些条件各自独立�
 因此本设计把每项能力单列，并给出整机等级，供安装器、验收套件与运维共同判读。
 
 **适用范围**：装机自检、升级后能力回归、实时工作负载准入判定、现场故障定位。
-**不在范围**：修改任何内核参数（由 X-05 共存策略负责）、实时性压测（由 X-04 负责）。
+**不在范围**：修改内核启动参数（由 X-05 共存策略只读使用，不写 `cmdline`）、
+实时性压测（由 X-04 负责）。
 
 ---
 
@@ -90,7 +91,55 @@ airy-rt-cap matrix [--json] [--sysroot DIR] [--procroot DIR]
 
 ---
 
-## 5. 与其他任务的关系
+## 5. 桌面与实时共存
+
+实时带宽只约束 SCHED_FIFO/SCHED_RR 的总量，不约束 agent 侧的 CFS 负载。合成器、
+输入线程与 agent 进程同为 SCHED_OTHER，按 slice 权重分 CPU；重负载下桌面失响应
+不是因为实时预算超标，而是普通负载抢走了 CPU。共存动作因此只有一个：在基线与
+保护值之间切换桌面 slice 的 `CPUWeight`。
+
+| 项 | 取值 | 说明 |
+|----|------|------|
+| 触发信号 | `/proc/pressure/cpu` 的 `some avg10` | 有任务可运行却在等 CPU 的时间占比 |
+| 阈值 | 20% | 达到即进入保护档 |
+| 基线权重 | 50 | 与 `airymax-desktop.slice` 的静态值一致 |
+| 保护权重 | 200 | 运行时抬升，桌面在被抢占时获得更大份额 |
+| 落地方式 | `systemctl set-property --runtime` | 只在本启动内生效，重启回落静态基线 |
+
+用 PSI 而不是 `/proc/loadavg`：后者把不可中断睡眠算进负载，等 IO 时也会推高，
+据此抬权重会让真正的 CPU 争用失去区分度。读不到 PSI 时保持基线——没有证据
+不做调整。
+
+写完后回读 `CPUWeight`，只有回读值等于目标值才算落地，因此「命令返回 0」与
+「属性真的改了」在报告里是两件事。
+
+矩阵等级是准入而不是动作：`none` 时实时负载本来就不会被调度，桌面无须让路；
+`governor`/`isolated`/`threadirqs` 作为建议输出，用于解释「实时延迟为什么降不
+下来」。调频归 `airy-power` 独占，本策略只读不写，避免两处同时写
+`scaling_governor`。
+
+```text
+airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
+                    [--systemctl FILE] [--pressure FILE]
+```
+
+| 退出码 | 含义 |
+|-------|------|
+| 0 | 已一致，或桌面 slice 未加载（`absent`） |
+| 3 | 漂移：只读评估与目标权重不一致，或 `--apply` 的写入未被回读确认 |
+| 1 | `systemctl` 查询失败，未做任何调整 |
+
+`--json` 与 `Plan.dump()` 同形，字段为 `mode`、`unit`、`weight`、`current`、
+`pressure`、`grade`、`present`、`admit`、`applied`、`notes`、`detail`。
+
+落地单元为 `airy-rt-coexist.service` 与 `airy-rt-coexist.timer`：开机 90 秒后
+首次评估，之后每 60 秒重评。桌面 slice 只在登录后存在，未登录时单元报 `absent`
+并以 0 退出，不产生 failed 与 incident。两个单元默认关闭，桌面档位由 kickstart
+显式启用；服务器档位不启用时不产生任何运行时写入，桌面权重恒为静态基线。
+
+---
+
+## 6. 与其他任务的关系
 
 - **X-01 实时带宽**：`matrix` 的 `budget` 与 `group` 直接复用带宽包的布局识别，
   避免同一份 cgroup 判定出现两套口径。
@@ -101,8 +150,9 @@ airy-rt-cap matrix [--json] [--sysroot DIR] [--procroot DIR]
 
 ---
 
-## 6. 版本历史
+## 7. 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.1.0 | 2026-11-03 | 增加 §5 桌面与实时共存：PSI 阈值、权重切换、`coexist` 接口与落地单元 |
 | v1.0.1 | 2026-11-03 | 初版：八项能力、三态判据、三级等级与命令接口 |
