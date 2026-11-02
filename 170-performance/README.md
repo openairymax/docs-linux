@@ -54,7 +54,7 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 
 ## 3. 文档索引
 
-`170-performance/` 由 7 个文档构成（含本 README）：
+`170-performance/` 由 8 个文档构成（含本 README）：
 
 ```
 170-performance/
@@ -64,7 +64,8 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 ├── 03-ipc-performance.md          # IPC 性能（AgentsIPC + io_uring 批量提交）（v1.0）
 ├── 04-token-efficiency.md         # Token 能效工程（Token/Watt + Token/Latency + Token/Dollar）（v1.0）
 ├── 05-agent-latency-slo.md       # Agent 延迟 SLO（L1/L2/L3 三级 + 延迟预算）（v1.0）
-└── 06-benchmark-suite.md          # 基准测试套件（4 层分层 + 回归检测 + CI/CD）（v1.0）
+├── 06-benchmark-suite.md          # 基准测试套件（4 层分层 + 回归检测 + CI/CD）（v1.0）
+└── 07-rt-matrix.md                # 实时能力矩阵（八项三态探测 + 三级等级）（v1.0）
 ```
 
 ### 3.1 各文档定位
@@ -78,6 +79,7 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 | 04-token-efficiency.md | Token 能效怎么测？ | 三大能效指标 + RAPL 功耗测量 + 能效回归检测 |
 | 05-agent-latency-slo.md | Agent 延迟怎么保障？ | L1/L2/L3 三级 SLO + 违约处理 + 延迟预算 |
 | 06-benchmark-suite.md | 基准测试怎么做？ | 4 层分层体系（L1 微基准/L2 子系统/L3 端到端/L4 压力）+ CI 集成 |
+| 07-rt-matrix.md | 这台机器能不能跑实时？ | 八项三态探测 + ready/soft/none 三级判定 + 门禁退出码 |
 
 ### 3.2 性能工程分层
 
@@ -184,7 +186,8 @@ A-ULP 的日志 Ring Buffer 基于 **alloc_pages + mmap**（**不使用 DMA 一�
 | 0.1.1 | 2026-07-13 | 初始版本，6/6 文档完成（调度 + 内存 + IPC + Token + SLO + 基准测试） |
 | v1.0 | 2026-07-17 | 升级为 v1.0：新增sched_tac 技术选型声明（不使用 sched_ext）；IORING_OP_URING_CMD（不使用 page flipping）；纯 C LSM（不使用 BPF LSM）；alloc_pages + mmap（不使用 DMA 一致性内存）；IRON-9 v3 四层模型（新增 [DSL] 降级生存层）；新增sched_tac 三层调度性能 SLO（SCHED_DEADLINE ≤150ns / SCHED_FIFO ≤100ns / EEVDF ≤100ns / IPC ≤50ns / 日志 ≤100ns / Capability ≤30ns / 吞吐 ≥10M msg/s）；新增 Airymax Unify Design 五模块映射（A-ULS 调度性能 / A-IPC IPC fastpath / A-ULP 日志 Ring Buffer） |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.1 | 2026-11-03 | 新增 07-rt-matrix.md：八项实时能力三态探测、ready/soft/none 三级判定与门禁退出码 |
 
 ---
 
-> **文档结束** | 性能工程模块 v1.0.1 | 共 7 文档 | 维护者：开源极境工程与规范委员会 | 一切性能 SLO 必须可保障
+> **文档结束** | 性能工程模块 v1.0.1 | 共 8 文档 | 维护者：开源极境工程与规范委员会 | 一切性能 SLO 必须可保障
