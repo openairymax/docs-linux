@@ -100,7 +100,7 @@ agent-linux（AirymaxOS）作为智能体操作系统发行版，其安装器是
 
 ```
 完整安装额外包组：
-  - @airymax-desktop              # 桌面环境（UKUI 4.x）
+  - @airymax-desktop              # 桌面环境（UKUI 3.1 组件代）
   - @development-tools            # 开发工具
   - airymaxos-cognition           # CoreLoopThree 认知运行时
   - airymaxos-memory              # MemoryRovol 记忆卷载
