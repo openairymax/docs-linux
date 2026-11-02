@@ -470,7 +470,7 @@ agent-linux 的 NPU 调度能力应通过 `drivers/accel/` + DRM-RAS（7.1）构
 | AgentsIPC 延迟   | < 200 cycles | ≤ 200 cycles | 微基准             |
 | Token 能效       | 基线值          | ≥ 100%       | RAPL            |
 | 系统启动时间         | 基线值          | ≤ 120%       | systemd-analyze |
-| 实时响应           | < 10ms       | ≤ 10ms       | cyclictest      |
+| 实时响应           | < 10ms       | ≤ 10ms       | airy-rt-lat     |
 
 > **重要澄清**：主线 Linux 7.0/7.1 **没有**「AI Subsystem Framework」「内核级 AI 预测引擎」「NPU 调度类」等（CSDN 不实信息已排除）。AI 在 7.0/7.1 中的体现是**间接**的：accel 子系统（drivers/accel/）+ AMD NPU 驱动（amdxdna）+ DRM-RAS（7.1）。agent-linux 若需 NPU/GPU 调度能力，应基于 accel 子系统构建用户态策略层。
 

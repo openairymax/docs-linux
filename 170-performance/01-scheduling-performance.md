@@ -39,7 +39,7 @@ agent-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提供
 | L2 | 上下文切换开销 | ≤ 2μs（同核）/ ≤ 8μs（跨核） | perf sched |
 | L3 | Agent 任务 P99 响应延迟 | ≤ 100ms | user_events trace |
 | L4 | Token/Watt 能效 | 较 CFS 提升 ≥ 30% | perf + RAPL 功耗 |
-| L5 | 调度器抖动（jitter） | P99 ≤ 200μs | cyclictest + HPET |
+| L5 | 调度器抖动（jitter） | P99 ≤ 200μs | airy-rt-lat（cyclictest 同构） |
 
 ---
 
@@ -404,7 +404,7 @@ cat /sys/fs/cgroup/agentrt/sched.agent_tasks
 | 基准 | 工具 | 测量维度 | 目标值 |
 |------|------|----------|--------|
 | 调度延迟 | `perf sched latency` | enqueue→dispatch | P99 ≤ 50μs |
-| 抖动 | `cyclictest -p 95 -m -t1` | 最大延迟 | P99 ≤ 200μs |
+| 抖动 | `airy-rt-lat -p 95 -i 200` | 最大延迟 | P99 ≤ 200μs |
 | 上下文切换 | `perf bench sched messaging` | ops/sec | ≥ 默认 CFS 110% |
 | Token 吞吐 | `agentrt-bench token-stream` | Token/s | ≥ CFS 130% |
 | 能效 | `perf stat -e power/energy-pkg/` | Token/Watt | ≥ CFS 130% |
@@ -428,9 +428,8 @@ echo "[2/5] 调度延迟基准（30 秒采样）"
 perf sched record -F 99 -a -- sleep 30 2>/dev/null
 perf sched latency -i perf.data > "$RESULT_DIR/sched_latency.txt"
 
-echo "[3/5] 抖动测试（cyclictest，60 秒）"
-cyclictest -p 95 -m -t1 -i 200 -d 0 -a 0 -D 60m 2>&1 | \
-    tee "$RESULT_DIR/cyclictest.txt" | tail -n 5
+echo "[3/5] 抖动测试（airy-rt-lat，60 秒）"
+airy-rt-lat -p 95 -i 200 -D 60 -j > "$RESULT_DIR/rt-lat.json"
 
 echo "[4/5] Token 吞吐基准"
 agentrt-bench token-stream --duration 60 --concurrency 8 \
@@ -443,7 +442,7 @@ perf stat -e power/energy-pkg/,power/energy-ram/ \
 
 echo "[完成] 结果保存于 $RESULT_DIR"
 echo "stc_agent 性能报告："
-awk '/P99/ {print "  "$0}' "$RESULT_DIR/cyclictest.txt"
+grep -o '"max_us":[0-9]*' "$RESULT_DIR/rt-lat.json"
 grep -E 'tokens/sec' "$RESULT_DIR/token_throughput.txt"
 ```
 

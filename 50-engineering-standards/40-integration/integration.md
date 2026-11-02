@@ -676,7 +676,7 @@ agentrt 在 agent-linux 上运行的性能基准，以 agentrt 在普通 Linux �
 |--------|------|------|
 | IPC 吞吐量 | 自定义 benchmark | 持续发送 1M 条消息，测量吞吐量 |
 | IPC 延迟 | 自定义 benchmark | Ping-pong 测试，测量 P50/P99/P999 |
-| 调度延迟 | cyclictest | 测量调度延迟分布 |
+| 调度延迟 | airy-rt-lat | 测量调度延迟分布 |
 | 认知循环延迟 | 自定义 benchmark | 测量完整认知循环的端到端延迟 |
 | 记忆检索延迟 | 自定义 benchmark | 测量 L1-L4 各层检索延迟 |
 | 安全令牌验证 | 自定义 benchmark | 测量 capability 令牌验证延迟 |
