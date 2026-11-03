@@ -65,7 +65,12 @@ CRITICAL 告警自动触发 P0 事件响应流程，WARNING 告警触发 P1 事�
 
 - **监控体系**：指标超阈值自动产生 CRITICAL/WARNING 告警（详见 [03-monitoring.md](03-monitoring.md)）。
 - **告警体系**：告警升级（ESCALATED 状态）自动转为 P0 事件。
-- **systemd**：单元失败、WatchdogSec 超时通过 `OnFailure=` 触发 macro_d。
+- **systemd**：单元失败、WatchdogSec 超时通过 `OnFailure=` 启动
+  `airy-incident@%n.service`，由 `airyctl incident create` 落库，再交给
+  macro_d 处置。该模板以 `ConditionPathExists=/usr/sbin/airyctl` 门控：
+  airyctl 与 `airy` 账户属于 agentrt 载荷，OS 层只交付单元接口面。载荷
+  缺失时模板报跳过而不是失败，原始失败单元仍留在 `systemctl --failed`
+  中——一次失败不得被放大成两条，否则就绪探针会把缺载荷误判成整机故障。
 - **内核**：kernel panic 通过 kdump 捕获，oops 通过 `panic_on_oops` 控制。
 - **人工上报**：运维人员通过 `airyctl incident create` 创建事件。
 
