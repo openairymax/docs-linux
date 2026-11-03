@@ -301,9 +301,8 @@ static int airy_ipc_freeze_ring(struct airy_ipc_ring *ring, __u32 fault_code)
     ring->freeze_reason = fault_code;
     ring->freeze_timestamp = ktime_get_real_ns();
 
-    /* 3. 通知 Macro-Supervisor（eventfd，非阻塞） */
-    airy_eventfd_signal_fault(ring->ring_id, fault_code);
-
+    /* 3. 冻结本身不唤醒：Micro-Supervisor 在 airy_superv_ring.c 里冻结
+     *    之后统一发一次 airy_eventfd_signal_fault()，同一故障只通知一次 */
     return 0;
 }
 ```
@@ -492,7 +491,7 @@ static int airy_die_notifier(struct notifier_block *nb,
     airy_ipc_freeze_all(fault_code);
 
     /* 3. 通知 Macro-Supervisor（best-effort，可能失败） */
-    airy_eventfd_signal_fault(0, fault_code);
+    airy_eventfd_signal_fault(fault_code, 0, ktime_get_mono_fast_ns());
 
     /* 4. 写入 Panic 生存路径日志 */
     airy_panic_write("airy: die_notifier triggered, fault=0x%x\n", fault_code);
@@ -724,7 +723,8 @@ void airy_cap_badge_revoke(uint32_t agent_id)
                airy_cap_generate_randtag());
 
     /* 通知 Macro-Supervisor（非阻塞） */
-    airy_eventfd_signal_fault(agent_id, AIRY_FAULT_ABNORMAL_CAP);
+    airy_eventfd_signal_fault(AIRY_FAULT_ABNORMAL_CAP, agent_id,
+                              ktime_get_mono_fast_ns());
 }
 ```
 
