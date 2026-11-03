@@ -226,9 +226,12 @@ slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 ### 5.3 换页上限的执行者
 
 声明与落地必须分开写清楚，否则现场看到「有 `MemorySwapMax`」就以为换页被管住。
-执行者是 `airy-rt-cap memcap`，挂在 `airy-rt-bandwidth.service` 的
-`ExecStartPost`：它和带宽分配同属「登录会话建立前必须完成」的一次性动作，
-多一个单元只多一条顺序约束。
+执行者是 `airy-rt-cap memcap`，落在独立单元 `airy-rt-memcap.service` 与
+`airy-rt-memcap.timer`（开机 120 秒首跑、此后每 60 秒重跑）。它**不能**挂在
+带宽单元的 `ExecStartPost` 上：systemd 在 cgroup v1 每次 `daemon-reload` 都会把
+`memory.memsw.limit_in_bytes` 写回 `infinity`，而 `systemctl enable` 内部必然触发
+一次重载——一次性动作正好被这次重载抹掉。285H 实测：写入后重载即回 `infinity`，
+改由周期单元在 80 秒内自愈。
 
 ```text
 airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
@@ -237,7 +240,7 @@ airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
 | 退出码 | 含义 |
 |-------|------|
 | 0 | 两个上限都已等于声明 |
-| 3 | 漂移（`differs`）、低于在用量（`tight`）或缺少换页记账（`absent`） |
+| 3 | 漂移（`differs`）、超用封顶（`held`）、目标低于在用量（`tight`）或缺少换页记账（`absent`） |
 | 1 | 找不到可写的内存记账树，未做任何调整 |
 
 执行顺序与判据：
@@ -249,9 +252,15 @@ airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
    `EINVAL`。现场 scratch group 实测：`memory.limit_in_bytes` 为上限值时写
    `memory.memsw.limit_in_bytes=1G` 失败（rc=1），先把它压到 512M 再写 1G 成功。
    启动早期 slice 目录是新建的、内存上限尚未写入，顺序反了就会静默失败。
-3. **低于在用量不写。** 目标值小于当前用量时只报 `tight` 并保持原值：安装或
-   升级时模型正在跑，硬压会把常驻页立刻打进回收，等于用一次 OOM 换一个数字。
-   等空载或重启后再落地。
+3. **超用先封顶，不压到在用量以下。** 目标值小于当前用量时，只读判定报
+   `tight`；带 `--apply` 则写入 `max(目标, 在用量 + 余量)` 并报 `held`，
+   余量取声明上限的 5%。写入值永远不低于在用量，所以不会触发当场回收；
+   越过封顶的增长被挡在组内，代价是一个实例被杀，而不是整机停顿。封顶
+   **只收紧、不放松**：现值低于封顶值时保持原值，所以每轮写入不会把上限
+   越推越高；在用量回落后，下一轮自然收回声明目标（`held` → `applied`）。
+   若只报 `tight` 就停手，285H 现场会永久留白：memsw 在用量 40.6 GiB 高于
+   31 GiB 目标，守卫从此拒绝任何写入，换页在全机范围内没有任何上界，整机
+   在全局回收里停住两三分钟。
 4. **写后回读。** 只有回读值等于目标才算 `applied`，`ok` 表示本来就一致。命令
    返回 0 与属性真的改了是两件事。
 5. **目标按页对齐。** 内核把上限向下取整到页边界，285H 实测写入 29324840140
@@ -279,6 +288,7 @@ airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.6.0 | 2026-11-03 | §5.3 把超用处置从「拒写」改为「余量封顶」：`held` 状态、只收紧不放松、用量回落后自动收敛；纠正执行者描述为 `airy-rt-memcap.timer` 周期重写 |
 | v1.5.1 | 2026-11-03 | §5.3 增加「目标按页对齐」判据：内核向下取整到页边界，285H 实测差值 3276 字节，不对齐会把正确写入判成未生效 |
 | v1.5.0 | 2026-11-03 | 增加 §5.3 换页上限的执行者：`airy-rt-cap memcap` 读单元声明、先内存后换页、低于在用量拒写；修正 §5.1/§5.2 把 memsw 不落地归因于 `swapaccount` 的错误结论 |
 | v1.4.0 | 2026-11-03 | §5.2 增加会话池兜底边界：`user.slice` 85% 硬上限，覆盖 AirymaxRT 在登录会话里直接 exec 的推理进程 |
