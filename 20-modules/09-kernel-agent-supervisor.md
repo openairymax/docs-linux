@@ -140,11 +140,11 @@ agent-linux 的事件通知机制（eventfd）借鉴 seL4 Notification 的位图
 
 | seL4 Notification | agent-linux 实现 | 说明 |
 |-------------------|-------------------|------|
-| `sendSignal()` | `eventfd_signal(ctx, n)` | 异步信号发送 |
+| `sendSignal()` | `eventfd_signal(ctx)` | 异步信号发送 |
 | `receiveSignal()` | `eventfd_ctx_get()` + `wait_event` | 异步信号接收 |
 | NtfnState_Idle/Waiting/Active | eventfd 计数器状态 | 3 态语义 |
 
-**聚合编码借鉴**：seL4 Notification 用 `word_t` 位图把多个事件聚合进一次信号；agent-linux 借鉴"单次 signal 承载聚合语义"这一思路，但不采用位图——eventfd 计数器装载打包后的 `(agent_id, fault_code)` 对（低 32 位 `fault_code`、高 32 位 `agent_id`，见 §5.1），Macro-Supervisor 通过 `eventfd_ctx_get()` 读出后解包。按 bit 编码 Fault 类型不适用：Fault 码是稀疏的 `0x100x` 编号，且一次通知还须携带触发它的 `agent_id`。
+**聚合语义借鉴**：seL4 Notification 用 `word_t` 位图把多个事件聚合进一次信号；agent-linux 只借鉴"信号只负责唤醒"这一层，不承载事件内容——eventfd 计数器每次固定加一，故障内容（`fault_code`、`agent_id`、时间戳）由详情环 `airy_fev_*` 承载（见 §5.1）。上游自 6.6.161 起把 `eventfd_signal()` 收敛为固定加一（原 `n` 参数移入未导出的 `eventfd_signal_mask()`），"计数器装打包值"的旧做法既无法在模块中编译，也会因累加而不可解包。
 
 ---
 
@@ -526,9 +526,9 @@ static int __init airy_die_notifier_init(void)
 
 ### 5.1 eventfd 通知机制
 
-Micro-Supervisor 通过 eventfd 向 Macro-Supervisor 发送故障通知。`eventfd_signal()` 是非阻塞的，仅递增计数器，不触发上下文切换，因此可从 die-notifier 与 NMI 路径安全调用。
+Micro-Supervisor 通过 eventfd 向 Macro-Supervisor 发送故障通知。`eventfd_signal()` 是非阻塞的，仅把计数器加一，不触发上下文切换，因此可从 die-notifier 与 NMI 路径安全调用。
 
-eventfd 计数器最多承载一个打包值，容不下完整故障详情，因此每次信号同时把详情写入一个有界环 `airy_fev_*`（容量 `AIRY_FEV_RING_NR` = 64 项），由 Macro-Supervisor 被唤醒后按需排空：
+计数器只是唤醒信号，不是数据通道：eventfd 的语义是累加，两次故障在读者读取前到达会让计数器变成不可解包的和。完整故障详情因此写入一个有界环 `airy_fev_*`（容量 `AIRY_FEV_RING_NR` = 64 项），Macro-Supervisor 每次被唤醒后按需排空：
 
 ```c
 /* security/airy/airy_eventfd.c —— eventfd 故障通知 */
@@ -553,20 +553,16 @@ void airy_eventfd_signal_fault(__u32 fault_code, __u32 agent_id,
         .agent_id = agent_id,
     };
     unsigned long flags;
-    __u64 event_val;
 
     /* 1. best-effort 记录详情；仅环满时限速告警 */
     if (airy_fev_post(&ev) == -AIRY_ENOMEM)
         pr_warn_ratelimited("airy: fault event queue full, "
                             "detail lost\n");
 
-    /* 2. 低 32 位 fault_code、高 32 位 agent_id 打包进计数器 */
-    event_val = ((__u64)agent_id << 32) | (__u64)fault_code;
-
-    /* 3. eventfd_signal 通知 Macro-Supervisor（非阻塞） */
+    /* 2. eventfd_signal 唤醒 Macro-Supervisor（非阻塞，计数加一） */
     spin_lock_irqsave(&fault_eventfd_lock, flags);
     if (fault_eventfd_ctx)
-        eventfd_signal(fault_eventfd_ctx, event_val);
+        eventfd_signal(fault_eventfd_ctx);
     spin_unlock_irqrestore(&fault_eventfd_lock, flags);
 }
 
@@ -575,7 +571,7 @@ int airy_eventfd_register(int efd);   /* 接管引用，替换旧目标 */
 void airy_eventfd_unregister(void);   /* 幂等；无目标时为空操作 */
 ```
 
-计数器值为 `((__u64)agent_id << 32) | (__u64)fault_code`：`fault_code` 占低 32 位、`agent_id` 占高 32 位；`timestamp` 不进计数器，Macro-Supervisor 从详情环取回完整事件。
+计数器值即自上次读取以来的故障次数；`fault_code`、`agent_id`、`timestamp` 一律从详情环取回，`macro_d` 亦据此裁决（计数只用于日志累计）。
 
 `airy_eventfd_register()` 在锁内替换目标、锁外释放被替换的旧引用，故监督进程重启时可直接接管，无需先注销；`airy_eventfd_unregister()` 幂等，注销后故障只写入详情环。
 
