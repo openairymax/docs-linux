@@ -147,6 +147,49 @@ airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
 并以 0 退出，不产生 failed 与 incident。两个单元默认关闭，桌面档位由 kickstart
 显式启用；服务器档位不启用时不产生任何运行时写入，桌面权重恒为静态基线。
 
+### 5.1 推理负载的内存边界
+
+CPU 权重只在争用时重新分配时间片，管不住内存。285H 现场三个推理实例 RSS 合计
+29.5 G / 30 G 物理内存，swap 已用 11 G，`MemFree` 只剩 250~380 MB：此时任何
+一次分配都要先唤醒 kswapd 或走 direct reclaim，实时延迟出现毫秒级尖峰，桌面与
+SSH 会话一起失去响应。根因不是某个进程申请得太多，而是推理负载没有任何 cgroup
+边界，峰值得以吃掉留给内核、桌面与页缓存的那部分内存。
+
+边界声明在 `airymax-agent.slice` 上，`airy-llm.service` 只声明 `Slice=` 归属：
+
+| 属性 | 取值 | 作用 |
+|------|------|------|
+| `MemoryMax` | 90% | 硬上限，为内核与交互路径留出一成；越界由 OOM killer 在本组内选 victim |
+| `CPUWeight` | 100 | 与桌面基线 50 保持 2:1，跑满核不被压 |
+| `IOWeight` | 100 | 读权重时不被桌面压缩到最低档 |
+
+用比例而不是绝对字节：模型尺寸随机型变化，钉死字节数会在换机型时把本来能跑的
+模型 OOM 掉；「内核与桌面按机器规模预留一成」则与机型无关。上限只在 slice 上
+声明一处，推理单元不重复声明，否则「哪一层在生效」无从判断。
+
+**只声明 hybrid 层级上真正会落地的属性。** 285H 的 `/sys/fs/cgroup` 是 tmpfs，
+memory 控制器走 cgroup v1（`systemd.unified_cgroup_hierarchy` 未置位、无
+`cgroup2` 挂载）。实测结论：
+
+- `MemoryMax` 写入 `memory.limit_in_bytes`：`systemctl set-property --runtime`
+  后读到 29324836864（90% × 32.6 GB），有效；
+- `MemoryHigh` 在 v1 上**不写** `memory.soft_limit_in_bytes`，值停在默认；
+  该属性是 cgroup v2 专有，写了只会制造「有软限」的假象；
+- `MemorySwapMax` 依赖 memsw 记账，285H 的 cmdline 没有 `swapaccount=1`，
+  `memory.memsw.limit_in_bytes` 停在上限值。
+
+因此 0.0.4 只声明 `MemoryMax`。要拿到「组内软限 + 换页上限」需要镜像改成
+unified cgroup v2 并在 cmdline 打开 `swapaccount=1`；这两项属于镜像层决策，
+不由策略模块在运行时假装生效。
+
+slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
+`airymax.slice`，现场读取必须走
+`/sys/fs/cgroup/memory/airymax.slice/airymax-agent.slice/`；只看
+`/sys/fs/cgroup/memory/airymax-agent.slice` 会误判为「限制没落地」。
+
+内存边界与档位、空闲深度是三个独立控制点：档位决定频率与功耗墙，空闲深度决定
+唤醒成本，内存边界决定超卖时谁先付出代价。
+
 ---
 
 ## 6. 与其他任务的关系
@@ -164,6 +207,7 @@ airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.3.0 | 2026-11-03 | §5.1 增加推理负载的内存边界：`airymax-agent.slice` 的 `MemoryMax` 与 cgroup v1 实测边界 |
 | v1.2.0 | 2026-11-03 | §5 增加无 PSI 内核的负载回退：独立阈值、`origin`/`cores` 字段、重写「无读数」口径 |
 | v1.1.0 | 2026-11-03 | 增加 §5 桌面与实时共存：PSI 阈值、权重切换、`coexist` 接口与落地单元 |
 | v1.0.1 | 2026-11-03 | 初版：八项能力、三态判据、三级等级与命令接口 |
