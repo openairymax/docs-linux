@@ -345,6 +345,24 @@ airy-rt-cap admit --need SIZE [--json] [--meminfo FILE] [--unitdir DIR]
 的 3 不被采纳为启动阻断同一个理由：拒绝启动会让模型在任何环境下都起不来，
 而一次可观测的越界仍由 memsw 上限收口。
 
+自托管进程不走单元文件，启动器侧是第二条独立路径。`supervisor_d` 在 fork
+之前消费同一份判定，拒绝时把实例置为 `wait`；保留量的算术不在 C 侧复刻，
+判据仍只有 `airy-rt-cap` 里那一份。WAIT 与 BACKOFF 的差别在重试的代价：判定
+毫秒级，派生几百兆，所以 WAIT 只重判定、不重派生，也不计入连败——连败计数
+留给真正起不来的进程，否则一次内存紧张的窗口会把实例推进 FAILED，等内存
+回来还要人工 `activate`。重判周期由 `AIRYRT_SUP_ADMIT_RETRY_MS` 给出，缺省
+30 秒；判定不可得（工具缺失或输出不可解析）时放行并告警，与 `unknown` 同
+一条理由。
+
+常驻量随声明走：`model.<name>.mem` 经 `agentrt-bootstrap.sh` 落成
+`AIRYRT_LAUNCH_MEM_<NAME>`，派生门槛只从这里读。声明收回时必须出清该键而
+不是跳过——留着陈旧体量会在换小模型后继续按旧门槛拒绝启动。未声明体量的
+进程不设门槛，替用户猜体量只会造出无据的拒绝。
+
+285H 实测（GCC 12.3，`-O3 -Werror`）：`mem=29G` 时 `admit` 判
+`refuse short≈4.39G`，实例停在 `wait`、`fails=0`、无子进程，每 3 秒重判
+一次；改声明为 `3G` 后同一轮派生，5 秒内达 `running`。
+
 ---
 
 ## 6. 与其他任务的关系
@@ -362,6 +380,7 @@ airy-rt-cap admit --need SIZE [--json] [--meminfo FILE] [--unitdir DIR]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.11.0 | 2026-11-03 | §5.5 补启动器侧准入：`supervisor_d` 拒绝时置 `wait`（只重判、不计连败），285H 实测 29G 停 wait、3G 五秒 running |
 | v1.10.0 | 2026-11-03 | §5.5 补「拒绝不进入重启」：`RestartPreventExitStatus=75 78`，285H 瞬态单元复核 75 为零重启、1 为 5 次 |
 | v1.9.0 | 2026-11-03 | §5.5 把准入接到启动路径：常驻量 = 资产 + 2 GiB 引擎地板，拒绝以 75 结束、`unknown` 放行并留依据 |
 | v1.8.0 | 2026-11-03 | 增加 §5.5 新实例准入：`admit` 判据为 `MemAvailable − 保留量`，只拒绝不驱逐，换页余量不计入容量 |
