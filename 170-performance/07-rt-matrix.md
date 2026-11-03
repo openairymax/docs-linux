@@ -101,14 +101,23 @@ airy-rt-cap matrix [--json] [--sysroot DIR] [--procroot DIR]
 | 项 | 取值 | 说明 |
 |----|------|------|
 | 触发信号 | `/proc/pressure/cpu` 的 `some avg10` | 有任务可运行却在等 CPU 的时间占比 |
-| 阈值 | 20% | 达到即进入保护档 |
+| 回退信号 | `/proc/loadavg` 除核数 | 没有编入 PSI 的内核（如 285H 的 6.6.157-alk） |
+| 阈值 | 20%（PSI） | 达到即进入保护档 |
+| 回退阈值 | 100%（负载） | 整机平均可运行任务数达到核数才进入保护档 |
 | 基线权重 | 50 | 与 `airymax-desktop.slice` 的静态值一致 |
 | 保护权重 | 200 | 运行时抬升，桌面在被抢占时获得更大份额 |
 | 落地方式 | `systemctl set-property --runtime` | 只在本启动内生效，重启回落静态基线 |
 
-用 PSI 而不是 `/proc/loadavg`：后者把不可中断睡眠算进负载，等 IO 时也会推高，
-据此抬权重会让真正的 CPU 争用失去区分度。读不到 PSI 时保持基线——没有证据
-不做调整。
+首选 PSI：它直接度量「有任务可运行却在等 CPU」，正是桌面失响应的直接指标。
+但 285H 的 6.6.157-alk 没有编入 PSI，策略在唯一可验收的机器上恒为基线，等于
+没装。因此增加负载回退：`loadavg` 除以核数，单位同样是「占满整机的比例」。
+两者语义不同——`loadavg` 把不可中断睡眠算进来，等 IO 时会虚高——所以不共用
+阈值：PSI 用 20% 的时间占比，负载回退要求平均可运行任务数达到核数（100%），
+用更严的门槛吸收 IO 等待的虚高。两条都读不到时保持基线，报告里写明「无 CPU
+争用读数」，不把「没有读数」当成「没有争用」。
+
+`--json` 因此增加 `origin`（`psi`/`loadavg`/`none`）与 `cores` 两个字段，
+现场据此判断这次判定用的是哪条信号。
 
 写完后回读 `CPUWeight`，只有回读值等于目标值才算落地，因此「命令返回 0」与
 「属性真的改了」在报告里是两件事。
@@ -120,7 +129,7 @@ airy-rt-cap matrix [--json] [--sysroot DIR] [--procroot DIR]
 
 ```text
 airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
-                    [--systemctl FILE] [--pressure FILE]
+                    [--systemctl FILE] [--pressure FILE] [--loadavg FILE]
 ```
 
 | 退出码 | 含义 |
@@ -130,7 +139,8 @@ airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
 | 1 | `systemctl` 查询失败，未做任何调整 |
 
 `--json` 与 `Plan.dump()` 同形，字段为 `mode`、`unit`、`weight`、`current`、
-`pressure`、`grade`、`present`、`admit`、`applied`、`notes`、`detail`。
+`pressure`、`origin`、`cores`、`grade`、`present`、`admit`、`applied`、`notes`、
+`detail`。
 
 落地单元为 `airy-rt-coexist.service` 与 `airy-rt-coexist.timer`：开机 90 秒后
 首次评估，之后每 60 秒重评。桌面 slice 只在登录后存在，未登录时单元报 `absent`
@@ -154,5 +164,6 @@ airy-rt-cap coexist [--json] [--apply] [--desktop UNIT]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.2.0 | 2026-11-03 | §5 增加无 PSI 内核的负载回退：独立阈值、`origin`/`cores` 字段、重写「无读数」口径 |
 | v1.1.0 | 2026-11-03 | 增加 §5 桌面与实时共存：PSI 阈值、权重切换、`coexist` 接口与落地单元 |
 | v1.0.1 | 2026-11-03 | 初版：八项能力、三态判据、三级等级与命令接口 |
