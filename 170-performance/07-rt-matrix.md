@@ -190,6 +190,31 @@ slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 内存边界与档位、空闲深度是三个独立控制点：档位决定频率与功耗墙，空闲深度决定
 唤醒成本，内存边界决定超卖时谁先付出代价。
 
+### 5.2 会话池的兜底边界
+
+5.1 的边界只覆盖「由单元拉起的推理」。285H 上实际的推理进程是 AirymaxRT 在
+登录会话里直接 exec 出来的（`/proc/<pid>/cgroup` 落在
+`user.slice/user-1000.slice/session-4.scope`），`airy-llm.service` 并未 active，
+`airymax-agent.slice` 的上限对它们无效——29.5 G 正是这样长出来的。
+
+兜底边界因此落在 `user.slice`：它是所有会话 scope 的共同父节点，无论谁 spawn
+都逃不出去。取值 85%，比 agent slice 的 90% 更紧：
+
+| 归属 | 上限 | 理由 |
+|------|------|------|
+| `airymax-agent.slice` | 90% | 由单元拉起的推理，是机器的本职工作 |
+| `user.slice` | 85% | 会话池，含手工与第三方拉起的推理；另留一成半给内核、system.slice 与回写 |
+
+两层不是分区，而是两个独立天花板：同一批进程只会落在其中一层被记账，因此不
+叠加。硬上限、不写 `MemoryHigh` 的理由同 5.1——v1 hybrid 上软限不落地，写了
+只是假象。越过上限时 OOM killer 在会话池内选 RSS 最大的进程，代价是一个推理
+实例退出，换来整机与 SSH 保持可用；相比「整机一起卡死三分钟、SSH 全丢」，这是
+更好的失败方式。
+
+要有真正的组内软限与换页上限，仍需镜像切 cgroup v2 并在 cmdline 打开
+`swapaccount=1`。此外，AirymaxRT 自身的模型进程若改为系统单元拉起，应显式
+落在 `airymax-agent.slice`，会话池这一层只做兜底而不是常态归属。
+
 ---
 
 ## 6. 与其他任务的关系
@@ -207,6 +232,7 @@ slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.4.0 | 2026-11-03 | §5.2 增加会话池兜底边界：`user.slice` 85% 硬上限，覆盖 AirymaxRT 在登录会话里直接 exec 的推理进程 |
 | v1.3.0 | 2026-11-03 | §5.1 增加推理负载的内存边界：`airymax-agent.slice` 的 `MemoryMax` 与 cgroup v1 实测边界 |
 | v1.2.0 | 2026-11-03 | §5 增加无 PSI 内核的负载回退：独立阈值、`origin`/`cores` 字段、重写「无读数」口径 |
 | v1.1.0 | 2026-11-03 | 增加 §5 桌面与实时共存：PSI 阈值、权重切换、`coexist` 接口与落地单元 |
