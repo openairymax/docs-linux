@@ -207,7 +207,7 @@ ci/ci.sh kernel-analyze --kind sparse --log /tmp/sparse.log
 |------|------|---------|
 | `kernel-deps` | 工具链准备。`--kind build` 按架构与编译器取交叉工具链，`--kind verify` 取静态分析与 virtme-ng；Debian 宿主直接安装，其它发行版只做存在性校验并报出缺哪个命令 | — |
 | `kernel-build` | 矩阵单格：配置求解 → 编译 → `error:` 一律红、`warning:` 仅 Airymax 路径红 | OS-STD-TOOL-161 |
-| `kernel-consistency` | 任务书矩阵 / ABI 黄金样本 / codegen 三条零漂移 | OS-STD-TOOL-161、OS-IRON-001 |
+| `kernel-consistency` | 版本真值（`specver`：`kernel/Makefile` 与 distro 配方 `%global kernel_version` 一致）/ 任务书矩阵 / ABI 黄金样本 / codegen / uapi 自包含，五条零漂移；`specver` 最便宜且最先失败，排在 `all` 之首 | OS-STD-TOOL-161、OS-IRON-001 |
 | `kernel-kunit` | UML 上跑 KUnit，并与基线 TAP 比对 | OS-TEST-001~012 |
 | `kernel-refbuild` | x86_64 airy_defconfig 参考构建：10 条关键 CONFIG 精确断言、`CONFIG_LSM` 含 airy、vmlinux 带 `.BTF` 段 | OS-OBS-012 |
 | `kernel-analyze` | `--kind checkpatch\|sparse\|coccinelle`，只扫 Airymax 目录 | OS-STD-TOOL-160、OS-STD-TOOL-081-CI、L2 |
