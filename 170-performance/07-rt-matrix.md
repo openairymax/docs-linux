@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）实时能力矩阵
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）实时能力探测与适用性判定设计\
-> **文档版本**：v1.5.0\
+> **文档版本**：v1.5.1\
 > **最后更新**： 2026-11-03\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -254,6 +254,10 @@ airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
    等空载或重启后再落地。
 4. **写后回读。** 只有回读值等于目标才算 `applied`，`ok` 表示本来就一致。命令
    返回 0 与属性真的改了是两件事。
+5. **目标按页对齐。** 内核把上限向下取整到页边界，285H 实测写入 29324840140
+   回读 29324836864，差 3276 字节。比对原值会把每一次正确写入都判成未生效，
+   所以 `%` 换算与绝对字节都在源头上按 `SC_PAGE_SIZE` 向下对齐，让声明、写入
+   与回读天然相等；`memsw` 合计由两个已对齐的分量相加，同样落在页边界。
 
 内核是 unified v2 时同一个命令改写 `memory.swap.max`；控制器未挂载或
 `memsw` 文件缺失时全部报 `absent` 并附原因，不静默跳过。
@@ -275,6 +279,7 @@ airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.5.1 | 2026-11-03 | §5.3 增加「目标按页对齐」判据：内核向下取整到页边界，285H 实测差值 3276 字节，不对齐会把正确写入判成未生效 |
 | v1.5.0 | 2026-11-03 | 增加 §5.3 换页上限的执行者：`airy-rt-cap memcap` 读单元声明、先内存后换页、低于在用量拒写；修正 §5.1/§5.2 把 memsw 不落地归因于 `swapaccount` 的错误结论 |
 | v1.4.0 | 2026-11-03 | §5.2 增加会话池兜底边界：`user.slice` 85% 硬上限，覆盖 AirymaxRT 在登录会话里直接 exec 的推理进程 |
 | v1.3.0 | 2026-11-03 | §5.1 增加推理负载的内存边界：`airymax-agent.slice` 的 `MemoryMax` 与 cgroup v1 实测边界 |
