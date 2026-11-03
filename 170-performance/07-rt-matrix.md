@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）实时能力矩阵
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）实时能力探测与适用性判定设计\
-> **文档版本**：v1.1.0\
+> **文档版本**：v1.5.0\
 > **最后更新**： 2026-11-03\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
@@ -160,6 +160,7 @@ SSH 会话一起失去响应。根因不是某个进程申请得太多，而是�
 | 属性 | 取值 | 作用 |
 |------|------|------|
 | `MemoryMax` | 90% | 硬上限，为内核与交互路径留出一成；越界由 OOM killer 在本组内选 victim |
+| `MemorySwapMax` | 10% | 换页上限，与 `MemoryMax` 合计为一份物理内存，超出即换出失败 |
 | `CPUWeight` | 100 | 与桌面基线 50 保持 2:1，跑满核不被压 |
 | `IOWeight` | 100 | 读权重时不被桌面压缩到最低档 |
 
@@ -167,20 +168,23 @@ SSH 会话一起失去响应。根因不是某个进程申请得太多，而是�
 模型 OOM 掉；「内核与桌面按机器规模预留一成」则与机型无关。上限只在 slice 上
 声明一处，推理单元不重复声明，否则「哪一层在生效」无从判断。
 
-**只声明 hybrid 层级上真正会落地的属性。** 285H 的 `/sys/fs/cgroup` 是 tmpfs，
+**哪些属性在 hybrid 层级上由谁落地。** 285H 的 `/sys/fs/cgroup` 是 tmpfs，
 memory 控制器走 cgroup v1（`systemd.unified_cgroup_hierarchy` 未置位、无
 `cgroup2` 挂载）。实测结论：
 
-- `MemoryMax` 写入 `memory.limit_in_bytes`：`systemctl set-property --runtime`
-  后读到 29324836864（90% × 32.6 GB），有效；
+- `MemoryMax` 由 systemd 直接写入 `memory.limit_in_bytes`：
+  `systemctl set-property --runtime` 后读到 29324836864（90% × 32.6 GB），有效；
 - `MemoryHigh` 在 v1 上**不写** `memory.soft_limit_in_bytes`，值停在默认；
-  该属性是 cgroup v2 专有，写了只会制造「有软限」的假象；
-- `MemorySwapMax` 依赖 memsw 记账，285H 的 cmdline 没有 `swapaccount=1`，
-  `memory.memsw.limit_in_bytes` 停在上限值。
+  该属性是 cgroup v2 专有，写了只会制造「有软限」的假象，因此不声明；
+- `MemorySwapMax` 在 v1 上只被 systemd **记录为属性**，不写
+  `memory.memsw.limit_in_bytes`。瞬态服务实测（`MemoryMax=200M`、
+  `MemorySwapMax=300M`）：`systemctl show` 回报 314572800，而 cgroup 文件仍是
+  上限值，即换页没有任何实际约束。这一半由 `airy-rt-cap memcap` 补齐，见 5.3。
 
-因此 0.0.4 只声明 `MemoryMax`。要拿到「组内软限 + 换页上限」需要镜像改成
-unified cgroup v2 并在 cmdline 打开 `swapaccount=1`；这两项属于镜像层决策，
-不由策略模块在运行时假装生效。
+早期结论曾把「memsw 不落地」归因于 cmdline 缺 `swapaccount=1`，这是错的：
+285H 上 `memory.memsw.usage_in_bytes` 比 `memory.usage_in_bytes` 多出约 15 G，
+说明换页早已在记账，缺的只是写入者。需要镜像决策的只剩 `MemoryHigh` 的组内
+软限（v2 专有），不由策略模块在运行时假装生效。
 
 slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 `airymax.slice`，现场读取必须走
@@ -211,9 +215,48 @@ slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 实例退出，换来整机与 SSH 保持可用；相比「整机一起卡死三分钟、SSH 全丢」，这是
 更好的失败方式。
 
-要有真正的组内软限与换页上限，仍需镜像切 cgroup v2 并在 cmdline 打开
-`swapaccount=1`。此外，AirymaxRT 自身的模型进程若改为系统单元拉起，应显式
-落在 `airymax-agent.slice`，会话池这一层只做兜底而不是常态归属。
+兜底同样声明换页上限 `MemorySwapMax=15%`：只压内存不压换页，超额页会整批
+涌进 swap，285H 的 `SwapFree` 一度只剩 940 MB，回收路径与登录会话互相拖住。
+换页上限由 5.3 的执行者落地。组内软限（`MemoryHigh`）仍需镜像切 cgroup v2，
+属于镜像层决策。
+
+此外，AirymaxRT 自身的模型进程若改为系统单元拉起，应显式落在
+`airymax-agent.slice`，会话池这一层只做兜底而不是常态归属。
+
+### 5.3 换页上限的执行者
+
+声明与落地必须分开写清楚，否则现场看到「有 `MemorySwapMax`」就以为换页被管住。
+执行者是 `airy-rt-cap memcap`，挂在 `airy-rt-bandwidth.service` 的
+`ExecStartPost`：它和带宽分配同属「登录会话建立前必须完成」的一次性动作，
+多一个单元只多一条顺序约束。
+
+```text
+airy-rt-cap memcap [--apply] [--json] [--cgroup DIR] [--unitdir DIR]
+```
+
+| 退出码 | 含义 |
+|-------|------|
+| 0 | 两个上限都已等于声明 |
+| 3 | 漂移（`differs`）、低于在用量（`tight`）或缺少换页记账（`absent`） |
+| 1 | 找不到可写的内存记账树，未做任何调整 |
+
+执行顺序与判据：
+
+1. **读声明，不读运行时。** 上限的唯一来源是单元文件里的 `MemoryMax=` 与
+   `MemorySwapMax=`，`%` 按 `MemTotal` 换算成字节。运行时属性只是结果，拿它
+   反推会让「谁定的这个数」说不清。
+2. **先内存、后换页。** 内核要求 memsw 上限不低于内存上限，否则写入返回
+   `EINVAL`。现场 scratch group 实测：`memory.limit_in_bytes` 为上限值时写
+   `memory.memsw.limit_in_bytes=1G` 失败（rc=1），先把它压到 512M 再写 1G 成功。
+   启动早期 slice 目录是新建的、内存上限尚未写入，顺序反了就会静默失败。
+3. **低于在用量不写。** 目标值小于当前用量时只报 `tight` 并保持原值：安装或
+   升级时模型正在跑，硬压会把常驻页立刻打进回收，等于用一次 OOM 换一个数字。
+   等空载或重启后再落地。
+4. **写后回读。** 只有回读值等于目标才算 `applied`，`ok` 表示本来就一致。命令
+   返回 0 与属性真的改了是两件事。
+
+内核是 unified v2 时同一个命令改写 `memory.swap.max`；控制器未挂载或
+`memsw` 文件缺失时全部报 `absent` 并附原因，不静默跳过。
 
 ---
 
@@ -232,6 +275,7 @@ slice 的 cgroup 路径是嵌套的：`airymax-agent.slice` 的父 slice 是
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.5.0 | 2026-11-03 | 增加 §5.3 换页上限的执行者：`airy-rt-cap memcap` 读单元声明、先内存后换页、低于在用量拒写；修正 §5.1/§5.2 把 memsw 不落地归因于 `swapaccount` 的错误结论 |
 | v1.4.0 | 2026-11-03 | §5.2 增加会话池兜底边界：`user.slice` 85% 硬上限，覆盖 AirymaxRT 在登录会话里直接 exec 的推理进程 |
 | v1.3.0 | 2026-11-03 | §5.1 增加推理负载的内存边界：`airymax-agent.slice` 的 `MemoryMax` 与 cgroup v1 实测边界 |
 | v1.2.0 | 2026-11-03 | §5 增加无 PSI 内核的负载回退：独立阈值、`origin`/`cores` 字段、重写「无读数」口径 |
