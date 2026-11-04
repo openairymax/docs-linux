@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）发布流程详细设计
 > **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 9 卷——发布流程详细设计。本文档详述发布前准备、发布物料清单、发布签名、发布渠道、发布后验证与回滚策略，是稳定版本发布（05 卷）在工程操作层的完整展开。\
-> **文档版本**：v1.0.2\
+> **文档版本**：v1.0.3\
 > **最后更新**： 2026-11-04\
 > **上级文档**：[120-development-process README](README.md)\
 > **同源映射**：agentrt 发布流程 + Linux 6.6 内核发布流程（`release-process.rst` + kernel.org 发布工具链）\
@@ -471,6 +471,42 @@ flowchart LR
 - **响应**：P0 缺陷 7 天内修复并发布 patch 版本；P1 缺陷 14 天内修复。
 - **OS-DEV-903**：发布后 14 天内发现的 P0 缺陷必须在 7 天内发布 patch 版本。
 
+### 6.7 更新通道放行（promote）
+
+`releases/latest` 不是展示位，而是更新通道的入口：装机端通过
+`releases/latest/download/channel.json` 发现新版本。因此流水线从不自行
+把正式版推成 latest——`release.yml` 创建页面时固定 `make_latest: false`，
+随后由 `release-stage hold` 读回断言页面停在 held。放行是发布机上的一次
+显式动作：
+
+1. 先确认阶段。`held` 是正式版刚发布的唯一合法态；报 `prerelease` 说明
+   tag 带了 `-rc`/`-beta`，报 `latest` 说明已被放行过。
+
+   ```bash
+   ci/ci.sh release-stage --tag "v${VERSION}" --repo openairymax/agent-linux \
+       --expect held
+   ```
+
+2. 拿到 B 轮验收证据。证据就是 `image-build.yml` 的 `accept` 作业产出的
+   TAP 与串口日志，其中通过时会有 `AIRYMAX-SMOKE-PASS` 一行。证据文件
+   必须是本地落盘的那一份，不能是「我记得跑过了」。
+
+3. 放行。门禁先校验证据，再同时把 `prerelease` 置 false 并把页面推成
+   latest，最后读回页面确认阶段真的变了。
+
+   ```bash
+   ci/ci.sh release-stage --tag "v${VERSION}" --repo openairymax/agent-linux \
+       --stage promote --evidence acceptance-v${VERSION}.tap
+   ```
+
+三个退出码各有含义：`0` 阶段已按预期落定；`1` 证据里没有
+`AIRYMAX-SMOKE-PASS` 或读回不符（此时页面未被改写）；`5` 参数或令牌缺失。
+被拒时不要绕过门禁去网页上点——绕过之后没有任何记录能证明这一版验收过。
+
+重跑 `release.yml` 会把已经在 latest 上的同一 tag 收回 held：重跑意味着
+产物被重写，上一轮的验收证据随之失效。这是有意的——宁可让更新通道断在
+这里，也不把未验收的构建推出去。**收回之后必须重新走一遍 6.7 的前两步。**
+
 ---
 
 ## 7. 回滚策略
@@ -655,7 +691,8 @@ flowchart TD
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：建立 5 步发布前准备流程（code freeze → RC1 → 测试 → RC2 → 签核）、12 项发布物料清单（含 14 个 RPM × 4 架构 + SBOM + defconfig + 文档快照）、GPG + 实时签名双签名体系、4 类发布渠道（AtomGit + RPM 仓库 + 容器镜像 + 文档站点）、5 步发布后验证（安装 + 升级 + 回归 + 性能监控 + 用户反馈）、`airy-rollback` 回滚策略（含快照恢复机制）、12 项发布质量门、发布归档规范 |
 | v1.0.2 | 2026-11-04 | 增加 §2.7「派发前同源核对」：`main` / `dev/hubs-01` / `tag` 三处引用须在每个远程同 sha，用 `ci/ci.sh remote-sync` 逐条核对并区分落后、无此分支、不可达、超时四种失败；补齐「同 tag 单轮、被顶 run 留日志」的派发纪律 |
+| v1.0.3 | 2026-11-04 | 增加 §6.7「更新通道放行」：正式版建页固定 `make_latest: false` 并停在 held，只有发布机在 B 轮 `AIRYMAX-SMOKE-PASS` 之后用 `ci/ci.sh release-stage --stage promote` 才能把页面推进 `releases/latest`；说明重跑同一 tag 会收回 held 及其理由 |
 
 ---
 
-> **文档结束** | agent-linux 发布流程详细设计 v1.0.2 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 发布流程详细设计 v1.0.3 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
