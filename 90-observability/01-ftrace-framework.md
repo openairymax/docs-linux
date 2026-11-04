@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）ftrace 框架详解
 > **文档定位**：agent-linux（AirymaxOS）可观测性体系 L1 层——内核函数级跟踪框架 ftrace 的工程规范\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 ftrace/tracefs/ring buffer\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-2 可观测性\
@@ -429,6 +429,30 @@ MicroCoreRT 是 agentrt 的极简内核契约。agent-linux 的 ftrace 扩展遵
 
 **OS-KER-105: Agent 跟踪代码体积必须 < 8 KB（编译后 .text 段），超出则视为违反 MicroCoreRT 极简契约。**
 
+### 10.5 现状：静态注册面可查，注入面不可驱动
+
+10.2 的注册代码描述的是设计形态，不是 0.0.4 的交付事实。B50 现场（6.6.157-alk）
+的只读取证是：十个 `airy_*` tracepoint 由 `include/trace/events/airy.h` 定义
+（`TRACE_EVENT`，事件 id 526–535），`/sys/kernel/tracing/events/airy*` 可枚举；
+但调用点只在 corekern 的 agent IPC 与调度路径上（`corekern/ipc/airy_ipc_trace.c`、
+`corekern/sched/stc_trace.c`），用户态 `pipe()`/`socketpair()` 不经过。
+`echo 1 > events/airy/enable` 后跑完整
+`airy-bench`，`entries-in-buffer/entries-written` 仍是 `0/0`，`airy_stc/stats` 与
+`kernel.airy.cap_used` 同样恒为 0。事件名可查、可启用，却几乎不会触发——这不是
+ftrace 配置问题，而是内核里没有把调用点铺到 Agent 决策的四个阶段上。
+
+两条既有注入通道同样只有读面：securityfs 的 `policy` 表以 `0400` 导出当前决策表，
+procfs 的 `agentrt` 目录以 `0444` 导出就绪标记，两者都没有写 fops。探针发起的写入
+只能拿到内核原样的 errno（`EACCES`/`EROFS`），本版不伪造成功。`airy-probe` 把这三
+件事做成可复算的证据：通道权限位、一次写入的 errno 名称、三处静态计数的实际值；
+它不把「文件可读」说成「接口可用」。
+
+**OS-OBS-020: 验收与对外材料只允许陈述「tracepoint 已静态注册、可枚举」，不得声称 Agent 跟踪事件已可驱动；注入能力在新增写 fops 之前必须报「不可写」。**
+
+补调用点（①）与计数递增（③）必须改内核，违反 0.0.4「内核净新增 0 行」的约束，
+顺延到 0.0.5 并登记为 KRN-01；届时的判据是同一空转窗口内计数非 0，且 `airy-probe`
+报出的「可写」与内核实际写 fops 一致。
+
 ---
 
 ## 第 11 章 五维原则映射
@@ -607,6 +631,7 @@ graph LR
 |------|------|----------|
 | 0.1.1 | 2026-07-06 | 初稿占位，覆盖 ftrace 框架核心机制 |
 | 1.0.1 | 2026-07-06 | 开发版：补充 Agent 行为追踪实例、生产环境触发器配置 |
+| 1.0.2 | 2026-11-04 | 新增 §10.5：记录 Agent 跟踪只有静态注册面、注入通道无写 fops，并登记 KRN-01 顺延；补 OS-OBS-020 |
 
 **OS-STD-007: 文档中引用的 tracefs 文件名、tracer 名、触发器命令必须与 `Linux 6.6 内核源码 Documentation/trace/ftrace.rst` 保持一致；上游变更时本文档必须同步更新。**
 

@@ -3,8 +3,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 # agent-linux 已知限制与设计边界
 
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）已知限制集中登记文档——参照 seL4 `CAVEATS.md` 工程实践，集中文档化所有已知设计限制、平台验证覆盖、形式化验证边界、兼容性降级策略与已延期设计项。各子模块文档中已有的"已知问题"章节仅作为子模块内部记录，**本文档为跨子仓的集中索引与权威登记**。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-28\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **保密级别**：开源公开\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
@@ -174,6 +174,7 @@ agent-linux 不引入 MCS（Mixed Criticality Systems）配置——此为 seL4 
 | BPF 不可用        | 部分嵌入式发行版              | 降级至用户态过滤        |
 | CXL 不可用        | 非 CXL 硬件              | 降级至本地内存         |
 | PMEM 不可用       | 非 PMEM 硬件             | 降级至 DRAM        |
+| airy 能力面无用户态出口 | tracepoint 计数与 `cap_used` 恒为 0，注入通道只读 | `airy-probe` 只读取证并如实报"不可写"；补调用点顺延 KRN-01（[01-ftrace-framework.md §10.5](../90-observability/01-ftrace-framework.md)） |
 
 ### 5.2 降级通知机制
 
@@ -462,6 +463,7 @@ ES-SEL4-3（服务用户态化）的落地风险待 1.0.1 阶段评估：
 | v1.0.1 | 2026-07-28 | 新增 §8 已修复缺陷登记（K9-1 回归 6 项致命缺陷：CAP-FIX-01~05 + IPC-FIX-01），关联 ADR-017；§8.3 登记 7 项非阻塞设计观察（OBS-01~07）；原 §8-12 顺延为 §9-13 |
 | v1.0.1 | 2026-07-30 | §8.3 OBS-02/OBS-03 标记为已修复（MDB 派生树 + 级联 REVOKE 已在代码实现）；新增 §8.4 v3.6 评审发现登记（12 项逐项对照代码验证：8 项待修复、3 项已修复、1 项存疑） |
 | v1.0.1 | 2026-07-31 | **§8.4 P1-3 闭环**：commit `0d5b4b05ce68` 重写 `airy_vtime_decay` 注释为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），P1-3 由"待评估"转为"✅ 已修复"。§8.4 结论由"11/12 已修复，1 项存疑"更新为"12/12 已全部修复"。 |
+| v1.0.2 | 2026-11-04 | §5.1 新增「airy 能力面无用户态出口」：tracepoint 计数与 `cap_used` 恒为 0、注入通道只读，补齐调用点顺延 KRN-01（对应 01-ftrace-framework.md §10.5） |
 
 ***
 
