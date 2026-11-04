@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）发布流程详细设计
 > **文档定位**：agent-linux（AirymaxOS）120-development-process 模块第 9 卷——发布流程详细设计。本文档详述发布前准备、发布物料清单、发布签名、发布渠道、发布后验证与回滚策略，是稳定版本发布（05 卷）在工程操作层的完整展开。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[120-development-process README](README.md)\
 > **同源映射**：agentrt 发布流程 + Linux 6.6 内核发布流程（`release-process.rst` + kernel.org 发布工具链）\
 > **理论根基**：Linux 6.6 内核基线 + Airymax S-4 涌现性管理 + SSoT v2 单一权威源 + C-2 增量演化\
@@ -128,6 +128,44 @@ flowchart TD
   - 通过：签核发布，进入物料构建。
   - 延期：列出阻塞项与重新签核时间。
 - **签核记录**：在 `agent-linux-mgmt` 仓库创建签核 issue，记录每位签核人的签字。
+
+### 2.7 步骤 6：派发前同源核对（T-0）
+
+流水线只看得见它 checkout 到的那一份。本机有、远程还没有的提交照样能编出校验和齐全的产物，只是没有任何远程取得到对应源码：这份发行物既不可复现，也不可追溯。0.0.3 收尾期出过一次——在陈旧 HEAD `1ddc0d23` 上派发了镜像构建（run `40834119367`），发现时预热已经走完，只能取消后改在 `6a515e1` 重派。
+
+判据只有一条：**要发的那个提交，在每个远程的同名引用上都存在且相等**。三处引用缺一不可：
+
+| # | 引用 | 为什么单列 |
+|---|------|-----------|
+| 1 | `refs/heads/main` | 派发从 `main` 取，`github.sha` 就是它 |
+| 2 | `refs/heads/dev/hubs-01` | 父仓 gitlink 指向这条分支的提交；只推 `main` 会让子模块 checkout 报 `upload-pack: not our ref` |
+| 3 | `refs/tags/v<版本>` | 发版以 tag 为准；注解标签要先剥到提交再比，标签对象本身的 sha 不是构建用的提交 |
+
+用仓库自带的门禁逐条核对，不凭 `git log` 的印象判断：
+
+```bash
+ci/ci.sh remote-sync --ref main --sha "$(git rev-parse main)" \
+    --remote origin --remote github
+ci/ci.sh remote-sync --ref dev/hubs-01 --sha "$(git rev-parse dev/hubs-01)" \
+    --remote origin --remote github
+ci/ci.sh remote-sync --kind tags --ref "v${VERSION}" \
+    --remote origin --remote github
+```
+
+四种失败分开报，且都判负：`落后`（远程还指向旧提交）、`无此分支`（一侧根本没推）、`不可达`（凭据或网络）、`超时`。把「不可达算过」写成放行，会让门禁在断网时静默失效，而那正是它要拦的场景。atomgit 侧只走 SSH，URL 由各 remote 自己配置决定。
+
+流水线内的自动核对覆盖其中一部分，不能替代这一步：
+
+- `image-build` 的 `Origin tip check` 用 `github.sha` 对比 origin 的同名分支；
+- `release` 的 `Origin tag check` 用检出提交对比 origin 上的同名 tag。
+
+托管 runner 上的 `origin` 就是它自己检出那一份（github），所以流水线校验得了 github，校验不了 atomgit——atomgit 侧只走 SSH，runner 上没有那把钥匙。**atomgit 侧必须有开发机或发布机上的这一遍**，这也是本步骤要写进手册、而不是只靠流水线的原因。
+
+派发与重派另有一条纪律：同一个 tag 只允许一条发布流水线在跑。
+
+- `release.yml` 的 `concurrency.group` 按 tag 取值、`cancel-in-progress: true`，tag 重指时新 run 顶掉旧 run。0.0.3 收尾期 `40206825830` 与 `40207819634` 并行写同一个 Release，就是缺这条约束的后果。
+- 被顶掉的 run 处于 `cancelled` 状态，日志照常保留，是「这一版为什么重派」的现场；把它的 run id 记进发布归档，而不是让它无声消失。
+- 与 `image-build` 相反：ISO 组装是 `cancel-in-progress: false`，宁排队不中断——中断等于把已完成的几十分钟组装丢掉。
 
 ---
 
@@ -616,7 +654,8 @@ flowchart TD
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：建立 5 步发布前准备流程（code freeze → RC1 → 测试 → RC2 → 签核）、12 项发布物料清单（含 14 个 RPM × 4 架构 + SBOM + defconfig + 文档快照）、GPG + 实时签名双签名体系、4 类发布渠道（AtomGit + RPM 仓库 + 容器镜像 + 文档站点）、5 步发布后验证（安装 + 升级 + 回归 + 性能监控 + 用户反馈）、`airy-rollback` 回滚策略（含快照恢复机制）、12 项发布质量门、发布归档规范 |
+| v1.0.2 | 2026-11-04 | 增加 §2.7「派发前同源核对」：`main` / `dev/hubs-01` / `tag` 三处引用须在每个远程同 sha，用 `ci/ci.sh remote-sync` 逐条核对并区分落后、无此分支、不可达、超时四种失败；补齐「同 tag 单轮、被顶 run 留日志」的派发纪律 |
 
 ---
 
-> **文档结束** | agent-linux 发布流程详细设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 发布流程详细设计 v1.0.2 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
