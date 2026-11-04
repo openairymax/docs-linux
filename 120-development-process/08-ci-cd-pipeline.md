@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）CI 强制点与合并门禁
 > **文档定位**：120-development-process 模块第 8 卷。把 [01 卷补丁生命周期](01-patch-lifecycle.md) 中的「必须通过 CI」翻译成可执行的阻断规则——哪个阶段、必须过哪些门禁、失败如何处置。\
-> **文档版本**：v1.1.0\
-> **最后更新**：2026-10-29\
+> **文档版本**：v1.1.1\
+> **最后更新**：2026-11-04\
 > **上级文档**：[120-development-process README](README.md)\
 > **同源映射**：Linux 6.6 内核 CI（kernelci.org + Intel 0-Day）\
 > **核心约束**：workflow 是薄壳；判定落在 `ci/gates/`；8 个 workflow 协同，不存在独立的 `[SC]` 契约工作流
@@ -32,6 +32,20 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 ### 1.3 适用范围
 
 agent-linux 管理仓的 8 个子仓（kernel / distro / system / security / services / memory / cognition / cloudnative）的语言级 CI 由各叶子仓自己的 `.github/workflows/` 承担；管理仓只做编排与门禁聚合。本文描述的是管理仓这一层。
+
+### 1.4 开发机的 Python 环境
+
+门禁里有一条 Python 腿。发行版把系统 `python3` 标成 externally-managed（PEP 668）时，`pip install` 会直接拒绝；`ensurepip` 还可能被拆成单独的包，连 `venv` 里都没有 pip。0.0.3 因此出现过「用例只在 CI 能跑」（DEV-01）。
+
+环境由一条命令拉起，位置在仓库外（默认 `${XDG_CACHE_HOME:-$HOME/.cache}/airymaxos/venv`，可用 `--dir` 或 `AIRYMAX_VENV` 指定）——虚拟环境里的 site-packages 与字节码属于构建产物，本仓任何位置都不保存：
+
+```sh
+tools/venv-bootstrap.sh                     # 建好并装齐 tools/*/requirements-dev.txt
+export PATH="$(tools/venv-bootstrap.sh --print)/bin:$PATH"
+tools/venv-bootstrap.sh --check             # 只校验不联网，未就绪以 1 退出
+```
+
+就绪判据是「依赖清单内容 + 解释器版本」的指纹与「pytest 可导入」的合取。只看目录是否存在会把上一次半途中断的环境永久判为可用；指纹不含解释器版本则会沿用按旧 ABI 编好的扩展，直到 `import` 报 `undefined symbol`。`ci/ci.sh python-verify` 用同一份实现（`ci/lib/pyenv.sh`）准备环境，本地与 runner 跑的是同一个解释器。
 
 ---
 
@@ -272,3 +286,4 @@ IRON-9 v3 四层模型对 CI 的唯一硬要求是 `[SC]` 共享契约层不被�
 | v1.0 | 2026-06-20 | 初始版本：6 个 workflow 逐一定义 job 结构 |
 | v1.0.1 | 2026-07-21 | 补充 nightly / release 的 job 细节 |
 | v1.1.0 | 2026-10-29 | 重写为流程层文档：workflow 清单与 job 结构交由 `.github/workflows/README.md` 与 70-build-system/03 承载，本文只保留阻断关系、分支保护、失败处置与预算棘轮；删除已退役的 `sc-verify.yml` 契约工作流章节，`[SC]` 校验改为指向 `mgmt-files`（OS-IRON-008）与 `OS-CHK-DOC-04` |
+| v1.1.1 | 2026-11-04 | 新增 §1.4 开发机 Python 环境：`tools/venv-bootstrap.sh` 一条命令在仓库外建环境，`python-verify` 与本地共用 `ci/lib/pyenv.sh`（DEV-01） |
