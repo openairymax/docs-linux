@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）开发流程标准
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）工程标准规范第 5 卷——开发流程。本卷规定从设计构想进入主线、稳定版到长期维护的完整生命周期，以及维护者层级制度、补丁格式、审查响应与稳定版规则。\
-> **文档版本**：1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：1.0.2\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：docs/docs-workload/10-architecture/00-architectural-principles.md`（五维正交 24 原则）+ Linux 6.6 内核基线 `Documentation/process/development-process.rst\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 体系并行论（Multibody Cybernetic Intelligent System）\
@@ -556,6 +556,18 @@ agent-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁�
 - agent-linux 等价物为 GitHub Projects 看板，每个子仓一个 Projects。
 - **OS-STD-PROD-034**：PR 状态变更（如从"待审查"到"已合并"）必须同步到 GitHub Projects 看板。
 
+### 10.4 文档链接校验门禁
+
+- 文档目录在 0.0.x 期间重组过两轮，编号变了、文档合并了，而正文里的相对链接仍按旧布局写。链接断裂不可见——缺一篇文档看得见，点开是 404 却看不出来——因此必须由门禁发现，而不是等读者上报。
+- `ci/gates/docs-links.sh` 调用 `ci/doc_links.py` 逐份 Markdown 抽出相对链接，凡不能落到真实文件的即判悬空；该门禁与 OS-STD-PROD-033 同属合并前的强制闸门。
+- 判定口径：
+  - 只判相对链接。`http(s)://`、`mailto:`、`file://`、`//` 开头的绝对 URL 与页内锚点（`#...`）不判：前者要联网才能判活，后者由渲染器处理，混进来只会把门禁变成网络拨测。
+  - 跨仓链接按超级仓的实际检出布局解析，docs-linux 指向代码仓须写 `../../../agent-linux/...`；脱离超级仓单独检出文档时，这类链接如实判悬空。
+  - 冻结归档目录（默认 `20-archive/`）整目录跳过：那是历史快照，改写其中的链接等于篡改留档。
+  - 围栏代码块与行内代码里的方括号不当作链接，避免 `reserved[72](__u8, offset 56)` 这类排版被误判。
+  - 默认检查范围是 docs 超级仓的 `docs-linux`；`docs-closed/agent-workload-dev` 与 `docs-workload` 属 agentrt 项目的设计文档，不在本仓责任面内，确需核对时用 `--source` 显式指定。
+- **OS-STD-PROD-035**：变更 Markdown 时必须保证 `ci/ci.sh docs-links` 通过；新增、移动或重命名文档后，须同步修正所有指向它的相对链接。
+
 ---
 
 ## 11. 五维原则映射
@@ -631,6 +643,7 @@ agent-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁�
 | OS-STD-PROD-032 | 禁止 force-push 到受保护分支 | MUST |
 | OS-STD-PROD-033 | PR 必须过全部 GitHub Actions | MUST |
 | OS-STD-PROD-034 | PR 状态同步 GitHub Projects | MUST |
+| OS-STD-PROD-035 | 文档相对链接无悬空（`ci/ci.sh docs-links`） | MUST |
 
 ---
 
@@ -659,7 +672,10 @@ agent-linux 的 8 子仓各有独立的子系统手册，作为本卷的补丁�
 
 ## 14. 文档版本与维护
 
-- **当前版本**: v1.0.1（2026-07-21）
+- **当前版本**: v1.0.2（2026-11-04）
+- **版本历史**:
+  - v1.0.2（2026-11-04）：新增 §10.4 文档链接校验门禁与 OS-STD-PROD-035，明确绝对 URL、页内锚点、冻结归档、代码块与检查范围的判定口径。
+  - v1.0.1（2026-07-21）：合并原 06/08/110 三卷，确立 OS-STD-PROD 编号段。
 - **维护者**: 工程规范委员会（待成立，详见 07 卷）
 - **变更流程**: 任何本卷变更必须经过 RFC → 评审 → ACC 验收流程
 - **回顾周期**: 季度回顾 + 年度大版本
