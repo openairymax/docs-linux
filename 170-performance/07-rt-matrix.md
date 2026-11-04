@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）实时能力矩阵
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）实时能力探测与适用性判定设计\
-> **文档版本**：v1.5.1\
-> **最后更新**： 2026-11-03\
+> **文档版本**：v1.12.0\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0
 
@@ -88,6 +88,49 @@ airy-rt-cap matrix [--json] [--sysroot DIR] [--procroot DIR]
 `--json` 与 `Matrix.dump()` 同形，字段为 `grade`、`pending`、`caps`；门禁与
 装机脚本据此直接判读，不解析人类可读输出。`--sysroot`/`--procroot`/`--cmdline`
 只服务于测试与救援环境，产品路径使用缺省值。
+
+### 4.1 新建组的带宽默认值
+
+`status`/`apply` 只看策略里列出的四个 slice，回答不了「其他组为什么起不了实时
+任务」。`defaults` 补上这一问：它同时读三道互相独立、缺任一条都表现为同一个
+EPERM 的门禁。
+
+| 门禁 | 读点 | 为零的后果 |
+|------|------|-----------|
+| 全局预算 | `kernel.sched_rt_runtime_us`（`-1` 为不限） | `0` 表示实时整体关闭 |
+| 直属组预算 | 任务所在组的 `cpu.rt_runtime_us` / `cpu.rt.max` | 内核只看直属组，父组预算不继承 |
+| 优先级上限 | `RLIMIT_RTPRIO`（`/proc/self/limits`） | 非 root 且无 `CAP_SYS_NICE` 时 EPERM |
+
+```text
+airy-rt-cap defaults [--json] [--group NAME] [--limits FILE]
+```
+
+`--group` 缺省时判读「新建组」：内核 `alloc_rt_sched_group()` 固定以 0 初始化，
+不继承父组，因此可记账布局上结论恒为 `blocked`，阻塞项记为 `new-group-zero`。
+这一条是内核侧缺口，登记在 KRN-01，发行层改不了；指定 `--group` 时读该组真实值。
+
+| 退出码 | 含义 |
+|-------|------|
+| 0 | `unlimited`/`budgeted`，本组可启动实时任务 |
+| 3 | `blocked`，有门禁命中，`seed` 可补齐其中的记账项 |
+| 1 | `unknown`，总预算不可读或记账树缺失 |
+| 2 | 用法错误 |
+
+`--json` 字段为 `kind`、`total`、`period`、`enabled`、`root`、`group`、`fresh`、
+`rtprio`、`privileged`、`blocked`、`verdict`。`blocked` 是门禁 token 列表而不是
+布尔值，现场据此区分「该补记账」还是「该提权」。
+
+```text
+airy-rt-cap seed [--json] (--group NAME | --subtree NAME [--depth N])
+```
+
+`seed` 只补写零预算的组：已非 0 的一律 `kept` 跳过；缺省值取父组同额，顶层
+slice 取策略份额（总预算的 1/5），写完回读。**不写 `-1`**：全局预算有限时
+`tg_rt_schedulable()` 会以 EINVAL 拒绝，因为不限的带宽上限超过全局；只有全局
+本身为 `-1` 才允许，而那样会关闭全部记账，per-slice 预算随之失效。退出码 0
+全部落地、3 部分落地、1 全部失败、2 用法错误。
+
+`--limits` 只服务于测试与救援环境，产品路径读 `/proc/self/limits`。
 
 ---
 
@@ -380,6 +423,7 @@ airy-rt-cap admit --need SIZE [--json] [--meminfo FILE] [--unitdir DIR]
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.12.0 | 2026-11-04 | 增加 §4.1 新建组的带宽默认值：`defaults` 判读全局/直属组/`RLIMIT_RTPRIO` 三道门禁，`seed` 只补写有限值且取父组同额；内核默认 0 不继承父组登记 KRN-01 |
 | v1.11.0 | 2026-11-03 | §5.5 补启动器侧准入：`supervisor_d` 拒绝时置 `wait`（只重判、不计连败），285H 实测 29G 停 wait、3G 五秒 running |
 | v1.10.0 | 2026-11-03 | §5.5 补「拒绝不进入重启」：`RestartPreventExitStatus=75 78`，285H 瞬态单元复核 75 为零重启、1 为 5 次 |
 | v1.9.0 | 2026-11-03 | §5.5 把准入接到启动路径：常驻量 = 资产 + 2 GiB 引擎地板，拒绝以 75 结束、`unknown` 放行并留依据 |

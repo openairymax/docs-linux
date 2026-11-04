@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）配置管理
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）运维体系第 2 卷——配置工程。本文档规定从内核运行时参数到 Agent 级配置的完整配置栈：sysctl 内核运行时参数、`/etc/sysctl.d/` 组织、`/etc/agentrt/` 配置目录、systemd 单元配置、12 daemons 配置文件、环境变量、配置验证、配置版本控制、agent-linux 三级配置分层（系统级 / 用户级 / Agent 级）。\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-04\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt daemons（12 个用户态服务配置）+ Linux 6.6 sysctl + systemd 单元配置\
 > **理论根基**：Linux 6.6 内核基线工程思想 + Airymax 五维正交 24 原则 + S-1 反馈闭环\
@@ -74,6 +74,13 @@ agent-linux 关心的 sysctl 参数按子系统分组：
 | 网络 | `net.ipv4.tcp_max_syn_backlog` | 8192 | SYN backlog |
 | 文件 | `fs.file-max` | 1048576 | 系统最大文件句柄 |
 | 文件 | `fs.inotify.max_user_watches` | 524288 | inotify 监视数 |
+
+`sched_rt_runtime_us` 的切分只覆盖策略列出的 slice。内核新建 cgroup 的
+`cpu.rt_runtime_us` 固定为 0 且不继承父组，`RLIMIT_RTPRIO` 又独立于 cgroup，
+三者缺任一条都表现为 `chrt -r` 的 EPERM。现场判读用
+`airy-rt-cap defaults [--group NAME]`，补齐用 `airy-rt-cap seed --group NAME`
+（只写有限值，取父组同额）；契约见
+[实时能力矩阵](../170-performance/07-rt-matrix.md) §4.1。
 
 **OS-OPS-103**：`vm.max_map_count` 必须 ≥ 262144，因 LLM 模型加载（`cogn_d`）需要大量内存映射；低于此值将导致 LLM 加载失败（C-3 记忆卷载在内存层的体现）。
 
