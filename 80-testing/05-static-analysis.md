@@ -740,7 +740,7 @@ CI 必须同时启用两者，静态分析阻断 PR，动态分析阻断 nightly
 - [10-formal-verification.md](10-formal-verification.md)：形式化验证（与本卷联动）
 - [../10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)：IRON-9 v3 四层模型（[SC] 契约层）
 - [../30-interfaces/08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md)：A-UEF [SC] error.h 契约
-- [../50-engineering-standards/06-toolchain-and-automation.md](../50-engineering-standards/06-toolchain-and-automation.md)：工具链与自动化
+- [../50-engineering-standards/05-development-process.md](../50-engineering-standards/05-development-process.md)：工具链与自动化
 - [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线（`kernel-verify.yml`）
 
 ---

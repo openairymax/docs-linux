@@ -393,7 +393,7 @@ cap_pass:
 | 层面 | 机制 | 触发条件 | 行为 | 代码位置 |
 |------|------|---------|------|---------|
 | 编译时 [DSL] 契约 | `#ifdef AIRY_SC_FALLBACK` 降级块 | 构建系统注入 `AIRY_SC_FALLBACK` 宏 | [SC] 头文件中 `capability_badge=0`，跳过 C-S9 Badge 校验 | 12 个 [SC] 头文件底部降级块（§2） |
-| 运行时 fail-closed | `phase3_dsl_degradation()` | Agent 处于 STOPPED 状态时进入 slowpath phase 3 | 返回 `-AIRY_EIPC_FROZEN`（-53），拒绝操作 | [airy_cap_check.c:111-116](../../agent-linux/kernel/security/airy/airy_cap_check.c#L111-L116) |
+| 运行时 fail-closed | `phase3_dsl_degradation()` | Agent 处于 STOPPED 状态时进入 slowpath phase 3 | 返回 `-AIRY_EIPC_FROZEN`（-53），拒绝操作 | [airy_cap_check.c:111-116](../../../agent-linux/kernel/security/airy/airy_cap_check.c#L111-L116) |
 
 **设计原则**：编译时 [DSL] 契约（`AIRY_SC_FALLBACK`）是 [SC] 头文件损坏时的最后防线，允许 IPC 以降级模式继续运行；但**运行时** Agent STOPPED 状态下的 slowpath **不继承 [DSL] 的 fail-open 语义**——而是采用 **fail-closed** 策略，返回 `-AIRY_EIPC_FROZEN`，将操作视为 ring 冻结并拒绝。
 

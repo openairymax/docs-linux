@@ -761,9 +761,9 @@ VFIO 直通的测试覆盖本文档 §6（VFIO 直通测试），包括 IOMMU �
 - [05-agent-driver.md](05-agent-driver.md) §3 §7 §8（驱动注册 + io_uring fastpath + [DSL] 降级）
 - [06-vfio-passthrough.md](06-vfio-passthrough.md) §3 §5 §6（VFIO 直通 + IOMMU 隔离 + DMA 映射）
 - [../80-testing/README.md](../80-testing/README.md)（agent-linux 全局测试策略）
-- [../80-testing/kunit/](../80-testing/kunit/)（KUnit 框架使用指南）
-- [../80-testing/kselftest/](../80-testing/kselftest/)（kselftest 框架使用指南）
-- [../80-testing/perf/](../80-testing/perf/)（性能基准框架）
+- [../80-testing/kunit/](../80-testing/01-kunit-framework.md)（KUnit 框架使用指南）
+- [../80-testing/kselftest/](../../../agent-linux/kernel/tools/testing/selftests/kselftest)（kselftest 框架使用指南）
+- [../80-testing/perf/](../170-performance/06-benchmark-suite.md)（性能基准框架）
 
 ---
 

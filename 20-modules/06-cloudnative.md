@@ -670,9 +670,9 @@ graph TD
 - [07-system.md](07-system.md)——系统模块（config_d 配置 SSoT `/etc/agentrt/`）
 - [50-engineering-standards/README.md](../50-engineering-standards/README.md)——\[SC] 共享契约层 10 头文件清单
 - [50-engineering-standards/120-cross-project-code-sharing.md](../50-engineering-standards/120-cross-project-code-sharing.md)——\[SC] Layout C 物理宿主
-- [110-security/03-capability-model.md](../../110-security/03-capability-model.md)——capability 模型 SSoT（§13.6 跨节点 Badge 一致性）
-- [docs/architecture/adr/ADR-012.md](../../architecture/adr/ADR-012.md)——ADR-012 微内核化技术路线
-- [docs/architecture/adr/ADR-014.md](../../architecture/adr/ADR-014.md)——ADR-014 seL4 唯一来源
+- [110-security/03-capability-model.md](../110-security/03-capability-model.md)——capability 模型 SSoT（§13.6 跨节点 Badge 一致性）
+- [docs/architecture/adr/ADR-012.md](../10-architecture/05-adrs.md)——ADR-012 微内核化技术路线
+- [docs/architecture/adr/ADR-014.md](../10-architecture/05-adrs.md)——ADR-014 seL4 唯一来源
 
 ***
 

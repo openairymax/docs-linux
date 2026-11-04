@@ -843,7 +843,7 @@ if (likely(kfifo_out_peek(&kfifo->fifo, &hdr, 1) == 1)) {
 
 | 屏障 | 位置 | 作用 | 参考实现 |
 |------|------|------|---------|
-| `smp_store_release(&ring->head, next)` | 生产者 `airy_ipc_ring_post()`：memcpy 之后、head 更新 | 保证 memcpy（数据 store）在 head 更新（index store）之前对其他 CPU 可见 | [io_uring.c:2278](../../.engineer-reference/kernel-OLK-6.6/io_uring/io_uring.c#L2278) `smp_store_release(&rings->sq.head, ...)` |
+| `smp_store_release(&ring->head, next)` | 生产者 `airy_ipc_ring_post()`：memcpy 之后、head 更新 | 保证 memcpy（数据 store）在 head 更新（index store）之前对其他 CPU 可见 | `io_uring.c:2278` `smp_store_release(&rings->sq.head, ...)` |
 | `smp_load_acquire(&ring->head)` | 消费者 `airy_ipc_ring_consume()`：head 读取、空检查 | 保证 head 读取在后续 memcpy（数据 read）之前完成，防止读到旧数据 | io_uring `smp_load_acquire` 配对模式（io_uring.c 头部注释 11-22 行） |
 
 ```c
@@ -1534,7 +1534,7 @@ v0.2.8 §3 fastpath 触发条件中 C-S9 / C-R7 的 capability 检查（`airy_ca
 v1.0.1 修复 `airy_ipc_ring.c` SPSC ring buffer 在 ARM64 等弱内存序架构上的数据可见性缺陷（ADR-017 缺陷 #6）：
 
 - **§6.5 新增 SPSC Ring Buffer 内存序章节**：明确生产者 `smp_store_release(&ring->head, next)` 与消费者 `smp_load_acquire(&ring->head)` 配对模式
-- **参考实现**：Linux 6.6 io_uring（[io_uring.c:2278](../../.engineer-reference/kernel-OLK-6.6/io_uring/io_uring.c#L2278)）`smp_store_release(&rings->sq.head, ...)` 现代模式，优于 kfifo 的旧 `smp_wmb()` 模式
+- **参考实现**：Linux 6.6 io_uring（`io_uring.c:2278`）`smp_store_release(&rings->sq.head, ...)` 现代模式，优于 kfifo 的旧 `smp_wmb()` 模式
 - **缺陷登记**：详见 [09-known-caveats.md §8](../10-architecture/09-known-caveats.md) 与 [ADR-017](../10-architecture/05-adrs.md#adr-017-capability-派生操作与-ipc-ring-buffer-6-项致命缺陷修复k9-1-回归--arm64-内存序)
 - **关联文档**：[03-capability-model.md §15.2](../110-security/03-capability-model.md) Capability 模型同步登记 CAP-FIX-01~05 缺陷修复
 

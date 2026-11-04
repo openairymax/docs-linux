@@ -833,7 +833,7 @@ KUNIT_DEFINE_TEST(test_supernode_topology_discovery) {
 
 ### 18.1 不移植的 主流 Linux 发行版 特有特性
 
-根据项目合规约束（[50-engineering-standards/08-compliance-checklist.md](../50-engineering-standards/08-compliance-checklist.md)），超节点 OS **不移植**以下 主流 Linux 发行版 特有特性，改用替代方案：
+根据项目合规约束（[50-engineering-standards/01-coding-standards.md](../50-engineering-standards/01-coding-standards.md)），超节点 OS **不移植**以下 主流 Linux 发行版 特有特性，改用替代方案：
 
 | 不移植特性 | 原因 | 替代方案 |
 |-----------|------|---------|

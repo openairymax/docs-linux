@@ -674,8 +674,8 @@ int main(void)
 
 - [10-unify-design.md](../10-architecture/10-unify-design.md) §6 —— A-UCS 模块总纲
 - [10-unify-design.md](../10-architecture/10-unify-design.md) §8 —— A-IPC 模块总纲（Capability Folding）
-- [ADR-012](../../architecture/adr/ADR-012.md) —— 技术路线：对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造
-- [ADR-014](../../architecture/adr/ADR-014.md) —— seL4 唯一来源（IRON-9 v3 四层共享模型依据）
+- [ADR-012](../10-architecture/05-adrs.md) —— 技术路线：对 Linux 6.6 进行 seL4 思想借鉴的微内核化改造
+- [ADR-014](../10-architecture/05-adrs.md) —— seL4 唯一来源（IRON-9 v3 四层共享模型依据）
 - [06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md) —— IRON-9 v3 四层共享模型（[SC]+[SS]+[IND]+[DSL]）
 - [09-sc-log-types-contract.md](../30-interfaces/09-sc-log-types-contract.md) —— [SC] 日志配置
 - [08-sc-error-contract.md](../30-interfaces/08-sc-error-contract.md) —— `AIRY_ECFGVERSION` 错误码 + `AIRY_E*` 命名空间

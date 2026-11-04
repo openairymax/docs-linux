@@ -672,11 +672,11 @@ graph TD
 - [04-memory.md](04-memory.md)——记忆模块（[SC] memory_types.h，airymaxmon 监控）
 - [05-cognition.md](05-cognition.md)——认知模块（[SC] cognition_types.h，DevStation 调用 LLM）
 - [06-cloudnative.md](06-cloudnative.md)——云原生模块（gateway_d 跨节点 Badge 一致性，airymaxmon 与 OpenTelemetry 集成）
-- [11-unified-config.md](../11-unified-config.md)——统一配置 SSoT（`/etc/agentrt/`，YAML/TOML，禁止非 agentrt 命名空间的旧路径）
+- [11-unified-config.md](11-unified-config.md)——统一配置 SSoT（`/etc/agentrt/`，YAML/TOML，禁止非 agentrt 命名空间的旧路径）
 - [50-engineering-standards/README.md](../50-engineering-standards/README.md)——[SC] 共享契约层 12 头文件清单
 - [50-engineering-standards/120-cross-project-code-sharing.md](../50-engineering-standards/120-cross-project-code-sharing.md)——[SC] Layout C 物理宿主 + bpf_struct_ops.h 补充共享文件归类
-- [docs/architecture/adr/ADR-012.md](../../architecture/adr/ADR-012.md)——ADR-012 微内核化技术路线
-- [docs/architecture/adr/ADR-014.md](../../architecture/adr/ADR-014.md)——ADR-014 seL4 唯一来源
+- [docs/architecture/adr/ADR-012.md](../10-architecture/05-adrs.md)——ADR-012 微内核化技术路线
+- [docs/architecture/adr/ADR-014.md](../10-architecture/05-adrs.md)——ADR-014 seL4 唯一来源
 
 ---
 

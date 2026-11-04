@@ -105,7 +105,7 @@ flowchart TB
 
 ### 2.1 状态定义
 
-Agent 8 态生命周期的 8 个状态定义于 [SC] `include/uapi/linux/airymax/sched.h`（`enum airy_agent_state`，SSoT 物理宿主；权威源文档 [10-sc-sched-extension.md §2.1](../../30-interfaces/10-sc-sched-extension.md)）：
+Agent 8 态生命周期的 8 个状态定义于 [SC] `include/uapi/linux/airymax/sched.h`（`enum airy_agent_state`，SSoT 物理宿主；权威源文档 [10-sc-sched-extension.md §2.1](../30-interfaces/10-sc-sched-extension.md)）：
 
 ```c
 /* include/uapi/linux/airymax/sched.h（[SC] 共享契约层 SSoT） */

@@ -579,7 +579,7 @@ agent-linux 全面参考 openEuler 24.03 LTS / 26.03 的 Euler API 用户态接�
 - [五维正交原则](02-five-dimensional-principles.md)：五维正交 24 原则落地映射
 - [微内核策略](03-microkernel-strategy.md)：微内核化改造策略
 - [架构决策记录](05-adrs.md)：18 个核心 ADR（含 ADR-011\~018：架构模型论证 / 微内核路线 / 调度框架 / 微内核来源单一化 / 版本基线锁定 / Capability 派生修复 / openEuler 硬件复用）
-- [架构原则](../../docs-workload/00-architectural-principles.md)：五维正交 24 原则的完整定义
+- [架构原则](../../docs-workload/10-architecture/00-architectural-principles.md)：五维正交 24 原则的完整定义
 
 ***
 

@@ -55,7 +55,7 @@ agent-linux（AirymaxOS）IPC 性能工程为 A-IPC（Airymax Unify IPC Fabric�
 
 ### 1.5 v1.0.1 FAST_SEND 实测性能（KUnit `airy_fastpath_bench`）
 
-FAST_SEND（fastpath C-S9 通过路径）的实测数据来自内核 KUnit 微基准 [airy_fastpath_bench.c](../../agent-linux/kernel/kernel/corekern/ipc/airy_fastpath_bench.c)，**测量环境：UML x86_64**（ktime_get_ns 分批计时，warm-up + batched loop，net mean = raw - baseline），数据非估算：
+FAST_SEND（fastpath C-S9 通过路径）的实测数据来自内核 KUnit 微基准 [airy_fastpath_bench.c](../../../agent-linux/kernel/kernel/corekern/ipc/airy_fastpath_bench.c)，**测量环境：UML x86_64**（ktime_get_ns 分批计时，warm-up + batched loop，net mean = raw - baseline），数据非估算：
 
 | 指标 | 实测延迟 | 说明 |
 |------|----------|------|

@@ -3816,17 +3816,17 @@ private:
 
 ### 十五、参考文献
 
-1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../10-architecture/00-architectural-principles.md)
+1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
 2. **C++ Core Guidelines**: https://isocpp.github.io/CppCoreGuidelines/
 3. **Google C++ Style Guide**: https://google.github.io/styleguide/cppguide.html
 4. **ISO C++ Standard**: https://eel.is/c++draft/
 5. **Airymax 核心架构文档**:
-   - [coreloopthree.md](../../10-architecture/02-coreloopthree.md)
-   - [memoryrovol.md](../../10-architecture/03-memoryrovol.md)  
-   - [microcorert.md](../../10-architecture/04-microcorert.md)
-   - [ipc.md](../../10-architecture/30-kernel/01-ipc.md)
-   - [syscall.md](../../10-architecture/05-syscall.md)
-   - [logging_system.md](../../10-architecture/50-services/02-logging.md)
+   - [coreloopthree.md](../../../docs-workload/10-architecture/02-coreloopthree.md)
+   - [memoryrovol.md](../../../docs-workload/10-architecture/03-memoryrovol.md)  
+   - [microcorert.md](../../../docs-workload/10-architecture/04-microcorert.md)
+   - [ipc.md](../../../docs-workload/10-architecture/30-kernel/01-ipc.md)
+   - [syscall.md](../../../docs-workload/10-architecture/05-syscall.md)
+   - [logging_system.md](../../../docs-workload/10-architecture/50-services/02-logging.md)
 
 ---
 

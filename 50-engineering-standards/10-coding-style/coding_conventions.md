@@ -994,9 +994,9 @@ jobs:
 5. **TypeScript Documentation**: https://www.typescriptlang.org/docs/
 6. **Effective Go**: https://golang.org/doc/effective_go
 7. **Rust API Guidelines**: https://rust-lang.github.io/api-guidelines/
-8. **Airymax 架构设计原则**: [00-architectural-principles.md](../../00-architectural-principles.md)
+8. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
 9. **Airymax 统一术语表**: [90-terminology.md](../90-terminology.md)
-10. **Airymax 安全设计指南**: [Security_design_standard.md](../Security_design_standard.md)
+10. **Airymax 安全设计指南**: Security_design_standard.md
 
 ---
 
@@ -1110,7 +1110,7 @@ SPDX-FileCopyrightText: 2025-2026 SPHARX Ltd.
 - 格式: `YYYY-MM-DDTHH:MM:SS.ffffffZ`
 
 > **📝 与运行时日志的时间戳格式差异说明**  
-> 本规范（审计日志）使用 ISO 8601 字符串格式（如 `"2026-04-05T10:30:00.123456Z"`），而 [logging_format.md](../10-contracts/05-logging-format.md) 中的运行时日志使用 Unix 时间戳数值格式（如 `1701234567.890`）。两者格式不同的原因：
+> 本规范（审计日志）使用 ISO 8601 字符串格式（如 `"2026-04-05T10:30:00.123456Z"`），而 [logging_format.md](../../../docs-workload/20-modules/10-contracts/05-logging-format.md) 中的运行时日志使用 Unix 时间戳数值格式（如 `1701234567.890`）。两者格式不同的原因：
 > - **审计日志**面向合规审查，ISO 8601 格式人类可读，便于安全审计人员直接阅读和比对时间线
 > - **运行时日志**面向机器解析和性能监控，Unix 时间戳数值格式解析效率高、存储紧凑、便于计算时间差
 > - 两种格式可通过标准库函数互相转换，不存在信息丢失
@@ -1129,7 +1129,7 @@ SPDX-FileCopyrightText: 2025-2026 SPHARX Ltd.
 | `AUDIT` | 审计检查 | 安全审计、合规检查 |
 
 > **📝 与 logging_format.md 的 AUDIT 级别对齐**  
-> 本规范新增 `AUDIT` 动作类型，与 [logging_format.md](../10-contracts/05-logging-format.md) 中定义的 `AUDIT` 日志级别（级别 5）对齐。`AUDIT` 动作用于记录安全审计和合规检查操作，其对应的运行时日志应使用 `audit` 级别输出。
+> 本规范新增 `AUDIT` 动作类型，与 [logging_format.md](../../../docs-workload/20-modules/10-contracts/05-logging-format.md) 中定义的 `AUDIT` 日志级别（级别 5）对齐。`AUDIT` 动作用于记录安全审计和合规检查操作，其对应的运行时日志应使用 `audit` 级别输出。
 
 #### 3.3 config_file（配置文件路径）
 
@@ -2262,8 +2262,8 @@ func (c *VectorDBClient) Search(query Vector, k int) ([]SearchResult, error) {
 
 | 引用文档 | 关系说明 |
 |---------|---------|
-| [架构设计原则](../../00-architectural-principles.md) | 本规范是原则 E-2（可观测性原则）和 E-4（运维友好原则）在日志打印方面的具体实施 |
-| [C&C++安全编程指南](./02-c-cpp-secure-coding.md) | 日志中的错误处理应遵循安全编程指南的异常处理规范 |
+| [架构设计原则](../../../docs-workload/10-architecture/00-architectural-principles.md) | 本规范是原则 E-2（可观测性原则）和 E-4（运维友好原则）在日志打印方面的具体实施 |
+| C&C++安全编程指南 | 日志中的错误处理应遵循安全编程指南的异常处理规范 |
 | [统一术语表](../90-terminology.md) | 本规范使用的术语定义和解释 |
 | [Airymax 核心架构文档](../../10-architecture/) | 与本规范密切相关的架构文档：<br>- logging_system.md（可观测性核心架构）<br>- coreloopthree.md（运行时日志）<br>- memoryrovol.md（内存相关日志）<br>- microcorert.md（内核日志） |
 
@@ -4423,18 +4423,18 @@ func (b *SecureSchedulerBridge) ScheduleSecureTask(task SecureTask) error {
 
 ### 十三、参考文献
 
-1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../00-architectural-principles.md)
-2. **Airymax 微核心设计**: [microcorert.md](../../10-architecture/04-microcorert.md)
+1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
+2. **Airymax 微核心设计**: [microcorert.md](../../../docs-workload/10-architecture/04-microcorert.md)
 3. **Airymax 统一术语表**: [90-terminology.md](../90-terminology.md)
 4. **OWASP Top 10**: https://owasp.org/www-project-top-ten/
 5. **NIST Cybersecurity Framework**: https://www.nist.gov/cyberframework
 6. **ISO 27001**: https://www.iso.org/isoiec-27001-information-security.html
 7. **Airymax 核心架构文档**:
-   - [coreloopthree.md](../../10-architecture/02-coreloopthree.md)
-   - [memoryrovol.md](../../10-architecture/03-memoryrovol.md)
-   - [ipc.md](../../10-architecture/30-kernel/01-ipc.md)
-   - [syscall.md](../../10-architecture/05-syscall.md)
-   - [logging_system.md](../../10-architecture/50-services/02-logging.md)
+   - [coreloopthree.md](../../../docs-workload/10-architecture/02-coreloopthree.md)
+   - [memoryrovol.md](../../../docs-workload/10-architecture/03-memoryrovol.md)
+   - [ipc.md](../../../docs-workload/10-architecture/30-kernel/01-ipc.md)
+   - [syscall.md](../../../docs-workload/10-architecture/05-syscall.md)
+   - [logging_system.md](../../../docs-workload/10-architecture/50-services/02-logging.md)
 
 ---
 

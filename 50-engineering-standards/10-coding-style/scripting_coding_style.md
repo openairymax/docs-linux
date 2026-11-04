@@ -1275,16 +1275,16 @@ class VectorDBClient:
 
 ### 十二、参考文献
 
-1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../10-architecture/00-architectural-principles.md)
+1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
 2. **Google Python Style Guide**: https://google.github.io/styleguide/pyguide.html
 3. **Python PEP 8**: https://www.python.org/dev/peps/pep-0008/
 4. **Python PEP 484**: https://www.python.org/dev/peps/pep-0484/
 5. **Airymax 核心架构文档**:
-   - [coreloopthree.md](../../10-architecture/02-coreloopthree.md)
-   - [memoryrovol.md](../../10-architecture/03-memoryrovol.md)
-   - [microcorert.md](../../10-architecture/04-microcorert.md)
-   - [ipc.md](../../10-architecture/30-kernel/01-ipc.md)
-   - [logging.md](../../10-architecture/50-services/02-logging.md)
+   - [coreloopthree.md](../../../docs-workload/10-architecture/02-coreloopthree.md)
+   - [memoryrovol.md](../../../docs-workload/10-architecture/03-memoryrovol.md)
+   - [microcorert.md](../../../docs-workload/10-architecture/04-microcorert.md)
+   - [ipc.md](../../../docs-workload/10-architecture/30-kernel/01-ipc.md)
+   - [logging.md](../../../docs-workload/10-architecture/50-services/02-logging.md)
 
 ---
 
@@ -2883,17 +2883,17 @@ export class UnifiedStateManager {
 ---
 ### 十五、参考文献
 
-1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../10-architecture/00-architectural-principles.md)
+1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
 2. **Google TypeScript Style Guide**: https://google.github.io/styleguide/tsguide.html
 3. **TypeScript Documentation**: https://www.typescriptlang.org/docs/
 4. **Airbnb JavaScript Style Guide**: https://github.com/airbnb/javascript
 5. **Airymax 核心架构文档**:
-   - [coreloopthree.md](../../10-architecture/02-coreloopthree.md)
-   - [memoryrovol.md](../../10-architecture/03-memoryrovol.md)
-   - [microcorert.md](../../10-architecture/04-microcorert.md)
-   - [ipc.md](../../10-architecture/30-kernel/01-ipc.md)
-   - [syscall.md](../../10-architecture/05-syscall.md)
-   - [logging.md](../../10-architecture/50-services/02-logging.md)
+   - [coreloopthree.md](../../../docs-workload/10-architecture/02-coreloopthree.md)
+   - [memoryrovol.md](../../../docs-workload/10-architecture/03-memoryrovol.md)
+   - [microcorert.md](../../../docs-workload/10-architecture/04-microcorert.md)
+   - [ipc.md](../../../docs-workload/10-architecture/30-kernel/01-ipc.md)
+   - [syscall.md](../../../docs-workload/10-architecture/05-syscall.md)
+   - [logging.md](../../../docs-workload/10-architecture/50-services/02-logging.md)
 
 ---
 
@@ -4085,18 +4085,18 @@ public class SecureKernelBinding {
 ---
 ### 十一、参考文献
 
-1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../10-architecture/00-architectural-principles.md)
+1. **Airymax 架构设计原则**: [00-architectural-principles.md](../../../docs-workload/10-architecture/00-architectural-principles.md)
 2. **OWASP Top 10**: https://owasp.org/www-project-top-ten/
 3. **Java Secure Coding Guidelines**: https://wiki.sei.cmu.edu/confluence/display/java
 4. **Spring Security Documentation**: https://docs.spring.io/spring-security/site/docs/current/reference/html5/
 5. **Airymax 核心架构文档**:
-   - [coreloopthree.md](../../10-architecture/02-coreloopthree.md)
-   - [memoryrovol.md](../../10-architecture/03-memoryrovol.md)
-   - [microcorert.md](../../10-architecture/04-microcorert.md)
-   - [ipc.md](../../10-architecture/30-kernel/01-ipc.md)
-   - [syscall.md](../../10-architecture/05-syscall.md)
-   - [logging_system.md](../../10-architecture/50-services/02-logging.md)
-   - [Security_design_standard.md](../Security_design_standard.md)
+   - [coreloopthree.md](../../../docs-workload/10-architecture/02-coreloopthree.md)
+   - [memoryrovol.md](../../../docs-workload/10-architecture/03-memoryrovol.md)
+   - [microcorert.md](../../../docs-workload/10-architecture/04-microcorert.md)
+   - [ipc.md](../../../docs-workload/10-architecture/30-kernel/01-ipc.md)
+   - [syscall.md](../../../docs-workload/10-architecture/05-syscall.md)
+   - [logging_system.md](../../../docs-workload/10-architecture/50-services/02-logging.md)
+   - Security_design_standard.md
 
 ---
 

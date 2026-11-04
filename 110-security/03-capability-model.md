@@ -2222,9 +2222,9 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——内核空指针解引用导致 panic） |
 | **根因** | K9-1 改为 per-agent epoch 后，REVOKE 需 `src->epoch++`，但原代码对 REVOKE 跳过 `src = airy_cap_lookup(src_agent)`，导致 `src` 未初始化即解引用 |
-| **修复** | [airy_cap_derive.c:55-62](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 source lookup 并校验 |
-| **seL4 对照** | `cteRevoke`（[cnode.c:528](../../.engineer-reference/seL4-master/src/object/cnode.c#L528)）直接使用传入 `slot` 参数，从不跳过源查找 |
-| **Linux 6.6 对照** | `key_revoke`（[key.c:1117](../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1117)）直接访问传入 `key` 参数，先 `key_check(key)` 校验 |
+| **修复** | [airy_cap_derive.c:55-62](../../../agent-linux/kernel/security/airy/airy_cap_derive.c#L55-L62) 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 source lookup 并校验 |
+| **seL4 对照** | `cteRevoke`（`cnode.c:528`）直接使用传入 `slot` 参数，从不跳过源查找 |
+| **Linux 6.6 对照** | `key_revoke`（`key.c:1117`）直接访问传入 `key` 参数，先 `key_check(key)` 校验 |
 
 #### 15.2.2 缺陷 CAP-FIX-02: COPY/MINT/MOVE 未继承 epoch 字段
 
@@ -2232,9 +2232,9 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——所有派生 capability fastpath C-S9.1 校验失败） |
 | **根因** | K9-1 引入 per-agent epoch 后，COPY/MINT/MOVE 创建新 slot 时未继承 source 的 epoch，新 slot epoch=0 而 badge epoch 来自源（如 1），epoch 不匹配 |
-| **修复** | [airy_cap_derive.c:83,108,129](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L83) 在 COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` |
-| **seL4 对照** | `cteInsert`（[cnode.c:435-436](../../.engineer-reference/seL4-master/src/object/cnode.c#L435)）`destSlot->cap = newCap; destSlot->cteMDBNode = newMDB` 完整复制所有字段 |
-| **Linux 6.6 对照** | `prepare_creds`（[cred.c:218](../../.engineer-reference/kernel-OLK-6.6/kernel/cred.c#L218)）`memcpy(new, old, sizeof(struct cred))` 整结构体复制 |
+| **修复** | [airy_cap_derive.c:83,108,129](../../../agent-linux/kernel/security/airy/airy_cap_derive.c#L83) 在 COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` |
+| **seL4 对照** | `cteInsert`（`cnode.c:435-436`）`destSlot->cap = newCap; destSlot->cteMDBNode = newMDB` 完整复制所有字段 |
+| **Linux 6.6 对照** | `prepare_creds`（`cred.c:218`）`memcpy(new, old, sizeof(struct cred))` 整结构体复制 |
 
 #### 15.2.3 缺陷 CAP-FIX-03: DELETE/MOVE 未清除源 epoch 字段
 
@@ -2242,9 +2242,9 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P1（高危——信息泄漏 + 重用混淆） |
 | **根因** | DELETE/MOVE 使源 slot 失效时，badge 置为 NULL 但 epoch 残留旧值，可能导致重注册时混淆或攻击者推断历史撤销次数 |
-| **修复** | [airy_cap_derive.c:137,175](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除。**0.0.3 TB-03-04 起**清槽改由 `cap_slot_reset()` 统一执行，epoch 写为 `airy_epoch_next(旧值)` 而非 0：0 是保留值，归零会让 `AIRY_CAP_NULL` 与槽位全等比较重新成立，递增并跳过 0 可保证被回收槽位的历史 badge 永久失效 |
-| **seL4 对照** | `cteMove`（[cnode.c:458-460](../../.engineer-reference/seL4-master/src/object/cnode.c#L458)）`srcSlot->cap = cap_null_cap_new(); srcSlot->cteMDBNode = nullMDBNode` 清除源所有字段 |
-| **seL4 对照** | `emptySlot`（[cnode.c:587-588](../../.engineer-reference/seL4-master/src/object/cnode.c#L587)）`slot->cap = cap_null_cap_new(); slot->cteMDBNode = nullMDBNode` DELETE 时清除所有字段 |
+| **修复** | [airy_cap_derive.c:137,175](../../../agent-linux/kernel/security/airy/airy_cap_derive.c#L137) 在 MOVE 源失效和 DELETE 中添加 `WRITE_ONCE(src->epoch, 0)`，与 badge/agent_id/flags/randtag/perms 一起清除。**0.0.3 TB-03-04 起**清槽改由 `cap_slot_reset()` 统一执行，epoch 写为 `airy_epoch_next(旧值)` 而非 0：0 是保留值，归零会让 `AIRY_CAP_NULL` 与槽位全等比较重新成立，递增并跳过 0 可保证被回收槽位的历史 badge 永久失效 |
+| **seL4 对照** | `cteMove`（`cnode.c:458-460`）`srcSlot->cap = cap_null_cap_new(); srcSlot->cteMDBNode = nullMDBNode` 清除源所有字段 |
+| **seL4 对照** | `emptySlot`（`cnode.c:587-588`）`slot->cap = cap_null_cap_new(); slot->cteMDBNode = nullMDBNode` DELETE 时清除所有字段 |
 
 #### 15.2.4 缺陷 CAP-FIX-04: airy_cap_register 未初始化 epoch
 
@@ -2252,8 +2252,8 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——新注册 Agent 首次 fastpath 校验即失败） |
 | **根因** | `airy_cap_register` 从 badge 提取 perms 和 randtag 但未提取 epoch，新 slot epoch 与 badge epoch 不一致 |
-| **修复** | [airy_cap_array.c:64](../../agent-linux/kernel/security/airy/airy_cap_array.c#L64) 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` |
-| **seL4 对照** | `insertNewCap`（[cnode.c:750-751](../../.engineer-reference/seL4-master/src/object/cnode.c#L750)）`slot->cap = cap; slot->cteMDBNode = mdb_node_new(...)` 初始化所有字段 |
+| **修复** | [airy_cap_array.c:64](../../../agent-linux/kernel/security/airy/airy_cap_array.c#L64) 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` |
+| **seL4 对照** | `insertNewCap`（`cnode.c:750-751`）`slot->cap = cap; slot->cteMDBNode = mdb_node_new(...)` 初始化所有字段 |
 | **Linux 6.6 对照** | `prepare_creds` memcpy 后手动调整 `atomic_long_set(&new->usage, 1)` 等，确保每字段有确定值 |
 
 #### 15.2.5 缺陷 CAP-FIX-05: airy_cap_rotate 缺少并发控制
@@ -2262,8 +2262,8 @@ K9-1 将 Capability 撤销机制从全局 epoch 改为 per-agent epoch 后，7 �
 |---|------|
 | **严重程度** | P0（致命——竞态条件导致 badge 不一致状态） |
 | **根因** | 原 `airy_cap_rotate` 独立实现轮换逻辑无锁保护，与 `airy_cap_derive_lock` spinlock 不协调，并发 rotate + derive(REVOKE) 会导致 randtag 与 epoch 写入交错 |
-| **修复** | [airy_cap_rotate.c:32-35](../../agent-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) 重写为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock |
-| **Linux 6.6 对照** | `key_revoke`（[key.c:1128](../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1128)）`down_write_nested(&key->sem, 1)` 串行化所有撤销类操作 |
+| **修复** | [airy_cap_rotate.c:32-35](../../../agent-linux/kernel/security/airy/airy_cap_rotate.c#L32-L35) 重写为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock |
+| **Linux 6.6 对照** | `key_revoke`（`key.c:1128`）`down_write_nested(&key->sem, 1)` 串行化所有撤销类操作 |
 | **Linux 6.6 对照** | keyring `__key_link_begin` 用 `keyring_serialise_sem` 串行化链接操作 |
 
 #### 15.2.6 修复完整性结论

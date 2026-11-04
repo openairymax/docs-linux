@@ -734,7 +734,7 @@ int airy_coverage_agent_path_illegal_count(void)
 - [02-kselftest.md](02-kselftest.md)：kselftest 系统级测试（覆盖率来源）
 - [04-dynamic-analysis.md](04-dynamic-analysis.md)：动态分析（与本卷联动）
 - [08-agent-contract-testing.md](08-agent-contract-testing.md)：Agent 行为契约测试（路径覆盖率来源）
-- [../50-engineering-standards/06-toolchain-and-automation.md](../50-engineering-standards/06-toolchain-and-automation.md)：工具链与自动化
+- [../50-engineering-standards/05-development-process.md](../50-engineering-standards/05-development-process.md)：工具链与自动化
 - [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线
 - [../170-performance/README.md](../170-performance/README.md)：性能工程（关键路径覆盖率联动）
 

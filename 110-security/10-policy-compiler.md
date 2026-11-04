@@ -141,7 +141,7 @@ table <name> {
 | 2 | `AIRY_VERDICT_AUDIT` | 放行，计审计并发出 trace |
 | 3 | `AIRY_VERDICT_COMPLAIN` | 放行，记录"本应拒绝"（对齐 AppArmor complain 学习模式） |
 
-裁决枚举唯一权威定义在 [security_types.h](../../agent-linux/kernel/include/uapi/linux/airymax/security_types.h) 的 `enum airy_verdict`；生成头与运行时都**不得重新定义**这些常量（OS-IRON-014）。
+裁决枚举唯一权威定义在 [security_types.h](../../../agent-linux/kernel/include/uapi/linux/airymax/security_types.h) 的 `enum airy_verdict`；生成头与运行时都**不得重新定义**这些常量（OS-IRON-014）。
 
 ---
 

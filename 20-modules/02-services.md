@@ -729,7 +729,7 @@ graph TD
 - [IPC 协议接口](../30-interfaces/02-ipc-protocol.md)：AgentsIPC 协议
 - [SDK API](../30-interfaces/03-sdk-api.md)：SDK 接口
 - [IRON-9 v3 定义](../50-engineering-standards/README.md)：四层共享模型
-- [合规检查清单](../50-engineering-standards/08-compliance-checklist.md)：STD-DOC-\* 规则
+- [合规检查清单](../50-engineering-standards/01-coding-standards.md)：STD-DOC-\* 规则
 
 ### 12.2 同系列模块文档
 

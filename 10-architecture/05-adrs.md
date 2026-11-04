@@ -1223,12 +1223,12 @@ K9-1 将 Capability 撤销机制从全局 epoch（`airy_cap_global_epoch`）改�
 
 | 缺陷 | 修复方案 | 参考实现 |
 |------|---------|---------|
-| #1 REVOKE 空指针 | 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 `src = airy_cap_lookup()` 并校验 | seL4 `cteRevoke`（[cnode.c:528](../../../../.engineer-reference/seL4-master/src/object/cnode.c#L528)）直接使用 slot 参数；Linux 6.6 `key_revoke`（[key.c:1117](../../../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1117)）直接访问 key |
-| #2 未继承 epoch | COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` | seL4 `cteInsert`（[cnode.c:410](../../../../.engineer-reference/seL4-master/src/object/cnode.c#L410)）完整复制 cap + MDB；Linux 6.6 `prepare_creds`（[cred.c:218](../../../../.engineer-reference/kernel-OLK-6.6/kernel/cred.c#L218)）memcpy 全字段 |
-| #3 未清除源 epoch | DELETE 和 MOVE 源失效添加 `WRITE_ONCE(src->epoch, 0)` | seL4 `cteMove`（[cnode.c:458-460](../../../../.engineer-reference/seL4-master/src/object/cnode.c#L458)）清除 src cap + MDB；seL4 `emptySlot`（[cnode.c:587-588](../../../../.engineer-reference/seL4-master/src/object/cnode.c#L587)）清除 cap + cteMDBNode |
-| #4 register 未初始化 epoch | `airy_cap_register` 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` | seL4 `insertNewCap`（[cnode.c:750-751](../../../../.engineer-reference/seL4-master/src/object/cnode.c#L750)）初始化 cap + MDB；Linux 6.6 `prepare_creds` 确保每字段有确定值 |
-| #5 rotate 缺少并发控制 | 重写 `airy_cap_rotate` 为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock | Linux 6.6 `key_revoke`（[key.c:1128](../../../../.engineer-reference/kernel-OLK-6.6/security/keys/key.c#L1128)）`down_write_nested` 串行化；keyring `__key_link_begin` 用 `keyring_serialise_sem` |
-| #6 ARM64 内存序 | 生产者 `smp_store_release(&ring->head, next)`，消费者 `smp_load_acquire(&ring->head)` | Linux 6.6 io_uring（[io_uring.c:2278](../../../../.engineer-reference/kernel-OLK-6.6/io_uring/io_uring.c#L2278)）`smp_store_release(&rings->sq.head, ...)`；kfifo（[kfifo.h:423](../../../../.engineer-reference/kernel-OLK-6.6/include/linux/kfifo.h#L423)）用 `smp_wmb`（旧模式） |
+| #1 REVOKE 空指针 | 移除 `if (op != AIRY_CAP_OP_REVOKE)` 守卫，所有操作统一执行 `src = airy_cap_lookup()` 并校验 | seL4 `cteRevoke`（`cnode.c:528`）直接使用 slot 参数；Linux 6.6 `key_revoke`（`key.c:1117`）直接访问 key |
+| #2 未继承 epoch | COPY/MINT/MOVE 三个 case 添加 `dst->epoch = src->epoch` | seL4 `cteInsert`（`cnode.c:410`）完整复制 cap + MDB；Linux 6.6 `prepare_creds`（`cred.c:218`）memcpy 全字段 |
+| #3 未清除源 epoch | DELETE 和 MOVE 源失效添加 `WRITE_ONCE(src->epoch, 0)` | seL4 `cteMove`（`cnode.c:458-460`）清除 src cap + MDB；seL4 `emptySlot`（`cnode.c:587-588`）清除 cap + cteMDBNode |
+| #4 register 未初始化 epoch | `airy_cap_register` 添加 `agent_caps[agent_id].epoch = (__u16)AIRY_BADGE_EPOCH(badge)` | seL4 `insertNewCap`（`cnode.c:750-751`）初始化 cap + MDB；Linux 6.6 `prepare_creds` 确保每字段有确定值 |
+| #5 rotate 缺少并发控制 | 重写 `airy_cap_rotate` 为薄包装，委托 `airy_cap_derive(agent_id, agent_id, AIRY_CAP_OP_ROTATE, 0)`，复用 `airy_cap_derive_lock` spinlock | Linux 6.6 `key_revoke`（`key.c:1128`）`down_write_nested` 串行化；keyring `__key_link_begin` 用 `keyring_serialise_sem` |
+| #6 ARM64 内存序 | 生产者 `smp_store_release(&ring->head, next)`，消费者 `smp_load_acquire(&ring->head)` | Linux 6.6 io_uring（`io_uring.c:2278`）`smp_store_release(&rings->sq.head, ...)`；kfifo（`kfifo.h:423`）用 `smp_wmb`（旧模式） |
 
 ### 理由
 

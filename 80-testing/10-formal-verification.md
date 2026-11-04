@@ -1057,7 +1057,7 @@ CBMC 验证的工程价值：
 - [09-fuzz-testing.md](09-fuzz-testing.md)：模糊测试（与本卷互补）
 - [../10-architecture/06-iron9-shared-model.md](../10-architecture/06-iron9-shared-model.md)：IRON-9 v3 四层模型
 - [../10-architecture/10-unify-design.md](../10-architecture/10-unify-design.md)：Airymax Unify Design 总纲
-- [../50-engineering-standards/06-toolchain-and-automation.md](../50-engineering-standards/06-toolchain-and-automation.md)：工具链与自动化
+- [../50-engineering-standards/05-development-process.md](../50-engineering-standards/05-development-process.md)：工具链与自动化
 - [../70-build-system/03-ci-cd-pipeline.md](../70-build-system/03-ci-cd-pipeline.md)：CI/CD 流水线
 - [../110-security/README.md](../110-security/README.md)：安全测试（Capability 系统）
 
@@ -1097,11 +1097,11 @@ CBMC 验证的工程价值：
 
 | 验证对象 | 具体内容 | 对应源码 |
 |---------|---------|---------|
-| fastpath 冻结门 | `airy_ipc_fastpath_send()` 入口的 frozen 检查：frozen=true 时返回 `-AIRY_EIPC_FROZEN` 且不推进 head | [airy_ipc_fastpath.c:68-91](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c) |
-| SPSC ring 内存序 | `airy_ipc_ring_post()` 的 `smp_store_release` 与 `airy_ipc_ring_consume()` 的 `smp_load_acquire` 配对：head 发布 → consume 看到完整 slot | [airy_ipc_ring.c:94-95,121](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
-| Badge 校验语义 | `airy_cap_badge_ok()` 的 C-S9 三检查（epoch / randtag / perms 子集），3 次 READ_ONCE + 位运算 | [airy_cap.h:75-102](../../agent-linux/kernel/security/airy/airy_cap.h) |
-| COPY 权限降级 | `new_perms & src->perms` 交集语义（P1-10 fix，seL4 maskCapRights 对齐） | [airy_cap_derive.c:184-187](../../agent-linux/kernel/security/airy/airy_cap_derive.c) |
-| cancelBadgedSends | 取消后匹配 badge 的 slot 不再被 consume 投递（P1-8 fix） | [airy_ipc_ring.c:179-207](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
+| fastpath 冻结门 | `airy_ipc_fastpath_send()` 入口的 frozen 检查：frozen=true 时返回 `-AIRY_EIPC_FROZEN` 且不推进 head | [airy_ipc_fastpath.c:68-91](../../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_fastpath.c) |
+| SPSC ring 内存序 | `airy_ipc_ring_post()` 的 `smp_store_release` 与 `airy_ipc_ring_consume()` 的 `smp_load_acquire` 配对：head 发布 → consume 看到完整 slot | [airy_ipc_ring.c:94-95,121](../../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
+| Badge 校验语义 | `airy_cap_badge_ok()` 的 C-S9 三检查（epoch / randtag / perms 子集），3 次 READ_ONCE + 位运算 | [airy_cap.h:75-102](../../../agent-linux/kernel/security/airy/airy_cap.h) |
+| COPY 权限降级 | `new_perms & src->perms` 交集语义（P1-10 fix，seL4 maskCapRights 对齐） | [airy_cap_derive.c:184-187](../../../agent-linux/kernel/security/airy/airy_cap_derive.c) |
+| cancelBadgedSends | 取消后匹配 badge 的 slot 不再被 consume 投递（P1-8 fix） | [airy_ipc_ring.c:179-207](../../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c) |
 
 **证明深度**：以上均为 **C 功能行为层**（functional correctness of C semantics），即"假设 C 程序在顺序一致 / LKMM 内存模型下执行时满足的数学性质"。
 
@@ -1116,7 +1116,7 @@ CBMC 验证的工程价值：
 | 启动代码（boot / decompressor） | 独立于 IPC fastpath 路径 |
 | SMP 并发 | 本路径证明 SPSC 单生产者/单消费者配对语义，**不覆盖**多核任意交错下的强非干扰性（[09-known-caveats.md](../10-architecture/09-known-caveats.md) §4.2） |
 | MCS（Mixed Criticality Systems） | agent-linux 通过 sched_tac 映射实现等价能力，不引入 seL4 MCS 验证 |
-| LSM 5-phase slowpath 整体 | slowpath 调用链（`airy_uring_cmd_check()` [airy_cap_check.c:197-266](../../agent-linux/kernel/security/airy/airy_cap_check.c)）仅证明与 fastpath 裁决一致的 C-S9 语义，完整调用链验证延后 |
+| LSM 5-phase slowpath 整体 | slowpath 调用链（`airy_uring_cmd_check()` [airy_cap_check.c:197-266](../../../agent-linux/kernel/security/airy/airy_cap_check.c)）仅证明与 fastpath 裁决一致的 C-S9 语义，完整调用链验证延后 |
 
 **声明**：即使 IPC Fastpath 证明完成，也不构成"内核无缺陷"的二进制级保证；生产部署仍须结合运行时不变量检查与回归测试（与 09-known-caveats §1.3 结论一致）。IPC fastpath 性能（~10ns badge 校验、~158ns fastpath）为设计估算、未实测，本路径证明目标为**正确性而非性能**（性能验证见 170-performance 卷）。
 
@@ -1128,10 +1128,10 @@ CBMC 验证的工程价值：
 
 | HOL 模型元素 | C 符号 | 源码出处 |
 |-------------|--------|---------|
-| `ring.head / ring.tail / ring.cap / ring.frozen / ring.slots` | `struct airy_ipc_ring {head, tail, mask, frozen, slots}` | [airy_ipc_internal.h:23-29](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_internal.h) |
-| `slot.magic / slot.sl_badge / slot.sl_data` | `struct airy_ipc_msg_hdr {magic, capability_badge, ...}` | [ipc.h:67-79](../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
-| `cap_slot.ce / cr / cp` | `struct airy_cap_slot {epoch, randtag, perms}` | [lsm_types.h:60-74](../../agent-linux/kernel/include/uapi/linux/airymax/lsm_types.h) |
-| `badge_epoch / badge_randtag / badge_perms` | `AIRY_BADGE_EPOCH/RANDTAG/PERMS`（48/16/0 位移） | [ipc.h:49-64](../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
+| `ring.head / ring.tail / ring.cap / ring.frozen / ring.slots` | `struct airy_ipc_ring {head, tail, mask, frozen, slots}` | [airy_ipc_internal.h:23-29](../../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_internal.h) |
+| `slot.magic / slot.sl_badge / slot.sl_data` | `struct airy_ipc_msg_hdr {magic, capability_badge, ...}` | [ipc.h:67-79](../../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
+| `cap_slot.ce / cr / cp` | `struct airy_cap_slot {epoch, randtag, perms}` | [lsm_types.h:60-74](../../../agent-linux/kernel/include/uapi/linux/airymax/lsm_types.h) |
+| `badge_epoch / badge_randtag / badge_perms` | `AIRY_BADGE_EPOCH/RANDTAG/PERMS`（48/16/0 位移） | [ipc.h:49-64](../../../agent-linux/kernel/include/uapi/linux/airymax/ipc.h) |
 
 #### Isabelle/HOL datatype / record / locale 骨架
 
@@ -1387,7 +1387,7 @@ seL4 形式化验证四件套（见 22 号工程思想报告 v3.6c）在 Airymax
 
 #### (a) AIRY_COMPILE_ASSERT 双模式宏（uapi_compat.h 落点，v3.6c E1）
 
-seL4 对照（`include/assert.h` L45-69）：`CONFIG_VERIFICATION_BUILD` 下用 typedef 数组技巧（负长度数组编译报错），否则用 `_Static_assert`——因为 l4v 的 C parser 不支持 `_Static_assert` 语法。Airymax 等价物规划落点 [uapi_compat.h](../../agent-linux/kernel/include/uapi/linux/airymax/uapi_compat.h)（三态类型桥接头，内核/用户态/非 Linux 三端共享）：
+seL4 对照（`include/assert.h` L45-69）：`CONFIG_VERIFICATION_BUILD` 下用 typedef 数组技巧（负长度数组编译报错），否则用 `_Static_assert`——因为 l4v 的 C parser 不支持 `_Static_assert` 语法。Airymax 等价物规划落点 [uapi_compat.h](../../../agent-linux/kernel/include/uapi/linux/airymax/uapi_compat.h)（三态类型桥接头，内核/用户态/非 Linux 三端共享）：
 
 ```c
 /* ─── AIRY_COMPILE_ASSERT：双模式编译期断言（1.0.1+ 引入，v3.6c E1）──

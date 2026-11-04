@@ -368,9 +368,9 @@ agent-linux 采用**三层互补**的 Badge/capability 撤销机制，覆盖不�
 
 | 层级                     | 机制                                                                                   | 复杂度             | 触发场景                             | 代码位置                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------ | --------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ① REVOKE CNode 操作      | `airy_cap_revoke_subtree()` 沿 MDB 派生树（左孩子右兄弟）递归撤销子 cap                               | O(N)（典型深度 ≤3）   | 撤销某 cap 的所有派生子 cap               | [airy\_cap\_derive.c:92-117](../../agent-linux/kernel/security/airy/airy_cap_derive.c#L92-L117)     |
+| ① REVOKE CNode 操作      | `airy_cap_revoke_subtree()` 沿 MDB 派生树（左孩子右兄弟）递归撤销子 cap                               | O(N)（典型深度 ≤3）   | 撤销某 cap 的所有派生子 cap               | [airy\_cap\_derive.c:92-117](../../../agent-linux/kernel/security/airy/airy_cap_derive.c#L92-L117)     |
 | ② per-agent epoch bump | `airy_cap_epoch_bump(agent_id)` 递增 slot\_epoch，该 Agent 旧 Badge 立即失效                  | O(1)            | 撤销某 Agent 的所有 Badge（K9-1 主要撤销机制） | `security/airy/airy_cap_array.c`                                                                      |
-| ③ cancelBadgedSends    | `airy_ipc_cancel_badged_sends(ring, badge)` 扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过 | O(N)（N=ring 深度） | 撤销指定 Badge 的待发送 IPC 消息           | [airy\_ipc\_ring.c:159-207](../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207) |
+| ③ cancelBadgedSends    | `airy_ipc_cancel_badged_sends(ring, badge)` 扫描 ring 中待发送消息，匹配 badge 者将 magic 置零使其被跳过 | O(N)（N=ring 深度） | 撤销指定 Badge 的待发送 IPC 消息           | [airy\_ipc\_ring.c:159-207](../../../agent-linux/kernel/kernel/corekern/ipc/airy_ipc_ring.c#L159-L207) |
 
 **seL4 对比**：seL4 的 `cteRevoke` 需递归遍历 MDB 派生树，复杂度 O(N)；agent-linux 的 ②层将复杂度从撤销方的 O(N) 转移到被撤销方的重新申请（O(1)），①层保留 seL4 风格的递归撤销语义，③层补齐 seL4 `endpoint.c:476-489` 的 `cancelBadgedSends` 对等能力。
 
