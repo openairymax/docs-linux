@@ -82,6 +82,14 @@ agent-linux 关心的 sysctl 参数按子系统分组：
 （只写有限值，取父组同额）；契约见
 [实时能力矩阵](../170-performance/07-rt-matrix.md) §4.1。
 
+0.0.4 的内核关闭 `CONFIG_RT_GROUP_SCHED`（决策见
+[调度性能](../170-performance/01-scheduling-performance.md) §2.1），逐组记账
+整条路径不存在：`cpu.rt_runtime_us` 与 `cpu.rt.max` 都不出现，实时任务统一
+受上表这个 950000 的全局预算限流。此时 `status`/`apply` 结论为
+`unaccounted` 并按放行退出，`defaults` 判为 `budgeted`，`seed` 逐组返回
+`kept`，三者都不写任何接口。`unaccounted` 是内核契约而不是缺陷，只有
+`partial`/`failed` 才说明该落的预算没落下去。
+
 **OS-OPS-103**：`vm.max_map_count` 必须 ≥ 262144，因 LLM 模型加载（`cogn_d`）需要大量内存映射；低于此值将导致 LLM 加载失败（C-3 记忆卷载在内存层的体现）。
 
 **OS-OPS-104**：`kernel.msgmni` 必须 ≥ 32768，因 AgentsIPC 消息队列依赖内核 IPC 机制；低于此值将导致 daemon 间通信队列创建失败。

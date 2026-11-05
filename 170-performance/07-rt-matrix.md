@@ -35,7 +35,7 @@ CPU 是否隔离、调频是否被钉在 performance，这些条件各自独立�
 |----|---------|---------|-------------|
 | `realtime` | `/sys/kernel/realtime` | 值为 `1` | 内核非 PREEMPT_RT |
 | `budget` | `/proc/sys/kernel/sched_rt_runtime_us` | 可读且非 `0` | 接口不可读，本次无法判定 |
-| `group` | cgroup 挂载根 | 找到 v1 记账点或 v2 暴露 `cpu.rt.max` | 未找到记账树，RT 组调度未启用 |
+| `group` | cgroup 挂载根 | 找到 v1 记账点或 v2 暴露 `cpu.rt.max` | 见下方三种 `no`：无记账树 / 无 cpu 控制器 / 未编 RT 组调度 |
 | `deadline` | `/proc/sys/kernel/sched_deadline_period_max_us` | 文件存在 | 未编入 SCHED_DEADLINE |
 | `threadirqs` | `/proc/cmdline` | 含 `threadirqs` | 中断未线程化 |
 | `isolated` | `/proc/cmdline` | 含 `isolcpus=` 或 `nohz_full=` | 未做 CPU 隔离 |
@@ -98,7 +98,7 @@ EPERM 的门禁。
 | 门禁 | 读点 | 为零的后果 |
 |------|------|-----------|
 | 全局预算 | `kernel.sched_rt_runtime_us`（`-1` 为不限） | `0` 表示实时整体关闭 |
-| 直属组预算 | 任务所在组的 `cpu.rt_runtime_us` / `cpu.rt.max` | 内核只看直属组，父组预算不继承 |
+| 直属组预算 | 任务所在组的 `cpu.rt_runtime_us` / `cpu.rt.max` | 内核只看直属组，父组预算不继承（仅启用 RT 组调度时成立） |
 | 优先级上限 | `RLIMIT_RTPRIO`（`/proc/self/limits`） | 非 root 且无 `CAP_SYS_NICE` 时 EPERM |
 
 ```text
@@ -108,6 +108,8 @@ airy-rt-cap defaults [--json] [--group NAME] [--limits FILE]
 `--group` 缺省时判读「新建组」：内核 `alloc_rt_sched_group()` 固定以 0 初始化，
 不继承父组，因此可记账布局上结论恒为 `blocked`，阻塞项记为 `new-group-zero`。
 这一条是内核侧缺口，登记在 KRN-01，发行层改不了；指定 `--group` 时读该组真实值。
+内核未编 RT 组调度时没有直属组预算可读，三道门禁只剩全局预算与优先级上限，
+结论为 `budgeted`，`seed` 逐组返回 `kept`（全局预算已覆盖全部组）。
 
 | 退出码 | 含义 |
 |-------|------|

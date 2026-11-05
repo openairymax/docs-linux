@@ -52,7 +52,10 @@ agent-linux（AirymaxOS）调度性能工程旨在为智能体工作负载提供
 ```kconfig
 # kernel/.config（节选）
 CONFIG_DEADLINE_GROUP_SCHED=y
-CONFIG_RT_GROUP_SCHED=y
+# 0.0.4：关闭 RT 组调度，实时预算由全局 kernel.sched_rt_runtime_us 限流。
+# 逐组记账时新建组固定为 0，组内 SCHED_FIFO/RR 一律 EPERM，rtkit 退化
+# 为非实时；详见 100-operations/02-configuration.md §2.2。
+# CONFIG_RT_GROUP_SCHED is not set
 CONFIG_CGROUPS=y
 CONFIG_CGROUP_SCHED=y
 CONFIG_CGROUP_CPUSET=y
