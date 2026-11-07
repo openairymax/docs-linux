@@ -488,9 +488,10 @@ export XMODIFIERS=@im=ibus
 # 启动 IBus daemon
 ibus-daemon -drx
 
-# 配置输入法列表（拼音 + Anthy + Hangul）
+# 配置输入法列表（拼音 + Anthy + Hangul）；首位即登录后的默认引擎
+# 发行版默认值由 99-airymaxos-default.gschema.override 给出，此处为同一契约
 gsettings set org.freedesktop.ibus.general preload-engines \
-    "['xkb:us::eng', 'libpinyin', 'anthy', 'hangul']"
+    "['libpinyin', 'xkb:us::eng', 'anthy', 'hangul']"
 
 # 切换输入法快捷键（Super + Space）
 gsettings set org.freedesktop.ibus.general.hotkey triggers \
@@ -502,7 +503,7 @@ gsettings set org.freedesktop.ibus.general.hotkey triggers \
 ```ini
 # /etc/agentrt/ibus/config.ini —— IBus 默认配置
 [general]
-preload-engines = ["xkb:us::eng", "libpinyin", "anthy", "hangul"]
+preload-engines = ["libpinyin", "xkb:us::eng", "anthy", "hangul"]
 hotkey-triggers = ["<Super>space"]
 use-system-keyboard-layout = true
 
