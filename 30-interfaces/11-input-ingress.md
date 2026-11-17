@@ -304,7 +304,90 @@ GUI 会话的中文输入走 IBus（系统既有闭包），boot TUI 不复用 I
 
 ---
 
-## 10. 不做什么
+## 10. 输入抽象层（`boot-tui/src/input/`）
+
+前九章定义「进来的东西长什么样」，本章定义「怎么把四种完全不同的东西变成同一个样子」。
+抽象边界选错会让语音结果被拼音引擎二次转换、让 API 输入被迫走键盘路径——两者都是
+本设计要排除的形态。
+
+### 10.1 三层，边界的名字叫 RawEvent
+
+| 层 | 类型 | 产生者 | 消费者 |
+|---|---|---|---|
+| L1 事件层 | `RawEvent { trace_id, source, trust, at, body }` | 四个适配器 | 组合层 |
+| L2 组合层 | `Composition`（preedit / candidates / commit） | 仅 `Key` 源进 IME；`Voice` / `Structured` / `Line` 直接产文本或结构 | 契约层 |
+| L3 契约层 | `airy.intent/1`（§2） | 组合层 | `intent` crate → `airy-tui-exec` |
+
+关键设计：**抽象的单位是事件，不是文本**。文本只是 `Key` 源经过 IME 之后的产物；
+把语音和结构化输入也塞进「文本 -> 输入法」的管线，是抽象错误的典型症状。
+
+### 10.2 trait 与四个适配器
+
+```rust
+pub enum SourceKind { Key, Voice, Api, Batch }
+
+pub enum RawBody {
+    Key(KeyEvent),                                      // 键码 + 修饰键，不含文本
+    Transcript { text: String, confidence: f32, audio_ref: AudioRef },
+    Structured(serde_json::Value),                      // 已结构化，待 schema 校验
+    Line(String),                                       // 批处理一行
+}
+
+pub struct RawEvent {
+    pub trace_id: TraceId,
+    pub source: SourceKind,
+    pub trust: Trust,        // T0–T3，见 §4.1
+    pub at: MonoTime,
+    pub body: RawBody,
+}
+
+pub trait InputSource: Send {
+    fn kind(&self) -> SourceKind;
+    fn drain(&mut self, max: usize) -> Result<Vec<RawEvent>, SourceError>;
+    fn close(&mut self) -> Result<(), SourceError>;
+}
+```
+
+| 适配器 | 数据来源 | 必须遵守 |
+|---|---|---|
+| `KeySource` | `/dev/tty` 原始键事件 | **只产键码，不产文本**；文本只能由 `ImeSession` commit 或显式 `ascii-passthrough` 产生 |
+| `VoiceSource` | 只与 `asr-gateway` 的 socket 通信 | 不打开录音设备；`Transcript` 先进可编辑缓冲区，用户确认后才成为 Intent |
+| `ApiSource` | Unix socket + JSON Lines | 直接收 `airy.intent/1`，只做 schema 校验与背压 |
+| `BatchSource` | stdin / 文件 | 逐行独立 `trace_id`；单行失败不终止整批（§7） |
+
+`VoiceSource` 的确认环节不是可选项：语音不绕过审批（§4.1），也不允许「识别即执行」。
+
+### 10.3 IME 会话协议
+
+- 传输：`/run/airy/ime.sock`，JSON Lines，与 Intent 入口同一 framing——同一套日志与回放工具
+  可同时处理输入与意图。
+- 消息：`open` / `key` / `select` / `commit` / `reset` / `close`，每条带 `session` 与 `seq`。
+- 状态机：`Idle → Composing(preedit) → Selecting(n) → Commit`；`Esc` 回 `Idle` 并清 preedit。
+- 崩溃恢复：`boot-tui` 保留未提交键的环形缓冲（上限 256 事件），`boot-ime` 重启后按 `seq`
+  重放；恢复期状态栏 `ime=recovering`。
+- 超时：单次 `key` 回复 50 ms 未到标记 `ime=slow`，**不回落为英文**；词典缺失报
+  `ime=no-dict`，只允许用户显式切 ASCII 直通（§7 的失败语义表）。
+
+### 10.4 为什么抽象层不单独成 crate
+
+`boot-tui` 已持有键盘与页面状态机；把 trait 与四个适配器放 `boot-tui/src/input/`，
+热路径少一次进程边界。`boot-ime` 与 `asr-gateway` 独立成进程的理由是它们独占设备或持有
+大状态（词典、模型），不是因为「输入抽象」需要隔离。新增第六个 crate 会违反
+`distro/lockfile/lang-policy.yaml` 的「每个 crate 必须有当期消费者」判据。
+
+### 10.5 验收
+
+| # | 判据 | 方式 |
+|---|---|---|
+| V-10 | 键盘不产文本直通（显式 ASCII 模式除外） | 关闭 IME 后键入中文键码，不得出现字母 |
+| V-11 | IME 崩溃不丢未提交按键 | `kill -9` 后 200 ms 内 `ime=recovering` 并恢复 preedit |
+| V-12 | 语音无麦克风时显式不可用 | 撤销权限后 `asr=unavailable`，不得静默转键盘替代 |
+| V-13 | API 背压不丢不重 | 并发 64 条，超限返回 `-EAGAIN`，trace_id 去重后计数相等 |
+| V-14 | 四通道 schema 一致 | 同语义四路输入，`airy.intent/1` diff 仅 `source` 与 `trace_id` |
+
+---
+
+## 11. 不做什么
 
 | 不做 | 理由 |
 |---|---|
@@ -314,3 +397,5 @@ GUI 会话的中文输入走 IBus（系统既有闭包），boot TUI 不复用 I
 | 用 IBus 承担 boot TUI 输入 | IBus 依赖 GUI 会话与 D-Bus，开机 TUI 不可用 |
 | 把审批做成布尔值 | 无法审计、无法限域、无法过期 |
 | 让接入侧决定策略 | 判定权在安全通道，接入侧只做预检 |
+| 把语音结果直接当文本指令执行 | 识别不可避免有误；必须经可编辑缓冲区确认 |
+| 为输入抽象新增 crate | 会话热路径不需要多一层进程边界；四个适配器在 `boot-tui` 内即可 |
