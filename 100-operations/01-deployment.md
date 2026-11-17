@@ -259,7 +259,9 @@ sequenceDiagram
 
 ### 7.1 firstboot 阶段
 
-系统首次启动时，`agentrt-firstboot.service` 执行以下初始化：生成唯一 `machine-id`（若 Kickstart 未固化）→ 应用 `/etc/sysctl.d/` 全部 sysctl 参数（详见 02-configuration）→ 加载 LSM 策略与 capability 令牌 → 触发 `agentrt.target` 拉起 12 daemons → 注册到 DevStation 注册中心（若配置）。
+系统首次启动时，`agentrt-firstboot.service` 执行以下初始化：生成唯一 `machine-id`（若 Kickstart 未固化）→ 应用 `/etc/sysctl.d/` 全部 sysctl 参数（详见 02-configuration）→ 加载 LSM 策略与 capability 令牌 → 载荷在位时触发 `agentrt.target` 拉起 12 daemons → 注册到 DevStation 注册中心（若配置）。
+
+载荷判据取 `/usr/sbin/airyctl`（与失败模板 `airy-incident@.service` 的 `ConditionPathExists` 同一路径）。0.0.4 只交付单元与运行时脚本，`*_d` 随 0.1.x 的 `airymaxos-services` 交付；载荷不在位时拉起整栈会让每个单元各记一条 `216/GROUP` 或 `203/EXEC`，`systemctl --failed` 从此不为零，而机器本身什么都没坏。因此缺载荷时该步上报 `target=absent` 并照常落完成标记，由载荷包负责拉起 target。组清单是单元契约的一部分：`%pre` 建立的组必须覆盖单元 `SupplementaryGroups` 的并集，两处一致性由 `system/tools/units_lint.py` 门禁核对。
 
 **OS-OPS-013**：firstboot 必须在 systemd `default.target` 之前完成 sysctl 应用与 LSM 加载；任何 daemon 在 firstboot 完成前启动视为初始化失败（S-1 反馈闭环，初始化是不可绕过的关卡）。
 
