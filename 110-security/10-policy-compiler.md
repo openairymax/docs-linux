@@ -288,7 +288,7 @@ DENY > COMPLAIN > AUDIT > ALLOW
 
 ### 8.1 securityfs
 
-`/sys/kernel/security/airy/policy`（`0400`，root 只读）输出一张表：
+`/sys/kernel/security/airy/policy`（`0600`，root 可读写）输出一张表：
 
 ```
 # name hook rows evals allow deny audit complain fault
@@ -297,6 +297,17 @@ uring_guard uring_cmd 2 1024 1021 2 1 0 0
 
 - `evals` 为该表被求值的次数；`allow/deny/audit/complain` 为胜出裁决计数；`fault` 为带非零 fault 的胜出次数。
 - 目录 `airy` 由 `airy_fs.c` 统一创建（与 `lockdown` 共用），避免两个 `late_initcall` 争抢同一目录项。
+
+写入侧一行一条规则：
+
+```
+rule <hook> <field>=<value> <allow|deny>
+```
+
+- `<hook>` 与 `<field>` 取自 §5 的钩子名与钩子字段名；`<value>` 接受十进制与 `0x` 前缀。
+- 每条规则注册为一张单行单谓词的表，`default_verdict = allow`，因此只有命中该谓词的流量改变裁决；表名带单调后缀 `wire-<n>`，不与编译产物重名。
+- 一次写入的多行**先全部解析并校验，再逐张注册**：任一行失败则整批一条都不落。
+- 空写入是合法 no-op（返回 0）；单次上限 8 行、不超过一页；槽位不足返回 `-ENOSPC`，不淘汰既有表。
 
 ### 8.2 trace
 
@@ -319,8 +330,9 @@ uring_guard uring_cmd 2 1024 1021 2 1 0 0
 
 ## §9 并发与生命周期
 
-- 注册只在启动期（LSM `init`）发生；`airy_policy_check()` 用 `smp_load_acquire()` 读取槽位数，注册用 `smp_store_release()` 发布，保证读者看到完整槽位。
-- 槽位数组是静态存储，不分配、不释放，不存在 use-after-free 与内存压力路径。
+- 注册有两条路径：启动期（LSM `init`）注册编译产物，运行期经 securityfs 写入注册单行表。两条路径都走 `airy_policy_register()`，用 `smp_store_release()` 发布槽位数；`airy_policy_check()` 用 `smp_load_acquire()` 读取，保证读者看到完整槽位。
+- 槽位数组是静态存储。启动期表是 `const` 数据；运行期表由一次分配持有表、行、谓词、表名与字段名，注册后不可变且永不释放——求值路径无锁，释放会造成 use-after-free。
+- 运行期注册由一把互斥量串行化：容量检查与表名分配都在锁内完成，因此一次多行写入要么整批发布、要么一条不留；求值路径不加锁。
 - 求值路径无锁、无睡眠、无分配；最坏情况是 `MAX_TABLES × row_count × cond_count` 次比较，全部为常量上界。
 - KUnit 通过 `airy_policy_reset()` 与 `airy_pol_stat()`（仅 `CONFIG_AIRY_KUNIT`）清空注册表并读取单表计数快照，生产路径不存在这两个符号。`airy_pol_stat()` 的计数字段与 §8.1 的 securityfs 行一一对应，测试因此可以在不读取 `seq_file` 的前提下断言裁决分类与 fault 归属。
 
