@@ -295,24 +295,36 @@ jobs:
 | 构建系统 | workflow（子仓级） | 典型语言 | 关键 job |
 |---------|------------------|---------|---------|
 | **Meson** | `ci-meson.yml` | C/C++ 用户态 | meson setup + ninja + meson test + clang-tidy |
-| **Cargo** | `ci-cargo.yml` | Rust | cargo fmt --check + clippy --deny warnings + cargo test |
+| **Cargo** | `ci-cargo.yml` | Rust | 工具链钉版、`Cargo.lock`、`vendor/` 与 SBOM 台账同源对账；`fmt --check` + `clippy -D warnings` + `cargo test` 全部 `--offline --locked` |
 | **Go** | `ci-go.yml` | Go | go vet + golangci-lint + go test -race |
 | **tsc** | `ci-tsc.yml` | TypeScript | tsc --noEmit + eslint + jest |
+
+Rust 子仓的可复现构建是**四件套**：工具链钉版（子仓 `rust-toolchain.toml`）、依赖锁（`Cargo.lock`）、依赖源（`vendor/`）与产物成分证明（SBOM 台账）。前三件只覆盖"用哪些依赖、从哪来"，缺 SBOM 就无法说明产物里到底有什么，发版自证会断链；四者任一缺失均不得断言可复现。
 
 ```yaml
 # <subrepo>/.github/workflows/ci-cargo.yml（节选，子仓级 workflow）
 jobs:
-  cargo-build-test:
-    runs-on: ubuntu-latest
+  policy:
+    # 四件套对账不需要编译器：锁、依赖源与台账三者同源即可判定，
+    # 工具链钉版由 policy 断言实际生效者与 rust-toolchain.toml 一致。
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with: { components: clippy, rustfmt }
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt -- --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-      - run: cargo test --all-features --no-fail-fast
+      - uses: actions/checkout@<sha> # 固定到提交
+        with: { submodules: false }
+      - run: ci/ci.sh lang-lock
+      - run: ci/ci.sh rust-vendor verify
+      - run: ci/ci.sh rust-sbom policy
+
+  cargo-build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@<sha> # 固定到提交
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --offline --locked --all-targets -- -D warnings
+      - run: cargo test --offline --locked --no-fail-fast
 ```
+
+工具链版本只由子仓 `rust-toolchain.toml` 决定，workflow 不写 `@stable` 之类浮动标签——浮动标签会让同一条提交在不同时间编出不同产物。
 
 ### 2.5 [SC] 共享契约层门禁（OS-IRON-008）
 
