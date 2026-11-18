@@ -152,6 +152,8 @@ agent-linux（AirymaxOS）SBOM 覆盖以下组件类别：
 | Rust 分配库 (alloc) | 1.75+ | rust-lang.org | MIT OR Apache-2.0 | SPDXRef-rust-alloc |
 | bindgen | 0.69+ | crates.io | BSD-3-Clause | SPDXRef-bindgen |
 | serde | 1.x | crates.io | MIT OR Apache-2.0 | SPDXRef-serde |
+| serde_json | 1.x | crates.io | MIT OR Apache-2.0 | SPDXRef-serde_json |
+| unicode-ident | 1.x | crates.io | (MIT OR Apache-2.0) AND Unicode-3.0 | SPDXRef-unicode-ident |
 | tokio | 1.x | crates.io | MIT | SPDXRef-tokio |
 
 #### 3.5 C/C++ 工具链组件
