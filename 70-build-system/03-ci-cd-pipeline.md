@@ -88,23 +88,29 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 
 ### 2.1 workflow 文件布局
 
-所有 GitHub Actions workflow 文件位于 `agent-linux/.github/workflows/`：
+所有 GitHub Actions workflow 文件位于 `agent-linux/.github/workflows/`，共 13 条：
 
-```
-agent-linux/.github/workflows/
-├── mgmt-verify.yml        # 管理仓：文件完整性（含 [SC] 头文件存在性与仓内唯一副本）+ 子仓 CI 聚合
-├── ssot-verify.yml        # SSoT 规则 ID 校验（全仓）
-├── kernel-verify.yml      # kernel 子仓：Kbuild 矩阵 + checkpatch + sparse + Coccinelle + KUnit + kselftest
-├── airy-verify.yml        # Airymax 内核代码：4 架构构建 + kernel-airy（CONFIG/BTF/产物归属/符号冲突/SPDX）
-├── os-chk-verify.yml      # OS-CHK 统一门禁编排（gates.yaml，P0/P1 阻断）
-├── image-build.yml        # 发行前镜像验收：desktop ISO 组装 + QEMU 装机/冷启动（手动触发，非 PR 门禁）
-├── nightly.yml            # develop nightly build（L5/L6 连接/协议验证；formal/soak/chaos 工具未实现，降级 SKIP）
-└── release.yml            # release tag 流水线（L7 发布验证）
-```
+| workflow | 触发 | 作业上限 | 承载的验证轴 |
+|----------|------|---------|-------------|
+| `mgmt-verify.yml` | PR | 2 | 治理文件与子模块完整性、子仓 CI 聚合 |
+| `ssot-verify.yml` | PR | 2 | SSoT 规则 ID 语法与文档链接 |
+| `os-chk-verify.yml` | PR | 1 | OS-CHK 统一门禁（含 `ci/lint.sh` 全量自检） |
+| `kernel-verify.yml` | PR | 2 | Kbuild 矩阵、checkpatch、sparse、KUnit、kselftest |
+| `airy-verify.yml` | PR | 2 | Airymax 专属代码：4 架构构建与 SPDX 归属 |
+| `c-verify.yml` | PR | 2 | 用户态 C：cloudnative 与 services 各一作业 |
+| `sdk-verify.yml` | PR | 4 | 用户态 SDK：go / python / rust / ts 各一作业 |
+| `tui-verify.yml` | PR | 3 | TUI 工作区：依赖源、宿主判据（含帧预算）、跨架构类型检查 |
+| `tui-input-verify.yml` | PR | 2 | 输入抽象：单测与契约 |
+| `image-build.yml` | 手动 | 2 | 发行前镜像组装与 QEMU 装机 |
+| `payload-seed.yml` | 定时 | 2 | 载荷预热 |
+| `nightly.yml` | 定时 | 2 | nightly 动态验证 |
+| `release.yml` | tag | 2 | 发行组装与发布 |
 
-> **薄壳原则**：8 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/check-workflows.py` 在每次 PR 强制。
+作业上限登记在 `ci/workflow-budgets.txt`，只许下调；`ci/check-workflows.py` 在每次 PR 双向核对。粒度与作业数的取舍见 §2.6。
 
-> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 8 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
+> **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/check-workflows.py` 在每次 PR 强制。
+
+> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
 > **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
 
@@ -329,6 +335,40 @@ jobs:
 ### 2.5 [SC] 共享契约层门禁（OS-IRON-008）
 
 [SC] 层是 kernel 与用户态共用的 12 个头文件契约（OS-IRON-014）。权威副本为 `kernel/include/uapi/linux/airymax/`，变更由 kernel 子仓 CI 与 os-chk 三道契约门禁共同验证；用户态消费副本的跨仓一致性尚未纳入门禁，详见 §7。
+
+### 2.6 流水线粒度、作业数与模块归属
+
+**判据：流水线跟随可交付制品与独立验证轴，不跟随仓库或目录数量。**
+
+为 9 个子仓各建一条流水线看似"覆盖完整"，实际是把同一份固定成本重复九遍：每条都至少有一次检出、一次子模块取用和一次工具链预热，而并发额度按账号共享——九条短流水线比三条长流水线更容易互相挤占，排障时还要在九份日志里拼一条共同结论。
+
+粒度的落点是"哪些判据必须共享同一份环境准备"：
+
+- 同一构建面、不同语言 → 一门语言一个作业（`sdk-verify` 的 4 个作业）；
+- 同一构建面、不同模块 → 一个模块一个作业（`c-verify` 的 cloudnative 与 services），失败结论互不掩盖；
+- 判据之间串行（后一步读前一步产物）→ 同一作业内的步骤，而不是两个作业加缓存传递；
+- 只有触发时机不同（PR / 定时 / tag / 手动）才拆成不同流水线。
+
+**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 13 条流水线当前作业数为 1–4 个，上限由 `ci/workflow-budgets.txt` 以棘轮登记，只许下调。
+
+**模块归属**（9 子仓）：
+
+| 模块 | 流水线 | 说明 |
+|------|--------|------|
+| kernel | `kernel-verify`、`airy-verify`、`os-chk-verify` | 上游基线与 Airymax 专属代码分开：前者查整棵内核树，后者只查自研目录 |
+| system | `tui-verify`、`tui-input-verify` | TUI 与输入抽象是两条独立验证轴（帧预算/跨架构 vs 输入契约） |
+| distro | `os-chk-verify`、`image-build`、`payload-seed` | 静态规则随 PR，镜像组装属发行前，载荷预热按周期 |
+| services / cloudnative | `c-verify` | 同一构建面，各占一个作业 |
+| sdk | `sdk-verify` | 一门语言一个作业 |
+| security / memory / cognition | 无独立流水线 | 见下 |
+
+**security / memory / cognition 不建流水线的证据**：
+
+1. 三仓各只有 16–17 个跟踪文件，是外部模块原型（`Kbuild` + 单文件），不产出任何发行制品；
+2. `kernel/arch/{x86,arm64,riscv,loongarch}/configs/airy_defconfig` 均为 `# CONFIG_MODULES is not set`（仅 `sw_64` 例外），外部模块在任何官方架构上都不可加载；
+3. 文档已明确实现是内建的：[`90-observability/03-perf-analysis.md`](../90-observability/03-perf-analysis.md) 的 OS-OBS-033 写明"内建 LSM + corekern，无 agentrt.ko / airy_lsm.ko 可加载模块"，[`90-observability/04-sysfs-procfs.md`](../90-observability/04-sysfs-procfs.md) 的 OS-KER-131 要求"airy_kset 在 `airy_init()` 阶段注册（非模块，无 agentrt.ko）"；真实实现在 `kernel/security/airy/` 与 `kernel/kernel/syscalls/airy_clt.c`，由 `kernel-verify` 与 `airy-verify` 覆盖。
+
+为不可加载的原型建一条永久红的流水线，只会让"红灯是不是新问题"失去意义。三仓处置为"原型，不参与发行"，其头文件引用路径的构建兼容性由 `$(srctree)` 约定保证（见 [`01-kbuild-system.md`](01-kbuild-system.md) §Kbuild 头文件引用），不另设作业。
 
 ---
 
