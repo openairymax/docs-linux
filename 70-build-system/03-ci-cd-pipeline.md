@@ -110,7 +110,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 
 > **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/baseline/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/checks/check-workflows.py` 在每次 PR 强制。
 
-> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
+> **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 300 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（x86_64 三条腿各 80 分钟：U 盘 + BIOS CD-ROM + UEFI CD-ROM；aarch64 两条腿各 150 分钟，按 TCG 最坏情况取装机 7200 秒、冷启动 1800 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
 > **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
 
@@ -119,7 +119,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 管理仓 CI 由 **2 个 job** 组成：`file-integrity`（治理文件与子仓完整性）→ `orchestrate-leaf-ci`（子仓 CI 编排），任一失败即阻断：
 
 1. **file-integrity（治理文件完整性）**：校验 `.gitmodules` 中声明的 9 子仓 submodule 目录实际存在（kernel/services/security/memory/cognition/cloudnative/system/tests-linux/distro）；校验 `kernel/include/uapi/linux/airymax/` 下 12 个头文件物理存在（OS-IRON-014）；校验治理文件（README/LICENSE/NOTICE/MAINTAINERS/CODEOWNERS 等）齐备；校验无 `airymaxos-` 前缀残留。
-2. **orchestrate-leaf-ci（子仓 CI 编排）**：通过 `aggregate-subrepo-ci.py` 聚合 9 子仓最近一次 CI 状态（任一子仓主干红则管理仓红）；markdownlint 校验 `docs/`；校验文档版权头（`check-copyright.py`）。
+2. **orchestrate-leaf-ci（子仓 CI 编排）**：通过 `aggregate-subrepo-ci.py --fail-on-red` 聚合子仓最近一次主干 CI 状态（红则管理仓红；尚无自有 workflow 的子仓读到 unknown，只告警——它们的构建面由管理仓流水线承担，见 §2.4）；markdownlint 校验仓库自有 markdown；校验文档版权头（`check-copyright.py`）。
 
 > **职责划分**：SSoT 规则 ID 校验不在此 workflow 内，由独立的 `ssot-verify.yml` 承担（§6）。本 workflow 通过 `needs: file-integrity` 保证 job 2 串行等待 job 1。
 
@@ -294,7 +294,7 @@ jobs:
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
 
-> **归属说明**：下列 workflow 模板位于**各子仓自身的** `.github/workflows/` 目录中，不在管理仓 `agent-linux/.github/workflows/` 的 8 个 workflow 之内（§2.1）。每个子仓按自身构建系统选用对应模板，管理仓通过 `mgmt-verify.yml` 聚合各子仓 CI 状态（§2.2）。
+> **归属说明**：下列模板是子仓拥有独立发行物时采用的形态，位于**子仓自身的** `.github/workflows/`，不计入管理仓的 13 条流水线（§2.1）。按 0.0.5 的核对，只有 kernel 与 sdk 两个子仓在远端持有自有 workflow；其余七个子仓的构建面由管理仓流水线承担——system 由 `tui-verify` / `tui-input-verify`，distro 由 `os-chk-verify` 的 distro-lint 段与 `image-build`，cloudnative 与 services 由 `c-verify`。`mgmt-verify` 的聚合对这些子仓读到 unknown 时只告警不判负（§2.2）；判据不是"每个子仓都要有 CI"，而是"该模块的构建面确有一条通过即绿的流水线"。
 
 非 kernel 子仓按构建系统分类，每类一个 workflow 模板，子仓按自身归属选用：
 
