@@ -214,6 +214,7 @@ struct airy_policy_table {
 - 一张表的 `field_count` 不得超过 `AIRY_POLICY_MAX_FIELDS`（8），字段名不得在同一张表内重复。
 - 未采集的字段在向量中恒为 0；策略作者不应依赖未列出的字段。
 - 字段契约变更属于 ABI 变更：必须同时修改本文件 §5、`airy_policy.c` 的 `airy_pol_fields[][]` 与采集点。
+- `file_mprotect` 只在写→执行转移时求值：新请求含 `PROT_EXEC`，且旧映射可写或新请求可写。其余 `mprotect()` 不进入策略层，避免默认拒绝的例外表拦下与可执行权限无关的映射调整。
 
 ---
 
