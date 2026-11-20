@@ -106,9 +106,9 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 | `nightly.yml` | 定时 | 2 | nightly 动态验证 |
 | `release.yml` | tag | 2 | 发行组装与发布 |
 
-作业上限登记在 `ci/workflow-budgets.txt`，只许下调；`ci/check-workflows.py` 在每次 PR 双向核对。粒度与作业数的取舍见 §2.6。
+作业上限登记在 `ci/baseline/workflow-budgets.txt`，只许下调；`ci/checks/check-workflows.py` 在每次 PR 双向核对。粒度与作业数的取舍见 §2.6。
 
-> **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/check-workflows.py` 在每次 PR 强制。
+> **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/baseline/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/checks/check-workflows.py` 在每次 PR 强制。
 
 > **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 240 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数推导（双固件两腿 × 每腿装机 7200 秒 + 冷启动 900 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
@@ -223,7 +223,7 @@ ci/ci.sh kernel-analyze --kind sparse --log /tmp/sparse.log
 >
 > **为什么拆成七个门禁而不是一个大脚本**：单格失败要能只重跑那一格（矩阵 28 格）；静态检查各自的红线口径不同（checkpatch 只能解析 `total:` 行，sparse 必须限定目标文件，coccinelle 必须收窄 `--dir`），混在一起迟早互相掩盖。
 >
-> **棘轮约束**：`ci/workflow-budgets.txt` 记录每个 workflow 允许的内联 `run` 块数上限，只许减不许加，由 `ci/check-workflows.py` 在 lint 阶段强制。kernel-verify.yml 已从 10 降到 0，全仓合计 78 → 53。
+> **棘轮约束**：`ci/baseline/workflow-budgets.txt` 记录每个 workflow 允许的内联 `run` 块数上限，只许减不许加，由 `ci/checks/check-workflows.py` 在 lint 阶段强制。kernel-verify.yml 已从 10 降到 0，全仓合计 78 → 53。
 
 > **路径过滤器语义**：kernel 在管理仓中是 **gitlink（submodule 指针）**，父仓无法枚举子仓内部文件，子模块提交上推只会改动 `kernel` 这一条路径本身。因此 `paths` 必须同时列出 `'kernel'` 与 `'kernel/**'`，否则内核更新不会触发任何流水线；同时列出 `ci/gates/kernel-*.sh`，门禁本身改动也要重跑。
 
@@ -349,7 +349,7 @@ jobs:
 - 判据之间串行（后一步读前一步产物）→ 同一作业内的步骤，而不是两个作业加缓存传递；
 - 只有触发时机不同（PR / 定时 / tag / 手动）才拆成不同流水线。
 
-**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 13 条流水线当前作业数为 1–4 个，上限由 `ci/workflow-budgets.txt` 以棘轮登记，只许下调。
+**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 13 条流水线当前作业数为 1–4 个，上限由 `ci/baseline/workflow-budgets.txt` 以棘轮登记，只许下调。
 
 **模块归属**（9 子仓）：
 

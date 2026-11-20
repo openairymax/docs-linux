@@ -25,7 +25,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.2 判定逻辑的落点
 
-`.github/workflows/*.yml` 里的每个 step 只有三种形态：`actions/checkout`、`ci/ci.sh <gate>`、`actions/upload-artifact`。只要出现第四种形态（内联 shell 断言），就违反薄壳原则，由 `ci/check-workflows.py` 在 `run-lint` 中拦下。
+`.github/workflows/*.yml` 里的每个 step 只有三种形态：`actions/checkout`、`ci/ci.sh <gate>`、`actions/upload-artifact`。只要出现第四种形态（内联 shell 断言），就违反薄壳原则，由 `ci/checks/check-workflows.py` 在 `run-lint` 中拦下。
 
 因此排障不需要重跑云端 job：同一条 `ci/ci.sh <gate>` 可以在本地对遗留的构建目录复放，这是本文与 70-build-system/03 共同的技术前提。
 
@@ -205,7 +205,7 @@ CI 总时长预算 60 分钟（OS-STD-TEST-011），由 `ci-budget-check --max-m
 
 ### 9.3 内联预算棘轮
 
-[`ci/workflow-budgets.txt`](../../../agent-linux/ci/workflow-budgets.txt) 为每个 workflow 记录「允许的内联 `run` 块数」与「允许的 job 数」，只许减不许加。当前 8 个文件中 6 个已归零，`nightly.yml`（6 段）与 `release.yml`（10 段）是迁移中的欠账。内联预算为 0 的文件还会被检查禁用模式（`docker load`、`sha256sum -c`、`rm -rf /usr/share/dotnet`、`apt-get install qemu`、TAP 解析），防止逻辑被抄回 YAML。
+[`ci/baseline/workflow-budgets.txt`](../../../agent-linux/ci/baseline/workflow-budgets.txt) 为每个 workflow 记录「允许的内联 `run` 块数」与「允许的 job 数」，只许减不许加。当前 8 个文件中 6 个已归零，`nightly.yml`（6 段）与 `release.yml`（10 段）是迁移中的欠账。内联预算为 0 的文件还会被检查禁用模式（`docker load`、`sha256sum -c`、`rm -rf /usr/share/dotnet`、`apt-get install qemu`、TAP 解析），防止逻辑被抄回 YAML。
 
 ### 9.4 超时约束
 
