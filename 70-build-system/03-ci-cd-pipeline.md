@@ -97,7 +97,7 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 | `os-chk-verify.yml` | PR | 1 | OS-CHK 统一门禁（含 `ci/lint.sh` 全量自检） |
 | `kernel-verify.yml` | PR | 2 | Kbuild 矩阵、checkpatch、sparse、KUnit、kselftest |
 | `airy-verify.yml` | PR | 2 | Airymax 专属代码：4 架构构建与 SPDX 归属 |
-| `c-verify.yml` | PR | 2 | 用户态 C：cloudnative 与 services 各一作业 |
+| `c-verify.yml` | PR | 4 | 用户态 C：cloudnative / services / system / tests-linux 各一作业 |
 | `sdk-verify.yml` | PR | 4 | 用户态 SDK：go / python / rust / ts 各一作业 |
 | `tui-verify.yml` | PR | 3 | TUI 工作区：依赖源、宿主判据（含帧预算）、跨架构类型检查 |
 | `tui-input-verify.yml` | PR | 2 | 输入抽象：单测与契约 |
@@ -106,9 +106,9 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 | `nightly.yml` | 定时 | 2 | nightly 动态验证 |
 | `release.yml` | tag | 2 | 发行组装与发布 |
 
-作业上限登记在 `ci/baseline/workflow-budgets.txt`，只许下调；`ci/checks/check-workflows.py` 在每次 PR 双向核对。粒度与作业数的取舍见 §2.6。
+作业上限登记在 `ci/baseline/workflow-budgets.txt`：内联 `run:` 块只许下调（棘轮），作业数在某个模块新增真实构建面时方可上调并同步登记（例如 `c-verify.yml` 纳入 system 与 tests-linux 的 CMake/CTest 后由 2 升至 4，仍是每模块一作业、总数 <5）；`ci/checks/check-workflows.py` 在每次 PR 双向核对文件集合、内联块与作业数。
 
-> **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/baseline/workflow-budgets.txt` 双向棘轮约束（只许下调），由 `ci/checks/check-workflows.py` 在每次 PR 强制。
+> **薄壳原则**：13 个 workflow 只做触发、矩阵与环境准备，判定逻辑一律落在 `ci/ci.sh <gate>` 对应的 `ci/gates/*.sh`，这样同一份检查在本地与 CI 完全同源。workflow 内联 `run:` 块与 job 数受 `ci/baseline/workflow-budgets.txt` 约束（内联只许下调，作业数按 §2.6 的构建面规则登记），由 `ci/checks/check-workflows.py` 在每次 PR 强制。
 
 > **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 13 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 300 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数与模拟器形态推导（x86_64 三条腿同在一个作业实例内串行，各 80 分钟：U 盘 + BIOS CD-ROM + UEFI CD-ROM，因为只有三条腿全绿才允许发布 ISO；aarch64 无 KVM 时回落 TCG，实测单腿装机已达 7150 秒，故按介质拆成两个作业实例，各自 360 分钟预算、单腿 240 分钟，取装机 9000 秒、冷启动 2400 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
@@ -345,20 +345,21 @@ jobs:
 粒度的落点是"哪些判据必须共享同一份环境准备"：
 
 - 同一构建面、不同语言 → 一门语言一个作业（`sdk-verify` 的 4 个作业）；
-- 同一构建面、不同模块 → 一个模块一个作业（`c-verify` 的 cloudnative 与 services），失败结论互不掩盖；
+- 同一构建面、不同模块 → 一个模块一个作业（`c-verify` 的 cloudnative、services、system、tests-linux），失败结论互不掩盖；
 - 判据之间串行（后一步读前一步产物）→ 同一作业内的步骤，而不是两个作业加缓存传递；
 - 只有触发时机不同（PR / 定时 / tag / 手动）才拆成不同流水线。
 
-**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 13 条流水线当前作业数为 1–4 个，上限由 `ci/baseline/workflow-budgets.txt` 以棘轮登记，只许下调。
+**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 13 条流水线当前作业数为 1–4 个，上限由 `ci/baseline/workflow-budgets.txt` 登记：内联 `run:` 块只许下调；作业数仅在新增真实构建面时上调，且必须同时改预算文件与本节。
 
 **模块归属**（9 子仓）：
 
 | 模块 | 流水线 | 说明 |
 |------|--------|------|
 | kernel | `kernel-verify`、`airy-verify`、`os-chk-verify` | 上游基线与 Airymax 专属代码分开：前者查整棵内核树，后者只查自研目录 |
-| system | `tui-verify`、`tui-input-verify` | TUI 与输入抽象是两条独立验证轴（帧预算/跨架构 vs 输入契约） |
+| system | `tui-verify`、`tui-input-verify`、`c-verify` | TUI 与输入抽象是两条独立验证轴（帧预算/跨架构 vs 输入契约）；`airymaxmon` 与 CTest 随用户态 C 面执行 |
 | distro | `os-chk-verify`、`image-build`、`payload-seed` | 静态规则随 PR，镜像组装属发行前，载荷预热按周期 |
 | services / cloudnative | `c-verify` | 同一构建面，各占一个作业 |
+| tests-linux | `c-verify` | 测试骨架的 CMake 目标与 CTest 用例，此前无任何作业执行 |
 | sdk | `sdk-verify` | 一门语言一个作业 |
 | security / memory / cognition | 无独立流水线 | 见下 |
 
