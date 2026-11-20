@@ -178,11 +178,11 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - name: Aggregate 8 subrepo CI status
-        run: python3 agent-linux/tools/repo/aggregate-subrepo-ci.py --fail-on-red
+        run: python3 agent-linux/tools/governance/aggregate-subrepo-ci.py --fail-on-red
       - name: markdownlint (docs only)
         run: markdownlint-cli2 'docs/**/*.md'
       - name: Verify copyright header (line 1)
-        run: python3 agent-linux/tools/repo/check-copyright.py --root docs
+        run: python3 agent-linux/tools/governance/check-copyright.py --root docs
 ```
 
 ### 2.3 kernel 子仓 CI（kernel-verify.yml）
