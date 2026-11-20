@@ -125,6 +125,7 @@ table <name> {
 | `file_open` | `AIRY_POLICY_HOOK_FILE_OPEN` | 是 |
 | `inode_alloc_security` | `AIRY_POLICY_HOOK_INODE_ALLOC` | 是（分配失败） |
 | `inode_free_security` | `AIRY_POLICY_HOOK_INODE_FREE` | 否（返回 `void`） |
+| `file_mprotect` | `AIRY_POLICY_HOOK_FILE_MPROTECT` | 是 |
 
 `task_free` 与 `inode_free_security` 是观测钩子：`DENY` 无法阻止已经发生的释放，运行时把该裁决记为策略缺陷（计入 `deny` 与 `fault` 统计并发出 trace），调用方忽略返回值。策略作者应在这两个钩子上只使用 `ALLOW`/`AUDIT`/`COMPLAIN`。
 
@@ -204,6 +205,9 @@ struct airy_policy_table {
 | | 2 | `agent_id` | u32 | 调用者 `agent_id` |
 | `inode_alloc_security` | 0 | `inode_type` | u16 | `inode->i_mode & S_IFMT` |
 | `inode_free_security` | 0 | `inode_type` | u16 | `inode->i_mode & S_IFMT` |
+| `file_mprotect` | 0 | `req_prot` | u32 | 钩子入参 `prot`（本次请求的 `PROT_*`） |
+| | 1 | `old_prot` | u32 | 既有映射权限，由 `vma->vm_flags` 映射为 `PROT_*` |
+| | 2 | `agent_id` | u32 | 调用者 `airy_task_sec.agent_id` |
 
 规则：
 
