@@ -73,7 +73,7 @@ agent-linux 接口设计层定义 8 子仓之间、内核与用户态之间、OS
 ### 3.1 K-2 接口契约化
 
 - **显式契约**: 所有接口以 C 头文件 + Doxygen 注释形式给出显式契约，包括参数语义、返回值、错误码、并发约束。
-- **ABI 稳定**: 系统调用编号、IPC 消息头布局、capability 令牌格式在 MAJOR 版本内保持 ABI 稳定，破坏性变更必须升级 MAJOR 版本。发布头文件的字节面由 `ci/gates/abi-snapshot.py` 冻结（门禁 `OS-BUILD-UAPI-SNAPSHOT`）：任一字节改动都必须显式刷新 `tools/abi-check/contract/uapi_headers.sha256` 并随改动提交，让变更进入评审。
+- **ABI 稳定**: 系统调用编号、IPC 消息头布局、capability 令牌格式在 MAJOR 版本内保持 ABI 稳定，破坏性变更必须升级 MAJOR 版本。发布头文件的字节面由 `ci/checks/abi_snapshot.py` 冻结（门禁 `kernel-uapi`，编号 `OS-BUILD-UAPI-SNAPSHOT`）：任一字节改动都必须显式刷新 `tools/abi-check/contract/uapi_headers.sha256` 并随改动提交，让变更进入评审。
 - **版本协商**: 128B IPC 消息头**无 `version` 字段**（Layout C v4，见 [02-ipc-protocol.md](02-ipc-protocol.md) §2.1）；协议版本协商为 v2.0+ 预留（见 [04-ipc-versioning.md](../160-compatibility/04-ipc-versioning.md)）。
 - **错误码对齐**: 全部接口错误码对齐 `include/uapi/linux/airymax/error.h`（[SC] SSoT），与 agentrt 同源且部分代码共享（IRON-9 v3）。
 - **并发约束显式**: 所有接口在 Doxygen 注释中显式声明线程安全性与可重入性（thread-safe / reentrant / async-signal-safe）。
