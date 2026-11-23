@@ -308,39 +308,34 @@ DevStation: 检测到 agent.slice 内存使用达到上限。
 config_d 是 agent-linux 12 daemon 之一（完整名单见 §6.7），负责统一配置管理。SSoT 见 `11-unified-config.md`。
 
 **配置路径**：
-- 标准路径：`/etc/agentrt/`（**禁止**非 agentrt 命名空间的旧路径，SSoT 见 `11-unified-config.md`）。
-- daemon 主配置：`/etc/agentrt/config_d.yaml`。
-- 子仓配置覆盖：`/etc/agentrt/{kernel,services,security,memory,cognition,cloudnative}.yaml`。
-- 默认 fallback：`/usr/share/agentrt/defaults/`（RPM 安装时由包管理释放）。
+- 唯一配置根：`/etc/agentrt/`（**禁止**非 agentrt 命名空间的旧路径，SSoT 见 `11-unified-config.md`）。
+- 主配置：`/etc/agentrt/agentrt.conf`；本守护自身配置：`/etc/agentrt/config.conf`。
+- 覆盖片段：`/etc/agentrt/conf.d/NN-*.conf`（两位数字前缀，按字典序叠加）。
+- 配置根不可读时以编译期内置默认值只读运行，配置恢复后自动切回。
 
 **配置格式**：
-- **YAML/TOML**（**禁止** JSON）：与 `dnf` 配置语义一致，支持注释与多行字符串。
-- 优先级：命令行参数 > `/etc/agentrt/` 覆盖 > `/usr/share/agentrt/defaults/` 默认。
+- INI（`[段]` + `键 = 值`），装载顺序 `agentrt.conf` → `config.conf` → `conf.d/NN-*.conf`。
+- 校验失败按版本闸门（101）、schema（102）、IO（105）区分；运行期拒绝非法配置并保留上一份生效值。
 
 **与内核交互**：
-- 通过 `sysfs`（`/sys/fs/airymax/`）+ `procfs`（`/proc/airymax/`）读写内核参数。
-- v1.0.1 Capability Folding 配置参数通过 sysfs 暴露：
-  - `/sys/fs/airymax/agent_caps_capacity` → `agent_caps[1024]` 容量（默认 1024，128KB）。
-  - `/sys/fs/airymax/badge_epoch_step` → Badge Epoch 步进（默认 1，由 sec_d 推进）。
-  - `/sys/fs/airymax/syscall_table_size` → v1.0.1 Syscall 24 槽位（4 核心 + 20 预留）。
-  - `/sys/fs/airymax/fastpath_c_s9_enabled` → fastpath C-S9 内联校验开关（默认 1，~10ns）。
-  - `/sys/fs/airymax/lsm_order` → airy_lsm 排序（`LSM_ORDER_MUTABLE`，禁止 `LSM_ORDER_FIRST`）。
+- 生效值写入内核已注册的可写 `kernel.airy.*` sysctl 并回读校验，避免“已生效”成为无法验证的断言。
+- `kernel.airy.cap_max_agents`、`cap_epoch_bits`、`cap_randtag_bits` 是内核以 `0444` 发布的几何观测点，config_d 只核对配置与内核一致，不写入；对齐需重编内核。
+- fastpath 开关、LSM 排序等运行面 sysfs 接口尚未落地，0.0.5 不由 config_d 管理。
 
 **systemd 集成**：
-- `config_d.service`：Type=notify，启动后通过 sd_notify 通知 systemd 就绪。
-- 启动顺序：`config_d.service` 在 `sec_d.service` 之前启动（提供配置）。
-- 依赖：`-.mount` + `systemd-sysctl.service`（先加载 sysctl）。
+- `agentrt-config.service`：Type=notify，就绪后通过 sd_notify 上报 `READY=1`，由 `WatchdogSec` 看护。
+- 启动顺序：仅依赖 `systemd-journald.service`，与其他守护并行启动；各守护在启动阶段读取配置快照。
+- 依赖：`systemd-journald.service` + `agentrt-firstboot.service`。
 
 **热重载机制**：
 - 监听 inotify 事件（`/etc/agentrt/` 目录变化）+ 接收 SIGHUP。
-- 热重载流程：解析新配置 → 校验语义 → 通过 sysfs 推送至内核 → 通知 sec_d 重新加载 `agent_caps[1024]` 配置 → 通过 D-Bus 信号通知订阅者（DevStation、airymaxmon 等）。
-- 热重载不重启 daemon，但会触发 sec_d 的 Badge Epoch 推进（`airy_cap_epoch_bump(agent_id)` per-agent，K9-1 主要机制；UNFREEZE 全局撤销用 `airy_cap_epoch_bump_all()`）以保证配置变更即时生效。
+- 热重载流程：解析新配置 → 校验语义 → 落值到可写 sysctl → 发布新快照；非法配置整次拒绝，保留上一份生效值。跨进程变更通知接口尚未落地，0.0.5 由各守护按需读取快照。
+- 热重载不重启 daemon；0.0.5 只替换本进程快照并落值可写 sysctl，不联动 sec_d 推进 Epoch。
 
 **config_d 与 sec_d 协作**（v1.0.1 Capability Folding）：
-- config_d 加载 `agent_caps[1024]` 容量与 Badge Epoch 步进参数，通过 sysfs 推送至内核。
-- sec_d 读取 sysfs 参数，按配置编译 Badge（`Epoch<<48 | RandomTag<<16 | Perms`）写入 `agent_caps[1024]` 静态数组（128KB，每槽 `AIRY_ALIGNED(64)` cacheline 对齐，字段布局 80B，sizeof=128B（64B 对齐））。
-- config_d 热重载时通知 sec_d 推进 Epoch，触发 O(1) 撤销旧 Badge。
-- fastpath C-S9 内联校验（~10ns）+ slowpath airy_lsm 钩子（`LSM_ORDER_MUTABLE`）的启用状态由 config_d 控制。
+- config_d 校验能力面几何参数（容量、Epoch 与随机标签位宽）与内核以 `0444` 发布的观测点一致；不一致即判定配置在本内核上不可满足。
+- sec_d 作为 `agent_caps[1024]` 的唯一写者，按编译期几何编译 Badge（`Epoch<<48 | RandomTag<<16 | Perms`）写入静态数组（128KB，每槽 `AIRY_ALIGNED(64)` cacheline 对齐，字段布局 80B，sizeof=128B（64B 对齐））。
+- 0.0.5 的能力面几何由编译期常量决定；config_d 不推进 Epoch、不控制 fastpath 开关，跨守护联动待运行面接口落地后接入。
 
 ---
 
@@ -441,7 +436,7 @@ airymaxmon 通过 [SC] 共享契约层读取内核子系统状态，确保监控
 
 | 降级触发条件 | 降级后行为 | 恢复条件 |
 | ------- | ------- | ------- |
-| config_d 配置源不可达 | 降级为 `/usr/share/agentrt/defaults/` 内置默认配置 + 只读运行（拒绝写入） | 配置源恢复后强制全量 reload |
+| config_d 配置源不可达 | 降级为编译期内置默认值 + 只读运行（拒绝写入） | 配置恢复后自动全量 reload |
 | airymaxmon struct_ops 状态不可读 | 降级为 Prometheus 拉取模式（通过 eBPF collector 间接采集） | struct_ops 可读后切回直接模式 |
 | DevStation LLM 通道断开 | 降级为规则引擎模式（仅本地知识库匹配 + 模板回复） | LLM 通道恢复后切回完整模式 |
 | sec_d 进程不可达 | config_d 缓存最近一次 capability 配置 + 暂停 Badge Epoch 推进 | sec_d 恢复后通过 `airy_sys_call(0)` 同步 Epoch |

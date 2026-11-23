@@ -641,6 +641,7 @@ graph LR
 
 | 启动序号 | daemon | systemd unit | 依赖的 daemon | After= | Requires= | Wants= |
 |---------|--------|--------------|---------------|--------|-----------|--------|
+| 0 | `config_d` | `agentrt-config.service` | 无（仅日志面） | `systemd-journald.service` | `systemd-journald.service` | — |
 | 1 | `gateway_d` | `agentrt-gateway.service` | 无 | `network-online.target` | — | — |
 | 2 | `cogn_d` | `agentrt-cogn.service` | `gateway_d` | `agentrt-gateway.service` | `agentrt-gateway.service` | — |
 | 3 | `dev_d` | `agentrt-dev.service` | `gateway_d` | `agentrt-gateway.service` | `agentrt-gateway.service` | — |
@@ -652,7 +653,6 @@ graph LR
 | 9 | `sec_d` | `agentrt-sec.service` | `audit_d` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 10 | `logger_d` | `agentrt-logger.service` | `audit_d` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 11 | `vfs_d` | `agentrt-vfs.service` | `net_d` + `sec_d` | `agentrt-net.service agentrt-sec.service` | — | `agentrt-net.service agentrt-sec.service` |
-| 12 | `config_d` | `agentrt-config.service` | `vfs_d` | `agentrt-vfs.service` | — | `agentrt-vfs.service` |
 
 #### 13.4.2 systemd 崩溃恢复策略表
 
@@ -676,6 +676,10 @@ graph TD
     MT --> AT
     AT --> SI
 
+    subgraph L0["第 0 层（配置先行，仅依赖日志面）"]
+        CONFIG["config_d<br/>agentrt-config.service<br/>序号 0"]
+    end
+
     subgraph L1["第 1 层（序号 1）"]
         GW["gateway_d<br/>agentrt-gateway.service<br/>序号 1"]
     end
@@ -698,10 +702,11 @@ graph TD
         LOGGER["logger_d<br/>序号 10"]
     end
 
-    subgraph L5["第 5 层（序号 11-12）"]
+    subgraph L5["第 5 层（序号 11）"]
         VFS["vfs_d<br/>序号 11"]
-        CONFIG["config_d<br/>序号 12"]
     end
+
+    AT --> CONFIG
 
     AT --> GW
     GW --> COGN
@@ -717,7 +722,6 @@ graph TD
     AUDIT --> LOGGER
     NET --> VFS
     SEC --> VFS
-    VFS --> CONFIG
 
     style MT fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000
     style AT fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000

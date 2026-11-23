@@ -247,7 +247,6 @@ Description=AirymaxOS Unified Configuration Subsystem (A-UCS)
 Documentation=man:config_d(8)
 After=systemd-journald.service agentrt-firstboot.service
 Requires=systemd-journald.service agentrt-firstboot.service
-Wants=agentrt-vfs.service
 PartOf=agentrt.target
 
 [Service]
@@ -444,6 +443,7 @@ ExecStartPost=/usr/sbin/audit_d --restore
 
 | 序号 | daemon | systemd unit | After= | Requires= | Wants= |
 |------|--------|--------------|--------|-----------|--------|
+| 0 | `config_d` | `agentrt-config.service` | `systemd-journald.service` | `systemd-journald.service` | — |
 | 1 | `gateway_d` | `agentrt-gateway.service` | `network-online.target` | — | — |
 | 2 | `cogn_d` | `agentrt-cogn.service` | `agentrt-gateway.service` | `agentrt-gateway.service` | — |
 | 3 | `dev_d` | `agentrt-dev.service` | `agentrt-gateway.service` | `agentrt-gateway.service` | — |
@@ -455,7 +455,6 @@ ExecStartPost=/usr/sbin/audit_d --restore
 | 9 | `sec_d` | `agentrt-sec.service` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 10 | `logger_d` | `agentrt-logger.service` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 11 | `vfs_d` | `agentrt-vfs.service` | `agentrt-net.service agentrt-sec.service` | — | `agentrt-net.service agentrt-sec.service` |
-| 12 | `config_d` | `agentrt-config.service` | `agentrt-vfs.service` | — | `agentrt-vfs.service` |
 
 ### 7.3 PartOf 关系
 
