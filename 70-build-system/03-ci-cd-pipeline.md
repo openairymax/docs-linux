@@ -214,6 +214,7 @@ ci/ci.sh kernel-analyze --kind sparse --log /tmp/sparse.log
 | `kernel-deps` | 工具链准备。`--kind build` 按架构与编译器取交叉工具链，`--kind verify` 取静态分析与 virtme-ng；Debian 宿主直接安装，其它发行版只做存在性校验并报出缺哪个命令 | — |
 | `kernel-build` | 矩阵单格：配置求解 → 编译 → `error:` 一律红、`warning:` 仅 Airymax 路径红 | OS-STD-TOOL-161 |
 | `kernel-consistency` | 版本真值（`specver`：`kernel/Makefile` 与 distro 配方 `%global kernel_version` 一致）/ 任务书矩阵 / ABI 黄金样本 / codegen / uapi 自包含，五条零漂移；`specver` 最便宜且最先失败，排在 `all` 之首 | OS-STD-TOOL-161、OS-IRON-001 |
+| `kernel-obs` | 观测面契约：顶层目录由 `core_initcall` 发布、属性一律 0444 且无写回调、输出走 `sysfs_emit`、`/proc/airy` 走 `single_open`、Kbuild 清单与目录一致、三份 defconfig 与 KUnit 配置均已开启 | OS-OBS-041、OS-KER-132、OS-KER-133 |
 | `kernel-kunit` | UML 上跑 KUnit，并与基线 TAP 比对 | OS-TEST-001~012 |
 | `kernel-refbuild` | x86_64 airy_defconfig 参考构建：10 条关键 CONFIG 精确断言、`CONFIG_LSM` 含 airy、vmlinux 带 `.BTF` 段 | OS-OBS-012 |
 | `kernel-analyze` | `--kind checkpatch\|sparse\|coccinelle`，只扫 Airymax 目录 | OS-STD-TOOL-160、OS-STD-TOOL-081-CI、L2 |
@@ -276,6 +277,8 @@ jobs:
         with: { submodules: recursive }
       - name: Install analysis and runtime test tools
         run: ci/ci.sh kernel-deps --kind verify
+      - name: Observation surface contract
+        run: ci/ci.sh kernel-obs
       - name: Consistency (matrix / ABI / codegen)
         run: ci/ci.sh kernel-consistency --kind all
       - name: KUnit on UML + baseline diff

@@ -39,7 +39,7 @@ sysfs 与 procfs 是 Linux 6.6 内核基线提供的标准伪文件系统，分�
 
 **OS-OBS-041: sysfs 与 procfs 是 agent-linux 可观测性 L4 层的强制基线，所有静态状态导出必须经 sysfs/procfs，不得自创 /sys/kernel/airy 或 /proc/airy_v2 等并行目录。**
 
-**OS-KER-131: kernel 的 defconfig 必须开启 CONFIG_SYSFS、CONFIG_PROC_FS、CONFIG_KOBJECT；内建 Airy LSM 必须在 `airy_init()` 阶段完成 airy_kset 注册（非模块，无 agentrt.ko）。**
+**OS-KER-131: kernel 的 defconfig 必须开启 CONFIG_SYSFS、CONFIG_PROC_FS、CONFIG_KOBJECT；内建 Airy LSM 的观测面由 `core_initcall` 发布（非模块，无 agentrt.ko）——LSM 初始化早于 kernfs，不能承担注册。**
 
 ### 1.2 框架组成
 
@@ -53,7 +53,7 @@ sysfs 与 procfs 是 Linux 6.6 内核基线提供的标准伪文件系统，分�
 | seq_file | `fs/seq_file.c` | 序列化输出框架 |
 | proc_ops | `include/linux/proc_fs.h` | procfs 文件操作 |
 
-**OS-STD-031: 任何 sysfs/procfs 文件的 `show()` 回调必须使用 `seq_file` 框架，不得直接使用 `sprintf` 拼接缓冲区，避免缓冲区溢出与并发问题。**
+**OS-STD-031: sysfs 文件的 `show()` 回调必须使用 `sysfs_emit()` / `sysfs_emit_at()`（缓冲区由内核按页传入），procfs 文件必须使用 `seq_file` 框架；两者都不得用 `sprintf` 拼接缓冲区，避免越界与并发问题。**
 
 ### 1.3 sysfs vs procfs 职责划分
 
@@ -157,7 +157,9 @@ static int __init airy_sysfs_init(void)
 }
 ```
 
-**OS-KER-132: 内建 Airy LSM 必须在 `airy_init()` 阶段完成 `/sys/airy/` 顶层 kset 注册；注册失败视为致命错误，LSM 初始化中止。**
+**OS-KER-132: 内建 Airy LSM 必须在启动阶段完成 `/sys/airy/` 顶层 kset 注册，且早于任何用户态进程可见；注册失败视为致命错误——撤回 `/proc/sys/agentrt/present` 就绪标记，使运行时退回用户态路径，而不是在不可观测的状态下宣称就绪。**
+
+> 注册点说明：`security_init()` 早于 `vfs_caches_init()`，而 `kernfs_init()`/`sysfs_init()` 在后者内部执行（见 `init/main.c`），因此 LSM 的 `airy_init()` 执行时 `sysfs_root_kn` 仍为空，`kobject_add()` 只能返回 `-ENOENT`。`/sys/airy` 与 `/proc/airy` 统一在 `core_initcall` 发布——这是 sysfs 可用之后最早的时刻，仍早于任何用户态进程（`do_initcalls()` 在 `kernel_init` 内、用户态 init 之前完成）。
 
 ### 2.3 attribute 定义规范
 
@@ -170,7 +172,7 @@ static ssize_t sched_stats_show(struct kobject *kobj,
 {
     struct airy_sched_stats stats;
     airy_sched_get_stats(&stats);
-    return scnprintf(buf, PAGE_SIZE,
+    return sysfs_emit(buf,
         "switches_total: %llu\n"
         "switches_dl_to_rt: %llu\n"
         "switches_rt_to_eevdf: %llu\n"
@@ -242,7 +244,7 @@ static int __init airy_procfs_init(void)
 }
 ```
 
-**OS-KER-133: `/proc/airy/` 目录及其子目录的创建必须在内建 Airy LSM `airy_init()` 阶段完成；任一子目录创建失败视为致命错误。**
+**OS-KER-133: `/proc/airy/` 目录及其子目录必须与 `/sys/airy` 在同一启动阶段（`core_initcall`）创建，任一创建失败视为致命错误（撤回就绪标记）。只为存在真实内核数据源的节点建目录：无数据源的子目录留待其所有者就绪后再挂载，避免空目录被读成“当前没有 Agent/守护进程”。**
 
 ---
 
