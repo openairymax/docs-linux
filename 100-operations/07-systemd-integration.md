@@ -98,7 +98,7 @@ PartOf=agentrt.target
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStart=/usr/sbin/macro_d --config=/etc/agentrt/daemons/macro_d.conf
+ExecStart=/usr/sbin/macro_d --config=/etc/agentrt/macro-superv.conf
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=1s
@@ -191,7 +191,7 @@ PartOf=agentrt.target
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStart=/usr/sbin/logger_d --config=/etc/agentrt/daemons/logger_d.conf
+ExecStart=/usr/sbin/logger_d --config=/etc/agentrt/logger.conf
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=1s
@@ -245,21 +245,25 @@ WantedBy=agentrt.target
 [Unit]
 Description=AirymaxOS Unified Configuration Subsystem (A-UCS)
 Documentation=man:config_d(8)
-After=agentrt-macro-superv.service
-Requires=agentrt-macro-superv.service
-Before=agentrt-gateway.service agentrt-sched.service agentrt-vfs.service agentrt-net.service agentrt-mem.service agentrt-cogn.service agentrt-sec.service agentrt-audit.service agentrt-dev.service
+After=systemd-journald.service agentrt-firstboot.service
+Requires=systemd-journald.service agentrt-firstboot.service
+Wants=agentrt-vfs.service
 PartOf=agentrt.target
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/sbin/config_d --load --config=/etc/agentrt/airy.conf
-ExecReload=/usr/sbin/config_d --reload
-ExecStop=/bin/true
+Type=notify
+NotifyAccess=main
+ExecStart=/usr/sbin/config_d --root /etc/agentrt
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=1s
+WatchdogSec=30s
+TimeoutStartSec=30
+TimeoutStopSec=15
 
-User=airy
-Group=airy
-SupplementaryGroups=airy-config
+# 共享参数下发到 kernel.airy.* 需要写 /proc/sys；以 root 运行但收窄能力集
+User=root
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_SYS_ADMIN
 
 MemoryMax=256M
 CPUQuota=50%
@@ -268,7 +272,7 @@ TasksMax=128
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
-ReadWritePaths=/etc/agentrt /var/lib/agentrt/config
+PrivateDevices=yes
 NoNewPrivileges=yes
 
 SyslogIdentifier=config_d
@@ -279,11 +283,15 @@ WantedBy=agentrt.target
 
 ### 5.2 关键差异
 
-- **Type=oneshot**：config_d 是一次性任务，加载配置后退出。
-- **RemainAfterExit=yes**：退出后单元仍视为 active，便于其他 daemon 声明依赖。
-- **Before=**：所有业务 daemon 在 config_d 之后启动，确保配置已加载。
-- **ExecReload**：热更新通过 `systemctl reload config_d` 触发。
-- **MemoryMax=256M**：配置加载内存占用小。
+- **Type=notify**：config_d 是常驻守护进程，装载完成并建立配置目录监听后才上报
+  `READY=1`；启动失败不会让 `agentrt.target` 的事务无界等待。
+- **WatchdogSec=30s**：主循环每秒向 systemd 上报 `WATCHDOG=1`，事件循环卡死会被
+  systemd 判定失败并重启。
+- **降级生存**：主配置不可读时以内置默认值只读运行并持续告警，配置恢复后自动
+  接管，不因配置损坏阻断开机。
+- **ExecReload**：`systemctl reload config_d` 触发一次完整重载，非法配置保留旧值。
+- **User=root**：写 `/proc/sys/kernel/airy/*` 需要 `CAP_DAC_OVERRIDE` 与
+  `CAP_SYS_ADMIN`，能力集之外一律丢弃。
 
 ---
 
@@ -305,7 +313,7 @@ PartOf=agentrt.target
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStart=/usr/sbin/<daemon> --config=/etc/agentrt/daemons/<daemon>.conf
+ExecStart=/usr/sbin/<daemon> --config=/etc/agentrt/<daemon>.conf
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=2s
