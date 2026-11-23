@@ -162,7 +162,9 @@ cat /sys/kernel/tracing/trace
 agent-linux 提供封装 API `airy_user_event_register()`，供 12 daemon 与 Agent 运行时使用：
 
 ```c
-/* include/uapi/linux/airymax/user_events.h（v1.0.1 计划实现，当前未创建） */
+/* 用户态库内部头（[IND]）：句柄与读写封装。
+ * 内核 UAPI（[SC]）只发布事件名、格式串与载荷布局，见
+ * include/uapi/linux/airymax/user_events.h。 */
 
 struct airy_user_event {
     int fd;
@@ -206,12 +208,16 @@ static inline void airy_user_event_write(struct airy_user_event *event,
 void airy_user_event_unregister(struct airy_user_event *event);
 ```
 
+内核侧把同一份契约表只读发布在 `/sys/airy/events`：`abi` 给出表版本与事件数，`transport` 报告是否编译了 user_events，`catalog` 逐行给出注册名与格式串。守护进程应先读 `catalog` 再调用 `airy_user_event_register()`，注册名与格式串不一致时在这里就能发现，而不是等读 trace 时才发现字段错位。
+
 ### 3.2 注册示例
 
 cogn_d daemon 在启动时注册认知循环事件：
 
 ```c
-/* cogn_d daemon 初始化 */
+/* cogn_d daemon 初始化；契约宏来自内核 UAPI */
+#include <linux/airymax/user_events.h>
+
 struct airy_user_event cognition_start_ev;
 struct airy_user_event cognition_end_ev;
 struct airy_user_event memory_access_ev;
@@ -220,23 +226,23 @@ struct airy_user_event tool_call_ev;
 int cogn_d_init_user_events(void)
 {
     int ret;
-    ret = airy_user_event_register("cognition_start",
-        "u32 agent_id u32 input_tokens u64 timestamp_ns",
+    ret = airy_user_event_register(AIRY_UEVENT_COGN_START,
+        AIRY_UEVENT_FMT_COGN_START,
         &cognition_start_ev);
     if (ret) return ret;
 
-    ret = airy_user_event_register("cognition_end",
-        "u32 agent_id u32 output_tokens u64 latency_ns",
+    ret = airy_user_event_register(AIRY_UEVENT_COGN_END,
+        AIRY_UEVENT_FMT_COGN_END,
         &cognition_end_ev);
     if (ret) return ret;
 
-    ret = airy_user_event_register("memory_access",
-        "u32 agent_id u8 level u8 hit u64 latency_ns",
+    ret = airy_user_event_register(AIRY_UEVENT_MEM_ACCESS,
+        AIRY_UEVENT_FMT_MEM_ACCESS,
         &memory_access_ev);
     if (ret) return ret;
 
-    ret = airy_user_event_register("tool_call",
-        "u32 agent_id u32 tool_id u64 latency_ns u8 result",
+    ret = airy_user_event_register(AIRY_UEVENT_TOOL_CALL,
+        AIRY_UEVENT_FMT_TOOL_CALL,
         &tool_call_ev);
     if (ret) return ret;
 
@@ -331,8 +337,8 @@ struct airy_user_tool_call {
 每个事件的格式通过注册字符串定义，内核据此生成 `format` 文件：
 
 ```bash
-$ cat /sys/kernel/tracing/events/user_events/cognition_start/format
-name: cognition_start
+$ cat /sys/kernel/tracing/events/user_events/airy_user_cognition_start/format
+name: airy_user_cognition_start
 ID: 5678
 format:
     field:unsigned short common_type;   offset:0;  size:2;  signed:0;
@@ -355,11 +361,11 @@ user_events 支持与内核 tracepoint 相同的过滤器语法：
 ```bash
 # 仅记录 agent_id == 42 的认知事件
 echo 'agent_id == 42' > \
-    /sys/kernel/tracing/events/user_events/cognition_start/filter
+    /sys/kernel/tracing/events/user_events/airy_user_cognition_start/filter
 
 # 组合条件：高 token 消耗
 echo 'agent_id == 42 && input_tokens > 1000' > \
-    /sys/kernel/tracing/events/user_events/cognition_start/filter
+    /sys/kernel/tracing/events/user_events/airy_user_cognition_start/filter
 ```
 
 ---
@@ -592,7 +598,8 @@ bpftool prog load cogn_trace.o /sys/fs/bpf/cogn_trace \
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：user_events 框架、airy_user_event_register() API、COGNITION_START/END/MEMORY_ACCESS/TOOL_CALL 事件类型、与 logger_d 关系（双写策略）、性能开销分析（<10ns/事件）、与 02-ebpf-probes.md 关系 |
+| v1.0.2 | 2026-11-23 | 内核侧发布 [SC] 契约头（名字/格式串/载荷布局），/sys/airy/events 导出 abi、transport、catalog；注册名统一 airy_user_ 前缀；memory_access 与 tool_call 格式串补齐 addr、output_tokens |
 
 ---
 
-> **文档结束** | agent-linux user_events 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."
+> **文档结束** | agent-linux user_events 接口 v1.0.2 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."
