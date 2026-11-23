@@ -34,11 +34,11 @@ debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪�
 
 1. **调试场景专用**：debugfs 文件无 ABI 稳定性约束，可在不同版本间自由调整格式，适合调试期频繁迭代；与 sysfs 的"稳定 ABI"职责严格分离。
 2. **与 ftrace 原生集成**：tracefs 是 ftrace 的标准接口，所有 tracepoint 事件通过 `events/` 子目录暴露，无需自创追踪文件系统。
-3. **生产可关闭**：debugfs 默认不挂载，仅在调试构建或 `airy_debug=1` 启动参数下挂载，符合 A-ULS 模块 macro_d 的"生产环境最小调试面"原则。
+3. **生产可关闭**：调试面只在 `CONFIG_DEBUG_FS=y` 时编译；用户可见的 `/sys/kernel/debug` 挂载由发行版或管理员决定，调试节点缺席不影响系统功能，符合 A-ULS 模块 macro_d 的"生产环境最小调试面"原则。
 
 **OS-OBS-051: debugfs 与 tracefs 是 agent-linux 可观测性 L4 层调试接口的强制基线，调试信息必须经 debugfs 导出，不得在生产 sysfs 中混入调试字段。**
 
-**OS-KER-141: kernel 的 defconfig 必须开启 CONFIG_DEBUG_FS、CONFIG_TRACING、CONFIG_EVENT_TRACING；内建 Airy LSM 必须在 `airy_init()` 阶段完成 debugfs 子目录注册（仅当 debugfs 已挂载时，非 agentrt.ko）。**
+**OS-KER-141: kernel 的 defconfig 必须开启 CONFIG_DEBUG_FS、CONFIG_TRACING、CONFIG_EVENT_TRACING；内建 Airy LSM 的调试面必须在 debugfs 自身初始化之后注册，不得在 `security_init()` 阶段（`airy_init()`）注册。**
 
 ### 1.2 框架组成
 
@@ -51,7 +51,7 @@ debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪�
 | trace_export | `kernel/trace/trace_export.c` | 事件导出 |
 | DECLARE_TRACE | `include/trace/define_trace.h` | tracepoint 宏 |
 
-**OS-STD-041: 任何 debugfs 文件必须在 `airy_debugfs_exit()` 中正确注销；不得依赖 module 卸载自动清理，避免悬挂指针。**
+**OS-STD-041: 调试面注册失败时必须回滚已经建立的节点，不得留下半棵树；以模块形式承载时还须在退出路径调用 `debugfs_remove_recursive()`，不得依赖 module 卸载自动清理。**
 
 ### 1.3 debugfs vs tracefs vs sysfs 职责划分
 
@@ -67,6 +67,22 @@ debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪�
 ## 第 2 章 /sys/kernel/debug/airy/ 目录设计
 
 ### 2.1 顶层结构
+
+0.0.5 只发布三个有真实数据源的节点，目录即实现面：
+
+```
+/sys/kernel/debug/airy/
+├── sec/
+│   └── cap_table          # 能力槽明细（perms/epoch/flags/generation/parent）
+├── superv/
+│   └── last_decision      # 最近一次监督命令的完整裁决
+└── log/
+    └── ring_buffer_dump   # 日志环原始字节
+```
+
+调试面只补充稳定观测面（`/sys/airy`）无法提供的原始信息，不重复其中的稳定计数。防伪随机标签（`randtag`）永不输出：调试文件不得成为伪造徽章的读取口。
+
+下列规划目标面按数据源就绪逐项落地，没有真实数据源的功能面不建空节点：
 
 ```
 /sys/kernel/debug/airy/
@@ -110,58 +126,49 @@ debugfs 与 tracefs 是 Linux 6.6 内核基线提供的调试与追踪专用伪�
 
 ### 2.2 debugfs 注册流程
 
-内建 Airy LSM 在 `airy_init()` 中检查 debugfs 是否挂载，若挂载则注册子目录：
+调试面由 `kernel/obs/airy_obs_debugfs.c` 承载，以 `fs_initcall` 注册：
+
+- debugfs 自身是 `core_initcall(debugfs_init)`，而内核目录的目标文件链接顺序先于 `fs/`；在同一阶段调用创建接口只会拿到 `-ENODEV`。
+- `debugfs_create_dir()` / `debugfs_create_file()` 内部经 `simple_pin_fs()` 按需 pin 内部挂载，不依赖用户态执行 `mount -t debugfs`。
+- 注册前检查 `/sys/airy` 的就绪标记；观测面已失败时不再重复失败。
+- 任一节点失败即回滚整棵树，只告警，不撤回运行时就绪标记——调试面缺席不影响系统可用性。
 
 ```c
-/* kernel/corekern/airy/airy_debugfs.c（规划：内建 LSM 载体） */
-static struct dentry *airy_debugfs_root;
+static struct dentry *airy_dbg_root;
 
-static int __init airy_debugfs_init(void)
+static int __init airy_dbg_start(void)
 {
-    struct dentry *root;
-    /* 仅当 debugfs 已挂载时注册 */
-    if (!dbg_fs_root)
-        return 0;  /* 非错误，生产环境 debugfs 不挂载 */
-    root = debugfs_create_dir("airy", NULL);
-    if (IS_ERR(root))
-        return PTR_ERR(root);
-    airy_debugfs_root = root;
-    airy_agents_debugfs_init(root);
-    airy_sched_debugfs_init(root);
-    airy_ipc_debugfs_init(root);
-    airy_log_debugfs_init(root);
-    airy_superv_debugfs_init(root);
-    airy_mem_debugfs_init(root);
-    airy_sec_debugfs_init(root);
-    airy_internals_debugfs_init(root);
-    return 0;
-}
+	int rc;
 
-static void __exit airy_debugfs_exit(void)
-{
-    debugfs_remove_recursive(airy_debugfs_root);
-    airy_debugfs_root = NULL;
+	if (!airy_obs_ready)
+		return 0;
+
+	rc = airy_dbg_init();
+	if (rc)
+		pr_warn("airy: debugfs surface unavailable: %d\n", rc);
+
+	return 0;
 }
+fs_initcall(airy_dbg_start);
 ```
 
-**OS-KER-142: 内建 Airy LSM 必须在 `airy_debugfs_init()` 中检查 `dbg_fs_root` 是否为 NULL；若 debugfs 未挂载，跳过注册而非报错，保证生产构建可正常初始化。**
+**OS-KER-142: 内建 Airy LSM 的调试面须在 `fs_initcall` 阶段注册，并以 `/sys/airy` 就绪标记为前提；创建失败时回滚已建节点并降级为告警，不得中止启动，也不得检查已不存在的 `dbg_fs_root`。**
 
 ### 2.3 debugfs 文件创建规范
 
-debugfs 文件通过 `debugfs_create_*` 系列 API 创建：
+调试文件一律以只读 `file_operations` 创建，由回调决定输出格式：
 
 ```c
-/* 创建只读 0444 文件 */
-debugfs_create_u64("switches_total", 0444, sched_dir,
-                   &airy_sched_stats.switches_total);
+/* 结构化文本：seq_file 逐行输出 */
+debugfs_create_file("last_decision", 0444, superv_dir, NULL,
+                    &last_decision_fops);
 
-/* 创建 seq_file 文件（复杂格式） */
-debugfs_create_file("runqueue_dump", 0444, sched_dir, NULL,
-                    &runqueue_dump_fops);
-
-/* 创建 blob（二进制数据） */
-debugfs_create_blob("ring_buffer_dump", 0444, log_dir, &ring_blob);
+/* 原始字节：只读回调 + simple_read_from_buffer，支持任意长度 */
+debugfs_create_file("ring_buffer_dump", 0444, log_dir, NULL,
+                    &ring_dump_fops);
 ```
+
+不使用 `debugfs_create_u32()` 等可写投影接口：投影接口把内核变量直接暴露为可写文件，与只读契约冲突。
 
 **OS-STD-042: 所有 debugfs 文件权限必须为 0444（只读）；不得在 debugfs 中提供写接口，状态变更必须经 A-UCS config_d 的标准接口。**
 

@@ -215,6 +215,7 @@ ci/ci.sh kernel-analyze --kind sparse --log /tmp/sparse.log
 | `kernel-build` | 矩阵单格：配置求解 → 编译 → `error:` 一律红、`warning:` 仅 Airymax 路径红 | OS-STD-TOOL-161 |
 | `kernel-consistency` | 版本真值（`specver`：`kernel/Makefile` 与 distro 配方 `%global kernel_version` 一致）/ 任务书矩阵 / ABI 黄金样本 / codegen / uapi 自包含，五条零漂移；`specver` 最便宜且最先失败，排在 `all` 之首 | OS-STD-TOOL-161、OS-IRON-001 |
 | `kernel-obs` | 观测面契约：顶层目录由 `core_initcall` 发布、属性一律 0444 且无写回调、输出走 `sysfs_emit`、`/proc/airy` 走 `single_open`、Kbuild 清单与目录一致、三份 defconfig 与 KUnit 配置均已开启 | OS-OBS-041、OS-KER-132、OS-KER-133 |
+| `kernel-debugfs` | 调试面契约：`fs_initcall` 注册且依赖 `/sys/airy` 就绪标记、失败只告警、节点一律 0444 且不用可写投影接口、只建三个有数据源的节点、`randtag` 不出现在非测试源、Kbuild 条件对象与四架构 defconfig 的调试基线齐备 | OS-OBS-051、OS-KER-141、OS-KER-142、OS-STD-041、OS-STD-042 |
 | `kernel-kunit` | UML 上跑 KUnit，并与基线 TAP 比对 | OS-TEST-001~012 |
 | `kernel-refbuild` | x86_64 airy_defconfig 参考构建：10 条关键 CONFIG 精确断言、`CONFIG_LSM` 含 airy、vmlinux 带 `.BTF` 段 | OS-OBS-012 |
 | `kernel-analyze` | `--kind checkpatch\|sparse\|coccinelle`，只扫 Airymax 目录 | OS-STD-TOOL-160、OS-STD-TOOL-081-CI、L2 |
@@ -222,7 +223,7 @@ ci/ci.sh kernel-analyze --kind sparse --log /tmp/sparse.log
 
 > **次序约束已变成断言**：此前「KUnit 必须早于所有 in-tree 构建」「sparse 依赖参考构建的 `.o`」只存在于 YAML 注释里，步骤一重排就会静默退化成假绿。现在 `kernel-kunit` 检测到源码树已有 `.config` 或 `vmlinux` 即拒绝启动；`kernel-analyze --kind sparse` 找不到已编译的 Airymax 目标文件即判红，而不是「零对象零告警」地通过。
 >
-> **为什么拆成七个门禁而不是一个大脚本**：单格失败要能只重跑那一格（矩阵 28 格）；静态检查各自的红线口径不同（checkpatch 只能解析 `total:` 行，sparse 必须限定目标文件，coccinelle 必须收窄 `--dir`），混在一起迟早互相掩盖。
+> **为什么拆成八个门禁而不是一个大脚本**：单格失败要能只重跑那一格（矩阵 28 格）；静态检查各自的红线口径不同（checkpatch 只能解析 `total:` 行，sparse 必须限定目标文件，coccinelle 必须收窄 `--dir`），混在一起迟早互相掩盖。
 >
 > **棘轮约束**：`ci/baseline/workflow-budgets.txt` 记录每个 workflow 允许的内联 `run` 块数上限，只许减不许加，由 `ci/checks/check-workflows.py` 在 lint 阶段强制。kernel-verify.yml 已从 10 降到 0，全仓合计 78 → 53。
 
@@ -279,6 +280,8 @@ jobs:
         run: ci/ci.sh kernel-deps --kind verify
       - name: Observation surface contract
         run: ci/ci.sh kernel-obs
+      - name: Debug surface contract
+        run: ci/ci.sh kernel-debugfs
       - name: Consistency (matrix / ABI / codegen)
         run: ci/ci.sh kernel-consistency --kind all
       - name: KUnit on UML + baseline diff
