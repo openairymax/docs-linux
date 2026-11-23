@@ -14,7 +14,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 发行版管理不是「打包」的代名词，而是「版本化、可追溯、可验证」的工程体系。AirymaxOS 发行版管理的核心理念是：**每个版本必须可追溯，每个包必须可验证，每个镜像必须可重现构建**。这要求从源码到发布的全链路工程化，而非手工打包。
 
-本模块承担六项核心职责：
+本模块承担七项核心职责：
 
 1. **RPM 打包**：RPM 打包规范 + spec 模板 + GPG 签名 + 12 daemon RPM 包。
 2. **dnf 仓库设计**：dnf 仓库分层（stable/testing/nightly）+ metadata 生成。
@@ -22,6 +22,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 4. **更新机制**：内核热更新 + 原子更新 + Btrfs 快照回滚。
 5. **可重现构建**：SOURCE_DATE_EPOCH + 编译器确定性标志 + 全产物可重现构建。
 6. **SBOM 生成**：软件物料清单生成 + 供应链安全 + 跨架构验证。
+7. **会话入口**：引导期 TUI/GUI 选择 + 运行期双向切换 + 注销回退。
 
 ---
 
@@ -43,7 +44,7 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 
 ## 3. 文档索引
 
-`190-distribution/` 由 7 个文档构成（含本 README）：
+`190-distribution/` 由 8 个文档构成（含本 README）：
 
 ```
 190-distribution/
@@ -53,7 +54,8 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 ├── 03-installer-design.md          # 安装器设计（三模式 + Btrfs + LVM + Secure Boot + TPM）（v1.0）
 ├── 04-update-mechanism.md          # 更新机制（内核热更新 + 原子更新 + Btrfs 快照回滚）（v1.0）
 ├── 05-reproducible-build.md        # 可重现构建（SOURCE_DATE_EPOCH + 全产物可重现 + 跨架构）（v1.0）
-└── 06-sbom-generation.md           # SBOM 生成（软件物料清单 + 供应链安全 + 跨架构验证）（v1.0）
+├── 06-sbom-generation.md           # SBOM 生成（软件物料清单 + 供应链安全 + 跨架构验证）（v1.0）
+└── 07-session-entry.md             # 会话入口与模式切换（引导期选择 + 运行期切换 + 注销回退）（v1.0）
 ```
 
 ### 3.1 各文档定位
@@ -67,6 +69,7 @@ agent-linux v1.0 在内核调度、IPC 传输、安全钩子、内存分配与�
 | 04-update-mechanism.md | 系统怎么更新？ | 内核热更新 + 原子更新 + Btrfs 快照回滚 |
 | 05-reproducible-build.md | 构建怎么重现？ | SOURCE_DATE_EPOCH + 全产物可重现 + 跨架构 |
 | 06-sbom-generation.md | 物料清单怎么生成？ | SBOM 生成 + 供应链安全 + 跨架构验证 |
+| 07-session-entry.md | 会话入口怎么选与切？ | 引导期选择 + 运行期 TUI↔GUI 切换 + 状态面契约 |
 
 ### 3.2 发行版分层
 
@@ -200,7 +203,8 @@ A-ULS 的双 Supervisor 模型在发行版中体现为：内核 Micro-Supervisor
 | 0.1.1 | 2026-07-13 | 初始版本，5/5 文档完成（RPM + dnf 仓库 + 安装器 + 更新 + 可重现构建） |
 | v1.0 | 2026-07-17 | 升级为 v1.0：新增sched_tac 技术选型声明（不使用 sched_ext）；IORING_OP_URING_CMD（不使用 page flipping）；纯 C LSM（不使用 BPF LSM）；alloc_pages + mmap（不使用 DMA 一致性内存）；IRON-9 v3 四层模型（新增 [DSL] 降级生存层）；新增 12 daemon RPM 包清单（agentrt-macro-superv / agentrt-logger / agentrt-config / agentrt-gateway / agentrt-sched / agentrt-vfs / agentrt-net / agentrt-mem / agentrt-cogn / agentrt-sec / agentrt-audit / agentrt-dev）；补全 06-sbom-generation.md 文档索引；新增 Airymax Unify Design 五模块映射（A-UCS airy_defconfig 打包 / A-ULS 12 daemon systemd 服务打包） |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.2 | 2026-11-23 | 新增《会话入口与模式切换》，覆盖引导期选择、运行期切换、注销回退与状态面契约 |
 
 ---
 
-> **文档结束** | 发行版管理模块 v1.0.1 | 共 7 文档 | 维护者：开源极境工程与规范委员会 | 每个版本必须可追溯，每个包必须可验证
+> **文档结束** | 发行版管理模块 v1.0.2 | 共 8 文档 | 维护者：开源极境工程与规范委员会 | 每个版本必须可追溯，每个包必须可验证
