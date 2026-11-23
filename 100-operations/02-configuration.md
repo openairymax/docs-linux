@@ -204,6 +204,10 @@ tls_required = true
 
 **OS-OPS-128**：`conf.d/` 下的覆盖文件必须以 `NN-` 数字前缀命名（如 `99-local.conf`），禁止无前缀文件；覆盖文件优先级高于主配置（C-2 增量演化，本地覆盖不破坏包默认）。
 
+### 4.4 只读内核观测点
+
+`kernel.airy.cap_max_agents`、`cap_epoch_bits`、`cap_randtag_bits` 是内核以 `0444` 发布的几何观测点，容量与位宽由编译期常量决定，写入返回 `-EPERM`（见 [11-unified-config.md §7.4](../20-modules/11-unified-config.md)）。`config_d` 对这类节点只读不写：配置值与内核发布值不一致时判定配置在本内核上不可满足，运行期保留上一份生效配置，启动期降级为只读默认值并告警；对齐需重编内核后重启。
+
 ---
 
 ## 第 5 章 systemd 单元配置
