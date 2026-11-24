@@ -455,6 +455,12 @@ ExecStartPost=/usr/sbin/audit_d --restore
 | 9 | `sec_d` | `agentrt-sec.service` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 10 | `logger_d` | `agentrt-logger.service` | `agentrt-audit.service` | `agentrt-audit.service` | — |
 | 11 | `vfs_d` | `agentrt-vfs.service` | `agentrt-net.service agentrt-sec.service` | — | `agentrt-net.service agentrt-sec.service` |
+| 12 | `airy-alertd` | `airy-alert.service` | `agentrt-logger.service` | — | `agentrt-logger.service` |
+
+第 12 行是运维面聚合器，不属于 A-ULS 的 12 个 `agentrt-*` daemon；它以
+`WantedBy=agentrt.target` 随栈启动，日志面复用 `agentrt-logger.service`，
+契约由 `system/tools/units_lint.py` 独立登记，详见
+[04-alerting.md](04-alerting.md) 第 12 节。
 
 ### 7.3 PartOf 关系
 

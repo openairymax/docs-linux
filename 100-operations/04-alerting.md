@@ -804,7 +804,47 @@ airyctl remediation silence break --metric airy_ipc_badge_fail_total --agent-id 
 
 ---
 
-## 14. 相关文档
+## 14. 实现注记（0.0.5）
+
+本版落地的是**运维面聚合器** `airy-alert.service`，把去重、抑制、风暴、
+确认与升级五段判据做成可独立运行的单元；audit_d 的 RPC 查询面（§8.2）
+仍由 `airyctl alert` 在后续版本承接，两者共用同一套事件契约。
+
+| 项目 | 取值 |
+|------|------|
+| 包体 | `system/services/daemons/alert_d/`：`model`（契约）、`rules`（规则装载）、`engine`（状态机）、`store`（活动/状态/归档）、`server`（套接字）、`cli` |
+| 入口 | `/usr/bin/airy-alertd`（`Type=notify`）、`/usr/bin/airy-alert` |
+| 套接字 | `/run/agentrt/alert.sock`，0660，仅 `AF_UNIX` |
+| 状态 | `/var/lib/agentrt/alerts/active.json`、`status.json`、`archive/<YYYYMMDD>.jsonl` |
+| 规则 | 出厂 `/usr/share/airymax/alert/rules.d/`，站点覆盖 `/etc/agentrt/alert/rules.d/`，`SIGHUP` 热重载 |
+| 门禁 | `ci/gates/alert-d.sh`，由 `ops-verify.yml` 的 `alert-verify` 作业承接 |
+
+运行期与文档口径对齐的取舍：
+
+- 级别、去重窗口（100 ms）、风暴阈值（1 s 50 条 / 1 min 1000 条 / 同码 20
+  条）、自动确认（WARNING 5 min、CRITICAL 15 min）与升级间隔（30 min）
+  取 §9 的默认值，常量集中在 `model.py`，不散落在判据里。
+- 规则以 JSON 描述并按**来源名**匹配，避免 §3.1 的数字 `source_id` 在
+  文档与实现之间漂移；出厂规则只抑制 INFO，默认不隐藏 WARNING/CRITICAL。
+- 归档按事件墙钟日期分片，重复触发只更新活动告警计数，不重复写入归档，
+  避免同一告警按重复频率线性膨胀。
+- 风暴期间非 CRITICAL 每键 5 分钟放行一条，CRITICAL 消息收敛到 64 字节
+  但不受抑制；风暴在 5 分钟无新高后自动退出。
+
+```sh
+airy-alert status
+airy-alert send --severity WARNING --source net_d --code 2003 --message "link degraded"
+airy-alert list
+airy-alert ack <alert_id> --operator ops --comment "checked"
+airy-alert history --severity CRITICAL --since 1h --limit 50
+```
+
+285H 上的三架构触发、升级与自动恢复验收待现场执行；托管 runner 只复算
+契约与进程内行为。
+
+---
+
+## 15. 相关文档
 
 - [03-monitoring.md](03-monitoring.md)：监控体系，告警的输入源。
 - [05-incident-response.md](05-incident-response.md)：事件响应，告警的下游消费者。
