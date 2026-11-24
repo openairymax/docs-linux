@@ -4,7 +4,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 > **文档定位**：AirymaxOS v1.0.1 运维分册 · 事件响应设计文档，定义事件分类、响应流程、自动化策略与复盘机制\
 > **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **最后更新**： 2026-11-24\
 > **上级文档**：[100-operations README](README.md)
 
 ---
@@ -777,7 +777,55 @@ Agent 迁移与跨节点故障转移由 150-cloudnative 模块支持，详见 [.
 
 ---
 
-## 13. 相关文档
+## 13. 实现注记
+
+本节记录 v0.0.5 在 OS 层落地的事件台账，凡与上文设计存在差异之处以本节为准。
+
+### 13.1 落地位置
+
+| 组成 | 路径 |
+|------|------|
+| 台账包 | `system/ops/incident/`（model / store / feed / runbook / cli） |
+| 命令行入口 | `system/bin/airy-incident` |
+| 内置运行手册 | `system/ops/incident/runbooks/`，安装到 `/usr/share/airymax/incident/runbooks/` |
+| 台账根 | `/var/lib/agentrt/incidents/` |
+| 复盘报告 | 台账根下 `postmortem/PM-YYYYMMDD-NNN.md` |
+| 归档分片 | 台账根下 `archive/<YYYYMM>.jsonl` |
+
+台账根取 `/var/lib/agentrt/incidents` 而非 §5.1 的 `/var/lib/airy/incidents`：审计单元对前者已声明读写权限，事件与审计记录同盘便于对齐时间线。迁移目录等于迁移一份持久状态，v0.0.5 不做两套并存。
+
+### 13.2 命令行与出口码
+
+`airy-incident` 提供 `create`、`ingest`、`list`、`show`、`triage`、`respond`、`recover`、`resolve`、`reopen`、`escalate`、`act`、`postmortem`、`stats`、`prune`、`runbooks`、`runbook` 子命令，全部支持 `--root` 指定台账根，读操作支持 `--json`。出口码固定为：0 成功、2 参数错误、3 台账缺失或损坏、4 状态机拒绝。脚本按出口码分流，不解析文案。
+
+状态迁移只有一个判据：`system/ops/incident/model.py` 中的边表，与 §2.2 一致。进入 `REOPENED` 时清除 `resolved_at`，避免仍在处置中的事件被统计成已恢复。
+
+### 13.3 告警取样
+
+`airy-incident ingest` 只读告警的活动状态 `active.json`，不修改告警侧状态：
+
+- `CRITICAL` 转为 P0，`WARNING` 转为 P1，其余级别跳过；
+- 按告警编号幂等，同一条告警重复取样不会产生第二条事件；
+- 类别由来源守护进程映射：`sec_d` 归安全，`net_d` 归网络，`mem_d`/`vfs_d`/`cogn_d` 归资源，其余归系统；
+- 标题取「来源·代码·消息」，详情保留原消息，关联的 Agent 与 daemon 一并记入。
+
+### 13.4 与 `airy-incident@.service` 的分工
+
+systemd 模板仍以 `ConditionPathExists=/usr/sbin/airyctl` 门控，由载荷的 `airyctl incident create` 落库并交 macro_d 处置；OS 层的 `airy-incident` 负责记录、状态推进、复盘与归档，不接管任何处置动作。自动重启、降级与隔离仍由 macro_d 与 sec_d 执行，事件台账只负责留下可追溯的证据链。
+
+### 13.5 保留与归档
+
+`airy-incident prune` 默认按 90 天判定、安全类按 365 天判定；缺省只列候选，加 `--apply` 才执行。归档先把记录写入 `archive/<YYYYMM>.jsonl` 并附复盘正文，再删除活动记录，保证归档失败时记录不丢。
+
+### 13.6 门禁与验证
+
+- 门禁：`ci/gates/incident.sh`，覆盖布局与文件头、状态机合法边与拒绝边、编号与归档、告警取样幂等、检测到复盘闭环、失败路径退出码。
+- 流水线：`ops-verify` 的 `incident-verify` 作业在托管 runner 上复算全部门禁。
+- 实机：三架构上的崩溃循环、内存压力与只读文件系统演练需在 285H 现场执行，v0.0.5 记为待现场项。
+
+---
+
+## 14. 相关文档
 
 - [03-monitoring.md](03-monitoring.md)：监控体系，事件检测来源。
 - [04-alerting.md](04-alerting.md)：告警体系，事件响应输入。
