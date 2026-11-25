@@ -89,11 +89,21 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 | 项 | 取值 |
 |----|------|
 | 托管 | GitHub Release 资产 |
-| 地址 | `https://github.com/openairymax/agent-linux/releases/latest/download/channel.json` |
+| 地址 | `https://github.com/openairymax/agent-linux/releases/latest/download/channel.json`（`x86_64`）；其余架构为同目录的 `channel-<arch>.json` |
 | 选型理由 | 静态资产，无 API 配额、无需令牌、可被 CDN 缓存；不解析 HTML 页面 |
 | 生成 | `tools/release-engineering/` 的清单生成器，与 `.sha256sum` 同一遍读文件产出 |
 | 可见性 | 只有非 prerelease 的 Release 会被 `/releases/latest/download/` 命中，「未取证不得进 latest」由托管方机械保证，不靠人工置位 |
 | 签名 | 0.0.x 由 HTTPS 保证链路；GPG 随 0.1.x 自有仓库签名一并引入 |
+
+清单按架构分名，同一 Release 页可并存多份：`x86_64` 沿用 `channel.json`，
+其余架构为 `channel-<arch>.json`（`aarch64`、`riscv64`、`loongarch64`）。
+`x86_64` 不改名是硬约束——0.0.5 装机端的取件地址写死在这个名字上，改名
+等于让存量机器永远收不到更新；`schema_version` 与字段集不因架构而变，
+架构只体现在文件名上。一份清单只声明一台架构的 `iso` 与 `kernel`：混装
+两台架构的载荷，客户端就得按自己的架构做二次挑选，而清单校验是「整份
+可信或整份不可信」，没有字段级的可选面。本机没有对应清单时走「尚未发
+版」，不回落到 `x86_64`——把 x86_64 的 ISO 摘要在 aarch64 上渲染成「可
+升级」，等于把机器引向一份装不上的介质。
 
 `schema_version=1` 的最小形态：
 
@@ -128,7 +138,10 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 ### 2.4 客户端 airy-update
 
 单文件 Python 3 实现，安装为 `/usr/bin/airy-update`，与 `airy-bench`
-同族；目录与命名随 `50-engineering-standards/10-coding-style`。
+同族；目录与命名随 `50-engineering-standards/10-coding-style`。取件地址由
+本机架构决定（`platform.machine()`）：`x86_64` 取 `channel.json`，其余取
+`channel-<arch>.json`；拼名规则只在 `model.feed_url` 一处实现，取件层只
+消费它的结果，不各自拼串。
 
 | 子命令 | 网络 | 权限 | 行为 | 退出码 |
 |--------|------|------|------|--------|
@@ -178,9 +191,10 @@ agent-linux（AirymaxOS）更新机制设计旨在为运行中的系统提供安
 单不可信）仍判 1——那是真故障，不能降级成环境状态。
 
 「尚未发版」与「连不上」是两件事。清单地址形如
-`releases/latest/download/channel.json`，远端没有任何 Release、或最新
-Release 未附带该资产时都回 404；此时客户端连上了、只是还没有可比对象，
-属版本生命周期的起点，`check` 退出 0 且不改写状态。若把 404 也算作失败，
+`releases/latest/download/channel.json`（`x86_64`；其余架构为
+`channel-<arch>.json`），远端没有任何 Release、或最新 Release 未附带该
+资产时都回 404；此时客户端连上了、只是还没有可比对象，属版本生命周期的
+起点，`check` 退出 0 且不改写状态。若把 404 也算作失败，
 每个版本装机后的第一次日常检查必然报错，用户会学会忽略这条告警。其余
 HTTP 错误码（5xx、403 等）仍判 1：那是连上了却取不到东西，是真故障。
 

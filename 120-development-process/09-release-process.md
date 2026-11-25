@@ -474,7 +474,8 @@ flowchart LR
 ### 6.7 更新通道放行（promote）
 
 `releases/latest` 不是展示位，而是更新通道的入口：装机端通过
-`releases/latest/download/channel.json` 发现新版本。因此流水线从不自行
+`releases/latest/download/channel.json`（`x86_64`）或同目录的
+`channel-<arch>.json`（其余架构）发现新版本。因此流水线从不自行
 把正式版推成 latest——`release.yml` 创建页面时固定 `make_latest: false`，
 随后由 `release-stage hold` 读回断言页面停在 held。放行是发布机上的一次
 显式动作：
