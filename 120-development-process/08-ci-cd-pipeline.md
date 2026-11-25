@@ -90,7 +90,7 @@ workflow 的文件名、职责与 job 明细见 [`.github/workflows/README.md`](
 | `OS-BUILD-RELEASE` | 发布物料清单一致性 | `tools/release-engineering/release_manifest.py --check` |
 | `OS-BUILD-NIGHTLY` | nightly 契约一致性 | `tools/nightly/nightly.py --check` |
 | `OS-BUILD-REPO-SCAFFOLD` | 八子仓脚手架一致性 | `tools/repo-scaffold/repo_scaffold.py --check` |
-| `OS-OPS-ROLLBACK` | 版本回滚契约一致性 | `tools/airy-rollback/airy_rollback.py check` |
+| `OS-OPS-ROLLBACK` | 版本回滚契约一致性 | `tools/rollback/airy_rollback.py check` |
 
 不在注册表内、由 workflow 直接调用的辅助门禁（`mgmt-files`、`mgmt-leaves`、`distro-lint`、`kernel-*` 系列、`assemble`、`accept`、`iso-publish` 等）属于构建与集成载荷，其契约由上面的注册表门禁反向约束：例如 `assemble` 的产物必须被 `OS-BUILD-RELEASE` 的物料清单登记。
 

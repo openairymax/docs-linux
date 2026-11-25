@@ -414,7 +414,7 @@ Linux 6.6 的 `scripts/checkpatch.pl` 是内核代码风格检查脚本，检测
 `kernel/scripts/airy_checkpatch_ext.pl` 随 kernel 子模块（`ALK-6.6-dev`）维护，
 在上游 checkpatch 之外补充 AirymaxOS 架构约束。规则集由引擎内的单一注册表
 维护，`--help` 与 `--list-rules` 均由其派生；本卷记录契约，规则实现以引擎为
-唯一事实源（SSoT），集成测试位于 `tools/airy-checkpatch/tests/`。
+唯一事实源（SSoT），集成测试位于 `tools/checkpatch/tests/`。
 
 | 规则 ID | 检测内容 | 严重性 |
 |--------|---------|--------|

@@ -961,7 +961,7 @@ qemu-img info "$IMG_NAME"
 
 安装介质从 ISO 到 U 盘的这一段不属于「安装」，但它是整条交付链上唯一
 由人手工接触块设备的环节，也是最容易把系统盘写掉的一步。本节只定设计，
-操作步骤的唯一权威源是 `agent-linux` 仓的 `tools/airy-flash/README.md`。
+操作步骤的唯一权威源是 `agent-linux` 仓的 `tools/flash/README.md`。
 
 #### 7.3.1 自研工具还是用 `dd`
 
@@ -1011,7 +1011,7 @@ EFI 镜像，顺序写入即可双固件引导**。再加一套分区/引导引�
 
 - 引导与桌面：QEMU 上以 `--firmware both` 跑 BIOS / UEFI 双固件冷启动，
   产品 ISO 另断言 `AIRYMAX-DESKTOP-READY`。
-- 工具自身：`tools/airy-flash/tests/` 在 `python-verify` 门禁里跑，用临时
+- 工具自身：`tools/flash/tests/` 在 `python-verify` 门禁里跑，用临时
   目录合成 sysfs 树与挂载表，不需要 root 与真实块设备。
 - 真机：作为验收的最后一跳（`acceptance-report` 的真机小节），产出
   `flash-report.json` 与回读结论，随发行记录归档。
@@ -1023,7 +1023,7 @@ USB 硬盘盒、NVMe 转接盘）走同一套预检与写入路径，节点名�
 由 `/proc/mounts` 反查承载 `/`、`/boot`、`/boot/efi`、`/usr`、`/var` 的磁盘
 得到，而不是靠 `sdX` 命名或设备型号猜测——这条约束保证换一台机器、换一种
 介质，判定逻辑不变。非 Linux 平台不提供桩实现，只给出用平台原生工具复现
-同一顺序的对照表，见 `tools/airy-flash/README.md`。
+同一顺序的对照表，见 `tools/flash/README.md`。
 
 #### 7.3.5 装机收尾与首次启动
 
@@ -1538,7 +1538,7 @@ agent-linux 的安装器与 agentrt 完全独立（[IND] 完全独立层），�
 - `100-operations/README.md`（部署运维）
 - `110-security/README.md`（Secure Boot 与 TPM）
 - `170-performance/02-memory-performance.md`（PMEM/CXL 分区）
-- `agent-linux` 仓 `tools/airy-flash/README.md`（介质写入的操作权威源，§7.3 只定设计）
+- `agent-linux` 仓 `tools/flash/README.md`（介质写入的操作权威源，§7.3 只定设计）
 
 ---
 
