@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 会话入口与模式切换
 > **文档定位**：agent-linux（AirymaxOS）发行版管理——引导期会话选择、运行期 TUI ↔ GUI 双向切换与注销回退的工程设计\
-> **文档版本**：v1.0.2\
+> **文档版本**：v1.0.3\
 > **最后更新**： 2026-11-25\
 > **上级文档**：[190-distribution README](README.md)\
 > **同源映射**：[20-modules/07-system.md](../20-modules/07-system.md) 会话入口、[20-modules/02-services.md](../20-modules/02-services.md) 单元归属\
@@ -119,6 +119,12 @@ reason=<…>`，取值如下：
 无键盘判据取 `/sys/class/input/input*/capabilities/key` 位图中的 KEY_A，与验收侧
 同一口径：电源键、休眠键不构成键盘。输入类读不到时照常等待——判不了有没有
 键盘就不替用户做决定，裁剪过的宿主也不会因此被误跳过。
+
+窗口内没人按键是合法等待，不是卡死。单元用 `TimeoutStartSec=150` 封住自身时长，
+开机看门狗遇到「作业挂起 + 单元 activating + 界有限」时只落一行
+`AIRYMAX-BOOT-WAIT unit=airy-session-choice.service cap=<界> reason=bounded`，
+不计入停滞；界到期后 systemd 收尾该单元，看门狗回到常规判定。界不可判定
+（`infinity` 或读数缺失）时不放行——对无界阻塞保持沉默比误判更糟。
 
 ### 3.2 条件跳过的落点
 
