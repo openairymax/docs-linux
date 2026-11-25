@@ -3,8 +3,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 # agent-linux 设计文档体系总览
 
 > **文档定位**：agent-linux（AirymaxOS 极境智能体操作系统）整体方案文档体系的总入口与纲领\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-30\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-25\
 > **正式全称**：agent-linux（极境智能体操作系统，英文名：AirymaxOS）\
 > **仓库别名**：agent-linux（仓库名）\
 > **文档维护**：开源极境工程与规范委员会（OpenAirymax Engineering and Standardization Committee）
@@ -129,7 +129,7 @@ docs/docs-linux/
 | [70-build-system](70-build-system/README.md)                   | 构建系统（Kbuild + Kconfig + CMake + RPM spec + CI/CD）                        |
 | [80-testing](80-testing/README.md)                             | 测试体系（KUnit + kselftest + 集成测试 + sched\_tac 调度测试）                         |
 | [90-observability](90-observability/README.md)                 | 可观测性（eBPF 探针 + tracepoint + user\_events + 日志观测 + 调度器状态观测）               |
-| [100-operations](100-operations/README.md)                     | 运维体系（部署 + 配置管理）                                                          |
+| [100-operations](100-operations/README.md)                     | 运维体系（部署 + 配置 + 监控 + 开机诊断）                                                          |
 | [110-security](110-security/README.md)                         | 安全加固（纯 C LSM + Landlock 沙箱 + capability 模型）                              |
 | [120-development-process](120-development-process/README.md)   | 开发流程（补丁生命周期 + 维护者层级）                                                     |
 | [130-roadmap](130-roadmap/README.md)                           | 开发路线图（里程碑 + OS-ACC）                                                      |
@@ -271,8 +271,9 @@ agentrt（AirymaxAgentRT，跨平台用户态运行时）
 | v1.0  | 2026-07-17 | 升级为 v1.0：新增sched\_tac 技术选型声明（不使用 sched\_ext）、IORING\_OP\_URING\_CMD（不使用 page flipping）、纯 C LSM（不使用 BPF LSM）、alloc\_pages + mmap（不使用 DMA 一致性内存）、IRON-9 v3 四层模型（新增 \[DSL] 降级生存层）；新增 Airymax Unify Design 五模块映射（A-UEF/A-ULP/A-UCS/A-ULS/A-IPC）；文档索引更新为 20 子目录 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
 | v1.0.1 | 2026-07-30 | 全面审查与完善：修复 20-modules/README.md 版本号不一致（v1.1→v1.0.1）；确认 60-190 全部 README 版本号一致；确认 30-interfaces/01-syscalls.md 552-571 描述正确；更新版本历史 |
+| v1.0.2 | 2026-11-25 | 新增 100-operations/11-boot-diagnostics.md（开机打印契约与卡点归因）；运维模块索引与实际目录对齐 |
 
 ***
 
-> **文档结束** | agent-linux v1.0.1 设计文档体系 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux v1.0.2 设计文档体系 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
 

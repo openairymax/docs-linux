@@ -2,7 +2,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 会话入口与模式切换
 > **文档定位**：agent-linux（AirymaxOS）发行版管理——引导期会话选择、运行期 TUI ↔ GUI 双向切换与注销回退的工程设计\
-> **文档版本**：v1.0.3\
+> **文档版本**：v1.0.4\
 > **最后更新**： 2026-11-25\
 > **上级文档**：[190-distribution README](README.md)\
 > **同源映射**：[20-modules/07-system.md](../20-modules/07-system.md) 会话入口、[20-modules/02-services.md](../20-modules/02-services.md) 单元归属\
@@ -281,4 +281,5 @@ TUI 侧异常退出不自动重启：崩溃后回到 `getty@tty1`，可登录查
 - [20-modules/07-system.md](../20-modules/07-system.md) —— 系统模块与会话入口
 - [20-modules/02-services.md](../20-modules/02-services.md) —— 单元与守护进程归属
 - [03-installer-design.md](03-installer-design.md) —— 安装、座位与桌面就绪探针
+- [100-operations/11-boot-diagnostics.md](../100-operations/11-boot-diagnostics.md) —— 开机打印契约与 `AIRYMAX-BOOT-WAIT` 归因口径
 - [100-operations/README.md](../100-operations/README.md) —— 部署与排障
