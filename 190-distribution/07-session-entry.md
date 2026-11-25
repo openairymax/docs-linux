@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # 会话入口与模式切换
 > **文档定位**：agent-linux（AirymaxOS）发行版管理——引导期会话选择、运行期 TUI ↔ GUI 双向切换与注销回退的工程设计\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-11-23\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-25\
 > **上级文档**：[190-distribution README](README.md)\
 > **同源映射**：[20-modules/07-system.md](../20-modules/07-system.md) 会话入口、[20-modules/02-services.md](../20-modules/02-services.md) 单元归属\
 > **核心约束**：会话状态只有一处事实源；切换只由 root 的 oneshot 单元执行；任何失败都必须回到可用会话\
@@ -103,6 +103,22 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 选择器不把 `boot-tui` 写成 `Wants=`：`Wants=` 无法按选择结果条件生效，会产生
 「选了 GUI 也起 TUI」。
+
+结论只由一条判据链得出，顺序固定：命令行旁路 → 无键盘 → tty1 交互倒计时，
+都拿不到就取 `--default`。每次结论落一行 `AIRYMAX-SESSION choice=<gui|tui>
+reason=<…>`，取值如下：
+
+| reason | 含义 |
+|--------|------|
+| `cmdline` | 命令行显式关闭会话选择（`airymax.session=off`） |
+| `no-keyboard` | 输入类可读且没有任何字母键设备，直接进桌面 |
+| `key` | 倒计时内按键确认 |
+| `timeout` | 窗口到期，取默认值 |
+| `no-tty` / `no-termios` / `no-raw` / `poll` | 拿不到可交互终端，回落默认值 |
+
+无键盘判据取 `/sys/class/input/input*/capabilities/key` 位图中的 KEY_A，与验收侧
+同一口径：电源键、休眠键不构成键盘。输入类读不到时照常等待——判不了有没有
+键盘就不替用户做决定，裁剪过的宿主也不会因此被误跳过。
 
 ### 3.2 条件跳过的落点
 
