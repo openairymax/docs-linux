@@ -3,8 +3,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 # agent-linux 已知限制与设计边界
 
 > **文档定位**：agent-linux（AirymaxOS，极境智能体操作系统）已知限制集中登记文档——参照 seL4 `CAVEATS.md` 工程实践，集中文档化所有已知设计限制、平台验证覆盖、形式化验证边界、兼容性降级策略与已延期设计项。各子模块文档中已有的"已知问题"章节仅作为子模块内部记录，**本文档为跨子仓的集中索引与权威登记**。\
-> **文档版本**：v1.0.2\
-> **最后更新**： 2026-11-04\
+> **文档版本**：v1.0.3\
+> **最后更新**： 2026-11-25\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **保密级别**：开源公开\
 > **SPDX-License-Identifier**：AGPL-3.0-or-later OR Apache-2.0\
@@ -95,6 +95,23 @@ agent-linux 1.0.1 阶段的形式化验证路径如下：
 | 全局原子量（`airy_cap_global_epoch` / per-agent `epoch`） | ✅ 原子语义 + KUnit | `READ_ONCE`/`WRITE_ONCE` 无锁多读者，fastpath 单写者（sec_d） |
 
 > **SMP 部署前置条件**：上表 ⚠️ 项（多核 lock-free ring、per-bucket 锁）在生产部署到 SMP 多核平台前，必须完成并发压力验证（详见 [80-testing/README.md](../80-testing/README.md) 与 KUnit 回归矩阵）。
+
+### 2.5 发行镜像与装机验收覆盖（0.0.5 发版后登记）
+
+> **登记时间**：2026-11-25；**证据**：`image-build` run `45545001517`（提交 `f82d9b62`）五个作业全绿；v0.0.5 发行页 60 项资产中通道清单只有 `channel.json`，无 ISO 文件（ISO 经 ghcr 交付）。
+
+| 架构 | 内核 RPM | ISO 组装 | 装机验收 | 发行位（ISO 引用 + 通道清单） | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| x86_64 | ✅ | ✅ | ✅ U 盘 + BIOS CD-ROM + UEFI CD-ROM | ✅ `-iso` + `channel.json` | 0.0.5 唯一带发行通道清单的架构 |
+| aarch64 | ✅ | ✅ | ✅ UEFI usb / cdrom 两个实例 | ⚠️ 自 0.0.6 起 | `f82d9b62` 轮已过组装与两条 UEFI 装机腿，发行页无 `channel-aarch64.json`；按架构分名与独立发行位自 0.0.6 起生效 |
+| riscv64 | ✅ 交叉构建 | ❌ | ❌ | ❌ | 缺口，见下 |
+| loongarch64 | ✅ 交叉构建 | ❌ | ❌ | ❌ | 缺口，见下 |
+
+riscv64 / loongarch64 的 ISO 侧尚未接线，原因与解除条件：
+
+1. **无原生托管运行器**：ISO 组装与装机验收都要求目标架构原生执行（aarch64 腿跑在 `ubuntu-24.04-arm` 上），GitHub 托管运行器没有这两个架构的形态；`release.yml` 的交叉构建只产出内核 RPM，不产出可装机介质。
+2. **闭包收割要求宿主架构等于目标架构**：`distro/scripts/lib/closure.sh` 的 `cl_arch()` 直接拒绝跨架构收割，因为 `dnf --installroot` 事务要在目标架构上执行 scriptlet；binfmt + qemu-user 交叉能否跑通 scriptlet 尚未实测，不得按推断记为可用。
+3. **解除条件**：提供原生 riscv64 / loongarch64 运行器（自托管亦可），并对该架构的 netinst 介质、引导包与闭包配方逐项实测取证后，才允许在 `image-build` 矩阵中增列该腿。
 
 ***
 
@@ -464,6 +481,7 @@ ES-SEL4-3（服务用户态化）的落地风险待 1.0.1 阶段评估：
 | v1.0.1 | 2026-07-30 | §8.3 OBS-02/OBS-03 标记为已修复（MDB 派生树 + 级联 REVOKE 已在代码实现）；新增 §8.4 v3.6 评审发现登记（12 项逐项对照代码验证：8 项待修复、3 项已修复、1 项存疑） |
 | v1.0.1 | 2026-07-31 | **§8.4 P1-3 闭环**：commit `0d5b4b05ce68` 重写 `airy_vtime_decay` 注释为 user-space vtime 近似（NOT 内核 EEVDF 内部算法），P1-3 由"待评估"转为"✅ 已修复"。§8.4 结论由"11/12 已修复，1 项存疑"更新为"12/12 已全部修复"。 |
 | v1.0.2 | 2026-11-04 | §5.1 新增「airy 能力面无用户态出口」：tracepoint 计数与 `cap_used` 恒为 0、注入通道只读，补齐调用点顺延 KRN-01（对应 01-ftrace-framework.md §10.5） |
+| v1.0.3 | 2026-11-25 | 新增 §2.5 发行镜像与装机验收覆盖（0.0.5 发版后登记）：x86_64 全链含发行位；aarch64 组装与两条 UEFI 装机腿已通过、独立发行位自 0.0.6 起；riscv64 / loongarch64 仅有交叉构建的内核 RPM，ISO 侧因无原生运行器与闭包宿主架构约束未接线 |
 
 ***
 

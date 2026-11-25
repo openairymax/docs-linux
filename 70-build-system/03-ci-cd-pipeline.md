@@ -114,7 +114,9 @@ CI 覆盖范围遵循 OS-IRON-013（8 架构子仓 + distro 发行版子仓共 9
 
 > **规划说明**：codegen 一致性不再单列 workflow，作为 OS-CHK 门禁 `OS-IRON-009-CODEGEN` 在 `os-chk-verify.yml` 内执行（设计定义见 [`30-interfaces/06-codegen-pipeline.md`](../30-interfaces/06-codegen-pipeline.md) §7）。coverity-scan / nightly-dynamic-analysis / formal-verification 等独立 workflow 尚未实现，属规划项，不在上述 15 个 workflow 之列；形式化验证相关能力见 §5.4 的"未实现"标注。`image-build.yml` 是发行前门禁而非 PR 门禁，按 `release.yml` 先例申请发布级例外：`assemble` 300 分钟、`accept` 360 分钟；`accept` 的时限由装机腿数与模拟器形态推导（x86_64 三条腿同在一个作业实例内串行，各 80 分钟：U 盘 + BIOS CD-ROM + UEFI CD-ROM，因为只有三条腿全绿才允许发布 ISO；aarch64 无 KVM 时回落 TCG，实测单腿装机已达 7150 秒，故按介质拆成两个作业实例，各自 360 分钟预算、单腿 240 分钟，取装机 9000 秒、冷启动 2400 秒），而非拍定值，设计与验收接线见 [`0.0.3-极境OS任务方案.md`](../../docs-closed/agent-linux-dev/0.0.3-极境OS任务方案.md) §14 §3。
 
-> **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 下载 x86_64 内核包、按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
+> **内核单次构建**：`image-build.yml` 的 `release_tag` 输入非空时，内核包不再就地构建，而是从该 Release 按架构下载内核包——本腿架构取本架构载荷，x86_64 腿另取其余三个架构用于固件预演——按发行 `.sha256sum` 逐条校验后经 `run-image-ci.sh --kernel-rpms` 交给组装，组装段把内核记为 `reuse`。组装完成后再把载荷清单里的内核包哈希与发行校验和逐条比对，任一不符即判红。镜像与发行资产的内核只允许有一次构建，否则同名包哈希分叉，装机载荷无法用发行校验和核验；下载不全或载荷内核包少于三个同样直接判失败，不回落就地构建。
+
+> **架构覆盖**：`image-build.yml` 的组装与装机矩阵只有 x86_64 与 aarch64 两条腿；riscv64 与 loongarch64 仅由 `release.yml` 交叉构建内核 RPM，没有 ISO 组装、装机验收与发行位——托管运行器没有这两个架构的形态，且闭包收割要求宿主架构等于目标架构（`distro/scripts/lib/closure.sh` 的 `cl_arch()`）。缺口登记与解除条件见 [`10-architecture/09-known-caveats.md`](../10-architecture/09-known-caveats.md) §2.5。通道清单按架构分名（`x86_64` 沿用 `channel.json`，其余为 `channel-<arch>.json`），发行位与取件规则见 [`190-distribution/04-update-mechanism.md`](../190-distribution/04-update-mechanism.md) §2.3。
 
 ### 2.2 管理仓 CI（mgmt-verify.yml）
 
