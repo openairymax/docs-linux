@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）运维体系设计
 > **文档定位**：agent-linux（AirymaxOS）运维工程体系主索引（部署 + 配置 + 监控 + 告警 + 日志收集 + 12 daemon 清单）\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-25\
 > **上级文档**：[AirymaxOS 总览](../README.md)\
 > **同源映射**：agentrt daemons（12 个用户态服务）+ Linux 6.6 systemd 集成\
 > **理论根基**：Linux 发行版运维哲学 + Airymax S-1 反馈闭环 + E-2 可观测性
@@ -87,33 +87,38 @@ agent-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内�
 
 ## 3. 文档索引
 
-本目录现有文档（v1.0 范围）：
+本目录现有文档：
 
 ```
 100-operations/
-├── README.md                       # 本文件（v1.0）
+├── README.md                       # 本文件（主索引，含 12 daemon 清单）
 ├── 01-deployment.md                # 部署体系（systemd + RPM/dnf + ISO + 12 daemon 清单）
-└── 02-configuration.md             # 配置管理（sysctl + /etc/agentrt/ + A-UCS JSON/TOML 热重载）
+├── 02-configuration.md             # 配置管理（sysctl + /etc/agentrt/ + A-UCS JSON/TOML 热重载）
+├── 03-monitoring.md                # 监控体系（指标源与采集）
+├── 04-alerting.md                  # 告警体系（规则与路由）
+├── 05-incident-response.md         # 故障响应（runbook 与应急预案）
+├── 06-backup-recovery.md           # 备份恢复
+├── 07-systemd-integration.md       # systemd 集成详解（12 daemon 单元规范）
+├── 08-agent-operations.md          # agent-linux 专属 Agent 运维
+├── 09-memory-operations.md         # agent-linux 专属记忆卷载运维
+├── 10-devstation.md                # DevStation 开发运维环境
+└── 11-boot-diagnostics.md          # 开机打印与卡点归因（九阶段契约 + 看门狗）
 ```
 
-| # | 文档 | 版本 | 内容概要 |
-|---|------|------|---------|
-| — | [README.md](README.md) | v1.0 | 运维体系主索引（本文件，含 12 daemon 清单） |
-| 1 | [01-deployment.md](01-deployment.md) | v1.0 | 部署体系、systemd 集成、RPM/dnf 包管理、ISO 安装、12 daemon systemd 单元、Panic 日志保活（[DSL]） |
-| 2 | [02-configuration.md](02-configuration.md) | v1.0 | 配置管理、sysctl 内核参数、`/etc/agentrt/` 同源配置、A-UCS JSON/TOML 双向热重载、[SC] 配置项固化 |
-
-### 3.1 后续规划文档（1.0.1 版本）
-
-以下文档在 1.0.1 版本完成，不在 v1.0 范围内：
-
-- `03-monitoring.md`：监控体系（Prometheus + Grafana + sched_tac 调度器状态）
-- `04-alerting.md`：告警体系（Alertmanager + Micro-Supervisor/Macro-Supervisor 事件规则）
-- `05-incident-response.md`：故障响应（runbook + 应急预案）
-- `06-backup-recovery.md`：备份恢复
-- `07-systemd-integration.md`：systemd 集成详解（12 daemon 单元规范）
-- `08-agent-operations.md`：agent-linux 专属 Agent 运维
-- `09-memory-operations.md`：agent-linux 专属记忆卷载运维
-- `10-devstation.md`：DevStation 开发运维环境
+| # | 文档 | 内容概要 |
+|---|------|---------|
+| — | [README.md](README.md) | 运维体系主索引（本文件，含 12 daemon 清单） |
+| 1 | [01-deployment.md](01-deployment.md) | 部署体系、systemd 集成、RPM/dnf 包管理、ISO 安装、12 daemon systemd 单元、Panic 日志保活（[DSL]） |
+| 2 | [02-configuration.md](02-configuration.md) | 配置管理、sysctl 内核参数、`/etc/agentrt/` 同源配置、A-UCS JSON/TOML 双向热重载、[SC] 配置项固化 |
+| 3 | [03-monitoring.md](03-monitoring.md) | 监控数据源、采集与可视化 |
+| 4 | [04-alerting.md](04-alerting.md) | 告警规则、路由与抑制 |
+| 5 | [05-incident-response.md](05-incident-response.md) | 故障分级、响应流程与复盘 |
+| 6 | [06-backup-recovery.md](06-backup-recovery.md) | 备份策略与恢复演练 |
+| 7 | [07-systemd-integration.md](07-systemd-integration.md) | 12 daemon 单元规范与集成细节 |
+| 8 | [08-agent-operations.md](08-agent-operations.md) | Agent 健康、Token 预算与生命周期运维 |
+| 9 | [09-memory-operations.md](09-memory-operations.md) | 记忆卷载 L1-L4 运维与故障恢复 |
+| 10 | [10-devstation.md](10-devstation.md) | DevStation 开发运维环境 |
+| 11 | [11-boot-diagnostics.md](11-boot-diagnostics.md) | 九阶段开机契约、卡点自证报告与会话内健康探针 |
 
 ---
 
@@ -179,7 +184,8 @@ agent-linux v1.0 运维体系在内核调度、IPC 传输、安全钩子、内�
 | 0.1.1 | 2026-07-13 | 初始版本，README + 01 + 02 文档奠基，确立部署/配置核心机制 |
 | v1.0 | 2026-07-17 | 升级为 v1.0：新增sched_tac / IORING_OP_URING_CMD / 纯 C LSM / alloc_pages + mmap / IRON-9 v3 四层模型五大技术选型声明；新增 Airymax Unify Design 映射（A-UCS 配置管理 + A-ULP 日志收集 + A-ULS 监控告警为核心）；新增 12 daemon 清单（统一归属 services/daemons/，systemd 服务名 `agentrt-*.service` 格式）；文档索引对齐实际目录文件 |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.2 | 2026-11-25 | 文档索引与实际目录对齐（补齐 03-10）；新增 11-boot-diagnostics.md（九阶段开机契约与卡点归因） |
 
 ---
 
-> **文档结束** | agent-linux 运维体系设计 v1.0.1 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
+> **文档结束** | agent-linux 运维体系设计 v1.0.2 | 维护者：开源极境工程与规范委员会 | "From data intelligence emerges."
