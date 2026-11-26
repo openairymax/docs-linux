@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # IPC 控制面 Reconciliation 设计
 > **文档定位**：A-IPC（统一进程间通信体系）控制面恢复后 Reconciliation 流程的唯一权威详细设计\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-27\
 > **上级文档**：[Airymax Unify Design 总纲](../10-architecture/10-unify-design.md) §8\
 > **设计依据**：综合修正方案 §4.2.5（A-IPC 设计）+ [04-ipc-data-plane-autonomy.md](04-ipc-data-plane-autonomy.md) 原则三 + v1.0.1 Capability Folding 决策
 
@@ -110,7 +110,7 @@ Reconciliation 采用 **最终一致性（eventual consistency）**，而非强�
 控制面重启后，首先检测是否需要 Reconciliation：
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— 重启检测 */
+/* 设计示意 · 实现落点 security/ipc/rc_loop.c —— 重启检测 */
 static bool macro_d_need_reconcile(void)
 {
     /* 1. 读取持久化的控制面状态（上次退出时的快照） */
@@ -138,12 +138,12 @@ static bool macro_d_need_reconcile(void)
 
 控制面通过 io_uring_cmd 向内核请求扫描数据面状态：
 
-> **[IND] 层 opcode 声明**：`AIRY_IPC_OP_RECONCILE_SCAN` 是控制面 reconciliation 子系统的 [IND] 层实现 opcode，**不在 [SC] `include/uapi/linux/airymax/ipc.h` 的 7 个核心 opcode 命名空间内**。[SC] ipc.h 仅定义 SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE 7 个核心 opcode；RECONCILE_SCAN 由 `services/daemons/macro_d/` 实现层独立定义，通过 io_uring `IORING_OP_URING_CMD` 子命令承载，避免 SSoT 漂移。
+> **[IND] 层 opcode 声明**：`AIRY_IPC_OP_RECONCILE_SCAN` 是控制面 reconciliation 子系统的 [IND] 层实现 opcode，**不在 [SC] `include/uapi/linux/airymax/ipc.h` 的 7 个核心 opcode 命名空间内**。[SC] ipc.h 仅定义 SEND/RECV/SEND_BATCH/CANCEL/FREEZE/CAP_REQUEST/CAP_RESPONSE 7 个核心 opcode；RECONCILE_SCAN 由 `security/ipc/` 实现层独立定义，通过 io_uring `IORING_OP_URING_CMD` 子命令承载，避免 SSoT 漂移。
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— 扫描数据面
+/* 设计示意 · 实现落点 security/ipc/rc_loop.c —— 扫描数据面
  * Note: AIRY_IPC_OP_RECONCILE_SCAN is an [IND]-layer opcode defined
- * in services/daemons/macro_d/, NOT in [SC] ipc.h's 7 core opcodes. */
+ * in security/ipc/, NOT in [SC] ipc.h's 7 core opcodes. */
 static int reconcile_scan(struct airy_reconcile_state *state)
 {
     struct airy_ipc_cmd cmd = {
@@ -179,7 +179,7 @@ static int reconcile_scan(struct airy_reconcile_state *state)
 ### 3.2 Ring 差异检测
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— Ring 差异检测 */
+/* 设计示意 · 实现落点 security/ipc/rc_diff.c —— Ring 差异检测 */
 struct ring_diff {
     __u32 ring_id;
     __u8  diff_type;   /* NEW / MISSING / CONFLICT */
@@ -235,7 +235,7 @@ static int reconcile_detect_ring_diff(
 Capability 差异检测对比控制面授权记录与数据面缓存：
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— Capability 差异检测 */
+/* 设计示意 · 实现落点 security/ipc/rc_diff.c —— Capability 差异检测 */
 static int reconcile_detect_cap_diff(
     struct airy_cap_cache_list *data_caps,  /* 数据面缓存扫描 */
     struct airy_cap_record_list *cp_caps,   /* 控制面授权记录 */
@@ -296,7 +296,7 @@ static int reconcile_detect_cap_diff(
 ### 4.2 补发缺失消息
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— 补发暂存消息 */
+/* 设计示意 · 实现落点 security/ipc/rc_plan.c —— 补发暂存消息 */
 static int reconcile_redeliver_pending(struct airy_msg_queue *pending)
 {
     for_each_msg(pending, msg) {
@@ -334,7 +334,7 @@ static int reconcile_redeliver_pending(struct airy_msg_queue *pending)
 ### 4.4 重建 Capability 缓存
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— 重建 Capability 缓存 */
+/* 设计示意 · 实现落点 security/ipc/rc_plan.c —— 重建 Capability 缓存 */
 static int reconcile_rebuild_cap_cache(struct cap_diff *diffs, size_t count)
 {
     for (size_t i = 0; i < count; i++) {
@@ -380,7 +380,7 @@ Reconciliation 必须在 30 秒内完成。超时定义为：
 当 Reconciliation 超时，触发 [DSL] 降级（详见 [11-degraded-survival-layer.md](../10-architecture/11-degraded-survival-layer.md)）：
 
 ```c
-/* services/daemons/macro_d/reconcile.c —— 超时降级 */
+/* 设计示意 · 实现落点 security/ipc/rc_loop.c —— 超时降级 */
 static void reconcile_timeout_handler(int sig, siginfo_t *info, void *ctx)
 {
     syslog(LOG_ERR, "airy: reconciliation timeout, entering [DSL] degraded mode");
@@ -445,6 +445,26 @@ Reconciliation 超时进入 [DSL] 降级后，IPC 行为调整：
 | 缓存重建完整度 | 100% | 所有 stale 缓存重新校验 |
 | 超时降级触发率 | ≤0.1% | 正常情况不降级 |
 
+### 6.3 用户态落点（0.0.5）
+
+设计示意之外，引擎实体落在 `security/ipc/`，与内核 UAPI 解耦：
+
+| 文件 | 职责 |
+|------|------|
+| `rc_api.h` | 纯数据契约：快照、扫描、差异、计划、动作回调与单调时钟注入点 |
+| `rc_diff.c` | 排序去重双指针产出 Ring/Capability 差异；容量超限返回 `-E2BIG` |
+| `rc_plan.c` | 差异到动作的映射、暂存消息 TTL 判定、失败继续并记录首个错误 |
+| `rc_loop.c` | 三阶段预算（扫描 5s / 检测 10s / 修复 15s，总 30s）与超时降级 |
+| `rc_main.c` | `airy-reconcile --state <file> --scan <file> --now <ns>` 文本快照入口 |
+
+引擎只通过 `struct rc_ops` 回调执行动作，库内不做系统调用、不 sleep 等待：
+调用方注入 `now_ns` 与七个动作回调，因此同一内核可同时服务 CLI 与
+Macro-Supervisor。超预算时不阻塞调用方，置 `RC_DEGRADE_TIMEOUT` 并给出
+`retry_ns`（60s），何时重试由调度方决定。
+
+验证入口：`ci/gates/ipc-reconcile.sh`（出树构建、53 条 TAP、CLI 退出码
+0/2/3/4 与打包接线）；包配方从 `security` 源码束一次构建并安装两个 CLI。
+
 ---
 
 ## §7 相关文档
@@ -466,7 +486,8 @@ Reconciliation 超时进入 [DSL] 降级后，IPC 行为调整：
 | v1.0 | 2026-07-17 | 初始版本：IPC 控制面 Reconciliation 详细设计；完整流程（控制面重启 → 扫描数据面 → 差异检测 → 状态修复）；差异检测算法（Ring/Capability/暂存消息三类差异）；状态修复策略（补发缺失/丢弃过期/重建缓存）；超时处理触发 [DSL] 降级；最终一致性模型（≤30s） |
 | v1.1 | 2026-07-18 | **Capability Folding 集成版**——① §2.3 流程图扫描动作从 "radix tree 遍历" 更新为 "Ring 表遍历 + `agent_caps[1024]` 静态数组遍历"；② §5.2 错误码 `AIRY_ECAP_OFFLINE` 替换为 `AIRY_EDSL_CAP_MINIMAL`（-206，[DSL] 兜底码）；③ §5.3 表格同步更新；④ 全文术语对齐 v1.1（Capability Folding 单平面架构） |
 | v1.0.1 | 2026-07-21 | 版本号统一：按 IRON-7 铁律，所有文档版本号统一为 v1.0.1（禁止 v1.0/v1.1/v1.1.1/v1.2/v2.0 中间过渡版本） |
+| v1.0.2 | 2026-11-27 | 新增 §6.3 用户态落点：引擎落在 `security/ipc/`，通过 `rc_ops` 回调与调度方解耦；示例代码注明实现落点文件，修正原先把实现指向 `macro_d` 的表述 |
 
 ---
 
-© 2025-2026 SPHARX Ltd. All Rights Reserved. | IPC 控制面 Reconciliation 设计 | v1.0.1 | 2026-07-21
+© 2025-2026 SPHARX Ltd. All Rights Reserved. | IPC 控制面 Reconciliation 设计 | v1.0.2 | 2026-11-27
