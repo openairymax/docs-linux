@@ -562,7 +562,8 @@ kernel/
 ├── log/                              # 内核日志（A-ULP 内核侧）
 │   ├── airy_log_kern.c              # printk 8 级映射
 │   ├── airy_log_ring.c             # 128B 记录 Ring Buffer（alloc_pages + mmap）
-│   └── airy_log_persist.c           # PMEM 持久化
+│   ├── airy_log_dev.c              # /dev/airy_log 与三条 ioctl
+│   └── airy_log_console.c          # 注册期回放与原子上下文写入的控制台桥接
 │
 ├── ipc/                              # IPC 内核基础设施（与 corekern/ipc 互补）
 │   ├── airy_ipc_capability.h         # slowpath 包装声明，引用 security/airy/airy_cap.h

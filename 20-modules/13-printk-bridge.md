@@ -21,7 +21,7 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ## §1 设计目标：将 Linux 6.6 原生 printk 桥接到 Airymax Ring Buffer
 
-> **实现现状（v1.0.1）**：`kernel/kernel/log/airy_log_kern.c` 已承担 printk 桥接角色（printk 8 级 → A-ULP 5 级映射 `airy_log_kern_to_level()` 已导出），Ring Buffer（`airy_log_ring.o`）与持久化（`airy_log_persist.o`）已列入 `kernel/kernel/log/Kbuild` 构建目标但**尚未接线**（M 阶段实现，本文件为设计契约，实际写入路径以源码为准）。
+> **实现现状（v1.0.1）**：`kernel/kernel/log/airy_log_kern.c` 承担 printk 桥接角色（printk 8 级 → A-ULP 5 级映射 `airy_log_kern_to_level()` 已导出），`airy_log_console.c` 以只写环的控制台把 printk 逐条送入 Ring Buffer（注册时带 `CON_PRINTBUFFER` 回放启动日志），`airy_log_dev.c` 经 `/dev/airy_log` 暴露 mmap 区与三条 ioctl，`logger_d` 的 `logd_ring.c` 按 mmap 只读消费。落盘只有一个归属：`logger_d`（`logd_file.c`），内核侧不再保留独立的文件持久化后端。
 
 ### 1.1 桥接必要性
 
