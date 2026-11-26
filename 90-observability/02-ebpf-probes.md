@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）eBPF 可编程探针
 > **文档定位**：agent-linux（AirymaxOS）可观测性体系 L2 层——可编程内核探针 eBPF 的工程规范\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-27\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 eBPF/BTF/kfunc/struct_ops\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-2 可观测性\
@@ -42,7 +42,7 @@ eBPF（extended Berkeley Packet Filter）是 Linux 6.6 内核基线提供的可�
 
 **OS-OBS-011: eBPF 是 agent-linux 可观测性 L2 层的强制基线，所有动态可编程观测必须经 eBPF 实现，不得自行编写内核模块。**
 
-**OS-KER-106: kernel 的 defconfig 必须开启 CONFIG_BPF、CONFIG_BPF_SYSCALL、CONFIG_BPF_JIT、CONFIG_BPF_EVENTS、CONFIG_DEBUG_INFO_BTF。**
+**OS-KER-106: 四架构（x86/arm64/riscv/loongarch）defconfig 必须开启 CONFIG_BPF、CONFIG_BPF_SYSCALL、CONFIG_BPF_JIT、CONFIG_BPF_JIT_ALWAYS_ON、CONFIG_BPF_EVENTS、CONFIG_BPF_UNPRIV_DEFAULT_OFF、CONFIG_DEBUG_INFO_BTF、CONFIG_KPROBES。**
 
 ### 1.2 框架组成
 
@@ -197,7 +197,7 @@ eBPF 安全性由验证器在加载时保证，分两阶段：第一阶段做 DA
 
 **OS-OBS-015: agent-linux BPF 程序必须通过 `-O2 -g -target bpf` 编译，确保验证器能正确追踪寄存器状态；禁用 `-O0`（验证器会因复杂控制流拒绝）。**
 
-**OS-KER-110: kernel 必须开启 CONFIG_BPF_VERIFIER_STATE_MARK 验证器状态标记能力，确保复杂 BPF 程序（如 Agent 决策追踪）能通过验证。**
+**OS-KER-110: 复杂 BPF 程序必须依靠验证器的精度追踪（precision tracking）与状态标记通过验证；该能力是 Linux 6.6 验证器的内建行为，上游不提供 `CONFIG_BPF_VERIFIER_STATE_MARK` 开关，defconfig 不得引入不存在的配置项。**
 
 ### 6.3 验证器日志
 
@@ -228,12 +228,12 @@ Linux 6.6 内核基线在 `include/uapi/linux/bpf.h` 定义了 30+ 种 BPF 程�
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-SEC("kprobe/airy_cognition_process")
-int trace_cognition(struct pt_regs *ctx)
+SEC("kprobe/airy_clt_serve")
+int trace_cognition(void *ctx)
 {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
     u64 ts  = bpf_ktime_get_ns();
-    bpf_printk("cognition pid=%u ts=%llu\\n", pid, ts);
+    bpf_printk("cognition pid=%u ts=%llu\n", pid, ts);
     return 0;
 }
 
@@ -242,11 +242,23 @@ char _license[] SEC("license") = "GPL";
 
 ### 7.2 kprobe 与 kretprobe
 
-kprobe 挂载于函数入口，kretprobe 挂载于函数返回。kretprobe 通过 `bpf_get_func_ip()` 与 `bpf_get_func_arg()` 获取返回值。agent-linux Agent 行为追踪同时使用两者：kprobe 记录决策入口，kretprobe 记录决策耗时与结果。
+kprobe 挂载于函数入口，kretprobe 挂载于函数返回。agent-linux Agent 行为追踪同时使用两者：kprobe 记录边界进入，kretprobe 记录边界退出，两者时间差即该边界的处理耗时。
 
-**OS-OBS-016: Agent 决策追踪必须同时挂载 kprobe（入口）与 kretprobe（返回），形成完整闭环；仅挂载单一探针视为不完整观测。**
+CoreLoopThree 四阶段在用户态运行（ADR-006，见 [10-architecture/01-system-architecture.md](../10-architecture/01-system-architecture.md)），内核不实现认知、规划、执行循环，所以内核侧不挂「阶段函数」，只挂承载阶段切换的 syscall 边界：
 
-**OS-KER-111: kernel 必须保证 Agent 核心路径函数（`airy_cognition_process`、`airy_planner_dag_update`、`airy_scheduler_dispatch`、`airy_execution_unit_run`）支持 kprobe 挂载，不得使用 `__always_inline` 或 `notrace`。**
+| 阶段（用户态） | 内核可观测边界 | 符号 |
+|---------------|---------------|------|
+| 认知 | 551 相位通知 PERCEPT | `airy_clt_serve` |
+| 规划 | 551 相位通知 THINK | `airy_clt_serve` |
+| 调度 | 550 调度控制 | `airy_sched_ctl` |
+| 执行 | 548 能力域分发 | `airy_invoke_dispatch` |
+| 授权闸门 | 能力判定 | `airy_cap_check` |
+
+`airy_clt_serve` 同时承载认知与规划两个相位，按 phase 区分，不复制挂载点。
+
+**OS-OBS-016: Agent 决策追踪必须对每个可观测边界同时挂载 kprobe（入口）与 kretprobe（返回），形成完整闭环；仅挂载单一探针视为不完整观测。**
+
+**OS-KER-111: kernel 必须保证 `airy_cap_check`、`airy_clt_serve`、`airy_sched_ctl`、`airy_invoke_dispatch` 以非 static 符号编译，且不得标注 `__always_inline` 或 `notrace`，确保可被 kprobe 挂载。**
 
 ### 7.3 tracepoint 与 raw_tracepoint
 
@@ -282,18 +294,20 @@ Linux 6.6 内核基线提供 28+ 种 BPF map 类型。agent-linux 常用以下�
 `BPF_MAP_TYPE_RINGBUF` 是 Linux 6.6 内核基线推荐的 BPF→用户态数据上报通路，替代 `BPF_MAP_TYPE_PERF_EVENT_ARRAY`。它支持跨 CPU 顺序、保留通知、无锁预留：
 
 ```c
-struct event { u32 agent_id; u32 token_delta; u64 ts; };
+struct event { u64 ts; u64 pid; u32 kind; };
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 20);  /* 1 MB */
+    __uint(max_entries, 1 << 22);  /* 4 MB，满足 OS-OBS-020 */
 } agent_events SEC(".maps");
 
-SEC("kprobe/airy_cognition_process")
+SEC("kprobe/airy_clt_serve")
 int trace_cognition(void *ctx)
 {
     struct event *e = bpf_ringbuf_reserve(&agent_events, sizeof(*e), 0);
     if (!e) return 0;
-    e->agent_id = 0x0001; e->token_delta = 100; e->ts = bpf_ktime_get_ns();
+    e->ts = bpf_ktime_get_ns();
+    e->pid = bpf_get_current_pid_tgid();
+    e->kind = 5;   /* EVT_CLT_IN，事件类别见 11.2 */
     bpf_ringbuf_submit(e, 0);   /* 用户态通过 ring_buffer__poll() 消费 */
     return 0;
 }
@@ -327,7 +341,7 @@ int err = bpf_object__load(obj);   /* 触发 verifier 验证 + JIT */
 if (err) { bpf_object__close(obj); return err; }
 struct bpf_link *link = bpf_program__attach_kprobe(
     bpf_object__find_program_by_name(obj, "trace_cognition"),
-    false, "airy_cognition_process");
+    false, "airy_clt_serve");
 if (libbpf_get_error(link)) { bpf_object__close(obj); return libbpf_get_error(link); }
 ```
 
@@ -355,6 +369,8 @@ graph TD
 ---
 
 ## 第 10 章 用户态调度器策略注册机制（sched_tac）
+
+> **落地状态（0.0.5）**：本章是 sched_tac 用户态调度器的接口设计，本版未落地 `struct airy_sched_ops` 与 `airy_sched_register()`（内核与用户态均无实现）。本版可观测的真实调度边界是 550 的 `airy_sched_ctl`；本章规则按设计口径阅读，不得据此判定功能可用。
 
 ### 10.1 设计哲学
 
@@ -447,60 +463,70 @@ stc_agent 沿用sched_tac 的软可靠性设计——用户态调度器失败/�
 
 ### 11.1 Token 能效监控
 
-agent-linux 规划通过 eBPF 实现 Token 能效监控：kprobe 挂载 Agent 决策入口，kretprobe 挂载出口，两者时间差为决策耗时；同时通过 `bpf_agent_token_usage_get` kfunc（**规划注册，见 OS-KER-109**）读取 Token 消耗，计算能效比（token/秒）：
+agent-linux 通过 eBPF 实现 Token 能效监控：kprobe 挂 Agent 边界入口，kretprobe 挂同一符号的返回，两者时间差为边界处理耗时；Token 消耗事实不复制进 BPF map，由内核自有计数经 `/proc/airy/agents/<id>/token_stats` 与 `/sys/airy/superv/budgets/<id>` 导出（见 OS-KER-113），用户态按 pid→agent 归并后与耗时一起计算能效比（token/秒）：
 
 ```c
-/* Token 能效监控 BPF 程序 */
-struct token_stat { u64 total_tokens; u64 total_ns; u64 decision_count; };
+/* 边界耗时统计 BPF 程序 */
+struct stage_stat { u64 calls; u64 total_ns; };
 struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __uint(max_entries, 1024);
-    __type(key, u32);   /* agent_id */
-    __type(value, struct token_stat);
-} token_stats SEC(".maps");
+    __type(key, u32);   /* pid */
+    __type(value, struct stage_stat);
+} stage_stats SEC(".maps");
 
-SEC("kretprobe/airy_cognition_process")
-int trace_cognition_ret(struct pt_regs *ctx)
+SEC("kretprobe/airy_clt_serve")
+int trace_cognition_ret(void *ctx)
 {
-    u32 agent_id = PT_REGS_PARM1(ctx) & 0xFFFF;
-    struct token_stat *st = bpf_map_lookup_elem(&token_stats, &agent_id);
-    if (st) { st->total_tokens += 100; st->decision_count += 1; }
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    struct stage_stat *st = bpf_map_lookup_elem(&stage_stats, &pid);
+    if (st) st->calls += 1;
     return 0;
 }
 ```
 
 **OS-OBS-019: Token 能效数据必须每 1 秒聚合一次通过 AgentsIPC 上报用户态仪表盘；聚合间隔不得小于 100ms 避免内核噪声。**
 
-**OS-KER-113: kernel 必须在 `/sys/airy/token_usage` 导出 per-Agent Token 累计值，与 BPF map 数据一致。**
+**OS-KER-113: kernel 必须在 `/proc/airy/agents/<id>/token_stats` 导出 per-Agent Token 事实，并在 `/sys/airy/superv/budgets/<id>` 发布同一数据源的只读预算快照；BPF 程序不得复制 Token 计数，避免两套账。**
 
 ### 11.2 Agent 行为追踪
 
-Agent 行为追踪覆盖四个阶段：认知 → 规划 → 调度 → 执行。每个阶段挂载 kprobe+kretprobe 对，记录时间戳、agent_id、stage、token_delta。所有事件通过 ringbuf 上报至用户态审计守护进程：
+CoreLoopThree 四阶段（认知 → 规划 → 调度 → 执行）在用户态运行，内核侧在四个 syscall 边界成对挂载 kprobe+kretprobe（符号见 7.2），每个 kprobe 程序只写时间戳、pid 与事件类别；带类型的字段来自 `airy_policy_decision` / `airy_superv_enforce` tracepoint。pid→agent_id 的映射放在用户态，内核探针不解析架构相关的参数寄存器（OS-OBS-012）：
+
+| 事件类别 | 值 | 程序 | 语义 |
+|---------|----|------|------|
+| `EVT_CAP_IN` / `EVT_CAP_OUT` | 1 / 2 | `cap_in` / `cap_out` | 能力闸门进入/退出 |
+| `EVT_POLICY` | 3 | `on_policy` | 策略裁决（tracepoint，带裁决码） |
+| `EVT_ENF` | 4 | `on_enforce` | 监督强制（tracepoint，带动作码） |
+| `EVT_CLT_IN` / `EVT_CLT_OUT` | 5 / 6 | `clt_in` / `clt_out` | 551 相位通知边界 |
+| `EVT_SCHED_IN` / `EVT_SCHED_OUT` | 7 / 8 | `sched_in` / `sched_out` | 550 调度控制边界 |
+| `EVT_EXEC_IN` / `EVT_EXEC_OUT` | 9 / 10 | `exec_in` / `exec_out` | 548 执行分发边界 |
 
 ```c
-/* Agent 行为追踪事件定义与上报 */
-struct agent_event { u32 agent_id; u32 stage; u32 token_delta; u64 enter_ts; u64 exit_ts; };
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 22);  /* 4 MB */
-} agent_events SEC(".maps");
+/* 四个边界共用一对宏生成的程序：入口计数 + 一条 ringbuf 记录 */
+#define AIRY_TRACE_PAIR(sym, tag, kind)					\
+	SEC("kprobe/" #sym)						\
+	int tag##_in(void *ctx)						\
+	{								\
+		(void)ctx;						\
+		return trace_emit(ST_##kind##_IN, EVT_##kind##_IN);	\
+	}								\
+	SEC("kretprobe/" #sym)						\
+	int tag##_out(void *ctx)					\
+	{								\
+		(void)ctx;						\
+		return trace_emit(ST_##kind##_OUT, EVT_##kind##_OUT);	\
+	}
 
-SEC("kprobe/airy_scheduler_dispatch")
-int trace_dispatch_enter(struct pt_regs *ctx)
-{
-    struct agent_event *e = bpf_ringbuf_reserve(&agent_events, sizeof(*e), 0);
-    if (!e) return 0;
-    e->agent_id = PT_REGS_PARM1(ctx) & 0xFFFF;
-    e->stage = 2;  /* 0=cognition 1=planner 2=scheduler 3=execution */
-    e->enter_ts = bpf_ktime_get_ns();
-    bpf_ringbuf_submit(e, 0);
-    return 0;
-}
+AIRY_TRACE_PAIR(airy_cap_check, cap, CAP)
+AIRY_TRACE_PAIR(airy_clt_serve, clt, CLT)
+AIRY_TRACE_PAIR(airy_sched_ctl, sched, SCHED)
+AIRY_TRACE_PAIR(airy_invoke_dispatch, exec, EXEC)
 ```
 
 **OS-OBS-020: Agent 行为追踪 ringbuf 大小必须 ≥ 4 MB，确保高并发 Agent 决策不丢失事件。**
 
-**OS-KER-114: kernel 必须保证 `airy_cognition_process`、`airy_planner_dag_update`、`airy_scheduler_dispatch`、`airy_execution_unit_run` 四个函数符号导出至 kallsyms，确保 BPF 程序可挂载。**
+**OS-KER-114: kernel 必须保证 `airy_cap_check`、`airy_clt_serve`、`airy_sched_ctl`、`airy_invoke_dispatch` 四个符号出现在 kallsyms，确保 BPF 程序可挂载。**
 
 ### 11.3 与 MicroCoreRT 协同
 
@@ -616,6 +642,7 @@ MicroCoreRT 极简内核契约要求：内核态 BPF 程序不解析用户态事
 | 0.1.1 | 2026-07-06 | 初稿占位，覆盖 eBPF 核心机制 |
 | 0.1.1 | 2026-07-07 | 修订：新增第 10 章 用户态调度器策略注册机制（sched_tac）；更新 IRON-9 v3 四层共享模型（[SC]/[SS]/[IND]）；增强程序类型与 map 类型（struct_ops/task_storage）；新增 OS-OBS-021/022、OS-KER-116/022 规则 |
 | 1.0.1 | 2026-07-07 | 开发版：补充 Token 能效与 Agent 行为追踪实现 + sched_tac 用户态调度器集成实现 |
+| 1.0.2 | 2026-11-27 | 对齐实现：四个内核边界符号成对挂载 kprobe/kretprobe；删去上游不存在的配置项与旧阶段函数名；Token 事实改指真实节点；标注第 10 章为设计未落地 |
 
 **OS-STD-OBS-016: 文档中引用的 BPF 程序类型、map 类型、kfunc 名必须与 Linux 6.6 内核基线的 `include/uapi/linux/bpf.h` 保持一致；上游变更时本文档必须同步更新。**
 
@@ -625,4 +652,4 @@ MicroCoreRT 极简内核契约要求：内核态 BPF 程序不解析用户态事
 
 ---
 
-> **文档结束** | agent-linux eBPF 可编程探针 v1.0.1
+> **文档结束** | agent-linux eBPF 可编程探针 v1.0.2

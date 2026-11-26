@@ -392,17 +392,17 @@ agentrt 17 类规则前缀详见 [第 14 章](#第-14-章-agentrt-规则编号�
 
 | 编号         | 规则                                                  | 原编号        |
 | ---------- | --------------------------------------------------- | ---------- |
-| OS-KER-106 | defconfig 须开 CONFIG\_BPF 等 5 项                      | OS-KER-011 |
+| OS-KER-106 | 四架构 defconfig 须开 CONFIG\_BPF 等 8 项                | OS-KER-011 |
 | OS-KER-107 | 须启用 CONFIG\_BPF\_JIT\_ALWAYS\_ON                    | OS-KER-012 |
 | OS-KER-108 | 为 Agent 核心结构导出 BTF                                  | OS-KER-013 |
 | OS-KER-109 | 注册 bpf\_agent\_decision\_get 等 kfunc                | OS-KER-014 |
-| OS-KER-110 | 须开 CONFIG\_BPF\_VERIFIER\_STATE\_MARK               | OS-KER-015 |
-| OS-KER-111 | Agent 核心路径函数支持 kprobe                               | OS-KER-016 |
+| OS-KER-110 | 验证器状态标记由内建精度追踪提供，无该配置项              | OS-KER-015 |
+| OS-KER-111 | 四个 Agent 边界函数支持 kprobe                          | OS-KER-016 |
 | OS-KER-112 | 须支持 bpf(BPF\_LINK\_CREATE)                          | OS-KER-017 |
-| OS-KER-113 | /sys/kernel/agentrt/token\_usage 导出 per-Agent Token | OS-KER-018 |
-| OS-KER-114 | 四个函数符号导出至 kallsyms                                  | OS-KER-019 |
+| OS-KER-113 | /proc/airy/agents/<id>/token\_stats 导出 Token         | OS-KER-018 |
+| OS-KER-114 | 四个边界符号出现在 kallsyms                              | OS-KER-019 |
 | OS-KER-115 | BPF 程序 .o 体积 < 64 KB，指令数 < 1 万                      | OS-KER-020 |
-| OS-KER-116 | register\_bpf\_struct\_ops 注册 sched\_agent\_ops     | OS-KER-021 |
+| OS-KER-116 | 用户态调度器函数表注册接口（设计，未落地）                  | OS-KER-021 |
 | OS-KER-117 | SCHED\_AGENT fallback 机制                            | OS-KER-022 |
 
 #### 3.6.7 50-engineering-standards/01-coding-standards.md Part III（118-148）
