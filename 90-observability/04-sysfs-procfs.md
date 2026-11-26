@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）sysfs/procfs 接口
 > **文档定位**：agent-linux（AirymaxOS）可观测性体系 L4 层——静态信息导出接口 sysfs/procfs 的工程规范\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-27\
 > **上级文档**：[90-observability README](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 sysfs/procfs/kobject\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + sched_tac 调度\
@@ -393,42 +393,38 @@ IPC 子系统全局统计：
 
 ```bash
 $ cat /sys/airy/ipc/stats
-rings_active: 8               # 活跃 io_uring ring 数
-sends_total: 1234567890
-sends_fastpath: 1230000000    # IORING_OP_URING_CMD 路径
-sends_slowpath: 4567890       # 普通 write/read 路径
-fastpath_ratio: 99.63         # fastpath 占比
-recv_total: 1234500000
-avg_latency_ns: 1200
-p99_latency_ns: 4500
-max_latency_ns: 12300
-errors: 0
-drops: 0                      # ring buffer 满丢弃
+fast_send: 1230000000         # 快路径发送命中
+fast_recv: 1230000000         # 快路径接收命中
+slow_send: 4567890            # 慢路径发送
+slow_recv: 4567890            # 慢路径接收
+batch: 12                     # 批量收发命中
+cancel: 0                     # 取消次数
+error: 0
+backpressure: 0               # 背压触发次数
+fast_ratio_pct: 99            # 快路径占比（整数百分比）
 ```
 
 ### 6.2 /sys/airy/ipc/rings/[id]/
 
-每个 io_uring ring 的详细状态：
-
-```bash
-$ cat /sys/airy/ipc/rings/0/depth
-256                           # SQ/CQ 深度
-
-$ cat /sys/airy/ipc/rings/0/inflight
-12                            # 在途请求数
-
-$ cat /sys/airy/ipc/rings/0/errors
-0                             # 错误计数
-```
+环形队列按任务持有，内核没有全局 ring 注册表，因此**不发布 per-ring
+目录**：没有真实归属的节点不发布。需要单个队列的细节时读 trace 事件，
+不要假设这里存在节点。
 
 ### 6.3 IPC capability 总表
 
 ```bash
 $ cat /sys/airy/ipc/capabilities
-agent_id: 1  caps: IPC_SEND|IPC_RECV|IPC_BROADCAST
-agent_id: 42 caps: IPC_SEND|IPC_RECV
-agent_id: 100 caps: IPC_RECV
+agent_id: 1  caps: SEND|RECV|DERIVE
+agent_id: 42  caps: SEND|RECV
+agent_id: 100  caps: RECV
 ```
+
+每行一个持有能力槽的 Agent，权限位用 `include/uapi/linux/airymax/security_types.h`
+里的 `AIRY_CAP_PERM_*` 名字拼接（`SEND`、`RECV`、`DERIVE`、`KILL`、
+`FILE_OPEN`、`ROTATE`、`SUPERVISE`），无权限时写 `NONE`。这是给运维
+脚本 grep 的紧凑稳定面；原始掩码、epoch、继承关系与撤销标记在 debugfs
+的 `cap_table`，两个面分工而不重复。一页放不下时末尾给
+`truncated: <shown> of <total>`，不会静默截断成"看起来是全量"。
 
 **OS-OBS-044: IPC fastpath 占比必须 ≥ 95%；低于 95% 需审查 io_uring SQE 批处理策略是否生效。**
 
@@ -591,11 +587,13 @@ $ cat /sys/airy/superv/micro/enforcements
 123
 
 $ cat /sys/airy/superv/micro/last_action
-timestamp: 1784328868912
+timestamp_ns: 1784328868912
 agent_id: 42
-action: SUSPEND
-reason: TOKEN_BUDGET_EXCEEDED
+action: freeze
 ```
+
+`action` 取自 `none / freeze / thaw / adjudicate / freeze_all`，与监督
+命令枚举同名，运维脚本按固定字符串匹配。
 
 ### 9.3 Macro-Supervisor 状态
 
@@ -607,12 +605,15 @@ $ cat /sys/airy/superv/macro/budget_alerts
 12
 
 $ cat /sys/airy/superv/macro/last_adjudication
-timestamp: 1784328868912
+timestamp_ns: 1784328868912
 agent_id: 42
-action: ESCALATE
-reason: REPEATED_FAULT
-detail: AIRY_FAULT_TIMEOUT x3
+action: DEGRADE
 ```
+
+`budget_alerts` 是开机以来预算档位上升的次数，只在档位从低到高时加一，
+同档重复上报不重复计数。`last_adjudication` 的 `action` 取自
+`WARN / DEGRADE / PAUSE / TERMINATE / RESUME`；最近一次命令不是裁决时
+写 `none`。
 
 ### 9.4 预算监控
 
@@ -623,10 +624,14 @@ token_budget: 1000000
 token_used: 987654
 token_remaining: 12346
 budget_ratio: 98.76            # 已用百分比
-alert_threshold: 90.0          # 告警阈值
-action_threshold: 100.0        # 执法阈值
-state: ALERT                   # NORMAL / ALERT / EXCEEDED
+alert_threshold: 80.0          # 告警阈值（AIRY_TOKEN_SOFT_PPM）
+action_threshold: 100.0        # 执法阈值（AIRY_TOKEN_HARD_PPM）
+state: SOFT                    # NORMAL / SOFT / HARD
 ```
+
+`budgets/` 目录由 superv 发布，文件由持有计量记录的 token 模块按 Agent
+建立，读值与 `/proc/airy/agents/<id>/token_stats` 同源。Agent 号在同一次
+开机内不回收，文件因此只建立一次、随重启消失。
 
 **OS-OBS-047: A-ULS 监管状态必须实时反映当前快照；`cat /sys/airy/superv/*` 不得返回过期数据（>1s）。**
 
@@ -688,7 +693,8 @@ state: ALERT                   # NORMAL / ALERT / EXCEEDED
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：/sys/airy/ 与 /proc/airy/ 目录结构设计、Agent 状态查询、调度器/IPC/12 daemon/A-ULP/A-ULS 统计接口、kset/proc_ops 注册规范 |
+| v1.0.2 | 2026-11-27 | 对齐实现：IPC 统计字段与实际计数器一致，声明不发布 per-ring 目录；能力总表改用 `AIRY_CAP_PERM_*` 位名并说明与 debugfs 的分工；预算面阈值与 `AIRY_TOKEN_*_PPM` 对齐 |
 
 ---
 
-> **文档结束** | agent-linux sysfs/procfs 接口 v1.0.1 | 维护者：开源极境工程与规范委员会 | "The interface is the system."
+> **文档结束** | agent-linux sysfs/procfs 接口 v1.0.2 | 维护者：开源极境工程与规范委员会 | "The interface is the system."
