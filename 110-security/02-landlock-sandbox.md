@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # Landlock 用户态沙箱
 > **文档定位**：agent-linux（AirymaxOS）安全工程体系第 2 主题文档——Landlock 用户态安全沙箱深度剖析\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.2\
+> **最后更新**： 2026-11-27\
 > **上级文档**：[agent-linux 设计文档](README.md)\
 > **同源映射**：agentrt Cupolas（安全穹顶）+ Linux 6.6 LSM/Landlock/capability\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + E-1 安全内生\
@@ -394,25 +394,25 @@ int cupolas_sandbox_agent(const char *ro_root, const char *rw_work) {
     struct landlock_ruleset_attr attr = {
         .handled_access_fs = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE |
                               LANDLOCK_ACCESS_FS_REMOVE_FILE | LANDLOCK_ACCESS_FS_REMOVE_DIR |
-                              LANDLOCK_ACCESS_FS_MAKE_REG | LANDLOCK_ACCESS_FS_MAKE_DIR,
+                              LANDLOCK_ACCESS_FS_MAKE_REG | LANDLOCK_ACCESS_FS_MAKE_DIR |
+                              LANDLOCK_ACCESS_FS_EXECUTE,
     };
     int fd, err;
     /* (1) 设置 no_new_privs； (2) 创建 ruleset */
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) return -errno;
     fd = syscall(SYS_landlock_create_ruleset, &attr, sizeof(attr), 0);
     if (fd < 0) return -errno;
-    /* (3) 只读根：仅允许读 */
+    /* (3) 只读根：允许执行，禁止写入 */
     struct landlock_path_beneath_attr ro = {
-        .allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR,
+        .allowed_access = LANDLOCK_ACCESS_FS_EXECUTE,
         .parent_fd = open(ro_root, O_PATH | O_CLOEXEC),
     };
     syscall(SYS_landlock_add_rule, fd, LANDLOCK_RULE_PATH_BENEATH, &ro, 0);
-    /* (4) 可写工作目录：允许读写创建 */
+    /* (4) 可写工作目录：允许写入与创建 */
     struct landlock_path_beneath_attr rw = {
         .allowed_access = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE |
                           LANDLOCK_ACCESS_FS_REMOVE_FILE | LANDLOCK_ACCESS_FS_REMOVE_DIR |
-                          LANDLOCK_ACCESS_FS_MAKE_REG | LANDLOCK_ACCESS_FS_MAKE_DIR |
-                          LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR,
+                          LANDLOCK_ACCESS_FS_MAKE_REG | LANDLOCK_ACCESS_FS_MAKE_DIR,
         .parent_fd = open(rw_work, O_PATH | O_CLOEXEC),
     };
     syscall(SYS_landlock_add_rule, fd, LANDLOCK_RULE_PATH_BENEATH, &rw, 0);
@@ -423,9 +423,23 @@ int cupolas_sandbox_agent(const char *ro_root, const char *rw_work) {
 }
 ```
 
+示例的 `handled_access_fs` 只覆盖写入面与 execute，读访问保持系统默认；规则中的访问位必须是 `handled_access_fs` 的子集，否则内核以 `EINVAL` 拒绝规则集。需要读隔离时，把 `LANDLOCK_ACCESS_FS_READ_FILE` 与 `LANDLOCK_ACCESS_FS_READ_DIR` 加入 handled，并在规则中授权。
+
 ### 8.2 与 Cupolas Vault 的协同
 
 Agent 在沙箱内运行的敏感数据由 Cupolas Vault 子系统通过 TPM + 机密计算保护，与 Landlock 沙箱形成"数据-代码"双层隔离：Landlock 限制代码可访问的文件范围，Vault 保护数据本身的机密性。施加失败时 Cupolas 通过 `AgentsIPC` 总线上报 `CUPOLAS_SANDBOX_FAIL` 事件，Agent 拒绝启动而非降级运行。这遵循 agent-linux 五维正交 24 原则中的 E-1（安全内生）——失败必须可见、可拒绝，不可静默退化。
+
+### 8.3 0.0.5 用户态落点
+
+0.0.5 把上述流程落到 `security/landlock/`：`ll_policy.c` 负责策略文本解析与访问位裁剪，`ll_sys.c` 负责 syscall 封装、ABI 校验与规则集构建，`ll_main.c` 提供 `airy-landlock` 的 `status`、`check`、`apply` 三个入口；出厂策略 `policies/agent.conf` 随包安装到 `share/airymax/landlock/agent.conf`。
+
+策略文件语法（`airy-landlock --help` 同步给出）：空行与 `#` 起始行为注释；`handled <token>[,<token>...]` 至多一次，缺省为写入面全集加 `execute` 与 `refer`；规则行 `ro <绝对路径>` 表示该根下允许执行、禁止写入，`rw <绝对路径>` 表示该根下允许写入全集。规则授权一律按 `requested & handled` 裁剪。
+
+读面口径：0.0.5 出厂策略不把 `read_file`、`read_dir` 放入 handled，因此读访问保持系统默认，`ro` 的实际效果是"该根下可执行、不可写"。需要读隔离的 Agent 在策略中把读位写入 handled，并在 `ro` 规则中授权。
+
+ABI 口径：只使用当前内核确实支持的访问位；`refer` 要求 ABI ≥ 2，`truncate` 要求 ABI ≥ 3，不满足时 `apply` 以 `-ENOTSUP` 明确失败，不做静默降级。网络访问控制属于 ABI 4 及以上，6.6 基线不提供，本版不生成网络规则。
+
+验证入口：`ci/gates/landlock-sandbox.sh`（策略负例、出树构建、单元测试、运行期允许与拒绝路径）与 `.github/workflows/security-verify.yml`；装机后的拒绝路径在 285H 现场验收中复核。
 
 ---
 
