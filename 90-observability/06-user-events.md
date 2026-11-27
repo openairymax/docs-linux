@@ -2,8 +2,8 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 # agent-linux（AirymaxOS）user_events 接口
 > **文档定位**：agent-linux（AirymaxOS）可观测性体系 L5 层——用户态事件追踪桥接 user_events 的工程规范\
-> **文档版本**：v1.0.1\
-> **最后更新**： 2026-07-21\
+> **文档版本**：v1.0.3\
+> **最后更新**： 2026-11-27\
 > **上级文档**：[90-observability README](README.md)\
 > **同源映射**：agentrt E-2 可观测性 + Linux 6.6 user_events/ftrace ring buffer\
 > **理论根基**：Linux 6.6 内核基线 + Airymax 五维正交 24 原则 + IRON-9 v3 四层模型\
@@ -29,25 +29,26 @@ Copyright (c) 2025-2026 SPHARX Ltd. All Rights Reserved.
 
 ### 1.1 定位
 
-user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架，允许用户态进程通过 `ioctl()` 注册事件，并通过 `write()` 到 `/sys/kernel/tracing/user_events_data` 投递事件数据；`enabled` 启用位通过 `mmap()` 共享，用户态零拷贝检查启用状态。agent-linux 选择 user_events 作为可观测性 L5 层（用户态桥接），原因有三：
+user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架：注册时通过 `ioctl(DIAG_IOCSREG)` 把事件名与格式串交给 `/sys/kernel/tracing/user_events_data`，同时给出一个 4 字节使能位地址；内核在事件启用或禁用时把使能位写回该地址，用户态此后只需原子读本地内存即可判断是否开启，无需系统调用。事件发生时以「4 字节写索引 + 载荷」一次 `writev()` 投递。agent-linux 选择 user_events 作为可观测性 L5 层（用户态桥接），原因有三：
 
-1. **启用位 mmap 零拷贝检查 + write() 投递**：user_events 将 `enabled` 位通过 `mmap()` 暴露给用户态，用户态原子读检查（无需系统调用），命中后经 `write()` 到 `user_events_data` 投递事件（单次 syscall，非零拷贝写入），单事件开销 < 10ns（enabled 检查 ~1.2ns + write 投递），远低于 A-ULP 日志路径的 ~500ns。
+1. **使能位本地读 + writev() 投递**：使能位由内核钉在注册时给出的用户态地址上，读它不产生系统调用；命中后经一次 `writev()` 投递「写索引 + 载荷」，单事件开销 < 10ns，远低于 A-ULP 日志路径的 ~500ns。
 2. **与 ftrace 统一**：user_events 事件与内核 tracepoint 事件共享同一 ring buffer 与同一 `events/` 目录结构，可在同一 trace 输出中混合查看，符合 A-ULS 模块 macro_d 的"统一观测面"原则。
 3. **与 logger_d 解耦**：user_events 用于实时追踪（短期、高频率），logger_d 用于持久化日志（长期、结构化）；二者职责清晰，不互相替代。
 
 **OS-OBS-061: user_events 是 agent-linux 可观测性 L5 层的强制基线，用户态守护进程上报追踪事件必须经 user_events，不得自创 ioctl/netlink/共享内存替代方案。**
 
-**OS-KER-151: kernel 的 defconfig 必须开启 CONFIG_USER_EVENTS；部署时须验证 `/sys/kernel/tracing/user_events` 文件存在（内建 Airy LSM，非 agentrt.ko）。**
+**OS-KER-151: kernel 的 defconfig 必须开启 CONFIG_USER_EVENTS；部署时须验证 `/sys/kernel/tracing/user_events_data` 文件存在（内建 Airy LSM，非 agentrt.ko）。**
 
 ### 1.2 框架组成
 
 | 组件 | 实现位置 | 职责 |
 |------|----------|------|
-| user_events 文件 | `/sys/kernel/tracing/user_events` | 事件注册与状态查询 |
+| user_events 数据文件 | `/sys/kernel/tracing/user_events_data` | 事件注册与写入 |
 | ioctl 接口 | `kernel/trace/trace_events_user.c` | 注册/启用/禁用事件 |
 | ring buffer 写入 | `kernel/trace/ring_buffer.c` | 事件数据存储 |
 | events 子系统 | `kernel/trace/trace_events.c` | 事件管理与导出 |
-| 用户态库 | `libairy_user_events.so` | 封装 ioctl 与写入逻辑 |
+| 契约目录 | `/sys/airy/events` | 只读发布注册名、格式串与传输状态 |
+| 用户态库 | `services/common`（`<airy/uevent.h>`） | 封装注册、使能位与写入 |
 
 **OS-STD-051: 任何对 `kernel/trace/trace_events_user.c` 的修改必须经过 user_events 维护者审查；agent-linux 不得 fork user_events 子系统。**
 
@@ -71,12 +72,12 @@ user_events 是 Linux 6.6 内核基线提供的用户态事件追踪框架，允
 
 ```mermaid
 graph LR
-    A[用户态守护进程] --> B[libairy_user_events.so]
+    A[用户态守护进程] --> B[airy_uev_* 封装]
     B --> C[ioctl DIAG_IOCSREG 注册事件]
     C --> D[内核 user_events 子系统]
-    D --> E[events/airy/ 目录创建]
-    D --> F[mmap 共享 enabled 位]
-    A --> G[write() 投递到 user_events_data]
+    D --> E[events/user_events/ 目录创建]
+    D --> F[使能位写回 enable_addr]
+    A --> G[writev 投递写索引 + 载荷]
     G --> H[ftrace ring buffer]
     H --> I[trace 文件读取]
     H --> J[perf stat/record]
@@ -92,46 +93,36 @@ graph LR
 /* 用户态注册示例 */
 #include <linux/user_events.h>
 
-struct user_event_data {
-    int write_index;  /* 内核返回的写索引 */
-    int enabled;      /* 启用状态（mmap 共享） */
-};
-
-int fd = open("/sys/kernel/tracing/user_events", O_RDWR);
+int fd = open("/sys/kernel/tracing/user_events_data", O_RDWR);
 
 struct user_reg reg = {
     .size = sizeof(reg),
     .enable_bit = 0,           /* 启用位（bit 0） */
-    .enable_size = sizeof(int),
+    .enable_size = sizeof(__u32),
     .flags = 0,
-    .args = (unsigned long)"airy_user_cognition_start u32 agent_id u32 input_tokens",
+    .enable_addr = (__u64)(uintptr_t)&enabled,  /* 内核写入使能位 */
+    .name_args = (__u64)(uintptr_t)
+        "airy_user_cognition_start u32 agent_id u32 input_tokens",
 };
 
 ioctl(fd, DIAG_IOCSREG, &reg);
-/* reg.write_index 返回写索引，用于 write() 投递时定位事件 */
+/* reg.write_index 返回写索引，用于 writev() 投递时定位事件 */
 ```
 
 ### 2.3 事件写入流程
 
-注册后，用户态进程通过 `write()` 到 `user_events_data` 投递事件；`enabled` 启用位经 mmap 共享（零拷贝检查）：
+注册后，用户态进程通过 `writev()` 到同一个 `user_events_data` 描述符投递事件；`enabled` 使能位由内核钉在注册时给出的地址上，读它不产生系统调用：
 
 ```c
-/* 检查事件是否启用（enabled 位 mmap 共享，无需系统调用） */
-if (__atomic_load_n(&event_data->enabled, __ATOMIC_RELAXED) & (1 << 0)) {
-    /* 事件已启用，构造 entry 后 write() 投递 */
-    struct {
-        int common_type;
-        int common_pid;
-        u32 agent_id;
-        u32 input_tokens;
-    } __packed entry = {
-        .common_type = event_data->write_index,
-        .common_pid = getpid(),
-        .agent_id = 42,
-        .input_tokens = 234,
+/* 检查事件是否启用（使能位在本地页，读取无系统调用） */
+if (__atomic_load_n(&enabled, __ATOMIC_RELAXED) & 1U) {
+    struct iovec iov[2] = {
+        { .iov_base = &write_index, .iov_len = 4 },
+        { .iov_base = &entry, .iov_len = sizeof(entry) },
     };
-    /* 经 user_events_data 文件 write() 投递（一次 syscall） */
-    airy_user_event_write(fd, &entry, sizeof(entry));
+
+    /* 前 4 字节是写索引，随后是载荷；一次 writev 投递 */
+    writev(fd, iov, 2);
 }
 ```
 
@@ -157,117 +148,77 @@ cat /sys/kernel/tracing/trace
 
 ## 第 3 章 Agent 事件注册
 
-### 3.1 airy_user_event_register() API
+### 3.1 airy_uev_* API
 
-agent-linux 提供封装 API `airy_user_event_register()`，供 12 daemon 与 Agent 运行时使用：
+agent-linux 在 `services/common` 提供生产端封装（[IND] 头 `<airy/uevent.h>`），
+供守护进程与 Agent 运行时使用：
 
 ```c
 /* 用户态库内部头（[IND]）：句柄与读写封装。
  * 内核 UAPI（[SC]）只发布事件名、格式串与载荷布局，见
  * include/uapi/linux/airymax/user_events.h。 */
 
-struct airy_user_event {
+struct airy_uev {
     int fd;
-    int write_index;
-    volatile int *enabled;  /* mmap 的启用状态指针 */
-    const char *name;
-    const char *format;
+    __u32 index;
+    volatile __u32 enabled;  /* 内核写入使能位 */
 };
 
-/**
- * airy_user_event_register - 注册 user_event
- * @name: 事件名（如 "cognition_start"）
- * @format: 事件格式字符串（如 "u32 agent_id u32 input_tokens"）
- * @event: 输出参数，返回事件句柄
- *
- * 返回值：0 成功，负数错误码失败
- */
-int airy_user_event_register(const char *name,
-                             const char *format,
-                             struct airy_user_event *event);
-
-/**
- * airy_user_event_write - 写入事件（已检查 enabled）
- * @event: 事件句柄
- * @data: 事件数据
- * @size: 数据大小
- */
-static inline void airy_user_event_write(struct airy_user_event *event,
-                                         void *data, size_t size)
-{
-    if (__atomic_load_n(event->enabled, __ATOMIC_RELAXED) & 1) {
-        struct iovec iov = { .iov_base = data, .iov_len = size };
-        write(event->fd, &iov, sizeof(iov));
-    }
-}
-
-/**
- * airy_user_event_unregister - 注销事件
- * @event: 事件句柄
- */
-void airy_user_event_unregister(struct airy_user_event *event);
+/* 0 成功；负数 errno。注册失败时守护进程不得进入 RUNNING。 */
+int airy_uev_open(struct airy_uev *ev, const char *name, const char *args);
+bool airy_uev_on(const struct airy_uev *ev);
+int airy_uev_emit(struct airy_uev *ev, const void *rec, size_t len);
+void airy_uev_close(struct airy_uev *ev);
 ```
 
-内核侧把同一份契约表只读发布在 `/sys/airy/events`：`abi` 给出表版本与事件数，`transport` 报告是否编译了 user_events，`catalog` 逐行给出注册名与格式串。守护进程应先读 `catalog` 再调用 `airy_user_event_register()`，注册名与格式串不一致时在这里就能发现，而不是等读 trace 时才发现字段错位。
+`airy_uev_emit()` 先读使能位，未开启直接返回 0；开启后以「4 字节写索引 +
+载荷」一次 `writev()` 投递。`airy_uev_close()` 撤销使能位并释放描述符，
+重复调用无副作用。
+
+内核侧把同一份契约表只读发布在 `/sys/airy/events`：`abi` 给出表版本与事件数，`transport` 报告是否编译了 user_events，`catalog` 逐行给出注册名与格式串。守护进程应先读 `catalog` 再调用 `airy_uev_open()`，注册名与格式串不一致时在这里就能发现，而不是等读 trace 时才发现字段错位。
 
 ### 3.2 注册示例
 
-cogn_d daemon 在启动时注册认知循环事件：
+macro_d 在启动时注册监督裁决事件，并在每次裁决后上报：
 
 ```c
-/* cogn_d daemon 初始化；契约宏来自内核 UAPI */
-#include <linux/airymax/user_events.h>
+#include <airy/uevent.h>
 
-struct airy_user_event cognition_start_ev;
-struct airy_user_event cognition_end_ev;
-struct airy_user_event memory_access_ev;
-struct airy_user_event tool_call_ev;
+struct airy_uev enf;
 
-int cogn_d_init_user_events(void)
+int macro_uevent_init(void)
 {
-    int ret;
-    ret = airy_user_event_register(AIRY_UEVENT_COGN_START,
-        AIRY_UEVENT_FMT_COGN_START,
-        &cognition_start_ev);
-    if (ret) return ret;
+    return airy_uev_open(&enf, AIRY_UEVENT_SUPERV_ENFORCE,
+                         AIRY_UEVENT_FMT_SUPERV_ENFORCE);
+}
 
-    ret = airy_user_event_register(AIRY_UEVENT_COGN_END,
-        AIRY_UEVENT_FMT_COGN_END,
-        &cognition_end_ev);
-    if (ret) return ret;
+void macro_uevent_report(const struct airy_fault_event *ev,
+                         enum airy_adjud act)
+{
+    struct airy_user_superv_enforce ue = {
+        .agent_id = ev->agent_id,
+        .action = (__u32)act,
+        .reason = ev->fault_code,
+    };
 
-    ret = airy_user_event_register(AIRY_UEVENT_MEM_ACCESS,
-        AIRY_UEVENT_FMT_MEM_ACCESS,
-        &memory_access_ev);
-    if (ret) return ret;
-
-    ret = airy_user_event_register(AIRY_UEVENT_TOOL_CALL,
-        AIRY_UEVENT_FMT_TOOL_CALL,
-        &tool_call_ev);
-    if (ret) return ret;
-
-    return 0;
+    (void)airy_uev_emit(&enf, &ue, sizeof(ue));
 }
 ```
 
-### 3.3 12 daemon 事件注册矩阵
+### 3.3 已发布事件与注册矩阵
 
-| Daemon | 注册的 user_events |
-|--------|-------------------|
-| macro_d | `superv_enforce`、`superv_adjudicate`、`budget_alert` |
-| logger_d | `log_consume`、`log_flush`、`panic_fallback` |
-| config_d | `config_reload`、`config_version_change` |
-| gateway_d | `ipc_send_user`、`ipc_recv_user`、`ipc_error` |
-| sched_d | `sched_class_switch_user`、`sched_deadline_miss` |
-| vfs_d | `file_open`、`file_close`、`mount_event` |
-| net_d | `socket_create`、`packet_recv` |
-| mem_d | `page_alloc_user`、`mmap_establish` |
-| cogn_d | `cognition_start`、`cognition_end`、`memory_access`、`tool_call` |
-| sec_d | `lsm_hook_user`、`cap_denial` |
-| audit_d | `audit_record_user` |
-| dev_d | `device_event_user` |
+UAPI 目前只发布 5 个契约事件，注册名与格式串以
+`include/uapi/linux/airymax/user_events.h` 为准：
 
-**OS-OBS-062: 12 daemon 必须在启动阶段完成所有 user_events 注册；注册失败的 daemon 不得进入 RUNNING 状态，需触发 macro_d 重启。**
+| 事件 | 格式串 | 当前生产端 |
+|------|--------|-----------|
+| `cogn_start` | `u32 agent_id u32 input_tokens u64 timestamp_ns` | 待 cogn_d 落地 |
+| `cogn_end` | `u32 agent_id u32 output_tokens u64 latency_ns` | 待 cogn_d 落地 |
+| `mem_access` | `u32 agent_id u8 level u8 hit u64 latency_ns u64 addr` | 待运行时接入 |
+| `tool_call` | `u32 agent_id u32 tool_id u64 latency_ns u8 result u32 output_tokens` | 待运行时接入 |
+| `superv_enforce` | `u32 agent_id u32 action u32 reason` | macro_d 已接入 |
+
+**OS-OBS-062: 守护进程必须在启动阶段完成其契约事件的注册；注册失败的 daemon 不得进入 RUNNING 状态。** 新增事件先扩 UAPI 契约表与内核侧目录，再在守护进程中注册，不得在用户态另抄一份名字或格式串。
 
 ---
 
@@ -292,16 +243,7 @@ struct airy_user_cognition_end {
     u64 latency_ns;
 };
 
-/* 使用示例 */
-void cogn_d_on_start(u32 agent_id, u32 input_tokens)
-{
-    struct airy_user_cognition_start ev = {
-        .agent_id = agent_id,
-        .input_tokens = input_tokens,
-        .timestamp_ns = airy_get_monotonic_ns(),
-    };
-    airy_user_event_write(&cognition_start_ev, &ev, sizeof(ev));
-}
+/* 使用示例见 §3.2：生产端统一经 airy_uev_emit() 投递，不另写传输代码 */
 ```
 
 ### 4.2 MEMORY_ACCESS
@@ -391,29 +333,21 @@ agent-linux 中，user_events 与 logger_d 协同工作：
 2. **持久化阶段**：关键事件同时写入 A-ULP Ring Buffer，由 logger_d 异步落盘。
 3. **Panic 后分析**：Panic 发生时，user_events ring buffer 内容被 A-ULP Panic 回退路径保存至 `/var/log/airy/panic-trace-{timestamp}`。
 
-### 5.3 双写策略
+### 5.3 双侧记录策略
 
-对于关键事件（如 `superv_enforce`），采用双写策略：
+监督执法有两个观察点，字段一致、视角不同：
 
-```c
-void macro_d_on_enforce(u32 agent_id, u32 action, u32 reason)
-{
-    /* 1. 写入 user_events（实时分析） */
-    struct airy_user_superv_enforce ev = {
-        .agent_id = agent_id,
-        .action = action,
-        .reason = reason,
-    };
-    airy_user_event_write(&superv_enforce_ev, &ev, sizeof(ev));
+1. **内核侧**：裁决发生时由 `kernel/kernel/superv/` 发出内核 tracepoint
+   `airy_superv_enforce`（`include/trace/events/airy.h`），记录内核实际
+   采取的动作，落入 ftrace 环。
+2. **用户态侧**：macro_d 从 `/dev/airy_superv` 排空故障明细、按配置给出
+   裁决后，用 user_events 上报 `airy_user_superv_enforce`；载荷与 UAPI
+   结构一一对应，见 §3.2。
 
-    /* 2. 写入 A-ULP Ring Buffer（持久化）
-     * 注：AIRY_LOG_NOTICE 不存在——[SC] log_types.h 仅定义 5 级
-     * （DEBUG/INFO/WARN/ERROR/FATAL），此处用 WARN 表达监管执法事件 */
-    airy_log_write(AIRY_LOG_WARN, AIRY_MOD_USV,
-        "enforce agent=%u action=%u reason=%u",
-        agent_id, action, reason);
-}
-```
+两侧同时记录的意义是：内核 tracepoint 证明强制确实发生，用户态事件
+给出裁决依据（`reason` 为 `AIRY_FAULT_*`）。任一侧的 trace 丢失都不会
+让执法行为完全无迹可查。持久化仍由 logger_d 负责，该事件接入 A-ULP
+落盘链路前，内存环是唯一留存。
 
 **OS-OBS-063: 关键事件（superv_enforce、panic_fallback、lsm_hook）必须双写 user_events 与 A-ULP Ring Buffer；普通事件可仅写 user_events。**
 
@@ -549,28 +483,25 @@ bpftool prog load cogn_trace.o /sys/fs/bpf/cogn_trace \
 
 | Unify 模块 | 关系 | 在 user_events 的体现 |
 |-----------|------|---------------------|
-| **A-UEF** | 辅助 | A-UEF 错误码通过 user_events 上报 `uef_fault` 事件 |
-| **A-ULP** | **核心** | user_events 与 A-ULP Ring Buffer 互补；双写策略保证关键事件持久化 |
-| **A-UCS** | 辅助 | A-UCS 热重载事件通过 user_events 上报 `config_reload` 事件 |
-| **A-ULS** | **核心** | A-ULS 监管执法事件通过 user_events 上报 `superv_enforce` 事件 |
-| **A-IPC** | 辅助 | A-IPC IPC 错误通过 user_events 上报 `ipc_error` 事件 |
+| **A-UEF** | 辅助 | 错误码经 `superv_enforce.reason` 或 A-ULP 记录上报 |
+| **A-ULP** | **核心** | user_events 与 A-ULP Ring Buffer 互补；关键事件落盘由 logger_d 消费 A-ULP |
+| **A-UCS** | 辅助 | 配置重载经 logger_d 落盘；待扩契约后上报 user_events |
+| **A-ULS** | **核心** | `superv_enforce` 记录监管执法（已发布） |
+| **A-IPC** | 辅助 | IPC 错误经日志通道上报；待扩契约后上报 user_events |
 
 ### 8.2 与 12 daemon 的 user_events 映射
 
-| Daemon | 主要 user_events | 上报频率 |
-|--------|----------------|---------|
-| macro_d | superv_enforce, superv_adjudicate, budget_alert | 低（事件驱动） |
-| logger_d | log_consume, log_flush, panic_fallback | 中（周期性） |
-| config_d | config_reload, config_version_change | 极低（事件驱动） |
-| gateway_d | ipc_send_user, ipc_recv_user, ipc_error | 高（每消息） |
-| sched_d | sched_class_switch_user, sched_deadline_miss | 中（每次切换） |
-| vfs_d | file_open, file_close, mount_event | 中（每次操作） |
-| net_d | socket_create, packet_recv | 高（每包） |
-| mem_d | page_alloc_user, mmap_establish | 中（每次分配） |
-| cogn_d | cognition_start, cognition_end, memory_access, tool_call | 高（每次循环） |
-| sec_d | lsm_hook_user, cap_denial | 中（每次钩子） |
-| audit_d | audit_record_user | 中（每条记录） |
-| dev_d | device_event_user | 低（事件驱动） |
+UAPI 目前只发布 §3.3 的 5 个事件。已接入的生产端只有 macro_d；
+其余守护进程的事件名属于规划，须先扩 UAPI 契约表与内核侧目录，不得
+在用户态先行注册：
+
+| Daemon | 已发布事件 | 规划事件（待扩契约） |
+|--------|-----------|-------------------|
+| macro_d | `superv_enforce` | — |
+| logger_d | — | log_consume、log_flush、panic_fallback |
+| config_d | — | config_reload |
+| cogn_d | — | `cogn_start`、`cogn_end`、`mem_access`、`tool_call` |
+| 其余守护 | — | 按 UAPI 扩表节奏接入 |
 
 ---
 
@@ -599,7 +530,8 @@ bpftool prog load cogn_trace.o /sys/fs/bpf/cogn_trace \
 |------|------|------|
 | v1.0.1 | 2026-07-18 | 初始版本：user_events 框架、airy_user_event_register() API、COGNITION_START/END/MEMORY_ACCESS/TOOL_CALL 事件类型、与 logger_d 关系（双写策略）、性能开销分析（<10ns/事件）、与 02-ebpf-probes.md 关系 |
 | v1.0.2 | 2026-11-23 | 内核侧发布 [SC] 契约头（名字/格式串/载荷布局），/sys/airy/events 导出 abi、transport、catalog；注册名统一 airy_user_ 前缀；memory_access 与 tool_call 格式串补齐 addr、output_tokens |
+| v1.0.3 | 2026-11-27 | 生产端封装落地：`airy_uev_*` 注册/上报/注销，macro_d 接入 superv_enforce；按 Linux 6.6 实际 ABI 校正 name_args、user_events_data 与「写索引 + 载荷」布局，注册矩阵收敛为已发布的 5 个事件 |
 
 ---
 
-> **文档结束** | agent-linux user_events 接口 v1.0.2 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."
+> **文档结束** | agent-linux user_events 接口 v1.0.3 | 维护者：开源极境工程与规范委员会 | "The fastest event is the one you don't have to write."
