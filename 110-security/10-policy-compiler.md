@@ -53,7 +53,7 @@ AirymaxOS 的 agent 安全语义散落在七个 LSM 钩子里：哪些 `uring_cm
 | 工作包 | 职责 | 产物 |
 |--------|------|------|
 | L-03（已完成） | 编译期：`.adl` 词法/语法/语义分析、代码生成 | `tools/dsl/*.py` + 生成头 |
-| **B-06（本文件）** | **运行期：注册、钩子绑定、字段采集、裁决聚合、fault、内省** | `security/airy/airy_policy.c` + `airy_policy.h` |
+| **B-06（本文件）** | **运行期：注册、钩子绑定、字段采集、裁决聚合、fault、内省** | `security/airy/airy_policy.c` + `airy_policy_tables.c` + `airy_policy.h` |
 | B-08（后继） | 策略下发：把生成头与 agentrt 策略包接入发行版构建 | 构建集成与策略清单 |
 
 L-03 只负责"把策略写成合法的 C 数据"，不理解内核钩子的运行时语义；B-06 只负责"执行任何合法的表"，不解析 `.adl`。两者之间唯一的契约是 `struct airy_policy_table`。
@@ -287,6 +287,23 @@ DENY > COMPLAIN > AUDIT > ALLOW
 
 注册顺序即求值顺序，必须稳定：同一构建产物在每次启动时按相同顺序注册，统计与 trace 才可复现。
 
+### 7.1 启动期注册参考策略
+
+`security/airy/airy_policy_tables.c` 把 `.adl` 渲染出的三张表按固定顺序注册：
+
+| 表 | 钩子 | 语义 |
+|----|------|------|
+| `uring_guard` | `uring_cmd` | 拒绝保留操作码 31，AUDIT 已注册缓冲标志 |
+| `task_guard` | `task_alloc` | 观测用户命名空间创建与内核工作线程分配 |
+| `file_open_guard` | `file_open` | 观测读写打开与只写标志 |
+
+三张表是观测基线与补充，不替代能力检查与 W^X 例外表：`task_guard` 与
+`file_open_guard` 不含 DENY 行，因此不会阻断已经通过能力检查的创建与
+打开；注册失败只记一条 `pr_err` 并继续启动。注册调用位于 W^X 例外表之后，
+先确保强制面成立。生成头与消费者同目录提交，内核仓脱离父仓仍可构建；
+`kernel-policy` 门禁校验字段名与运行期登记表一致、双份产物逐字节相同、
+Kbuild 与 KUnit 基线齐备。
+
 ---
 
 ## §8 可观测性
@@ -400,3 +417,4 @@ rule <hook> <field>=<value> <allow|deny>
 |------|------|------|
 | v1.0.1 | 2026-10-18 | 初始版本：确立 L-03 编译期 / B-06 运行期边界、决策表数据模型、七钩子字段契约、四值裁决合并规则、注册校验、securityfs 与 trace |
 | v1.0.2 | 2026-10-18 | B-06 收口：七钩子接入策略求值、生成头复用机制头、补充 `airy_pol_stat()` 测试接口说明与 KUnit 16 用例矩阵 |
+| v1.0.3 | 2026-11-27 | 启动期注册参考策略：三张生成表接入 `airy_init`，字段对齐运行期登记表，补充 `kernel-policy` 门禁与 KUnit `policy_tables` 用例 |

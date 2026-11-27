@@ -36,7 +36,7 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
 
 ### 1.3 适用范围
 
-代码生成管道覆盖以下 4 类契约源，对应 4 个生成器：
+代码生成管道覆盖以下 5 类契约源，其中前 4 类由 `tools/codegen` 的生成器产出，策略决策表由 `tools/dsl` 独立编译：
 
 | 契约源 | 生成器 | 输入文件 | 主输出 |
 |--------|--------|---------|--------|
@@ -44,6 +44,7 @@ agent-linux 在 1.0.1 开发阶段引入代码生成管道（codegen pipeline）
 | 位域契约（R-02） | `bitfield_gen.py` | `include/uapi/linux/airymax/structures_32.bf` / `structures_64.bf` | C 位域结构头文件 |
 | IPC 消息头契约 | `ipc_gen.py` | `50-engineering-standards/20-contracts/contracts.md` §2 SSoT 定义 | C/Rust/Python IPC 消息头绑定 |
 | Capability ID 契约 | `cap_gen.py` | `security/include/airy_cap_ids.def` | C capability ID 枚举 + Rust/Python 绑定（**不生成 LSM 钩子 ID**——LSM 钩子通过 `LSM_HOOK_INIT` 宏名静态注册，详见 §5.3） |
+| 策略决策表契约（L-03） | `dsl_compile.py` | `tools/dsl/examples/security_policy.adl` | 纯 C 决策表头：示例副本 + `kernel/security/airy/` 副本，两份逐字节一致 |
 
 ---
 
