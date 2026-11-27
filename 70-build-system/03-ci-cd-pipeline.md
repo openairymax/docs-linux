@@ -304,7 +304,7 @@ jobs:
 
 ### 2.4 其他子仓 CI（按构建系统分类，子仓级 workflow）
 
-> **归属说明**：下列模板是子仓拥有独立发行物时采用的形态，位于**子仓自身的** `.github/workflows/`，不计入管理仓的 15 条流水线（§2.1）。按 0.0.5 的核对，只有 kernel 与 sdk 两个子仓在远端持有自有 workflow；其余七个子仓的构建面由管理仓流水线承担——system 由 `tui-verify` / `tui-input-verify`，distro 由 `os-chk-verify` 的 distro-lint 段与 `image-build`，cloudnative 与 services 由 `c-verify`。`mgmt-verify` 的聚合对这些子仓读到 unknown 时只告警不判负（§2.2）；判据不是"每个子仓都要有 CI"，而是"该模块的构建面确有一条通过即绿的流水线"。
+> **归属说明**：下列模板是子仓拥有独立发行物时采用的形态，位于**子仓自身的** `.github/workflows/`，不计入管理仓的 20 条流水线（§2.1）。按 0.0.5 的核对，只有 kernel 与 sdk 两个子仓在远端持有自有 workflow；其余七个子仓的构建面由管理仓流水线承担——system 由 `tui-verify` / `tui-input-verify`，distro 由 `os-chk-verify` 的 distro-lint 段与 `image-build`，cloudnative 与 services 由 `c-verify`，security 由 `security-verify`，cognition 由 `cognition-verify`。`mgmt-verify` 的聚合对这些子仓读到 unknown 时只告警不判负（§2.2）；判据不是"每个子仓都要有 CI"，而是"该模块的构建面确有一条通过即绿的流水线"。
 
 非 kernel 子仓按构建系统分类，每类一个 workflow 模板，子仓按自身归属选用：
 
@@ -359,7 +359,7 @@ jobs:
 - 判据之间串行（后一步读前一步产物）→ 同一作业内的步骤，而不是两个作业加缓存传递；
 - 只有触发时机不同（PR / 定时 / tag / 手动）才拆成不同流水线。
 
-**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 15 条流水线当前作业数为 1–4 个，上限由 `ci/baseline/workflow-budgets.txt` 登记：内联 `run:` 块只许下调；作业数仅在新增真实构建面时上调，且必须同时改预算文件与本节。
+**作业数**：行业没有硬性标准。GitHub Actions 的上限是单 workflow 256 个作业、单作业 6 小时，但上限不是目标。工程上通行的区间是 3–8 个作业/流水线：少于 3 个说明判据没有分层，一处红要等全部步骤跑完才知道；多于 8–10 个则固定成本（检出、子模块、工具链预热）超过判据本身的耗时，部分失败的组合数随之上升，重跑成本变高。本仓 20 条流水线当前作业数为 1–4 个，上限由 `ci/baseline/workflow-budgets.txt` 登记：内联 `run:` 块只许下调；作业数仅在新增真实构建面时上调，且必须同时改预算文件与本节。
 
 **模块归属**（9 子仓）：
 
@@ -368,20 +368,24 @@ jobs:
 | kernel | `kernel-verify`、`airy-verify`、`os-chk-verify` | 上游基线与 Airymax 专属代码分开：前者查整棵内核树，后者只查自研目录 |
 | system | `tui-verify`、`tui-input-verify`、`c-verify` | TUI 与输入抽象是两条独立验证轴（帧预算/跨架构 vs 输入契约）；`airymaxmon` 与 CTest 随用户态 C 面执行 |
 | distro | `os-chk-verify`、`image-build`、`payload-seed` | 静态规则随 PR，镜像组装属发行前，载荷预热按周期 |
-| services / cloudnative | `c-verify` | 同一构建面，各占一个作业 |
+| services / cloudnative | `c-verify`、`cloudnative-verify` | 用户态 C 构建面各占一个作业；云原生另有 CRD / shim / CNI / 超节点四条运行期契约轴，各一作业 |
 | tests-linux | `c-verify` | 测试骨架的 CMake 目标与 CTest 用例，此前无任何作业执行 |
+| security | `security-verify` | Landlock 策略与 A-IPC 对账两条判据各一作业 |
+| cognition | `cognition-verify` | Thinkdual 模式判定与认知数据流各一作业 |
+| memory | 无独立流水线 | 见下 |
 | sdk | `sdk-verify` | 一门语言一个作业 |
 | 可观测性 P-09~P-12 | `obs-verify` | eBPF 探针、perf、token、mem 四条契约与出树构建各一作业；监听面取 kernel 与 system 的 gitlink |
 | 运维面 P-13~P-15 | `ops-verify` | 告警聚合、事件响应、备份恢复各一作业，均为纯用户态判据；监听 system gitlink |
-| security / memory / cognition | 无独立流水线 | 见下 |
 
-**security / memory / cognition 不建流水线的证据**：
+**memory 不建流水线的证据**：
 
-1. 三仓各只有 16–17 个跟踪文件，是外部模块原型（`Kbuild` + 单文件），不产出任何发行制品；
+1. memory 只有 16–17 个跟踪文件，是外部模块原型（`Kbuild` + 单文件），不产出任何发行制品；`distro/specs/airymaxos-system.spec` 的 `source-bundle` 不含 `../../memory`，产品载荷没有它的文件；
 2. `kernel/arch/{x86,arm64,riscv,loongarch}/configs/airy_defconfig` 均为 `# CONFIG_MODULES is not set`（仅 `sw_64` 例外），外部模块在任何官方架构上都不可加载；
 3. 文档已明确实现是内建的：[`90-observability/03-perf-analysis.md`](../90-observability/03-perf-analysis.md) 的 OS-OBS-033 写明"内建 LSM + corekern，无 agentrt.ko / airy_lsm.ko 可加载模块"，[`90-observability/04-sysfs-procfs.md`](../90-observability/04-sysfs-procfs.md) 的 OS-KER-131 要求"airy_kset 在 `airy_init()` 阶段注册（非模块，无 agentrt.ko）"；真实实现在 `kernel/security/airy/` 与 `kernel/kernel/syscalls/airy_clt.c`，由 `kernel-verify` 与 `airy-verify` 覆盖。
 
-为不可加载的原型建一条永久红的流水线，只会让"红灯是不是新问题"失去意义。三仓处置为"原型，不参与发行"，其头文件引用路径的构建兼容性由 `$(srctree)` 约定保证（见 [`01-kbuild-system.md`](01-kbuild-system.md) §Kbuild 头文件引用），不另设作业。
+为不可加载、也不进载荷的原型建一条永久红的流水线，只会让"红灯是不是新问题"失去意义。memory 处置为"原型，不参与发行"，其头文件引用路径的构建兼容性由 `$(srctree)` 约定保证（见 [`01-kbuild-system.md`](01-kbuild-system.md) §Kbuild 头文件引用），不另设作业。
+
+security、cognition 与 cloudnative 已进入发行载荷（spec 的 `source-bundle` 与 `%files`），因此各自建立流水线；粒度判据仍是"有可交付制品或独立验证轴才设流水线"，而不是按子仓数量铺开。
 
 ---
 
